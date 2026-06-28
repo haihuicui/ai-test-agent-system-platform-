@@ -1,7 +1,7 @@
 "use client";
 // FIXME  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2WjFsNVp3PT06NmUwNGM4MzQ=
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStream } from "@langchain/langgraph-sdk/react";
 import {
   type Message,
@@ -13,6 +13,7 @@ import type { UseStreamThread } from "@langchain/langgraph-sdk/react";
 import type { TodoItem } from "@/lib/langgraph/types";
 import { useClient } from "@/providers/ClientProvider";
 import { useQueryState } from "nuqs";
+import { usePaginatedThreadHistory } from "./usePaginatedThreadHistory";
 // NOTE  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2WjFsNVp3PT06NmUwNGM4MzQ=
 
 export type StateType = {
@@ -55,12 +56,33 @@ export function useChat({
     }
   }, [activeAssistant?.assistant_id, assistantId, setAssistantId]);
 
+  // 自定义分页历史：当外部传入 thread 时不启用内部分页
+  const paginatedHistory = usePaginatedThreadHistory(
+    client,
+    thread ? null : threadId
+  );
+
+  const threadForStream: UseStreamThread<StateType> = useMemo(
+    () => ({
+      data: paginatedHistory.data,
+      error: paginatedHistory.error,
+      isLoading: paginatedHistory.isLoading,
+      mutate: async (mutateId?: string) => {
+        await paginatedHistory.mutate();
+        return paginatedHistory.data;
+      },
+    }),
+    [paginatedHistory]
+  );
+
   // 处理流完成事件
   const handleFinish = useCallback(() => {
+    // 新 run 结束后刷新历史第一页，使历史包含最新 checkpoint
+    paginatedHistory.mutate();
     onHistoryRevalidate?.();
     // 检测是否创建了测试用例（通过检查最后的消息中是否包含工具调用）
     onTestCaseCreated?.();
-  }, [onHistoryRevalidate, onTestCaseCreated]);
+  }, [paginatedHistory.mutate, onHistoryRevalidate, onTestCaseCreated]);
 
   const stream = useStream<StateType>({
     assistantId: activeAssistant?.assistant_id || "",
@@ -69,28 +91,57 @@ export function useChat({
     threadId: threadId ?? null,
     onThreadId: setThreadId,
     defaultHeaders: { "x-auth-scheme": "langsmith" },
-    fetchStateHistory: { limit: 1 },
+    fetchStateHistory: false,
     // Revalidate thread list when stream finishes, errors, or creates new thread
     onFinish: handleFinish,
     onError: onHistoryRevalidate,
     onCreated: onHistoryRevalidate,
-    ...(thread ? { thread } : {}),
+    ...(thread ? { thread } : { thread: threadForStream }),
   });
+
+  // 合并流式消息与分页历史消息（去重，按时间顺序排列）
+  const mergedMessages = useMemo(() => {
+    const streamIds = new Set(
+      stream.messages.map((m) => m.id).filter((id): id is string => !!id)
+    );
+    const seen = new Set<string>(streamIds);
+    const older: Message[] = [];
+
+    // checkpoints 按 newest-first 返回，反向遍历得到 chronological order
+    for (let i = paginatedHistory.data.length - 1; i >= 0; i--) {
+      const stateMessages = paginatedHistory.data[i].values?.messages ?? [];
+      for (const msg of stateMessages) {
+        if (!msg.id || seen.has(msg.id)) continue;
+        seen.add(msg.id);
+        older.push(msg);
+      }
+    }
+
+    return [...older, ...stream.messages];
+  }, [stream.messages, paginatedHistory.data]);
+
+  // 不做尽头判断：用户可以无限向上滚动加载历史 checkpoints。
+  const isReachingEnd = false;
+
+  const loadMoreHistory = useCallback(() => {
+    if (isReachingEnd || paginatedHistory.isLoadingMore) return;
+    paginatedHistory.setSize((size) => size + 1);
+  }, [isReachingEnd, paginatedHistory.isLoadingMore, paginatedHistory.setSize]);
 
   // 流式渲染节流：逐 token 推送时，把"每个 token 触发一次渲染"降为"每 ~33ms 一次"，
   // 大幅减少长对话流式过程中的重复渲染。新消息（计数变化）和流结束时立即同步，
   // 保证用户发送的消息即时显示、且不丢失最终内容；仅对最后一条消息的 token 增长做节流。
   const STREAM_THROTTLE_MS = 33;
   const [throttledMessages, setThrottledMessages] = useState<Message[]>(
-    stream.messages
+    mergedMessages
   );
-  const latestMessagesRef = useRef<Message[]>(stream.messages);
-  const flushedLenRef = useRef<number>(stream.messages.length);
+  const latestMessagesRef = useRef<Message[]>(mergedMessages);
+  const flushedLenRef = useRef<number>(mergedMessages.length);
   const lastSigRef = useRef<string>("");
   const throttleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // 轻量签名：条数 + 末条 id + 末条内容长度。stream.messages 每次渲染都是新引用，
-  // 用签名判断是否“真的变了”，避免无意义的 setState 造成无限更新循环。
+  // 轻量签名：条数 + 末条 id + 末条内容长度。mergedMessages 每次渲染都是新引用，
+  // 用签名判断是否"真的变了"，避免无意义的 setState 造成无限更新循环。
   const messagesSignature = (msgs: Message[]): string => {
     const n = msgs.length;
     if (n === 0) return "0";
@@ -102,7 +153,7 @@ export function useChat({
   };
 
   useEffect(() => {
-    const msgs = stream.messages;
+    const msgs = mergedMessages;
     const sig = messagesSignature(msgs);
     // 无实质变化（仅引用变了）→ 直接跳过，杜绝无限循环
     if (sig === lastSigRef.current) return;
@@ -131,7 +182,7 @@ export function useChat({
       throttleTimerRef.current = null;
       flush();
     }, STREAM_THROTTLE_MS);
-  }, [stream.messages, stream.isLoading]);
+  }, [mergedMessages, stream.isLoading]);
 
   // 卸载时清理定时器
   useEffect(
@@ -257,7 +308,7 @@ export function useChat({
     setFiles,
     messages: throttledMessages,
     isLoading: stream.isLoading,
-    isThreadLoading: stream.isThreadLoading,
+    isThreadLoading: stream.isThreadLoading || paginatedHistory.isLoading,
     interrupt: stream.interrupt,
     getMessagesMetadata: stream.getMessagesMetadata,
     sendMessage,
@@ -266,6 +317,10 @@ export function useChat({
     stopStream,
     markCurrentThreadAsResolved,
     resumeInterrupt,
+    isReachingEnd,
+    // 历史分页
+    loadMoreHistory,
+    isLoadingMoreHistory: paginatedHistory.isLoadingMore,
   };
 }
 // TODO  My80OmFIVnBZMlhsdEpUbXRiZm92b2s2WjFsNVp3PT06NmUwNGM4MzQ=

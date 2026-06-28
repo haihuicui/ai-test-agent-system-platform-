@@ -6,6 +6,7 @@ import React, {
   useRef,
   useCallback,
   useMemo,
+  useEffect,
   FormEvent,
   Fragment,
 } from "react";
@@ -17,6 +18,7 @@ import {
   Clock,
   Circle,
   FileIcon,
+  Loader2,
 } from "lucide-react";
 import { ChatMessage } from "@/components/langgraph/ChatMessage";
 import type {
@@ -75,6 +77,11 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
   const initialPromptSentRef = useRef(false);
   const sendMessageRef = useRef<((content: string) => void) | null>(null);
   const isMountedRef = useRef(true);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const scrollRestoreRef = useRef<{
+    scrollTop: number;
+    scrollHeight: number;
+  } | null>(null);
 
   const {
     stream,
@@ -89,6 +96,9 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
     sendMessage,
     stopStream,
     resumeInterrupt,
+    loadMoreHistory,
+    isLoadingMoreHistory,
+    isReachingEnd,
   } = useChatContext();
 
   // 保持 sendMessage 的最新引用
@@ -161,6 +171,57 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
       };
     }
   }, [initialPrompt, isLoading, isThreadLoading, assistant, messages.length]);
+
+  // 滚动到顶部时自动加载更多历史消息
+  const handleLoadMore = useCallback(() => {
+    const container = scrollRef.current;
+    if (!container || isLoadingMoreHistory || isReachingEnd) return;
+
+    scrollRestoreRef.current = {
+      scrollTop: container.scrollTop,
+      scrollHeight: container.scrollHeight,
+    };
+    loadMoreHistory();
+  }, [scrollRef, isLoadingMoreHistory, isReachingEnd, loadMoreHistory]);
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    const container = scrollRef.current;
+    if (!sentinel || !container) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          handleLoadMore();
+        }
+      },
+      {
+        root: container,
+        rootMargin: "200px 0px 0px 0px",
+        threshold: 0,
+      }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [scrollRef, handleLoadMore]);
+
+  // 加载更多历史后恢复滚动位置（避免老消息 prepend 后视图跳到顶部）
+  useEffect(() => {
+    if (isLoadingMoreHistory) return;
+    if (!scrollRestoreRef.current) return;
+
+    const container = scrollRef.current;
+    if (!container) {
+      scrollRestoreRef.current = null;
+      return;
+    }
+
+    const { scrollTop, scrollHeight } = scrollRestoreRef.current;
+    const newScrollHeight = container.scrollHeight;
+    container.scrollTop = scrollTop + (newScrollHeight - scrollHeight);
+    scrollRestoreRef.current = null;
+  }, [isLoadingMoreHistory, messages.length, scrollRef]);
 
   // 缓存 message UI 映射，避免每次渲染都 O(n*m) filter
   const messageUiMap = useMemo(() => {
@@ -356,6 +417,23 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
             </div>
           ) : (
             <>
+              {isReachingEnd && messages.length > 0 && (
+                <div className="flex items-center justify-center py-4">
+                  <span className="text-xs text-muted-foreground">
+                    没有更多消息了
+                  </span>
+                </div>
+              )}
+              {isLoadingMoreHistory && (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  <span className="ml-2 text-sm text-muted-foreground">
+                    加载历史消息...
+                  </span>
+                </div>
+              )}
+              {/* 滚动到顶部的检测哨兵 */}
+              <div ref={sentinelRef} className="h-1" />
               {processedMessages.map((data, index) => {
                 const messageUi = messageUiMap.get(data.message.id ?? "");
                 const isLastMessage = index === processedMessages.length - 1;
