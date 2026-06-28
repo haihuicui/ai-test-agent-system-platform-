@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "composite": true,
+    "rootDir": "src",
+    "outDir": "dist"
+  },
+  "_buildId": "id_MC81OmFIVnBZMlhsdEpUbXRiZm92b2s2YWxCS1VnPT06ZGIzODM4YjM=",
+  "include": [
+    "src"
+  ],
+  "_deployId": "id_MS81OmFIVnBZMlhsdEpUbXRiZm92b2s2YWxCS1VnPT06ZGIzODM4YjM=",
+  "_releaseId": "id_Mi81OmFIVnBZMlhsdEpUbXRiZm92b2s2YWxCS1VnPT06ZGIzODM4YjM=",
+  "_versionId": "id_My81OmFIVnBZMlhsdEpUbXRiZm92b2s2YWxCS1VnPT06ZGIzODM4YjM=",
+  "_buildHash": "NC81OmFIVnBZMlhsdEpUbXRiZm92b2s2YWxCS1VnPT06ZGIzODM4YjM="
+}

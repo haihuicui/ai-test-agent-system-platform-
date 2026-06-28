@@ -1,0 +1,27 @@
+{
+  "$schema": "https://langgra.ph/schema.json",
+  "_buildId": "id_MC81OmFIVnBZMlhsdEpUbXRiZm92b2s2TVhVMFp3PT06NzhiZWNkZmU=",
+  "dependencies": [
+    "."
+  ],
+  "_deployId": "id_MS81OmFIVnBZMlhsdEpUbXRiZm92b2s2TVhVMFp3PT06NzhiZWNkZmU=",
+  "graphs": {
+    "testcase_generator_agent": {
+      "path": "./backend/app/agents/testcase/agent.py:agent"
+    },
+    "api_agent": {
+      "path": "./backend/app/agents/api/agent.py:agent"
+    },
+    "security_agent": {
+      "path": "./backend/app/agents/security/agent.py:agent"
+    },
+    "web_agent": {
+      "path": "./backend/app/agents/web_mcp/agent.py:agent"
+    }
+  },
+  "_releaseId": "id_Mi81OmFIVnBZMlhsdEpUbXRiZm92b2s2TVhVMFp3PT06NzhiZWNkZmU=",
+  "env": ".env",
+  "_versionId": "id_My81OmFIVnBZMlhsdEpUbXRiZm92b2s2TVhVMFp3PT06NzhiZWNkZmU=",
+  "image_distro": "wolfi",
+  "_buildHash": "NC81OmFIVnBZMlhsdEpUbXRiZm92b2s2TVhVMFp3PT06NzhiZWNkZmU="
+}

@@ -1,0 +1,2011 @@
+{
+  "status": "success",
+  "message": "Query processed successfully",
+  "data": {
+    "entities": [
+      {
+        "entity_name": "登录#1",
+        "entity_type": "event",
+        "description": "登录#1是登录功能的测试用例。",
+        "source_id": "chunk-4abc228dd0a85238abfd8addc34e74eb",
+        "file_path": "s26测试用例.pdf",
+        "created_at": 1779874153
+      },
+      {
+        "entity_name": "用户登录",
+        "entity_type": "content",
+        "description": "用户登录系统的动作，登录后自动弹出告警列表。<SEP>用户登录系统的操作，登录后12小时无操作需刷新页面。<SEP>用户登录是ChromXHRA的一个界面或功能，用于用户输入账号和密码进行身份验证。<SEP>用户登录是登录界面顶部显示的白色中文文字，指示该页面的功能。",
+        "source_id": "chunk-20188083f7cb5b571d5d70e6915b1eb7<SEP>chunk-0187389780978bb38e9b14e0fe20df8c<SEP>chunk-abfaa2bcd8ab16373853f9355c52146f<SEP>chunk-cd4d5f0070a914bfe545b8a60c49c25e",
+        "file_path": "S40测试用例.pdf<SEP>s30测试用例.pdf<SEP>风险计算_登录页.pdf",
+        "created_at": 1780535357
+      },
+      {
+        "entity_name": "登录功能",
+        "entity_type": "event",
+        "description": "登录功能指用户通过提供账号和密码进入系统的操作流程。",
+        "source_id": "chunk-17fb019485b53d341e9b1af1d060e08a",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862519
+      },
+      {
+        "entity_name": "用户管理",
+        "entity_type": "concept",
+        "description": "用户管理是一个广泛存在于多个系统管理后台中的功能模块或子模块，用于对平台用户的账号、角色和权限进行综合管理。在架构上，它通常隶属于后台管理下的系统管理子模块，在侧边栏或左侧菜单中作为一个菜单项（或子菜单）出现，且可能处于激活状态。该模块的核心职责包括支持新增用户、编辑用户信息、重置用户密码、对用户列表进行排序与筛选，以及设置用户权限等操作；此外，还包含用户名等基本信息，专注于用户信息的维护与权限控制。\n\n用户管理模块在多个具体系统中均有体现，例如云呼气平台、XCloud 2.0、Linus Studio系统、ChromXHRA以及BayzeProll系统等。在这些系统中，其功能定位基本一致，但在具体操作范围上略有差异：在BayzeProll系统中，用户管理仅允许执行增、删、改操作。用户管理模块通常以“系统管理”下的子菜单项或子功能形式呈现，部分描述明确指出其为“系统管理下的子菜单项”或“系统管理模块下的子模块”。\n\n综上，用户管理是一个跨系统的、以用户账号与权限管理为核心的标准化功能组件，其具体实现可能因系统而异，但整体职责保持一致。<SEP>用户管理是管理后台中用于管理用户的模块。",
+        "source_id": "chunk-7d7a61c58995feeb84f48700728f7994<SEP>chunk-e1a7e6682d118fd3b55bd49650662382<SEP>chunk-747de3c44d79b5d050b0e4538a90442a<SEP>chunk-c120c7253784f58def105061cf29312e<SEP>chunk-601966ea2263a797992556bd87282e39<SEP>chunk-6330a4d3bf6145fe8641ed1d37d8408e<SEP>chunk-bd26d5a906bf73ca2f4e78062d5e23fb<SEP>chunk-cf8213e510483360d2933624b0326731<SEP>chunk-110f84fd89402f7bca6e74b7955639c3<SEP>chunk-641d4a425cf8cdde299da5acd1f2cf0e<SEP>chunk-75d9d50112f120f44a8ca0cc3f1cba20<SEP>chunk-abfaa2bcd8ab16373853f9355c52146f<SEP>chunk-56a8144689a523d3ef85d7934616613f<SEP>chunk-9b2395baba9953b4a001c4c7432c7253",
+        "file_path": "s27测试用例.pdf<SEP>34.pdf<SEP>检测任务.pdf<SEP>检测任务可选设备.pdf<SEP>谱图导入.pdf<SEP>权限分配.pdf<SEP>XCloud_2.0管理后台.pdf<SEP>XCloud_v1.2_Web.pdf<SEP>风险计算_登录页.pdf<SEP>风险计算_用户管理.pdf<SEP>角色管理.pdf",
+        "created_at": 1782358306
+      },
+      {
+        "entity_name": "无权限登录",
+        "entity_type": "event",
+        "description": "无权限登录是用户尝试登录但无操作权限的测试步骤，系统会触发相应提示。",
+        "source_id": "chunk-36dfe62d33aa08c6e2c54fa92d67f9e1",
+        "file_path": "s19测试用例.pdf",
+        "created_at": 1779867238
+      },
+      {
+        "entity_name": "列表数据顺序",
+        "entity_type": "concept",
+        "description": "测试用例中验证列表数据显示顺序的测试点。",
+        "source_id": "chunk-300889d4aaad356f00f4749ee317a7c8",
+        "file_path": "s12测试用例.pdf",
+        "created_at": 1779864704
+      },
+      {
+        "entity_name": "登录账号",
+        "entity_type": "data",
+        "description": "登录账号是用户登录系统的凭证，要求为非中文、20字符内。",
+        "source_id": "chunk-17fb019485b53d341e9b1af1d060e08a",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862518
+      },
+      {
+        "entity_name": "管理权限/非管理权限",
+        "entity_type": "content",
+        "description": "这是测试用例中出现的步骤，涉及管理权限和非管理权限的操作，用于控制功能入口的显示。",
+        "source_id": "chunk-7f25e100e203125a6c2e099ea972e12a",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862652
+      },
+      {
+        "entity_name": "登录密码",
+        "entity_type": "data",
+        "description": "登录密码是用户登录系统的验证信息，要求加密、40字符内。",
+        "source_id": "chunk-17fb019485b53d341e9b1af1d060e08a",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862518
+      },
+      {
+        "entity_name": "退出账号#1",
+        "entity_type": "event",
+        "description": "退出账号#1是退出登录功能的测试用例。",
+        "source_id": "chunk-4abc228dd0a85238abfd8addc34e74eb",
+        "file_path": "s26测试用例.pdf",
+        "created_at": 1779874158
+      },
+      {
+        "entity_name": "张三",
+        "entity_type": "person",
+        "description": "张三这一名称指向多个不同实体，其身份、所属机构和角色存在明显冲突。根据现有信息，至少可区分出四个独立的“张三”实体。\n\n**实体一：中山大学第一附属医院相关的张三**。此张三为男性，年龄存有矛盾信息，部分记录显示为30岁，另有出生日期2000年2月1日（推算约25岁）。手机号码为133****7788。他具有多重角色：作为系统用户，在XCloud 2.0管理后台中创建了临床管理员、资产管理员和普通用户等角色；作为患者曾预约亚太国际体检中心的呼气检测项目；作为受试者参与研究项目（如“研究1”），提供姓名、性别、出生日期、手机号及检测体征数据；作为合作专家，所属组织为中山大学第一附属医院（亦称中山大学附属第一医院），账号同为“张三”。他还担任二代机研发项目和一代机优化项目的负责人，并作为主要研究者（PI）主导“研究名称1”。在系统中，他所属部门为临床中心，拥有超级管理员、临床管理员等系统角色，同时负责在云呼气平台中上传和管理伦理申请文件。此外，他曾使用账号修改组织信息，记录时间为2023年8月30日。\n\n**实体二：上海瑞金医院相关的张三**。此张三隶属于上海瑞金医院呼吸科，系统用户名称和账号均为“张三”，手机号码为13145585521，账号创建时间为2023年5月10日。他担任临床协作员、设备协作员、数据分析师等角色，出现在协作人员列表中，拥有多个协作角色和权限。他在系统中执行编辑、上传等操作，同时与物流工作流相关，出现在用户管理信息中；作为物流寄件人，曾寄出单号为CXWL2409270023和CXWL2409260022的包裹，其中一条物流记录状态为“签收异常”。\n\n**实体三：63岁的测试用户张三**。此张三为男性，年龄63岁，在系统中作为测试用户出现，相关信息仅包含年龄和性别，未关联特定机构或手机号码。\n\n**实体四：受试者张三（可能独立）**。此张三仅出现在受试者信息填写任务中，作为受试者姓名存在，缺乏其他身份信息（如机构、手机号、年龄），无法确认其与前述实体是否相同，故单独列出。\n\n此外，系统用户管理列表中显示多条张三记录，涉及不同角色、部门和职位，但联系方式相同，这些记录可能分属上述不同实体，因核心信息（手机号、机构）各不相同，需根据具体场景加以区分。",
+        "source_id": "chunk-938ef22b635d8d3fbfc60393c82a4da1<SEP>chunk-57f1efc393c748e33903f63a920c6c15<SEP>chunk-c7888f9a575297e8bf5e9e3c544d92bf<SEP>chunk-fccba77594b03434c34ec2df5929f922<SEP>chunk-178c65a3e81e250323604cd2f11bcaa5<SEP>chunk-20c459fad9c08d0c97d0fc465ececb0d<SEP>chunk-fb152d63a007e2531b0c1f843e2757b2<SEP>chunk-6330a4d3bf6145fe8641ed1d37d8408e<SEP>chunk-bd26d5a906bf73ca2f4e78062d5e23fb<SEP>chunk-cf8213e510483360d2933624b0326731<SEP>chunk-128b116e9f676ce0a4860eeab3b8bcff<SEP>chunk-8175f3e057d3eea9b3b86b643e4cc29a<SEP>chunk-6f470c4d5dd576bbbaa4b95298ae20c0<SEP>chunk-4ee7a841f208c6563571af725a5af65e<SEP>chunk-2a33b6eec12fd58609349c1af114bbdc",
+        "file_path": "商业化小程序.pdf<SEP>34.pdf<SEP>XCloud_v1.2_小程序.pdf<SEP>实验项目.pdf<SEP>物流清单.pdf<SEP>XCloud_2.0管理后台.pdf<SEP>51测试用例.pdf",
+        "created_at": 1782099985
+      },
+      {
+        "entity_name": "测试用户1",
+        "entity_type": "person",
+        "description": "一个用于测试系统的用户账号。<SEP>这是一个系统测试用户，账号为“测试用户1”，具有数据录入操作权限。",
+        "source_id": "chunk-e62fb0b9d1d59b9c810e06f96e36d790<SEP>chunk-20c459fad9c08d0c97d0fc465ececb0d",
+        "file_path": "设备名称搜索.pdf<SEP>实验项目.pdf",
+        "created_at": 1779961139
+      },
+      {
+        "entity_name": "当前登录用户",
+        "entity_type": "person",
+        "description": "当前登录用户是在系统中执行操作的用户角色。",
+        "source_id": "chunk-4ee7a841f208c6563571af725a5af65e",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782099961
+      },
+      {
+        "entity_name": "登录",
+        "entity_type": "content",
+        "description": "登录是软件系统的用户身份验证功能，包含正常登录和异常登录用例。<SEP>登录是用户通过账号和密码进入系统的操作。<SEP>登录是显示在登录面板顶部的中文文字，表示登录操作入口。",
+        "source_id": "chunk-06b1eeeb9b201d991f4107bd4d9eb95d<SEP>chunk-f66dec0ba8e2d12f2b2b9cf3145b777b<SEP>chunk-f434f440d8f163b1573301b798ef002e",
+        "file_path": "s20测试用例.pdf<SEP>XCloud_2.0管理后台.pdf",
+        "created_at": 1780022175
+      },
+      {
+        "entity_name": "用户",
+        "entity_type": "person",
+        "description": "用户是各类软件平台（如云呼气平台、肺癌风险分析平台、XCloud平台及其他操作系统）的核心操作者，承担测试、使用、管理等多重职能。其具体角色包括安装者、分析员、医生、测试人员、最终用户、上传人、分析人、发布人等，不同角色对应不同的操作权限。用户的属性涵盖用户名、手机号码、密码、邮箱等，系统可为其分配角色和权限。用户通过登录系统获得访问权限，可根据需要切换用户身份或退出账号。\n\n用户可执行的操作范围广泛，包括点击暂停、开盖、删除任务、搜索、排序、通知设置、变更分析结果、提交发布、新增、删除、校验、拖拽、下载以及数据导出、任务分析和谱图查看等。用户还能接收微信通知和短信通知，并可通过导入Excel表执行批量修改风险系数操作。作为检测卡的使用者，用户参与激活、预约、查看报告等流程。在具体使用场景中，用户需上传RT对照表并接收UI通知，通过点击“知道了”按钮确认错误并修正格式；也可请求导出谱图链接并进行下载。在数据录入系统中，用户在收到重复编码提示后执行重新录入操作；在个人信息填写和扫码采样时，会被引导扫描二维码并填写问卷。此外，用户还使用该软件应用进行环境样本采集相关任务，以及在定标界面中查看谱峰、检查R2值，并准备导出或保存校准数据。总之，用户是系统操作与数据交互的主体，其功能与权限因角色和平台而异。<SEP>用户已登录系统，具有任务管理权限，可以执行创建、取消任务等操作。",
+        "source_id": "chunk-27c59dcdfafb9c0a15b7a7b7c2556265<SEP>chunk-dad058a665f715c868cb5ebb012ea907<SEP>chunk-f66dec0ba8e2d12f2b2b9cf3145b777b<SEP>chunk-8813bd8cc303e4ab61e6bddea1c4cead<SEP>chunk-b3ab54c816fb2f928fa5ee967dbf58bf<SEP>chunk-7d7a61c58995feeb84f48700728f7994<SEP>chunk-92e6e3db074dcb3f773e65cd02f1d64e<SEP>chunk-0187389780978bb38e9b14e0fe20df8c<SEP>chunk-ed91dde2d811d2e31041cc655ed18627<SEP>chunk-d6d523557052db74e45839e93e0e9798<SEP>chunk-52cf1f2ce6ebdbdc896e5399d2ba4d13<SEP>chunk-7fec32f5eed14a278bf048b6fdc1c8e5<SEP>chunk-ff5e6581adea4bb5faae67d12b0a3f45<SEP>chunk-4c4de4cd372a8a4b19870222eacee4fa<SEP>chunk-16ff5c12ad7d01482cf463b2df5804bf<SEP>chunk-cbf96977f8c503e2df4e2a87730203a7",
+        "file_path": "S37测试用例.pdf<SEP>s12测试用例.pdf<SEP>s20测试用例.pdf<SEP>s21测试用例.pdf<SEP>s26测试用例.pdf<SEP>s27测试用例.pdf<SEP>s29测试用例.pdf<SEP>s30测试用例.pdf<SEP>S31测试用例.pdf<SEP>s34测试用例.pdf<SEP>33.pdf<SEP>34.pdf<SEP>XMetrix_v2.2.pdf<SEP>XMetrix_v2.4.pdf<SEP>XMetrix_v2.3.pdf<SEP>XCloud_v1.2_小程序.pdf<SEP>环境样本采集.pdf<SEP>定标记录.pdf<SEP>51测试用例.pdf",
+        "created_at": 1782099999
+      },
+      {
+        "entity_name": "添加第三方用户权限#1",
+        "entity_type": "event",
+        "description": "添加第三方用户权限#1是测试用例，验证第三方用户权限的添加及状态切换。",
+        "source_id": "chunk-2193e2c6a59452bd1b2ea6e9b1bec3c0",
+        "file_path": "S35测试用例.pdf",
+        "created_at": 1779877096
+      },
+      {
+        "entity_name": "账号",
+        "entity_type": "data",
+        "description": "账号是用户登录时输入的标识，用于验证用户身份。<SEP>账号是用户登录平台的凭证之一。<SEP>这是一个数据字段，用于标识用户的登录账号。<SEP>账号是用户的登录标识，来自飞书同步且不可更改。<SEP>账号是个人信息表单中的一个字段，用于输入用户账号。",
+        "source_id": "chunk-06b1eeeb9b201d991f4107bd4d9eb95d<SEP>chunk-f66dec0ba8e2d12f2b2b9cf3145b777b<SEP>chunk-20c459fad9c08d0c97d0fc465ececb0d<SEP>chunk-6330a4d3bf6145fe8641ed1d37d8408e<SEP>chunk-dac75327fcc4095e888cd47f960e4e31",
+        "file_path": "s20测试用例.pdf<SEP>实验项目.pdf<SEP>XCloud_2.0管理后台.pdf",
+        "created_at": 1780022164
+      },
+      {
+        "entity_name": "新增",
+        "entity_type": "artifact",
+        "description": "新增是一种在系统中执行的操作或按钮，主要用于添加新的条目、任务或数据。具体而言，它可以在TD管列表中增加一行输入，用于创建新的TD管或使用记录；也可以作为设备台账页面上的按钮，用于添加新设备；此外，它还作为平台中的通用按钮，用于添加新条目。在字典管理权限的上下文中，新增是一个未选中的权限项。需要注意的是，新增操作在某些场景下存在限制，例如不允许对现有的RT对照表执行该操作。总体而言，新增的核心功能是向系统中引入新的元素或记录，但其具体应用范围和权限因上下文而异。<SEP>新增是一个按钮控件，用于添加新的标气记录。",
+        "source_id": "chunk-b2f34033d15b997bd208eb19a41a460a<SEP>chunk-14bee55c8769ffa847a6e21fdfc888d7<SEP>chunk-dd5486a83f744668de6e98b6b2da6679<SEP>chunk-442ba79a7c931acb0c2dc22835f6f0b1<SEP>chunk-601966ea2263a797992556bd87282e39<SEP>chunk-110f84fd89402f7bca6e74b7955639c3<SEP>chunk-fe9f8917e70f005203e189e82c531c99",
+        "file_path": "s14测试用例.pdf<SEP>s28测试用例.pdf<SEP>s30测试用例.pdf<SEP>XMetrix_v2.2.pdf<SEP>权限分配.pdf<SEP>XCloud_v1.2_Web.pdf<SEP>风险计算_用户管理.pdf<SEP>标气批次.pdf",
+        "created_at": 1782354125
+      },
+      {
+        "entity_name": "步骤:新登记二维码入口",
+        "entity_type": "method",
+        "description": "测试步骤，指向新登记二维码入口。",
+        "source_id": "chunk-313e136ae906bd5efc0871114ed295c9",
+        "file_path": "s28测试用例.pdf",
+        "created_at": 1779874909
+      },
+      {
+        "entity_name": "新增#1",
+        "entity_type": "event",
+        "description": "新增#1是一个测试用例，用于验证软件系统中各类模块的新增功能。该测试用例覆盖多个业务场景，包括物流单新增后在不同选项卡下的可见性验证、人员列表中新增人员数据的步骤与预期结果检查、样本模块中点击新增后能否定位到最新行、版本记录新增时对版本名称、版本类型、关联设备等字段的输入验证，以及图表模块的新增操作并预期成功新增图表。总体而言，新增#1作为一个通用新增功能验证用例，被应用于物流、人员管理、样本、版本管理及图表等多个模块，确保新增流程的正确性和界面的及时响应。<SEP>测试用例，测试新增检测卡功能，包括正常创建和异常输入。",
+        "source_id": "chunk-bcd09be11e4cb8558024dc597bedd9ce<SEP>chunk-56d7a4454df33eea2c98c2fc35c70ff9<SEP>chunk-25f1cb1e406256cd87fd263bebaf4db1<SEP>chunk-692b455010f79e1754ffe957eb1b4743<SEP>chunk-e1771468661d88df8215fa4a5cca135e<SEP>chunk-dd5486a83f744668de6e98b6b2da6679<SEP>chunk-e58a92662b7be26f58448548ade2c841<SEP>chunk-d6d523557052db74e45839e93e0e9798",
+        "file_path": "s14测试用例.pdf<SEP>s18测试用例.pdf<SEP>s24测试用例.pdf<SEP>s27测试用例.pdf<SEP>s29测试用例.pdf<SEP>s30测试用例.pdf<SEP>s32测试用例.pdf<SEP>s34测试用例.pdf",
+        "created_at": 1779876849
+      },
+      {
+        "entity_name": "测试连接",
+        "entity_type": "event",
+        "description": "测试连接是关联设备功能中的一个操作，用于验证设备序列号、设备密钥和IP地址等连接是否成功，结果可能为连接失败。",
+        "source_id": "chunk-84fb67f843ffee0e4d7a6c79e2e45b3d",
+        "file_path": "风险计算_系统配置.pdf",
+        "created_at": 1780537610
+      },
+      {
+        "entity_name": "李四",
+        "entity_type": "person",
+        "description": "李四是BayzeProll系统中的一个示例用户，用户信息包括用户名、姓名、联系方式、密码等。<SEP>李四是BayzeProll中的一个用户名，在用户列表中显示为选中状态，其权限包括任务列表中的填写表单、生成报告和导出报告。<SEP>李四是BayzeProll中的一个用户，显示在界面左侧用户列表中。<SEP>李四是一个测试用户，女性，生日1990/06/15，手机号15912345678。<SEP>李四是一个受试者，用于测试用例中的信息填写，性别女，生日1990年6月15日，手机号15912345678。",
+        "source_id": "chunk-56a8144689a523d3ef85d7934616613f<SEP>chunk-4ee7a841f208c6563571af725a5af65e<SEP>chunk-6831903baaea264b3689fe877296364e",
+        "file_path": "风险计算_用户管理.pdf<SEP>51测试用例.pdf",
+        "created_at": 1782099968
+      },
+      {
+        "entity_name": "用户名客户权限为空点击确定",
+        "entity_type": "event",
+        "description": "用户名客户权限为空点击确定是一个测试步骤，在输入字段为空时点击确定按钮。",
+        "source_id": "chunk-0f1993029a2fbc6220b615b7bec212a3",
+        "file_path": "S33测试用例.pdf",
+        "created_at": 1779876387
+      },
+      {
+        "entity_name": "密码",
+        "entity_type": "concept",
+        "description": "密码是用户登录时输入的凭证，与账号配合验证。<SEP>密码是用户登录平台的凭证之一。<SEP>密码是设备登记后生成的，用于访问设备。<SEP>密码是用户登录的凭证，需输入两次确认。<SEP>密码是用户信息区域中的必填输入框字段。",
+        "source_id": "chunk-06b1eeeb9b201d991f4107bd4d9eb95d<SEP>chunk-f66dec0ba8e2d12f2b2b9cf3145b777b<SEP>chunk-16ff5c12ad7d01482cf463b2df5804bf<SEP>chunk-6330a4d3bf6145fe8641ed1d37d8408e<SEP>chunk-cb02f7e1a96d990201b84f50ddf7d7f6",
+        "file_path": "s20测试用例.pdf<SEP>XMetrix_v2.4.pdf<SEP>XCloud_2.0管理后台.pdf<SEP>风险计算_用户管理.pdf",
+        "created_at": 1780538623
+      },
+      {
+        "entity_name": "登记样本，点击开始解析",
+        "entity_type": "method",
+        "description": "测试步骤之一，涉及用户操作：登记样本并点击开始解析。",
+        "source_id": "chunk-e7aed5a6965b4a43d475f002037e6175",
+        "file_path": "S40测试用例.pdf",
+        "created_at": 1779862937
+      },
+      {
+        "entity_name": "权限管理测试",
+        "entity_type": "event",
+        "description": "权限管理测试是一系列测试用例，用于验证不同权限用户对定标记录的操作能力，包括编辑和查看权限。",
+        "source_id": "chunk-35d019619819f9d4c3ef1428f9148595",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100009
+      },
+      {
+        "entity_name": "小程序客户、采样点、检测项目权限#1",
+        "entity_type": "content",
+        "description": "小程序客户、采样点、检测项目权限#1是一个测试用例，测试不同用户角色在客户、采样点、检测项目上的权限。",
+        "source_id": "chunk-0993b38cbdf06250867a506772025562",
+        "file_path": "S43测试用例.pdf",
+        "created_at": 1779863778
+      },
+      {
+        "entity_name": "用户B",
+        "entity_type": "person",
+        "description": "用户B是一个测试用户，角色为查看员，仅拥有定标记录的查看权限，无编辑权限。<SEP>用户B仅拥有定标记录-查看权限，无下发权限。",
+        "source_id": "chunk-d3bf45a42ee78029ec0bc855da017a7d<SEP>chunk-35d019619819f9d4c3ef1428f9148595",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100003
+      },
+      {
+        "entity_name": "添加批注#1",
+        "entity_type": "method",
+        "description": "一个测试用例，步骤：输入备注，点击提交；预期：成功提交添加。",
+        "source_id": "chunk-8b784b76bd2e76fe01e7158deac2e90a",
+        "file_path": "s23测试用例.pdf",
+        "created_at": 1779870134
+      },
+      {
+        "entity_name": "用户A",
+        "entity_type": "person",
+        "description": "用户A是一个测试用户，角色为实验员，拥有定标记录的编辑权限。",
+        "source_id": "chunk-35d019619819f9d4c3ef1428f9148595",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100009
+      },
+      {
+        "entity_name": "登记采样(检测卡)#1",
+        "entity_type": "event",
+        "description": "登记采样(检测卡)#1是测试用例，验证通过检测卡进行采样登记的功能。",
+        "source_id": "chunk-2193e2c6a59452bd1b2ea6e9b1bec3c0",
+        "file_path": "S35测试用例.pdf",
+        "created_at": 1779877095
+      },
+      {
+        "entity_name": "新增用户功能",
+        "entity_type": "event",
+        "description": "新增用户功能指在系统中创建新用户账号的操作流程。",
+        "source_id": "chunk-17fb019485b53d341e9b1af1d060e08a",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862519
+      },
+      {
+        "entity_name": "步骤:原登记二维码入口",
+        "entity_type": "method",
+        "description": "测试步骤，指向原登记二维码入口。",
+        "source_id": "chunk-313e136ae906bd5efc0871114ed295c9",
+        "file_path": "s28测试用例.pdf",
+        "created_at": 1779874909
+      },
+      {
+        "entity_name": "确认密码",
+        "entity_type": "data",
+        "description": "确认密码是用于确保登录密码输入一致性的二次输入。",
+        "source_id": "chunk-17fb019485b53d341e9b1af1d060e08a",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862518
+      },
+      {
+        "entity_name": "测试2",
+        "entity_type": "person",
+        "description": "测试2是测试用户的账号，与用户“测试”关联。",
+        "source_id": "chunk-20c459fad9c08d0c97d0fc465ececb0d",
+        "file_path": "实验项目.pdf",
+        "created_at": 1779961142
+      },
+      {
+        "entity_name": "用户C",
+        "entity_type": "person",
+        "description": "用户C是一个测试用户，角色为管理员，拥有定标记录的编辑和管理权限，包括下发定量表权限。<SEP>用户C是系统管理员，拥有定标记录-下发权限。",
+        "source_id": "chunk-d3bf45a42ee78029ec0bc855da017a7d<SEP>chunk-35d019619819f9d4c3ef1428f9148595",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100003
+      },
+      {
+        "entity_name": "跳转逻辑变更#1",
+        "entity_type": "content",
+        "description": "跳转逻辑变更#1是一个测试用例，用于验证页面跳转逻辑的修改。",
+        "source_id": "chunk-92e6e3db074dcb3f773e65cd02f1d64e",
+        "file_path": "s29测试用例.pdf",
+        "created_at": 1779875350
+      },
+      {
+        "entity_name": "绑定微信",
+        "entity_type": "method",
+        "description": "绑定微信是微信登录的前置操作，属于用户认证流程。",
+        "source_id": "chunk-692b455010f79e1754ffe957eb1b4743",
+        "file_path": "s27测试用例.pdf",
+        "created_at": 1779874469
+      },
+      {
+        "entity_name": "注销功能",
+        "entity_type": "event",
+        "description": "注销功能指用户退出当前登录状态，返回首页或登录页面的操作。",
+        "source_id": "chunk-17fb019485b53d341e9b1af1d060e08a",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862519
+      },
+      {
+        "entity_name": "设备二维码展示#1",
+        "entity_type": "event",
+        "description": "测试用例，用于验证点击设备二维码后弹窗展示二维码及相关编码信息，以及扫码结果。",
+        "source_id": "chunk-6e6152f5c43eb513dfe1a0f425a330d4",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865185
+      },
+      {
+        "entity_name": "权限相关",
+        "entity_type": "concept",
+        "description": "权限相关涉及用户角色和访问控制，包括第三方用户权限。",
+        "source_id": "chunk-2193e2c6a59452bd1b2ea6e9b1bec3c0",
+        "file_path": "S35测试用例.pdf",
+        "created_at": 1779877094
+      },
+      {
+        "entity_name": "用户ID",
+        "entity_type": "data",
+        "description": "用户ID是检测卡添加日志中的操作人标识。<SEP>用户ID是操作人字段的具体取值，用于标识执行操作的用户。",
+        "source_id": "chunk-89f2a43a4609624578beec8729aa8e8c<SEP>chunk-156ffd4cbb1b2061aa3c6b58d84ad8a4",
+        "file_path": "s34测试用例.pdf<SEP>34.pdf",
+        "created_at": 1779937384
+      },
+      {
+        "entity_name": "相册选择图片#1用例",
+        "entity_type": "content",
+        "description": "测试用例，验证从相册选择图片进行OCR识别的功能。",
+        "source_id": "chunk-3db2fced39f60198ed351afb9b4b0902",
+        "file_path": "s11测试用例.pdf",
+        "created_at": 1779864363
+      },
+      {
+        "entity_name": "审核",
+        "entity_type": "method",
+        "description": "对检测卡预约进行审核的操作。<SEP>一种操作类型，表示对内容进行审核的动作。<SEP>审核是操作内容中的一项操作，涉及对任务的审查或审批，可能出现在任务取消或管理流程中。",
+        "source_id": "chunk-d6d523557052db74e45839e93e0e9798<SEP>chunk-8973e9d98ac15cf8116221c664ae7c77<SEP>chunk-4898e475fa9140c4b0b0faf48ec8ba3c",
+        "file_path": "s34测试用例.pdf<SEP>34.pdf",
+        "created_at": 1779937327
+      },
+      {
+        "entity_name": "用例:继续录入#1",
+        "entity_type": "content",
+        "description": "测试用例，针对继续录入操作。",
+        "source_id": "chunk-313e136ae906bd5efc0871114ed295c9",
+        "file_path": "s28测试用例.pdf",
+        "created_at": 1779874908
+      },
+      {
+        "entity_name": "通过审核#1",
+        "entity_type": "event",
+        "description": "测试用例，测试审核通过操作及后续状态变更、日志、通知。",
+        "source_id": "chunk-d6d523557052db74e45839e93e0e9798",
+        "file_path": "s34测试用例.pdf",
+        "created_at": 1779876849
+      },
+      {
+        "entity_name": "苏玛罐管理-权限#1",
+        "entity_type": "event",
+        "description": "测试用例，验证管理权限和访问权限的不同操作权限。",
+        "source_id": "chunk-ad7edd3628a44e67eb079f7e15108bbd",
+        "file_path": "s23测试用例.pdf",
+        "created_at": 1779870128
+      },
+      {
+        "entity_name": "权限设置",
+        "entity_type": "concept",
+        "description": "权限设置是角色管理模块下的一个测试点。<SEP>权限设置是系统中的一个配置模块，用于管理用户权限分配。<SEP>系统提供的操作选项，用于配置用户权限。",
+        "source_id": "chunk-3db2fced39f60198ed351afb9b4b0902<SEP>chunk-6a0bdd94818406989167e9cf2801ec24<SEP>chunk-6b5777933ce083af22b2385c54d1209c",
+        "file_path": "s11测试用例.pdf<SEP>s20测试用例.pdf<SEP>XCloud_2.0管理后台.pdf",
+        "created_at": 1780022172
+      },
+      {
+        "entity_name": "拍照选择图片#1用例",
+        "entity_type": "content",
+        "description": "测试用例，验证拍照选择图片进行OCR识别的功能。",
+        "source_id": "chunk-3db2fced39f60198ed351afb9b4b0902",
+        "file_path": "s11测试用例.pdf",
+        "created_at": 1779864363
+      },
+      {
+        "entity_name": "角色管理",
+        "entity_type": "concept",
+        "description": "角色管理是系统中的一个功能模块，通常位于管理后台的“系统管理”子模块下，作为系统管理的一个子菜单或页面。其主要用途是定义用户角色及其对应的权限集合，并对用户权限进行分配和设置。具体而言，角色管理功能支持新增、搜索、编辑和管理角色信息，同时为每个角色赋予相应的访问权限，从而实现对系统资源的精细化控制。在XCloud 2.0管理后台中，角色管理为高亮激活状态，用于管理用户角色及其权限。此外，角色管理在测试用例中也常被用作上下文标识和自定义标签，用以标注与权限配置相关的测试内容，便于测试的组织和执行。这一功能在系统权限体系中扮演着核心角色，确保不同用户根据其角色获得恰当的访问级别。",
+        "source_id": "chunk-b4ee8a2d92df64c72f8c1d1435f6287c<SEP>chunk-3db2fced39f60198ed351afb9b4b0902<SEP>chunk-300889d4aaad356f00f4749ee317a7c8<SEP>chunk-17a962f5657a64916121e886024511cb<SEP>chunk-e1a7e6682d118fd3b55bd49650662382<SEP>chunk-747de3c44d79b5d050b0e4538a90442a<SEP>chunk-c120c7253784f58def105061cf29312e<SEP>chunk-601966ea2263a797992556bd87282e39<SEP>chunk-6330a4d3bf6145fe8641ed1d37d8408e<SEP>chunk-bd26d5a906bf73ca2f4e78062d5e23fb<SEP>chunk-9b2395baba9953b4a001c4c7432c7253<SEP>chunk-1d5c63f8d01f1a1f674bc491ac8ab244",
+        "file_path": "S43测试用例.pdf<SEP>s11测试用例.pdf<SEP>s12测试用例.pdf<SEP>S33测试用例.pdf<SEP>检测任务.pdf<SEP>检测任务可选设备.pdf<SEP>谱图导入.pdf<SEP>权限分配.pdf<SEP>XCloud_2.0管理后台.pdf<SEP>角色管理.pdf",
+        "created_at": 1782358422
+      },
+      {
+        "entity_name": "权限管理-访问权限#1",
+        "entity_type": "event",
+        "description": "一个测试用例，步骤：设置访问权限；预期：仅可查看。<SEP>测试用例，验证设置访问权限后用户仅有查看权限。",
+        "source_id": "chunk-ad7edd3628a44e67eb079f7e15108bbd<SEP>chunk-8b784b76bd2e76fe01e7158deac2e90a",
+        "file_path": "s23测试用例.pdf",
+        "created_at": 1779870130
+      },
+      {
+        "entity_name": "切换用户",
+        "entity_type": "event",
+        "description": "切换用户是系统功能，点击切换为用户后弹窗二次确认成功切换。",
+        "source_id": "chunk-b3ab54c816fb2f928fa5ee967dbf58bf",
+        "file_path": "s26测试用例.pdf",
+        "created_at": 1779874144
+      },
+      {
+        "entity_name": "输入搜索关键词",
+        "entity_type": "method",
+        "description": "测试点中描述的输入搜索关键词操作。",
+        "source_id": "chunk-300889d4aaad356f00f4749ee317a7c8",
+        "file_path": "s12测试用例.pdf",
+        "created_at": 1779864704
+      },
+      {
+        "entity_name": "用例:重置密码",
+        "entity_type": "method",
+        "description": "用例:重置密码是涉及密码重置操作的测试用例，可能属于自定义权限管理类别。",
+        "source_id": "chunk-5a609e07c645f8b77b1570d40db7e420",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862654
+      },
+      {
+        "entity_name": "没有权限进来",
+        "entity_type": "method",
+        "description": "测试步骤，模拟用户没有权限进入首页的情况。",
+        "source_id": "chunk-8a98c36ae38c8eeb25db9aa4216ffaf9",
+        "file_path": "s22测试用例.pdf",
+        "created_at": 1779869568
+      },
+      {
+        "entity_name": "自定义权限管理",
+        "entity_type": "concept",
+        "description": "自定义权限管理是S39测试用例的一个顶层类别，涵盖权限控制相关测试，如谱图变更权限。",
+        "source_id": "chunk-5a609e07c645f8b77b1570d40db7e420",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862653
+      },
+      {
+        "entity_name": "取消资格#1",
+        "entity_type": "event",
+        "description": "测试用例，测试取消资格操作及状态变更、日志、通知。",
+        "source_id": "chunk-d6d523557052db74e45839e93e0e9798",
+        "file_path": "s34测试用例.pdf",
+        "created_at": 1779876850
+      },
+      {
+        "entity_name": "用例:新增用户",
+        "entity_type": "method",
+        "description": "用例:新增用户是涉及用户管理操作的测试用例，可能属于自定义权限管理类别。",
+        "source_id": "chunk-5a609e07c645f8b77b1570d40db7e420",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862654
+      },
+      {
+        "entity_name": "刷新页面",
+        "entity_type": "UNKNOWN",
+        "description": "用户登录后12小时无操作需刷新页面，否则跳转至登录页面。",
+        "source_id": "chunk-0187389780978bb38e9b14e0fe20df8c",
+        "file_path": "s30测试用例.pdf",
+        "created_at": 1779875741
+      },
+      {
+        "entity_name": "启用用户功能",
+        "entity_type": "event",
+        "description": "启用用户功能指恢复被禁用用户账号的正常登录权限的操作。",
+        "source_id": "chunk-17fb019485b53d341e9b1af1d060e08a",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862519
+      },
+      {
+        "entity_name": "步骤:点击查看二维码信息",
+        "entity_type": "method",
+        "description": "测试步骤，点击查看二维码信息。",
+        "source_id": "chunk-313e136ae906bd5efc0871114ed295c9",
+        "file_path": "s28测试用例.pdf",
+        "created_at": 1779874909
+      },
+      {
+        "entity_name": "XCloud管理后台",
+        "entity_type": "artifact",
+        "description": "XCloud管理后台是系统的管理平台，包含通知设置功能。<SEP>XCloud管理后台是系统后台，用于权限管理、用户管理等操作。<SEP>XCloud管理后台是精智未来(广州)智能科技有限公司开发的云呼气平台管理系统，提供组织管理、样本统计、用户管理等功能。<SEP>云平台管理系统后台，支持通过飞书账号进行登录。<SEP>XCloud管理后台是用于管理XCloud系统的后台界面，支持通过飞书扫码登录。<SEP>精智未来云的管理后台，其登录界面提供飞书和微信等多种登录方式。<SEP>XCloud管理后台是一个云管理平台，集成了飞书账号认证，用于管理后台登录。",
+        "source_id": "chunk-58848ea998aa4fde313a7ce9f2938304<SEP>chunk-2193e2c6a59452bd1b2ea6e9b1bec3c0<SEP>chunk-3a4203cf118350af4b010e97cb551f95<SEP>chunk-f8b5a4c90db5e1e695e48852d6aa3efb<SEP>chunk-eb293239a780a56d165824229155f900<SEP>chunk-f434f440d8f163b1573301b798ef002e<SEP>chunk-6b14b3b474a7b509b4eabfb5f2448931",
+        "file_path": "S38测试用例.pdf<SEP>S35测试用例.pdf<SEP>XCloud_2.0管理后台.pdf",
+        "created_at": 1780022163
+      },
+      {
+        "entity_name": "输入字符超过50",
+        "entity_type": "method",
+        "description": "测试步骤，在低值提示字段中输入超过50个字符。",
+        "source_id": "chunk-8a98c36ae38c8eeb25db9aa4216ffaf9",
+        "file_path": "s22测试用例.pdf",
+        "created_at": 1779869568
+      },
+      {
+        "entity_name": "是否可审核#1",
+        "entity_type": "event",
+        "description": "测试用例，测试审核入口的显示条件。",
+        "source_id": "chunk-d6d523557052db74e45839e93e0e9798",
+        "file_path": "s34测试用例.pdf",
+        "created_at": 1779876849
+      },
+      {
+        "entity_name": "用户F",
+        "entity_type": "person",
+        "description": "用户F对定标记录模块无任何权限。",
+        "source_id": "chunk-d3bf45a42ee78029ec0bc855da017a7d",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100004
+      },
+      {
+        "entity_name": "权限管理-管理权限#1",
+        "entity_type": "event",
+        "description": "一个测试用例，步骤：设置管理权限；预期：有所有权限，可新增、编辑。<SEP>测试用例，验证设置管理权限后用户有所有权限。",
+        "source_id": "chunk-ad7edd3628a44e67eb079f7e15108bbd<SEP>chunk-8b784b76bd2e76fe01e7158deac2e90a",
+        "file_path": "s23测试用例.pdf",
+        "created_at": 1779870130
+      },
+      {
+        "entity_name": "登录页",
+        "entity_type": "artifact",
+        "description": "登录页是用户登录系统的界面。",
+        "source_id": "chunk-d3bf45a42ee78029ec0bc855da017a7d",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100004
+      },
+      {
+        "entity_name": "用例:登记采样信息#1",
+        "entity_type": "content",
+        "description": "测试用例，针对登记采样信息操作。",
+        "source_id": "chunk-313e136ae906bd5efc0871114ed295c9",
+        "file_path": "s28测试用例.pdf",
+        "created_at": 1779874908
+      },
+      {
+        "entity_name": "禁用用户功能",
+        "entity_type": "event",
+        "description": "禁用用户功能指使目标用户账号无法登录系统的操作。",
+        "source_id": "chunk-17fb019485b53d341e9b1af1d060e08a",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862519
+      },
+      {
+        "entity_name": "分配卷王问卷权限#1用例",
+        "entity_type": "content",
+        "description": "测试用例，验证分配卷王问卷管理权限的功能。",
+        "source_id": "chunk-3db2fced39f60198ed351afb9b4b0902",
+        "file_path": "s11测试用例.pdf",
+        "created_at": 1779864363
+      },
+      {
+        "entity_name": "USER",
+        "entity_type": "person",
+        "description": "测试用例中指定的用户角色。",
+        "source_id": "chunk-85207504dbdbc56e7418af3a6044034c",
+        "file_path": "S40测试用例.pdf",
+        "created_at": 1779862832
+      },
+      {
+        "entity_name": "测试",
+        "entity_type": "person",
+        "description": "测试是关联研究的名称，表示一个测试研究项目。<SEP>这是一个系统测试用户，账号为“测试”，具有数据录入操作权限。",
+        "source_id": "chunk-19157b91e5c2b98dc3f174ce8cb0d776<SEP>chunk-20c459fad9c08d0c97d0fc465ececb0d",
+        "file_path": "设备关联采样点.pdf<SEP>实验项目.pdf",
+        "created_at": 1779961139
+      },
+      {
+        "entity_name": "项目管理",
+        "entity_type": "concept",
+        "description": "项目管理是系统中用于管理检测项目及相关信息的一个核心功能模块。在不同应用或架构描述中，它的具体定位和呈现形式存在差异：在ArcoPro应用中，项目管理作为功能模块出现，位于面包屑导航中，是VOC列表的上级页面，也可作为上层模块包含VOC列表、VOC组合列表和检测项目列表；在Web应用中，该模块包含检测项目列表和任务管理子模块；在METRIX精智·呼析云2.16.0软件中，它是左侧导航菜单中的一个功能模块，用于管理项目信息；此外，它还可作为侧边栏导航中的一个已展开菜单项，包含检测项目列表子菜单，或作为项目详情下的一个选项卡用于管理项目设置，以及作为管理后台中的一个视图用于管理项目本身的信息。尽管层级和归属在不同描述中有所不同，项目管理的核心职能始终围绕检测项目的组织与管理展开，涵盖检测项目列表、VOC相关配置及阈值设定等关键内容，并支持项目的创建、编辑等管理操作。<SEP>项目管理是系统中的一个功能模块，用于管理项目。<SEP>METRIX精智·呼析云系统中的一个管理模块。<SEP>项目管理是METRIX精智呼析云2.16.0侧边栏中的一个功能模块，用于管理项目信息。",
+        "source_id": "chunk-bbc556a405fe174733fa2d60daf5b4dc<SEP>chunk-56d7a4454df33eea2c98c2fc35c70ff9<SEP>chunk-8a98c36ae38c8eeb25db9aa4216ffaf9<SEP>chunk-de5451b1ed2c4025218262cc3487312a<SEP>chunk-649b74429c1cc667370afa392a940126<SEP>chunk-d493913f3802b2e18c8eefd1ca9f8381<SEP>chunk-45cd958657ec27af30c305d933168bd2<SEP>chunk-dd6411623a31693e3ed3fdc452764eb7<SEP>chunk-20c459fad9c08d0c97d0fc465ececb0d<SEP>chunk-519f1b269f91f78e15c9b0e5cba75e75<SEP>chunk-6189598135361cdf6e5754b3fa26b16e<SEP>chunk-e96a86ebe542ffec6dc84083b1563479<SEP>chunk-bece585ed2dfb5e5c44d898619f39802<SEP>chunk-480d837307dbe34f95cea5130e572039<SEP>chunk-b0796330cda0340c4ad2143ff2d4f9e3<SEP>chunk-f64ed389ca5a3fce311d48ca85a01dfd<SEP>chunk-13d85ba7a93b18ed91d83ed1ff846f73<SEP>chunk-793b18d21d6272b6940548a28be8f404<SEP>chunk-e9797aa4116af470728467718b575aec",
+        "file_path": "s15测试用例.pdf<SEP>s18测试用例.pdf<SEP>s22测试用例.pdf<SEP>s26测试用例.pdf<SEP>33.pdf<SEP>34.pdf<SEP>20.pdf<SEP>实验项目.pdf<SEP>定标记录.pdf<SEP>定标记录-s52.pdf<SEP>定性表列表s52.pdf<SEP>检测报告任务列表.pdf<SEP>检测项目列表.pdf<SEP>实验项目s52.pdf<SEP>质控任务列表.pdf",
+        "created_at": 1782373254
+      },
+      {
+        "entity_name": "删除任务#1",
+        "entity_type": "event",
+        "description": "删除任务#1是一个测试用例，验证删除检测任务的功能。",
+        "source_id": "chunk-5a956e38fde5b20399e4f71b1cd1177c",
+        "file_path": "S41测试用例.pdf",
+        "created_at": 1779863159
+      },
+      {
+        "entity_name": "下拉搜索选择用户名",
+        "entity_type": "event",
+        "description": "下拉搜索选择用户名是一个测试步骤，涉及用户从下拉列表中选择用户名。",
+        "source_id": "chunk-0f1993029a2fbc6220b615b7bec212a3",
+        "file_path": "S33测试用例.pdf",
+        "created_at": 1779876386
+      },
+      {
+        "entity_name": "新增/删除检测任务",
+        "entity_type": "organization",
+        "description": "新增/删除检测任务是一个自定义模块，用于检测任务的增删操作测试。",
+        "source_id": "chunk-5a956e38fde5b20399e4f71b1cd1177c",
+        "file_path": "S41测试用例.pdf",
+        "created_at": 1779863158
+      },
+      {
+        "entity_name": "新增样本#1",
+        "entity_type": "concept",
+        "description": "测试用例，验证新增样本功能的正确性。",
+        "source_id": "chunk-e58a92662b7be26f58448548ade2c841",
+        "file_path": "s32测试用例.pdf",
+        "created_at": 1779876289
+      },
+      {
+        "entity_name": "TC-SUBJ-LOG-002",
+        "entity_type": "event",
+        "description": "TC-SUBJ-LOG-002是一个测试用例，用于验证保存信息日志功能，优先级P0。",
+        "source_id": "chunk-4ee7a841f208c6563571af725a5af65e",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782099960
+      },
+      {
+        "entity_name": "权限管理-无权限#1",
+        "entity_type": "event",
+        "description": "一个测试用例，步骤：没有设置权限；预期：无法查看。<SEP>测试用例，验证无权限情况。",
+        "source_id": "chunk-ad7edd3628a44e67eb079f7e15108bbd<SEP>chunk-8b784b76bd2e76fe01e7158deac2e90a",
+        "file_path": "s23测试用例.pdf",
+        "created_at": 1779870130
+      },
+      {
+        "entity_name": "重新填写#1",
+        "entity_type": "concept",
+        "description": "重新填写#1是一个测试用例，用于验证点击重新填写后状态变更及限制提示功能。",
+        "source_id": "chunk-6a0bdd94818406989167e9cf2801ec24",
+        "file_path": "s20测试用例.pdf",
+        "created_at": 1779867800
+      },
+      {
+        "entity_name": "提交检测",
+        "entity_type": "artifact",
+        "description": "提交检测是将样本提交到检测任务列表的操作。<SEP>这是系统中的一个操作，用于提交样本进行检测。<SEP>提交检测是用户操作按钮，用于触发检测任务创建流程，包含校验、选择寄送地点等子步骤。<SEP>提交检测是一个操作按钮，用于将样本提交进行检测。",
+        "source_id": "chunk-1af68c7b4677a1f9adbc5e600296cf25<SEP>chunk-20c459fad9c08d0c97d0fc465ececb0d<SEP>chunk-1df499ac615e547e5e253c3beb1bb6d1<SEP>chunk-26c65f6eddc40b3d8a0046c002cf294c",
+        "file_path": "s32测试用例.pdf<SEP>实验项目.pdf<SEP>实验项目s52.pdf",
+        "created_at": 1782368484
+      },
+      {
+        "entity_name": "步骤:扫描新二维码",
+        "entity_type": "method",
+        "description": "测试步骤，扫描新二维码。",
+        "source_id": "chunk-313e136ae906bd5efc0871114ed295c9",
+        "file_path": "s28测试用例.pdf",
+        "created_at": 1779874909
+      },
+      {
+        "entity_name": "颜",
+        "entity_type": "person",
+        "description": "颜是管理后台的另一位用户。",
+        "source_id": "chunk-1df499ac615e547e5e253c3beb1bb6d1",
+        "file_path": "实验项目s52.pdf",
+        "created_at": 1782368372
+      }
+    ],
+    "relationships": [
+      {
+        "src_id": "检测项目",
+        "tgt_id": "登记采样(手动)#1",
+        "description": "测试用例登记采样(手动)#1中需要填写检测项目。",
+        "keywords": "输入字段",
+        "weight": 1.0,
+        "source_id": "chunk-2193e2c6a59452bd1b2ea6e9b1bec3c0",
+        "file_path": "S35测试用例.pdf",
+        "created_at": 1779877111
+      },
+      {
+        "src_id": "用户登录",
+        "tgt_id": "用户管理",
+        "description": "用户登录是用户管理模块的入口，负责身份验证。",
+        "keywords": "功能关联",
+        "weight": 1.0,
+        "source_id": "chunk-abfaa2bcd8ab16373853f9355c52146f",
+        "file_path": "风险计算_登录页.pdf",
+        "created_at": 1780535113
+      },
+      {
+        "src_id": "检测项目",
+        "tgt_id": "登记采样(检测卡)#1",
+        "description": "测试用例登记采样(检测卡)#1中需要填写检测项目。",
+        "keywords": "输入字段",
+        "weight": 1.0,
+        "source_id": "chunk-2193e2c6a59452bd1b2ea6e9b1bec3c0",
+        "file_path": "S35测试用例.pdf",
+        "created_at": 1779877110
+      },
+      {
+        "src_id": "登录功能",
+        "tgt_id": "登录账号",
+        "description": "登录功能需要用户提供登录账号作为凭证进行身份验证。",
+        "keywords": "用户输入,身份验证",
+        "weight": 1.0,
+        "source_id": "chunk-17fb019485b53d341e9b1af1d060e08a",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862533
+      },
+      {
+        "src_id": "取消资格#1",
+        "tgt_id": "检测卡",
+        "description": "该测试用例中取消资格后检测卡状态变为审核失败。",
+        "keywords": "测试涉及,状态变更",
+        "weight": 1.0,
+        "source_id": "chunk-d6d523557052db74e45839e93e0e9798",
+        "file_path": "s34测试用例.pdf",
+        "created_at": 1779876891
+      },
+      {
+        "src_id": "登录功能",
+        "tgt_id": "登录密码",
+        "description": "登录功能需要用户提供登录密码作为凭证进行身份验证。",
+        "keywords": "用户输入,身份验证",
+        "weight": 1.0,
+        "source_id": "chunk-17fb019485b53d341e9b1af1d060e08a",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862533
+      },
+      {
+        "src_id": "检测卡",
+        "tgt_id": "通过审核#1",
+        "description": "该测试用例中审核通过后检测卡状态变为待检测。",
+        "keywords": "测试涉及,状态变更",
+        "weight": 1.0,
+        "source_id": "chunk-d6d523557052db74e45839e93e0e9798",
+        "file_path": "s34测试用例.pdf",
+        "created_at": 1779876889
+      },
+      {
+        "src_id": "张三",
+        "tgt_id": "当前登录用户",
+        "description": "在测试中，张三代表当前登录用户。",
+        "keywords": "用户身份,角色关联",
+        "weight": 1.0,
+        "source_id": "chunk-4ee7a841f208c6563571af725a5af65e",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100018
+      },
+      {
+        "src_id": "标本编码",
+        "tgt_id": "登记采样(手动)#1",
+        "description": "测试用例登记采样(手动)#1中需要填写标本编码。",
+        "keywords": "输入字段",
+        "weight": 1.0,
+        "source_id": "chunk-2193e2c6a59452bd1b2ea6e9b1bec3c0",
+        "file_path": "S35测试用例.pdf",
+        "created_at": 1779877112
+      },
+      {
+        "src_id": "用户",
+        "tgt_id": "账号",
+        "description": "用户使用账号进行登录认证。",
+        "keywords": "使用凭证",
+        "weight": 1.0,
+        "source_id": "chunk-f66dec0ba8e2d12f2b2b9cf3145b777b",
+        "file_path": "s20测试用例.pdf",
+        "created_at": 1779867831
+      },
+      {
+        "src_id": "标本编码",
+        "tgt_id": "登记采样(检测卡)#1",
+        "description": "测试用例登记采样(检测卡)#1中需要填写标本编码。",
+        "keywords": "输入字段",
+        "weight": 1.0,
+        "source_id": "chunk-2193e2c6a59452bd1b2ea6e9b1bec3c0",
+        "file_path": "S35测试用例.pdf",
+        "created_at": 1779877110
+      },
+      {
+        "src_id": "新增",
+        "tgt_id": "新增#1",
+        "description": "测试用例新增#1用于验证新增操作的功能正确性。",
+        "keywords": "功能关联,测试用例",
+        "weight": 1.0,
+        "source_id": "chunk-dd5486a83f744668de6e98b6b2da6679",
+        "file_path": "s30测试用例.pdf",
+        "created_at": 1779875737
+      },
+      {
+        "src_id": "新增样本#1",
+        "tgt_id": "样本",
+        "description": "测试用例“新增样本#1”验证新增样本功能的正确性。",
+        "keywords": "功能验证,测试用例",
+        "weight": 1.0,
+        "source_id": "chunk-e58a92662b7be26f58448548ade2c841",
+        "file_path": "s32测试用例.pdf",
+        "created_at": 1779876338
+      },
+      {
+        "src_id": "当前登录用户",
+        "tgt_id": "李四",
+        "description": "在测试中，李四代表当前登录用户。",
+        "keywords": "用户身份,角色关联",
+        "weight": 1.0,
+        "source_id": "chunk-4ee7a841f208c6563571af725a5af65e",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100018
+      },
+      {
+        "src_id": "用户",
+        "tgt_id": "登录",
+        "description": "用户输入账号和密码完成登录。",
+        "keywords": "认证,输入",
+        "weight": 1.0,
+        "source_id": "chunk-f66dec0ba8e2d12f2b2b9cf3145b777b",
+        "file_path": "s20测试用例.pdf",
+        "created_at": 1779867836
+      },
+      {
+        "src_id": "密码",
+        "tgt_id": "用户",
+        "description": "用户使用密码进行登录认证。",
+        "keywords": "使用凭证",
+        "weight": 1.0,
+        "source_id": "chunk-f66dec0ba8e2d12f2b2b9cf3145b777b",
+        "file_path": "s20测试用例.pdf",
+        "created_at": 1779867831
+      },
+      {
+        "src_id": "登记采样(手动)#1",
+        "tgt_id": "采样点",
+        "description": "测试用例登记采样(手动)#1中需要填写采样点字段。",
+        "keywords": "输入字段",
+        "weight": 1.0,
+        "source_id": "chunk-2193e2c6a59452bd1b2ea6e9b1bec3c0",
+        "file_path": "S35测试用例.pdf",
+        "created_at": 1779877110
+      },
+      {
+        "src_id": "用户",
+        "tgt_id": "用户登录",
+        "description": "用户执行登录操作进入系统。",
+        "keywords": "登录行为",
+        "weight": 1.0,
+        "source_id": "chunk-0187389780978bb38e9b14e0fe20df8c",
+        "file_path": "s30测试用例.pdf",
+        "created_at": 1779875742
+      },
+      {
+        "src_id": "登记采样(检测卡)#1",
+        "tgt_id": "采样点",
+        "description": "测试用例登记采样(检测卡)#1中需要填写采样点字段。",
+        "keywords": "输入字段",
+        "weight": 1.0,
+        "source_id": "chunk-2193e2c6a59452bd1b2ea6e9b1bec3c0",
+        "file_path": "S35测试用例.pdf",
+        "created_at": 1779877109
+      },
+      {
+        "src_id": "权限管理测试",
+        "tgt_id": "用户B",
+        "description": "权限管理测试包含用户B的测试用例，验证无编辑权限时的界面表现。",
+        "keywords": "权限验证,测试执行",
+        "weight": 1.0,
+        "source_id": "chunk-35d019619819f9d4c3ef1428f9148595",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100104
+      },
+      {
+        "src_id": "切换用户",
+        "tgt_id": "用户",
+        "description": "用户点击切换用户后，弹窗二次确认成功切换。",
+        "keywords": "操作,身份切换",
+        "weight": 1.0,
+        "source_id": "chunk-b3ab54c816fb2f928fa5ee967dbf58bf",
+        "file_path": "s26测试用例.pdf",
+        "created_at": 1779874178
+      },
+      {
+        "src_id": "权限管理测试",
+        "tgt_id": "用户A",
+        "description": "权限管理测试包含用户A的测试用例，验证编辑权限的有效性。",
+        "keywords": "权限验证,测试执行",
+        "weight": 1.0,
+        "source_id": "chunk-35d019619819f9d4c3ef1428f9148595",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100104
+      },
+      {
+        "src_id": "登记采样(手动)#1",
+        "tgt_id": "采样登记",
+        "description": "该测试用例是采样登记中手动方式的具体验证。",
+        "keywords": "测试场景",
+        "weight": 1.0,
+        "source_id": "chunk-2193e2c6a59452bd1b2ea6e9b1bec3c0",
+        "file_path": "S35测试用例.pdf",
+        "created_at": 1779877109
+      },
+      {
+        "src_id": "新增用户功能",
+        "tgt_id": "确认密码",
+        "description": "在新增用户时，需要输入确认密码来确保登录密码输入正确。",
+        "keywords": "密码一致性,数据验证",
+        "weight": 1.0,
+        "source_id": "chunk-17fb019485b53d341e9b1af1d060e08a",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862535
+      },
+      {
+        "src_id": "登记采样(检测卡)#1",
+        "tgt_id": "采样登记",
+        "description": "该测试用例是采样登记中检测卡方式的具体验证。",
+        "keywords": "测试场景",
+        "weight": 1.0,
+        "source_id": "chunk-2193e2c6a59452bd1b2ea6e9b1bec3c0",
+        "file_path": "S35测试用例.pdf",
+        "created_at": 1779877108
+      },
+      {
+        "src_id": "权限管理测试",
+        "tgt_id": "用户C",
+        "description": "权限管理测试包含用户C的测试用例，验证下发权限的操作能力。",
+        "keywords": "权限验证,测试执行",
+        "weight": 1.0,
+        "source_id": "chunk-35d019619819f9d4c3ef1428f9148595",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100105
+      },
+      {
+        "src_id": "登录",
+        "tgt_id": "首页",
+        "description": "成功登录后用户将进入首页。",
+        "keywords": "导航,结果",
+        "weight": 1.0,
+        "source_id": "chunk-06b1eeeb9b201d991f4107bd4d9eb95d",
+        "file_path": "s20测试用例.pdf",
+        "created_at": 1779867809
+      },
+      {
+        "src_id": "备注",
+        "tgt_id": "登记采样(手动)#1",
+        "description": "测试用例登记采样(手动)#1中需要填写备注字段。",
+        "keywords": "输入字段",
+        "weight": 1.0,
+        "source_id": "chunk-2193e2c6a59452bd1b2ea6e9b1bec3c0",
+        "file_path": "S35测试用例.pdf",
+        "created_at": 1779877111
+      },
+      {
+        "src_id": "注销功能",
+        "tgt_id": "登录功能",
+        "description": "用户通过注销功能退出当前会话，返回到登录功能状态。",
+        "keywords": "会话结束,状态切换",
+        "weight": 1.0,
+        "source_id": "chunk-17fb019485b53d341e9b1af1d060e08a",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862535
+      },
+      {
+        "src_id": "测试用户1",
+        "tgt_id": "项目管理",
+        "description": "测试用户1在项目管理中具有数据录入的操作权限。",
+        "keywords": "权限",
+        "weight": 1.0,
+        "source_id": "chunk-20c459fad9c08d0c97d0fc465ececb0d",
+        "file_path": "实验项目.pdf",
+        "created_at": 1779961145
+      },
+      {
+        "src_id": "登录",
+        "tgt_id": "账号",
+        "description": "登录功能需要用户输入账号进行身份验证。",
+        "keywords": "使用,输入",
+        "weight": 1.0,
+        "source_id": "chunk-06b1eeeb9b201d991f4107bd4d9eb95d",
+        "file_path": "s20测试用例.pdf",
+        "created_at": 1779867807
+      },
+      {
+        "src_id": "切换用户",
+        "tgt_id": "弹窗",
+        "description": "点击切换用户会弹出弹窗进行二次确认。",
+        "keywords": "二次确认",
+        "weight": 1.0,
+        "source_id": "chunk-b3ab54c816fb2f928fa5ee967dbf58bf",
+        "file_path": "s26测试用例.pdf",
+        "created_at": 1779874179
+      },
+      {
+        "src_id": "权限相关",
+        "tgt_id": "添加第三方用户权限#1",
+        "description": "添加第三方用户权限#1测试验证第三方用户权限的添加和状态切换。",
+        "keywords": "测试覆盖",
+        "weight": 1.0,
+        "source_id": "chunk-2193e2c6a59452bd1b2ea6e9b1bec3c0",
+        "file_path": "S35测试用例.pdf",
+        "created_at": 1779877108
+      },
+      {
+        "src_id": "客户",
+        "tgt_id": "登记采样(手动)#1",
+        "description": "测试用例登记采样(手动)#1中需要填写客户字段。",
+        "keywords": "输入字段",
+        "weight": 1.0,
+        "source_id": "chunk-2193e2c6a59452bd1b2ea6e9b1bec3c0",
+        "file_path": "S35测试用例.pdf",
+        "created_at": 1779877109
+      },
+      {
+        "src_id": "密码",
+        "tgt_id": "登录",
+        "description": "登录功能需要用户输入密码进行身份验证。",
+        "keywords": "使用,输入",
+        "weight": 1.0,
+        "source_id": "chunk-06b1eeeb9b201d991f4107bd4d9eb95d",
+        "file_path": "s20测试用例.pdf",
+        "created_at": 1779867808
+      },
+      {
+        "src_id": "客户",
+        "tgt_id": "登记采样(检测卡)#1",
+        "description": "测试用例登记采样(检测卡)#1中需要填写客户字段。",
+        "keywords": "输入字段",
+        "weight": 1.0,
+        "source_id": "chunk-2193e2c6a59452bd1b2ea6e9b1bec3c0",
+        "file_path": "S35测试用例.pdf",
+        "created_at": 1779877109
+      },
+      {
+        "src_id": "审核",
+        "tgt_id": "通过审核#1",
+        "description": "该测试用例测试审核通过操作。",
+        "keywords": "关联,测试涉及",
+        "weight": 1.0,
+        "source_id": "chunk-d6d523557052db74e45839e93e0e9798",
+        "file_path": "s34测试用例.pdf",
+        "created_at": 1779876890
+      },
+      {
+        "src_id": "多TD管添加入口验证",
+        "tgt_id": "环境登记-TD管管理测试用例表 (table)",
+        "description": "Entity 多TD管添加入口验证 belongs to 环境登记-TD管管理测试用例表 (table)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097478
+      },
+      {
+        "src_id": "权限设置",
+        "tgt_id": "角色管理",
+        "description": "角色管理模块包含权限设置测试点。",
+        "keywords": "包含",
+        "weight": 1.0,
+        "source_id": "chunk-3db2fced39f60198ed351afb9b4b0902",
+        "file_path": "s11测试用例.pdf",
+        "created_at": 1779864373
+      },
+      {
+        "src_id": "XCloud管理后台",
+        "tgt_id": "登录",
+        "description": "登录文字是XCloud管理后台登录界面的顶部标题。",
+        "keywords": "界面元素,系统入口",
+        "weight": 1.0,
+        "source_id": "chunk-f434f440d8f163b1573301b798ef002e",
+        "file_path": "XCloud_2.0管理后台.pdf",
+        "created_at": 1780022335
+      },
+      {
+        "src_id": "添加第三方用户权限#1",
+        "tgt_id": "飞书",
+        "description": "第三方用户通过飞书登录云平台，根据状态获得或失去权限。",
+        "keywords": "登录平台",
+        "weight": 1.0,
+        "source_id": "chunk-2193e2c6a59452bd1b2ea6e9b1bec3c0",
+        "file_path": "S35测试用例.pdf",
+        "created_at": 1779877112
+      },
+      {
+        "src_id": "用例:重置密码",
+        "tgt_id": "自定义权限管理",
+        "description": "自定义权限管理包含用例:重置密码，用于测试密码重置功能。",
+        "keywords": "包含,用户管理",
+        "weight": 1.0,
+        "source_id": "chunk-5a609e07c645f8b77b1570d40db7e420",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862671
+      },
+      {
+        "src_id": "操作人",
+        "tgt_id": "用户ID",
+        "description": "操作人字段的取值是用户ID，标识执行动作的操作者。",
+        "keywords": "字段映射,数据赋值",
+        "weight": 1.0,
+        "source_id": "chunk-156ffd4cbb1b2061aa3c6b58d84ad8a4",
+        "file_path": "34.pdf",
+        "created_at": 1779937692
+      },
+      {
+        "src_id": "用例:新增用户",
+        "tgt_id": "自定义权限管理",
+        "description": "自定义权限管理包含用例:新增用户，用于测试用户新增功能。",
+        "keywords": "包含,用户管理",
+        "weight": 1.0,
+        "source_id": "chunk-5a609e07c645f8b77b1570d40db7e420",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862670
+      },
+      {
+        "src_id": "XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "tgt_id": "下拉搜索选择用户名",
+        "description": "Entity 下拉搜索选择用户名 belongs to XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-0f1993029a2fbc6220b615b7bec212a3",
+        "file_path": "S33测试用例.pdf",
+        "created_at": 1779876397
+      },
+      {
+        "src_id": "用户管理",
+        "tgt_id": "角色管理",
+        "description": "用户管理与角色管理关联，通过角色定义用户权限。",
+        "keywords": "功能模块,权限关联",
+        "weight": 1.0,
+        "source_id": "chunk-e1a7e6682d118fd3b55bd49650662382",
+        "file_path": "检测任务.pdf",
+        "created_at": 1779948445
+      },
+      {
+        "src_id": "XCloud管理后台",
+        "tgt_id": "添加第三方用户权限#1",
+        "description": "该测试用例涉及XCloud管理后台的权限管理功能。",
+        "keywords": "系统关联",
+        "weight": 1.0,
+        "source_id": "chunk-2193e2c6a59452bd1b2ea6e9b1bec3c0",
+        "file_path": "S35测试用例.pdf",
+        "created_at": 1779877109
+      },
+      {
+        "src_id": "启用用户功能",
+        "tgt_id": "登录功能",
+        "description": "启用用户后，该用户将能恢复正常登录功能。",
+        "keywords": "状态恢复,访问控制",
+        "weight": 1.0,
+        "source_id": "chunk-17fb019485b53d341e9b1af1d060e08a",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862534
+      },
+      {
+        "src_id": "XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "tgt_id": "用户名客户权限为空点击确定",
+        "description": "Entity 用户名客户权限为空点击确定 belongs to XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-0f1993029a2fbc6220b615b7bec212a3",
+        "file_path": "S33测试用例.pdf",
+        "created_at": 1779876398
+      },
+      {
+        "src_id": "用例:继续录入#1",
+        "tgt_id": "采样信息",
+        "description": "该用例测试完成手动采样后点击继续录入的功能。",
+        "keywords": "测试操作",
+        "weight": 1.0,
+        "source_id": "chunk-313e136ae906bd5efc0871114ed295c9",
+        "file_path": "s28测试用例.pdf",
+        "created_at": 1779874925
+      },
+      {
+        "src_id": "审核",
+        "tgt_id": "是否可审核#1",
+        "description": "该测试用例测试审核入口的显示条件。",
+        "keywords": "关联,测试涉及",
+        "weight": 1.0,
+        "source_id": "chunk-d6d523557052db74e45839e93e0e9798",
+        "file_path": "s34测试用例.pdf",
+        "created_at": 1779876890
+      },
+      {
+        "src_id": "用例:登记采样信息#1",
+        "tgt_id": "采样信息",
+        "description": "该用例测试登记采样信息的功能。",
+        "keywords": "测试操作",
+        "weight": 1.0,
+        "source_id": "chunk-313e136ae906bd5efc0871114ed295c9",
+        "file_path": "s28测试用例.pdf",
+        "created_at": 1779874925
+      },
+      {
+        "src_id": "用户F",
+        "tgt_id": "登录页",
+        "description": "用户F通过登录页登录系统。",
+        "keywords": "使用,登录",
+        "weight": 1.0,
+        "source_id": "chunk-d3bf45a42ee78029ec0bc855da017a7d",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100098
+      },
+      {
+        "src_id": "图片",
+        "tgt_id": "相册选择图片#1用例",
+        "description": "用例验证从相册选择图片进行OCR识别。",
+        "keywords": "涉及",
+        "weight": 1.0,
+        "source_id": "chunk-3db2fced39f60198ed351afb9b4b0902",
+        "file_path": "s11测试用例.pdf",
+        "created_at": 1779864371
+      },
+      {
+        "src_id": "登录功能",
+        "tgt_id": "禁用用户功能",
+        "description": "禁用用户后，该用户将无法通过登录功能进入系统。",
+        "keywords": "状态影响,访问控制",
+        "weight": 1.0,
+        "source_id": "chunk-17fb019485b53d341e9b1af1d060e08a",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862534
+      },
+      {
+        "src_id": "图片",
+        "tgt_id": "拍照选择图片#1用例",
+        "description": "用例验证通过拍照选择图片进行OCR识别。",
+        "keywords": "涉及",
+        "weight": 1.0,
+        "source_id": "chunk-3db2fced39f60198ed351afb9b4b0902",
+        "file_path": "s11测试用例.pdf",
+        "created_at": 1779864371
+      },
+      {
+        "src_id": "分配卷王问卷权限#1用例",
+        "tgt_id": "权限设置",
+        "description": "权限设置测试点包含分配卷王问卷权限#1用例。",
+        "keywords": "包含",
+        "weight": 1.0,
+        "source_id": "chunk-3db2fced39f60198ed351afb9b4b0902",
+        "file_path": "s11测试用例.pdf",
+        "created_at": 1779864373
+      },
+      {
+        "src_id": "图片",
+        "tgt_id": "照片空白识别#2用例",
+        "description": "用例验证识别空白图片。",
+        "keywords": "涉及",
+        "weight": 1.0,
+        "source_id": "chunk-3db2fced39f60198ed351afb9b4b0902",
+        "file_path": "s11测试用例.pdf",
+        "created_at": 1779864372
+      },
+      {
+        "src_id": "测试",
+        "tgt_id": "项目管理",
+        "description": "测试用户在项目管理中具有数据录入的操作权限。",
+        "keywords": "权限",
+        "weight": 1.0,
+        "source_id": "chunk-20c459fad9c08d0c97d0fc465ececb0d",
+        "file_path": "实验项目.pdf",
+        "created_at": 1779961145
+      },
+      {
+        "src_id": "S39测试用例流程图 (S39 Test Case Flowchart) (image)",
+        "tgt_id": "管理权限/非管理权限",
+        "description": "Entity 管理权限/非管理权限 belongs to S39测试用例流程图 (S39 Test Case Flowchart) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-7f25e100e203125a6c2e099ea972e12a",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862666
+      },
+      {
+        "src_id": "删除任务#1",
+        "tgt_id": "新增/删除检测任务",
+        "description": "该测试用例属于新增/删除检测任务模块，验证删除检测任务的功能。",
+        "keywords": "功能测试,归属关系",
+        "weight": 1.0,
+        "source_id": "chunk-5a956e38fde5b20399e4f71b1cd1177c",
+        "file_path": "S41测试用例.pdf",
+        "created_at": 1779863167
+      },
+      {
+        "src_id": "XCloud Management Backend Feishu QR Login Interface with Breathomics Emphasis (image)",
+        "tgt_id": "登录",
+        "description": "Entity 登录 belongs to XCloud Management Backend Feishu QR Login Interface with Breathomics Emphasis (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-f434f440d8f163b1573301b798ef002e",
+        "file_path": "XCloud_2.0管理后台.pdf",
+        "created_at": 1780022341
+      },
+      {
+        "src_id": "TC-SUBJ-LOG-002",
+        "tgt_id": "张三",
+        "description": "TC-SUBJ-LOG-002使用张三作为受试者姓名进行保存操作。",
+        "keywords": "测试数据,用户身份",
+        "weight": 1.0,
+        "source_id": "chunk-4ee7a841f208c6563571af725a5af65e",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100014
+      },
+      {
+        "src_id": "S40测试用例 Flowchart (Test Case Documentation) (image (technical diagram/flowchart))",
+        "tgt_id": "登记样本，点击开始解析",
+        "description": "Entity 登记样本，点击开始解析 belongs to S40测试用例 Flowchart (Test Case Documentation) (image (technical diagram/flowchart))",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-e7aed5a6965b4a43d475f002037e6175",
+        "file_path": "S40测试用例.pdf",
+        "created_at": 1779862943
+      },
+      {
+        "src_id": "刷新页面",
+        "tgt_id": "用户登录",
+        "description": "用户登录后12小时无操作需刷新页面，否则跳转至登录页面。",
+        "keywords": "登录逻辑,超时处理",
+        "weight": 1.0,
+        "source_id": "chunk-0187389780978bb38e9b14e0fe20df8c",
+        "file_path": "s30测试用例.pdf",
+        "created_at": 1779875742
+      },
+      {
+        "src_id": "填写中",
+        "tgt_id": "重新填写#1",
+        "description": "重新填写#1测试用例中点击重新填写将任务状态变更为填写中。",
+        "keywords": "状态变更",
+        "weight": 1.0,
+        "source_id": "chunk-6a0bdd94818406989167e9cf2801ec24",
+        "file_path": "s20测试用例.pdf",
+        "created_at": 1779867827
+      },
+      {
+        "src_id": "新增用户功能",
+        "tgt_id": "登录账号",
+        "description": "在新增用户时，需要输入登录账号作为新用户账号的一部分。",
+        "keywords": "数据输入,账号创建",
+        "weight": 1.0,
+        "source_id": "chunk-17fb019485b53d341e9b1af1d060e08a",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862533
+      },
+      {
+        "src_id": "受试者",
+        "tgt_id": "登记采样(手动)#1",
+        "description": "测试用例登记采样(手动)#1中需要填写受试者姓名、性别、出生日期。",
+        "keywords": "输入字段",
+        "weight": 1.0,
+        "source_id": "chunk-2193e2c6a59452bd1b2ea6e9b1bec3c0",
+        "file_path": "S35测试用例.pdf",
+        "created_at": 1779877110
+      },
+      {
+        "src_id": "提交检测",
+        "tgt_id": "颜",
+        "description": "用户颜使用提交检测功能，可能触发任务创建流程。",
+        "keywords": "操作,用户交互",
+        "weight": 1.0,
+        "source_id": "chunk-1df499ac615e547e5e253c3beb1bb6d1",
+        "file_path": "实验项目s52.pdf",
+        "created_at": 1782368383
+      },
+      {
+        "src_id": "受试者",
+        "tgt_id": "登记采样(检测卡)#1",
+        "description": "测试用例登记采样(检测卡)#1中需要填写受试者姓名、性别、出生日期。",
+        "keywords": "输入字段",
+        "weight": 1.0,
+        "source_id": "chunk-2193e2c6a59452bd1b2ea6e9b1bec3c0",
+        "file_path": "S35测试用例.pdf",
+        "created_at": 1779877109
+      },
+      {
+        "src_id": "测试",
+        "tgt_id": "测试2",
+        "description": "测试2是用户“测试”的登录账号。",
+        "keywords": "关联",
+        "weight": 1.0,
+        "source_id": "chunk-20c459fad9c08d0c97d0fc465ececb0d",
+        "file_path": "实验项目.pdf",
+        "created_at": 1779961147
+      },
+      {
+        "src_id": "Appointment - related Action Log Table (image)",
+        "tgt_id": "用户ID",
+        "description": "Entity 用户ID belongs to Appointment - related Action Log Table (image)<SEP>Entity 用户ID belongs to Appointment - related Action Log Table (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 20.0,
+        "source_id": "chunk-156ffd4cbb1b2061aa3c6b58d84ad8a4",
+        "file_path": "34.pdf",
+        "created_at": 1779937696
+      },
+      {
+        "src_id": "新增#1",
+        "tgt_id": "检测卡",
+        "description": "该测试用例测试新增检测卡功能。",
+        "keywords": "关联,测试涉及",
+        "weight": 1.0,
+        "source_id": "chunk-d6d523557052db74e45839e93e0e9798",
+        "file_path": "s34测试用例.pdf",
+        "created_at": 1779876889
+      },
+      {
+        "src_id": "取消资格#1",
+        "tgt_id": "审核",
+        "description": "该测试用例测试取消资格操作。",
+        "keywords": "关联,测试涉及",
+        "weight": 1.0,
+        "source_id": "chunk-d6d523557052db74e45839e93e0e9798",
+        "file_path": "s34测试用例.pdf",
+        "created_at": 1779876891
+      },
+      {
+        "src_id": "数字签名",
+        "tgt_id": "新增#1",
+        "description": "新增#1用例中涉及上传数字签名。",
+        "keywords": "操作涉及,文件上传",
+        "weight": 1.0,
+        "source_id": "chunk-56d7a4454df33eea2c98c2fc35c70ff9",
+        "file_path": "s18测试用例.pdf",
+        "created_at": 1779866918
+      },
+      {
+        "src_id": "权限管理",
+        "tgt_id": "权限管理-访问权限#1",
+        "description": "权限管理模块包含访问权限测试用例。<SEP>权限管理模块包含访问权限的测试用例。",
+        "keywords": "包含,测试,测试用例",
+        "weight": 2.0,
+        "source_id": "chunk-ad7edd3628a44e67eb079f7e15108bbd<SEP>chunk-8b784b76bd2e76fe01e7158deac2e90a",
+        "file_path": "s23测试用例.pdf",
+        "created_at": 1779870147
+      },
+      {
+        "src_id": "用户C",
+        "tgt_id": "系统",
+        "description": "用户C登录系统执行操作。",
+        "keywords": "使用,登录",
+        "weight": 1.0,
+        "source_id": "chunk-d3bf45a42ee78029ec0bc855da017a7d",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100096
+      },
+      {
+        "src_id": "权限管理",
+        "tgt_id": "权限管理-管理权限#1",
+        "description": "权限管理模块包含管理权限测试用例。<SEP>权限管理模块包含管理权限的测试用例。",
+        "keywords": "包含,测试,测试用例",
+        "weight": 2.0,
+        "source_id": "chunk-ad7edd3628a44e67eb079f7e15108bbd<SEP>chunk-8b784b76bd2e76fe01e7158deac2e90a",
+        "file_path": "s23测试用例.pdf",
+        "created_at": 1779870146
+      },
+      {
+        "src_id": "添加第三方用户权限#1",
+        "tgt_id": "第三方用户",
+        "description": "添加第三方用户权限#1用例中，添加第三方用户并控制其权限状态。",
+        "keywords": "权限设置",
+        "weight": 1.0,
+        "source_id": "chunk-2193e2c6a59452bd1b2ea6e9b1bec3c0",
+        "file_path": "S35测试用例.pdf",
+        "created_at": 1779877111
+      },
+      {
+        "src_id": "权限管理",
+        "tgt_id": "权限管理-无权限#1",
+        "description": "权限管理模块包含无权限测试用例。<SEP>权限管理模块包含无权限的测试用例。",
+        "keywords": "包含,测试,测试用例",
+        "weight": 2.0,
+        "source_id": "chunk-ad7edd3628a44e67eb079f7e15108bbd<SEP>chunk-8b784b76bd2e76fe01e7158deac2e90a",
+        "file_path": "s23测试用例.pdf",
+        "created_at": 1779870147
+      },
+      {
+        "src_id": "用户登录",
+        "tgt_id": "登录界面",
+        "description": "登录界面顶部显示“用户登录”文字，表明页面用途。",
+        "keywords": "文字内容",
+        "weight": 1.0,
+        "source_id": "chunk-cd4d5f0070a914bfe545b8a60c49c25e",
+        "file_path": "风险计算_登录页.pdf",
+        "created_at": 1780535368
+      },
+      {
+        "src_id": "苏玛罐管理",
+        "tgt_id": "苏玛罐管理-权限#1",
+        "description": "苏玛罐管理模块包含权限管理的测试用例。",
+        "keywords": "包含,测试用例",
+        "weight": 1.0,
+        "source_id": "chunk-ad7edd3628a44e67eb079f7e15108bbd",
+        "file_path": "s23测试用例.pdf",
+        "created_at": 1779870147
+      },
+      {
+        "src_id": "用户E",
+        "tgt_id": "登录页",
+        "description": "用户E通过登录页登录系统。",
+        "keywords": "使用,登录",
+        "weight": 1.0,
+        "source_id": "chunk-d3bf45a42ee78029ec0bc855da017a7d",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100097
+      },
+      {
+        "src_id": "下拉搜索选择用户名",
+        "tgt_id": "客户权限",
+        "description": "下拉搜索选择用户名步骤中涉及客户权限的选择。",
+        "keywords": "权限,选择",
+        "weight": 1.0,
+        "source_id": "chunk-0f1993029a2fbc6220b615b7bec212a3",
+        "file_path": "S33测试用例.pdf",
+        "created_at": 1779876391
+      },
+      {
+        "src_id": "用户B",
+        "tgt_id": "登录页",
+        "description": "用户B通过登录页登录系统。",
+        "keywords": "使用,登录",
+        "weight": 1.0,
+        "source_id": "chunk-d3bf45a42ee78029ec0bc855da017a7d",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100096
+      },
+      {
+        "src_id": "xmetrix",
+        "tgt_id": "登录",
+        "description": "xmetrix系统包含登录功能模块。",
+        "keywords": "功能模块,包含",
+        "weight": 1.0,
+        "source_id": "chunk-06b1eeeb9b201d991f4107bd4d9eb95d",
+        "file_path": "s20测试用例.pdf",
+        "created_at": 1779867807
+      },
+      {
+        "src_id": "操作#1",
+        "tgt_id": "详情",
+        "description": "测试用例“操作#1”验证查看详情操作。",
+        "keywords": "功能验证,测试用例",
+        "weight": 1.0,
+        "source_id": "chunk-e58a92662b7be26f58448548ade2c841",
+        "file_path": "s32测试用例.pdf",
+        "created_at": 1779876342
+      },
+      {
+        "src_id": "TC-SUBJ-LOG-002",
+        "tgt_id": "当前登录用户",
+        "description": "在TC-SUBJ-LOG-002中，操作人=当前登录用户，即张三。",
+        "keywords": "操作主体,日志记录",
+        "weight": 1.0,
+        "source_id": "chunk-4ee7a841f208c6563571af725a5af65e",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100014
+      },
+      {
+        "src_id": "TC-SUBJ-LOG-003",
+        "tgt_id": "当前登录用户",
+        "description": "在TC-SUBJ-LOG-003中，操作人=当前登录用户。",
+        "keywords": "操作主体,日志记录",
+        "weight": 1.0,
+        "source_id": "chunk-4ee7a841f208c6563571af725a5af65e",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100014
+      },
+      {
+        "src_id": "REQ-PERM-001",
+        "tgt_id": "TC-PERM-EDIT-002",
+        "description": "TC-PERM-EDIT-002测试用例对应REQ-PERM-001需求，验证无编辑权限。",
+        "keywords": "测试覆盖,需求关联",
+        "weight": 1.0,
+        "source_id": "chunk-35d019619819f9d4c3ef1428f9148595",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100106
+      },
+      {
+        "src_id": "重新填写",
+        "tgt_id": "重新填写#1",
+        "description": "重新填写用例包含重新填写#1测试用例，验证重新填写功能与状态限制。",
+        "keywords": "包含,测试用例",
+        "weight": 1.0,
+        "source_id": "chunk-6a0bdd94818406989167e9cf2801ec24",
+        "file_path": "s20测试用例.pdf",
+        "created_at": 1779867826
+      },
+      {
+        "src_id": "登记样本，点击开始解析",
+        "tgt_id": "进度条前10%处理开启解析后的升温阶段#1",
+        "description": "该测试用例包含步骤“登记样本，点击开始解析”。",
+        "keywords": "前置操作,步骤关联",
+        "weight": 1.0,
+        "source_id": "chunk-e7aed5a6965b4a43d475f002037e6175",
+        "file_path": "S40测试用例.pdf",
+        "created_at": 1779862939
+      },
+      {
+        "src_id": "设备二维码",
+        "tgt_id": "设备二维码展示#1",
+        "description": "测试用例“设备二维码展示#1”通过点击设备二维码触发弹窗。",
+        "keywords": "操作,测试",
+        "weight": 1.0,
+        "source_id": "chunk-6e6152f5c43eb513dfe1a0f425a330d4",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865197
+      },
+      {
+        "src_id": "拍照自动填入",
+        "tgt_id": "相册选择图片#1用例",
+        "description": "拍照自动填入选测试点包含相册选择图片#1用例。",
+        "keywords": "包含",
+        "weight": 1.0,
+        "source_id": "chunk-3db2fced39f60198ed351afb9b4b0902",
+        "file_path": "s11测试用例.pdf",
+        "created_at": 1779864374
+      },
+      {
+        "src_id": "拍照自动填入",
+        "tgt_id": "拍照选择图片#1用例",
+        "description": "拍照自动填入选测试点包含拍照选择图片#1用例。",
+        "keywords": "包含",
+        "weight": 1.0,
+        "source_id": "chunk-3db2fced39f60198ed351afb9b4b0902",
+        "file_path": "s11测试用例.pdf",
+        "created_at": 1779864374
+      },
+      {
+        "src_id": "拍照自动填入",
+        "tgt_id": "照片空白识别#2用例",
+        "description": "拍照自动填入选测试点包含照片空白识别#2用例。",
+        "keywords": "包含",
+        "weight": 1.0,
+        "source_id": "chunk-3db2fced39f60198ed351afb9b4b0902",
+        "file_path": "s11测试用例.pdf",
+        "created_at": 1779864374
+      },
+      {
+        "src_id": "外部用户",
+        "tgt_id": "添加第三方用户权限#1",
+        "description": "第三方用户状态关闭后，登录小程序为外部用户权限。",
+        "keywords": "权限关联",
+        "weight": 1.0,
+        "source_id": "chunk-2193e2c6a59452bd1b2ea6e9b1bec3c0",
+        "file_path": "S35测试用例.pdf",
+        "created_at": 1779877113
+      },
+      {
+        "src_id": "OCR识别场景",
+        "tgt_id": "相册选择图片#1用例",
+        "description": "场景包含相册选择图片#1用例。",
+        "keywords": "包含",
+        "weight": 1.0,
+        "source_id": "chunk-3db2fced39f60198ed351afb9b4b0902",
+        "file_path": "s11测试用例.pdf",
+        "created_at": 1779864369
+      },
+      {
+        "src_id": "OCR识别场景",
+        "tgt_id": "拍照选择图片#1用例",
+        "description": "场景包含拍照选择图片#1用例。",
+        "keywords": "包含",
+        "weight": 1.0,
+        "source_id": "chunk-3db2fced39f60198ed351afb9b4b0902",
+        "file_path": "s11测试用例.pdf",
+        "created_at": 1779864369
+      },
+      {
+        "src_id": "TC-PERM-SEND-001",
+        "tgt_id": "权限管理测试",
+        "description": "TC-PERM-SEND-001是权限管理测试的一部分，验证下发权限用户的操作能力。",
+        "keywords": "权限验证,测试用例",
+        "weight": 1.0,
+        "source_id": "chunk-35d019619819f9d4c3ef1428f9148595",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100106
+      },
+      {
+        "src_id": "TC-PERM-EDIT-002",
+        "tgt_id": "权限管理测试",
+        "description": "TC-PERM-EDIT-002是权限管理测试的一部分，验证无编辑权限用户的界面限制。",
+        "keywords": "权限验证,测试用例",
+        "weight": 1.0,
+        "source_id": "chunk-35d019619819f9d4c3ef1428f9148595",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100106
+      },
+      {
+        "src_id": "TC-PERM-EDIT-001",
+        "tgt_id": "权限管理测试",
+        "description": "TC-PERM-EDIT-001是权限管理测试的一部分，验证编辑权限用户的操作能力。",
+        "keywords": "权限验证,测试用例",
+        "weight": 1.0,
+        "source_id": "chunk-35d019619819f9d4c3ef1428f9148595",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100105
+      },
+      {
+        "src_id": "OCR识别场景",
+        "tgt_id": "照片空白识别#2用例",
+        "description": "场景包含照片空白识别#2用例。",
+        "keywords": "包含",
+        "weight": 1.0,
+        "source_id": "chunk-3db2fced39f60198ed351afb9b4b0902",
+        "file_path": "s11测试用例.pdf",
+        "created_at": 1779864370
+      },
+      {
+        "src_id": "s11测试用例 思维导图 (s11 Test Case Mind Map) (image)",
+        "tgt_id": "模块:系统配置",
+        "description": "Entity 模块:系统配置 belongs to s11测试用例 思维导图 (s11 Test Case Mind Map) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-30bd90f89a82ee4dc2dfb3d35ae72ff0",
+        "file_path": "s11测试用例.pdf",
+        "created_at": 1779864531
+      },
+      {
+        "src_id": "是否有权限#1",
+        "tgt_id": "管理权限/非管理权限",
+        "description": "用例“是否有权限#1”包含步骤“管理权限/非管理权限”。",
+        "keywords": "包含,步骤",
+        "weight": 1.0,
+        "source_id": "chunk-7f25e100e203125a6c2e099ea972e12a",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862657
+      },
+      {
+        "src_id": "是否有变更谱图权限#1",
+        "tgt_id": "管理权限/非管理权限",
+        "description": "用例“是否有变更谱图权限#1”包含步骤“管理权限/非管理权限”。",
+        "keywords": "包含,步骤",
+        "weight": 1.0,
+        "source_id": "chunk-7f25e100e203125a6c2e099ea972e12a",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862656
+      },
+      {
+        "src_id": "US1640L223",
+        "tgt_id": "测试用户1",
+        "description": "测试用户1是该序列号对应设备的医院联系人。",
+        "keywords": "联系人",
+        "weight": 1.0,
+        "source_id": "chunk-e62fb0b9d1d59b9c810e06f96e36d790",
+        "file_path": "设备名称搜索.pdf",
+        "created_at": 1779960644
+      },
+      {
+        "src_id": "US1742L413",
+        "tgt_id": "测试用户1",
+        "description": "测试用户1是该序列号对应设备的医院联系人。",
+        "keywords": "联系人",
+        "weight": 1.0,
+        "source_id": "chunk-e62fb0b9d1d59b9c810e06f96e36d790",
+        "file_path": "设备名称搜索.pdf",
+        "created_at": 1779960643
+      },
+      {
+        "src_id": "BA2400005989860833192",
+        "tgt_id": "测试用户1",
+        "description": "测试用户1是该序列号对应设备的医院联系人。",
+        "keywords": "联系人",
+        "weight": 1.0,
+        "source_id": "chunk-e62fb0b9d1d59b9c810e06f96e36d790",
+        "file_path": "设备名称搜索.pdf",
+        "created_at": 1779960642
+      },
+      {
+        "src_id": "内部用户",
+        "tgt_id": "添加第三方用户权限#1",
+        "description": "第三方用户添加后，若状态正常，登录小程序为内部用户权限。",
+        "keywords": "权限关联",
+        "weight": 1.0,
+        "source_id": "chunk-2193e2c6a59452bd1b2ea6e9b1bec3c0",
+        "file_path": "S35测试用例.pdf",
+        "created_at": 1779877113
+      },
+      {
+        "src_id": "小程序客户、采样点、检测项目权限#1",
+        "tgt_id": "第三方用户",
+        "description": "小程序客户、采样点、检测项目权限#1测试了第三方用户只能查看绑定的检测项目、客户、采样点。",
+        "keywords": "权限测试,角色",
+        "weight": 1.0,
+        "source_id": "chunk-0993b38cbdf06250867a506772025562",
+        "file_path": "S43测试用例.pdf",
+        "created_at": 1779863786
+      },
+      {
+        "src_id": "s11测试用例",
+        "tgt_id": "模块:系统配置",
+        "description": "s11测试用例通过分支连接到模块:系统配置。",
+        "keywords": "分支,包含",
+        "weight": 1.0,
+        "source_id": "chunk-30bd90f89a82ee4dc2dfb3d35ae72ff0",
+        "file_path": "s11测试用例.pdf",
+        "created_at": 1779864531
+      },
+      {
+        "src_id": "检测任务已取消",
+        "tgt_id": "重新填写#1",
+        "description": "重新填写#1测试用例中，当检测任务已取消时无法重新填写。",
+        "keywords": "条件限制",
+        "weight": 1.0,
+        "source_id": "chunk-6a0bdd94818406989167e9cf2801ec24",
+        "file_path": "s20测试用例.pdf",
+        "created_at": 1779867827
+      },
+      {
+        "src_id": "检测任务已完成",
+        "tgt_id": "重新填写#1",
+        "description": "重新填写#1测试用例中，当检测任务已完成时无法重新填写。",
+        "keywords": "条件限制",
+        "weight": 1.0,
+        "source_id": "chunk-6a0bdd94818406989167e9cf2801ec24",
+        "file_path": "s20测试用例.pdf",
+        "created_at": 1779867827
+      },
+      {
+        "src_id": "研究标本编码正则",
+        "tgt_id": "设备二维码展示#1",
+        "description": "测试用例“设备二维码展示#1”验证扫码结果对应研究标本编码正则。",
+        "keywords": "测试,验证",
+        "weight": 1.0,
+        "source_id": "chunk-6e6152f5c43eb513dfe1a0f425a330d4",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865198
+      },
+      {
+        "src_id": "研究编码",
+        "tgt_id": "设备二维码展示#1",
+        "description": "测试用例“设备二维码展示#1”验证弹窗中显示的标本编码前缀为该研究编码。",
+        "keywords": "测试,验证",
+        "weight": 1.0,
+        "source_id": "chunk-6e6152f5c43eb513dfe1a0f425a330d4",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865197
+      },
+      {
+        "src_id": "Xmetrix-首页展示#1",
+        "tgt_id": "没有权限进来",
+        "description": "测试用例Xmetrix-首页展示#1包含步骤没有权限进来。",
+        "keywords": "包含步骤",
+        "weight": 1.0,
+        "source_id": "chunk-8a98c36ae38c8eeb25db9aa4216ffaf9",
+        "file_path": "s22测试用例.pdf",
+        "created_at": 1779869582
+      },
+      {
+        "src_id": "新增字段低值提示#1",
+        "tgt_id": "输入字符超过50",
+        "description": "测试用例新增字段低值提示#1包含步骤输入字符超过50。",
+        "keywords": "包含步骤",
+        "weight": 1.0,
+        "source_id": "chunk-8a98c36ae38c8eeb25db9aa4216ffaf9",
+        "file_path": "s22测试用例.pdf",
+        "created_at": 1779869583
+      },
+      {
+        "src_id": "列表数据顺序",
+        "tgt_id": "用例",
+        "description": "列表数据顺序是测试用例之一。",
+        "keywords": "测试关联",
+        "weight": 1.0,
+        "source_id": "chunk-300889d4aaad356f00f4749ee317a7c8",
+        "file_path": "s12测试用例.pdf",
+        "created_at": 1779864725
+      },
+      {
+        "src_id": "BA25000078",
+        "tgt_id": "测试连接",
+        "description": "设备BA25000078执行了测试连接操作。",
+        "keywords": "关联,操作",
+        "weight": 1.0,
+        "source_id": "chunk-84fb67f843ffee0e4d7a6c79e2e45b3d",
+        "file_path": "风险计算_系统配置.pdf",
+        "created_at": 1780537619
+      },
+      {
+        "src_id": "测试连接",
+        "tgt_id": "连接失败",
+        "description": "测试连接操作的结果是连接失败。",
+        "keywords": "状态,结果",
+        "weight": 1.0,
+        "source_id": "chunk-84fb67f843ffee0e4d7a6c79e2e45b3d",
+        "file_path": "风险计算_系统配置.pdf",
+        "created_at": 1780537618
+      },
+      {
+        "src_id": "用例",
+        "tgt_id": "输入搜索关键词",
+        "description": "输入搜索关键词是一个测试点，对应某个用例。",
+        "keywords": "测试关联",
+        "weight": 1.0,
+        "source_id": "chunk-300889d4aaad356f00f4749ee317a7c8",
+        "file_path": "s12测试用例.pdf",
+        "created_at": 1779864725
+      },
+      {
+        "src_id": "无权限登录",
+        "tgt_id": "未授权账号提示",
+        "description": "当用户无权限登录时，系统触发并显示“未授权账号，请联系管理员”提示消息。",
+        "keywords": "显示,触发",
+        "weight": 1.0,
+        "source_id": "chunk-36dfe62d33aa08c6e2c54fa92d67f9e1",
+        "file_path": "s19测试用例.pdf",
+        "created_at": 1779867251
+      },
+      {
+        "src_id": "内部成员",
+        "tgt_id": "小程序客户、采样点、检测项目权限#1",
+        "description": "小程序客户、采样点、检测项目权限#1测试了内部成员可查看全部数据。",
+        "keywords": "权限测试,角色",
+        "weight": 1.0,
+        "source_id": "chunk-0993b38cbdf06250867a506772025562",
+        "file_path": "S43测试用例.pdf",
+        "created_at": 1779863786
+      },
+      {
+        "src_id": "添加批注#1",
+        "tgt_id": "谱图导入增加批注",
+        "description": "谱图导入增加批注模块包含了添加批注这个测试用例。",
+        "keywords": "包含,测试",
+        "weight": 1.0,
+        "source_id": "chunk-8b784b76bd2e76fe01e7158deac2e90a",
+        "file_path": "s23测试用例.pdf",
+        "created_at": 1779870151
+      },
+      {
+        "src_id": "正常查看首页图",
+        "tgt_id": "没有权限进来",
+        "description": "步骤没有权限进来的预期结果是正常查看首页图。",
+        "keywords": "预期结果",
+        "weight": 1.0,
+        "source_id": "chunk-8a98c36ae38c8eeb25db9aa4216ffaf9",
+        "file_path": "s22测试用例.pdf",
+        "created_at": 1779869587
+      },
+      {
+        "src_id": "自动截断多余字符",
+        "tgt_id": "输入字符超过50",
+        "description": "步骤输入字符超过50的预期结果是自动截断多余字符。",
+        "keywords": "预期结果",
+        "weight": 1.0,
+        "source_id": "chunk-8a98c36ae38c8eeb25db9aa4216ffaf9",
+        "file_path": "s22测试用例.pdf",
+        "created_at": 1779869588
+      },
+      {
+        "src_id": "步骤:点击查看二维码信息",
+        "tgt_id": "预期:增加采样点名称和采样点ID",
+        "description": "执行点击查看二维码信息步骤后，预期增加采样点名称和采样点ID。",
+        "keywords": "测试步骤,预期结果",
+        "weight": 1.0,
+        "source_id": "chunk-313e136ae906bd5efc0871114ed295c9",
+        "file_path": "s28测试用例.pdf",
+        "created_at": 1779874925
+      },
+      {
+        "src_id": "步骤:扫描新二维码",
+        "tgt_id": "预期:正常识别填入研究信息、采样点信息",
+        "description": "执行扫描新二维码步骤后，预期研究信息和采样点信息自动填入。",
+        "keywords": "测试步骤,预期结果",
+        "weight": 1.0,
+        "source_id": "chunk-313e136ae906bd5efc0871114ed295c9",
+        "file_path": "s28测试用例.pdf",
+        "created_at": 1779874925
+      }
+    ],
+    "chunks": [
+      {
+        "reference_id": "1",
+        "content": "开启\n\n自定义:设备管理\n\n自定义:版本变更记录（色谱仪和采集仪）\n\n用例:新增#1\n\n步骤:选择变更时间、硬件版本、软件版本、备\n\n注，点击确定\n\n预期:成功新增\n\n步骤:变更时间、硬件版本、软件版为空，点击确\n\n定\n\n预期:提示对应字段不能为空\n\n步骤:可选硬件版本（多个设备版本管理下）\n\n预期:当前设备在'设备版本管理'中版本类型为\n\n'硬件版本'的版本号（版本名称），且状态为\n\n步骤:可选软件版本\n\n预期:当前设备在'设备版本管理'中版本类型为\n\n'软件版本'的版本号（版本名称），且状态为\n\n开启\n\n步骤:备注输入超过200字符\n\n预期:自动截断多余字符\n\n用例:作废#1\n\n步骤:进入详情，点击'作废'，弹窗二次确认\n\n预期:成功作废，状态变更为'作废'\n\n用例:列表排序 #1\n\n步骤:默认排序\n\n预期:按变更时间倒序排序，新增的在上面\n\n步骤:选择按'变更时间'正序/倒序\n\n预期:正常排序展示\n\n步骤:选择按'记录时间'正序/倒序排列\n\n预期:正常排序展示\n\n自定义:设备台账\n\n用例:字段配置#1\n\n步骤:点击配置字段，选择字段，点击确定\n\n预期:列表按配置的字段展示\n\n步骤:不同用户设置不同字段\n\n预期:按对应用户设置的字段展示\n\n用例:列表宽度#1\n\n步骤:拖动列表字段宽度，点击保存\n\n预期:保存展示设置的字段宽度\n\n步骤:不同用户设置的字段宽度\n\n预期:按对应用户设置的宽度展示\n\n用例:新增字段：所在采样点 #1\n\n步骤:色谱仪最后一次安装工单关联多个采样点\n\n预期:所在采样点字段展示对应值\n\n步骤:采集仪最后一次安装工单关联多个采样点\n\n预期:所在采样点字段展示对应值\n\n步骤:质谱仪没有'所在采样点'字段\n\n预期:不展示\n\n自定义:返厂待用、设备报废不展示所在采样点，\n\n故障展示采样点\n\n自定义:用户管理\n\n自定义:第三方用户\n\n用例:新增用户#1\n\n步骤:输入用户名、系统角色、职位、手机号码、\n\n邮箱、密码、确认密码，点击确定\n\n预期:成功新增\n\n步骤:用户名、系统角色、手机号码、密码、确认\n\n密码为空，点击确定\n\n预期:提示对应字段不能为空\n\n步骤:输入已存在的'用户名'\n\n预期:可以重复\n\n步骤:输入已存在的'手机号码'\n\n预期:提示重复\n\n步骤:密码不包含大写小写特殊字符，或少于8位\n\n预期:提示密码格式应包含大写小写特殊字符，且\n\n超过8位字符\n\n步骤:密码和确认密码不一致\n\n预期:提示不一致\n\n用例:编辑用户#1\n\n步骤:编辑用户状态、用户名、系统角色，职位、\n\n手机号码、邮箱，点击确定\n\n预期:成功编辑\n\n步骤:输入已存在的'手机号码'\n\n预期:提示重复\n\n用例:重置密码 #1\n\n步骤:点击重置密码，输入密码和确认密码，点击\n\n确定\n\n预期:成功重置密码，可按新的密码登录\n\n用例:列表排序#1\n\n步骤:默认排序\n\n预期:按创建时间倒序，新增的在上面\n\n用例:筛选 #1\n\n步骤:按用户名筛选\n\n预期:返回对应用户\n\n步骤:按系统角色筛选\n\n预期:返回对应用户\n\n步骤:按职位筛选\n\n预期:返回对应用户\n\n步骤:按手机号码筛选\n\n预期:返回对应用户\n\n步骤:按邮箱筛选\n\n预期:返回对应用户\n\n用例:权限#1\n\n步骤:设置管理权限\n\n预期:可新增、编辑、查看\n\n步骤:设置访问权限\n\n预期:仅可查看\n\n步骤:没有设置权限\n\n预期:不可查看\n\n用例:角色权限#1\n\n步骤:系统角色选择云呼气平台访问/操作/管理\n\n预期:可全局查看、操作所有研究，没有问卷平\n\n台、研究管理-科研工具、进度管理、质控记\n\n录，只有临床数据\n\n步骤:研究管理-研究成员可选择第三方用户\n\n预期:对研究有查看、操作权限\n\n用例:登录#1\n\n步骤:输入手机号、密码、验证码，点击登录\n\n预期:成功登录\n\n步骤:手机登录，输入手机号码、验证码，点击登\n\n录\n\n预期:成功登录\n\n步骤:用户状态为关闭\n\n预期:不可登录\n\n步骤:组织人员删掉用户名登录，只能通过手机号\n\n码登录\n\n预期:分支主题\n\n步骤:绑定微信，微信登录\n\n预期:分支主题\n\n自定义:物流管理\n\n自定义:web\n\n用例:寄出地点/签收地点#1\n\n步骤:可选地点\n\n预期:有权限研究（访问权限以上）关联的采样点\n\n用例:样本选择范围#1\n\n步骤:TD管（样本）\n\n预期:有权限研究（访问权限以上）的样本",
+        "file_path": "s27测试用例.pdf",
+        "chunk_id": "chunk-7d7a61c58995feeb84f48700728f7994"
+      },
+      {
+        "reference_id": "2",
+        "content": "Table Analysis:\nImage Path: \nCaption: None\nStructure: {'table_cells': [{'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 0, 'end_row_offset_idx': 1, 'start_col_offset_idx': 0, 'end_col_offset_idx': 1, 'text': '用例编号', 'column_header': True, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 0, 'end_row_offset_idx': 1, 'start_col_offset_idx': 1, 'end_col_offset_idx': 2, 'text': '用例标题', 'column_header': True, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 0, 'end_row_offset_idx': 1, 'start_col_offset_idx': 2, 'end_col_offset_idx': 3, 'text': '所属模块', 'column_header': True, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 0, 'end_row_offset_idx': 1, 'start_col_offset_idx': 3, 'end_col_offset_idx': 4, 'text': '用例类型', 'column_header': True, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 0, 'end_row_offset_idx': 1, 'start_col_offset_idx': 4, 'end_col_offset_idx': 5, 'text': '优先级', 'column_header': True, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 0, 'end_row_offset_idx': 1, 'start_col_offset_idx': 5, 'end_col_offset_idx': 6, 'text': '前置条件', 'column_header': True, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 0, 'end_row_offset_idx': 1, 'start_col_offset_idx': 6, 'end_col_offset_idx': 7, 'text': '测试步骤', 'column_header': True, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 0, 'end_row_offset_idx': 1, 'start_col_offset_idx': 7, 'end_col_offset_idx': 8, 'text': '测试数据', 'column_header': True, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 0, 'end_row_offset_idx': 1, 'start_col_offset_idx': 8, 'end_col_offset_idx': 9, 'text': '预期结果', 'column_header': True, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 0, 'end_row_offset_idx': 1, 'start_col_offset_idx': 9, 'end_col_offset_idx': 10, 'text': '备注', 'column_header': True, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 1, 'end_row_offset_idx': 2, 'start_col_offset_idx': 0, 'end_col_offset_idx': 1, 'text': 'TC-FUTURE-ENV-TD-001', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 1, 'end_row_offset_idx': 2, 'start_col_offset_idx': 1, 'end_col_offset_idx': 2, 'text': '多TD管添加入口验证', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 1, 'end_row_offset_idx': 2, 'start_col_offset_idx': 2, 'end_col_offset_idx': 3, 'text': '环境登记-TD管管理', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 1, 'end_row_offset_idx': 2, 'start_col_offset_idx': 3, 'end_col_offset_idx': 4, 'text': '功能测试', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 1, 'end_row_offset_idx': 2, 'start_col_offset_idx': 4, 'end_col_offset_idx': 5, 'text': 'P0', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 1, 'end_row_offset_idx': 2, 'start_col_offset_idx': 5, 'end_col_offset_idx': 6, 'text': '进入环境登记/采样表单页面', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 1, 'end_row_offset_idx': 2, 'start_col_offset_idx': 6, 'end_col_offset_idx': 7, 'text': '1. 观察页面是否存在蓝色“添加TD管”按钮。2. 点击“添加TD管”按钮1次，观察是否出现新的TD管信息输入框。3. 再次点击“添加TD管”按钮4次，观察输入框数量。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 1, 'end_row_offset_idx': 2, 'start_col_offset_idx': 7, 'end_col_offset_idx': 8, 'text': '无', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 1, 'end_row_offset_idx': 2, 'start_col_offset_idx': 8, 'end_col_offset_idx': 9, 'text': '1. 页面存在“添加TD管”按钮，样式清晰可点击。2. 点击1次后，新增1组TD管输入框。3. 点击5次后，累计显示6组TD管输入框，所有必填字段均标记为*。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 1, 'end_row_offset_idx': 2, 'start_col_offset_idx': 9, 'end_col_offset_idx': 10, 'text': '关联需求REQ-001', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 2, 'end_row_offset_idx': 3, 'start_col_offset_idx': 0, 'end_col_offset_idx': 1, 'text': 'TC-FUTURE-ENV-TD-002', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 2, 'end_row_offset_idx': 3, 'start_col_offset_idx': 1, 'end_col_offset_idx': 2, 'text': '重复TD管号校验', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 2, 'end_row_offset_idx': 3, 'start_col_offset_idx': 2, 'end_col_offset_idx': 3, 'text': '环境登记-TD管管理', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 2, 'end_row_offset_idx': 3, 'start_col_offset_idx': 3, 'end_col_offset_idx': 4, 'text': '功能测试', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 2, 'end_row_offset_idx': 3, 'start_col_offset_idx': 4, 'end_col_offset_idx': 5, 'text': 'P0', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 2, 'end_row_offset_idx': 3, 'start_col_offset_idx': 5, 'end_col_offset_idx': 6, 'text': '已添加1根TD管（TD001），且输入框未关闭', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 2, 'end_row_offset_idx': 3, 'start_col_offset_idx': 6, 'end_col_offset_idx': 7, 'text': '1. 填写第一组TD管数据，点击“添加TD管”按钮。2. 填写第二组TD管数据（TD管号=TD001），点击“提交生成标本编码”按钮。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 2, 'end_row_offset_idx': 3, 'start_col_offset_idx': 7, 'end_col_offset_idx': 8, 'text': '第一根TD管：TD001，采集仪A，流速=50ml，备注=测试1；第二根TD管：TD001，采集仪B，流速=60ml，备注=测试2', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 2, 'end_row_offset_idx': 3, 'start_col_offset_idx': 8, 'end_col_offset_idx': 9, 'text': '1. 输入第二组TD管号=TD001后，系统立即弹出提示：“该TD管已存在，请更换其他TD管号”。2. 第二组TD管的输入框标红，表单未提交。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 2, 'end_row_offset_idx': 3, 'start_col_offset_idx': 9, 'end_col_offset_idx': 10, 'text': '关联需求REQ-002', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 3, 'end_row_offset_idx': 4, 'start_col_offset_idx': 0, 'end_col_offset_idx': 1, 'text': 'TC-FUTURE-ENV-TD-003', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 3, 'end_row_offset_idx': 4, 'start_col_offset_idx': 1, 'end_col_offset_idx': 2, 'text': '必填项校验（TD管号缺失）', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 3, 'end_row_offset_idx': 4, 'start_col_offset_idx': 2, 'end_col_offset_idx': 3, 'text': '环境登记-TD管管理', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 3, 'end_row_offset_idx': 4, 'start_col_offset_idx': 3, 'end_col_offset_idx': 4, 'text': '功能测试', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 3, 'end_row_offset_idx': 4, 'start_col_offset_idx': 4, 'end_col_offset_idx': 5, 'text': 'P0', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 3, 'end_row_offset_idx': 4, 'start_col_offset_idx': 5, 'end_col_offset_idx': 6, 'text': '已添加1根TD管，TD管号输入框为空', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 3, 'end_row_offset_idx': 4, 'start_col_offset_idx': 6, 'end_col_offset_idx': 7, 'text': '1. 填写采集仪序列号、流速、备注，保持TD管号为空。2. 点击“提交生成标本编码”按钮。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 3, 'end_row_offset_idx': 4, 'start_col_offset_idx': 7, 'end_col_offset_idx': 8, 'text': 'TD管号=（空），采集仪序列号=采集仪A，流速=50ml，备注=测试', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 3, 'end_row_offset_idx': 4, 'start_col_offset_idx': 8, 'end_col_offset_idx': 9, 'text': '1. 系统提示“TD管号为必填项，请填写”。2. TD管号输入框标红，表单未提交。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 3, 'end_row_offset_idx': 4, 'start_col_offset_idx': 9, 'end_col_offset_idx': 10, 'text': '关联需求REQ-002', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 4, 'end_row_offset_idx': 5, 'start_col_offset_idx': 0, 'end_col_offset_idx': 1, 'text': 'TC-FUTURE-ENV-TD-004', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 4, 'end_row_offset_idx': 5, 'start_col_offset_idx': 1, 'end_col_offset_idx': 2, 'text': '多TD管提交成功与编码分配', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 4, 'end_row_offset_idx': 5, 'start_col_offset_idx': 2, 'end_col_offset_idx': 3, 'text': '环境登记-TD管管理', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 4, 'end_row_offset_idx': 5, 'start_col_offset_idx': 3, 'end_col_offset_idx': 4, 'text': '功能测试', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 4, 'end_row_offset_idx': 5, 'start_col_offset_idx': 4, 'end_col_offset_idx': 5, 'text': 'P0', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 4, 'end_row_offset_idx': 5, 'start_col_offset_idx': 5, 'end_col_offset_idx': 6, 'text': '已添加2根有效TD管，所有必填项填写完整', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 4, 'end_row_offset_idx': 5, 'start_col_offset_idx': 6, 'end_col_offset_idx': 7, 'text': '1. 填写2组TD管数据及采样信息。2. 点击“提交生成标本编码”按钮。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 4, 'end_row_offset_idx': 5, 'start_col_offset_idx': 7, 'end_col_offset_idx': 8, 'text': '第一根TD管：TD001，采集仪A，流速=50ml，备注=样本1；第二根TD管：TD002，采集仪B，流速=60ml，备注=样本2；采样点：实验室A，气体来源：环境，采样时间：2026/05/07 14:02:00', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 4, 'end_row_offset_idx': 5, 'start_col_offset_idx': 8, 'end_col_offset_idx': 9, 'text': '1. 提交成功，页面跳转至环境样本记录列表。2. 系统为每根TD管生成唯一的环境标本编码（如20260507140200-TD001、20260507140200-TD002）', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 4, 'end_row_offset_idx': 5, 'start_col_offset_idx': 9, 'end_col_offset_idx': 10, 'text': '关联需求REQ-001、REQ-004', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 5, 'end_row_offset_idx': 6, 'start_col_offset_idx': 0, 'end_col_offset_idx': 1, 'text': 'TC-FUTURE-ENV-TD-005', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 5, 'end_row_offset_idx': 6, 'start_col_offset_idx': 1, 'end_col_offset_idx': 2, 'text': 'TD管删除与采集仪序列号联动', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 5, 'end_row_offset_idx': 6, 'start_col_offset_idx': 2, 'end_col_offset_idx': 3, 'text': '环境登记-TD管管理', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 5, 'end_row_offset_idx': 6, 'start_col_offset_idx': 3, 'end_col_offset_idx': 4, 'text': '功能测试', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 5, 'end_row_offset_idx': 6, 'start_col_offset_idx': 4, 'end_col_offset_idx': 5, 'text': 'P1', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 5, 'end_row_offset_idx': 6, 'start_col_offset_idx': 5, 'end_col_offset_idx': 6, 'text': '已添加2根TD管，第二根TD管的采集仪序列号已填写（如采集仪B）', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 5, 'end_row_offset_idx': 6, 'start_col_offset_idx': 6, 'end_col_offset_idx': 7, 'text': '1. 点击第二根TD管输入框旁的垃圾桶图标。2. 观察第二根TD管的输入框及采集仪序列号输入框的变化。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 5, 'end_row_offset_idx': 6, 'start_col_offset_idx': 7, 'end_col_offset_idx': 8, 'text': '第一根TD管：TD001，采集仪A，流速=50ml，备注=样本1；第二根TD管：TD002，采集仪B，流速=60ml，备注=样本2', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 5, 'end_row_offset_idx': 6, 'start_col_offset_idx': 8, 'end_col_offset_idx': 9, 'text': '1. 第二根TD管的输入框被移除。2. 第二根TD管对应的采集仪序列号输入框被清空。3. 第一根TD管的输入框保持不变，数据未丢失。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 5, 'end_row_offset_idx': 6, 'start_col_offset_idx': 9, 'end_col_offset_idx': 10, 'text': '关联需求REQ-003', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 6, 'end_row_offset_idx': 7, 'start_col_offset_idx': 0, 'end_col_offset_idx': 1, 'text': 'TC-FUTURE-ENV-TD-007', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 6, 'end_row_offset_idx': 7, 'start_col_offset_idx': 1, 'end_col_offset_idx': 2, 'text': '50根TD管添加与提交', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 6, 'end_row_offset_idx': 7, 'start_col_offset_idx': 2, 'end_col_offset_idx': 3, 'text': '环境登记-TD管管理', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 6, 'end_row_offset_idx': 7, 'start_col_offset_idx': 3, 'end_col_offset_idx': 4, 'text': '功能测试', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 6, 'end_row_offset_idx': 7, 'start_col_offset_idx': 4, 'end_col_offset_idx': 5, 'text': 'P2', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 6, 'end_row_offset_idx': 7, 'start_col_offset_idx': 5, 'end_col_offset_idx': 6, 'text': '进入环境登记表单，网络稳定', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 6, 'end_row_offset_idx': 7, 'start_col_offset_idx': 6, 'end_col_offset_idx': 7, 'text': '1. 点击“添加TD管”按钮49次，累计添加50组TD管。2. 为每组输入框填写测试数据。3. 点击“提交生成标本编码”按钮。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 6, 'end_row_offset_idx': 7, 'start_col_offset_idx': 7, 'end_col_offset_idx': 8, 'text': '50组TD管数据（示例：TD001，采集仪A001，流速=50ml，备注=样本1；TD002，采集仪A002，流速=51ml，备注=样本2；... TD050，采集仪A050，流速=99ml，备注=样本50）', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 6, 'end_row_offset_idx': 7, 'start_col_offset_idx': 8, 'end_col_offset_idx': 9, 'text': '1. 系统成功处理50根TD管的提交，无页面崩溃、卡顿（响应时间<5秒）。2. 生成50条环境样本记录，每条对应唯一的标本编码。3. 所有样本状态为“待转运”。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 6, 'end_row_offset_idx': 7, 'start_col_offset_idx': 9, 'end_col_offset_idx': 10, 'text': '关联需求REQ-001（边界情况）', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 7, 'end_row_offset_idx': 8, 'start_col_offset_idx': 0, 'end_col_offset_idx': 1, 'text': 'TC-FUTURE-ENV-TD-008', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 7, 'end_row_offset_idx': 8, 'start_col_offset_idx': 1, 'end_col_offset_idx': 2, 'text': '空TD管号提交（无效数据）', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 7, 'end_row_offset_idx': 8, 'start_col_offset_idx': 2, 'end_col_offset_idx': 3, 'text': '环境登记-TD管管理', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 7, 'end_row_offset_idx': 8, 'start_col_offset_idx': 3, 'end_col_offset_idx': 4, 'text': '功能测试', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 7, 'end_row_offset_idx': 8, 'start_col_offset_idx': 4, 'end_col_offset_idx': 5, 'text': 'P2', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 7, 'end_row_offset_idx': 8, 'start_col_offset_idx': 5, 'end_col_offset_idx': 6, 'text': '已添加1根TD管，TD管号为空，其他字段填写完整', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 7, 'end_row_offset_idx': 8, 'start_col_offset_idx': 6, 'end_col_offset_idx': 7, 'text': '1. 填写采集仪序列号、流速、备注，保持TD管号为空。2. 点击“提交生成标本编码”按钮。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 7, 'end_row_offset_idx': 8, 'start_col_offset_idx': 7, 'end_col_offset_idx': 8, 'text': 'TD管号=（空），采集仪序列号=采集仪A，流速=50ml，备注=测试', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 7, 'end_row_offset_idx': 8, 'start_col_offset_idx': 8, 'end_col_offset_idx': 9, 'text': '1. 系统提示“TD管号为必填项，请填写”。2. 表单未提交，TD管号输入框标红。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 7, 'end_row_offset_idx': 8, 'start_col_offset_idx': 9, 'end_col_offset_idx': 10, 'text': '关联需求REQ-002（边界情况）', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}], 'num_rows': 8, 'num_cols': 10, 'grid': [[{'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 0, 'end_row_offset_idx': 1, 'start_col_offset_idx': 0, 'end_col_offset_idx': 1, 'text': '用例编号', 'column_header': True, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 0, 'end_row_offset_idx': 1, 'start_col_offset_idx': 1, 'end_col_offset_idx': 2, 'text': '用例标题', 'column_header': True, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 0, 'end_row_offset_idx': 1, 'start_col_offset_idx': 2, 'end_col_offset_idx': 3, 'text': '所属模块', 'column_header': True, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 0, 'end_row_offset_idx': 1, 'start_col_offset_idx': 3, 'end_col_offset_idx': 4, 'text': '用例类型', 'column_header': True, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 0, 'end_row_offset_idx': 1, 'start_col_offset_idx': 4, 'end_col_offset_idx': 5, 'text': '优先级', 'column_header': True, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 0, 'end_row_offset_idx': 1, 'start_col_offset_idx': 5, 'end_col_offset_idx': 6, 'text': '前置条件', 'column_header': True, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 0, 'end_row_offset_idx': 1, 'start_col_offset_idx': 6, 'end_col_offset_idx': 7, 'text': '测试步骤', 'column_header': True, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 0, 'end_row_offset_idx': 1, 'start_col_offset_idx': 7, 'end_col_offset_idx': 8, 'text': '测试数据', 'column_header': True, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 0, 'end_row_offset_idx': 1, 'start_col_offset_idx': 8, 'end_col_offset_idx': 9, 'text': '预期结果', 'column_header': True, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 0, 'end_row_offset_idx': 1, 'start_col_offset_idx': 9, 'end_col_offset_idx': 10, 'text': '备注', 'column_header': True, 'row_header': False, 'row_section': False, 'fillable': False}], [{'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 1, 'end_row_offset_idx': 2, 'start_col_offset_idx': 0, 'end_col_offset_idx': 1, 'text': 'TC-FUTURE-ENV-TD-001', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 1, 'end_row_offset_idx': 2, 'start_col_offset_idx': 1, 'end_col_offset_idx': 2, 'text': '多TD管添加入口验证', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 1, 'end_row_offset_idx': 2, 'start_col_offset_idx': 2, 'end_col_offset_idx': 3, 'text': '环境登记-TD管管理', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 1, 'end_row_offset_idx': 2, 'start_col_offset_idx': 3, 'end_col_offset_idx': 4, 'text': '功能测试', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 1, 'end_row_offset_idx': 2, 'start_col_offset_idx': 4, 'end_col_offset_idx': 5, 'text': 'P0', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 1, 'end_row_offset_idx': 2, 'start_col_offset_idx': 5, 'end_col_offset_idx': 6, 'text': '进入环境登记/采样表单页面', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 1, 'end_row_offset_idx': 2, 'start_col_offset_idx': 6, 'end_col_offset_idx': 7, 'text': '1. 观察页面是否存在蓝色“添加TD管”按钮。2. 点击“添加TD管”按钮1次，观察是否出现新的TD管信息输入框。3. 再次点击“添加TD管”按钮4次，观察输入框数量。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 1, 'end_row_offset_idx': 2, 'start_col_offset_idx': 7, 'end_col_offset_idx': 8, 'text': '无', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 1, 'end_row_offset_idx': 2, 'start_col_offset_idx': 8, 'end_col_offset_idx': 9, 'text': '1. 页面存在“添加TD管”按钮，样式清晰可点击。2. 点击1次后，新增1组TD管输入框。3. 点击5次后，累计显示6组TD管输入框，所有必填字段均标记为*。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 1, 'end_row_offset_idx': 2, 'start_col_offset_idx': 9, 'end_col_offset_idx': 10, 'text': '关联需求REQ-001', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}], [{'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 2, 'end_row_offset_idx': 3, 'start_col_offset_idx': 0, 'end_col_offset_idx': 1, 'text': 'TC-FUTURE-ENV-TD-002', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 2, 'end_row_offset_idx': 3, 'start_col_offset_idx': 1, 'end_col_offset_idx': 2, 'text': '重复TD管号校验', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 2, 'end_row_offset_idx': 3, 'start_col_offset_idx': 2, 'end_col_offset_idx': 3, 'text': '环境登记-TD管管理', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 2, 'end_row_offset_idx': 3, 'start_col_offset_idx': 3, 'end_col_offset_idx': 4, 'text': '功能测试', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 2, 'end_row_offset_idx': 3, 'start_col_offset_idx': 4, 'end_col_offset_idx': 5, 'text': 'P0', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 2, 'end_row_offset_idx': 3, 'start_col_offset_idx': 5, 'end_col_offset_idx': 6, 'text': '已添加1根TD管（TD001），且输入框未关闭', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 2, 'end_row_offset_idx': 3, 'start_col_offset_idx': 6, 'end_col_offset_idx': 7, 'text': '1. 填写第一组TD管数据，点击“添加TD管”按钮。2. 填写第二组TD管数据（TD管号=TD001），点击“提交生成标本编码”按钮。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 2, 'end_row_offset_idx': 3, 'start_col_offset_idx': 7, 'end_col_offset_idx': 8, 'text': '第一根TD管：TD001，采集仪A，流速=50ml，备注=测试1；第二根TD管：TD001，采集仪B，流速=60ml，备注=测试2', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 2, 'end_row_offset_idx': 3, 'start_col_offset_idx': 8, 'end_col_offset_idx': 9, 'text': '1. 输入第二组TD管号=TD001后，系统立即弹出提示：“该TD管已存在，请更换其他TD管号”。2. 第二组TD管的输入框标红，表单未提交。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 2, 'end_row_offset_idx': 3, 'start_col_offset_idx': 9, 'end_col_offset_idx': 10, 'text': '关联需求REQ-002', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}], [{'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 3, 'end_row_offset_idx': 4, 'start_col_offset_idx': 0, 'end_col_offset_idx': 1, 'text': 'TC-FUTURE-ENV-TD-003', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 3, 'end_row_offset_idx': 4, 'start_col_offset_idx': 1, 'end_col_offset_idx': 2, 'text': '必填项校验（TD管号缺失）', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 3, 'end_row_offset_idx': 4, 'start_col_offset_idx': 2, 'end_col_offset_idx': 3, 'text': '环境登记-TD管管理', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 3, 'end_row_offset_idx': 4, 'start_col_offset_idx': 3, 'end_col_offset_idx': 4, 'text': '功能测试', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 3, 'end_row_offset_idx': 4, 'start_col_offset_idx': 4, 'end_col_offset_idx': 5, 'text': 'P0', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 3, 'end_row_offset_idx': 4, 'start_col_offset_idx': 5, 'end_col_offset_idx': 6, 'text': '已添加1根TD管，TD管号输入框为空', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 3, 'end_row_offset_idx': 4, 'start_col_offset_idx': 6, 'end_col_offset_idx': 7, 'text': '1. 填写采集仪序列号、流速、备注，保持TD管号为空。2. 点击“提交生成标本编码”按钮。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 3, 'end_row_offset_idx': 4, 'start_col_offset_idx': 7, 'end_col_offset_idx': 8, 'text': 'TD管号=（空），采集仪序列号=采集仪A，流速=50ml，备注=测试', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 3, 'end_row_offset_idx': 4, 'start_col_offset_idx': 8, 'end_col_offset_idx': 9, 'text': '1. 系统提示“TD管号为必填项，请填写”。2. TD管号输入框标红，表单未提交。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 3, 'end_row_offset_idx': 4, 'start_col_offset_idx': 9, 'end_col_offset_idx': 10, 'text': '关联需求REQ-002', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}], [{'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 4, 'end_row_offset_idx': 5, 'start_col_offset_idx': 0, 'end_col_offset_idx': 1, 'text': 'TC-FUTURE-ENV-TD-004', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 4, 'end_row_offset_idx': 5, 'start_col_offset_idx': 1, 'end_col_offset_idx': 2, 'text': '多TD管提交成功与编码分配', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 4, 'end_row_offset_idx': 5, 'start_col_offset_idx': 2, 'end_col_offset_idx': 3, 'text': '环境登记-TD管管理', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 4, 'end_row_offset_idx': 5, 'start_col_offset_idx': 3, 'end_col_offset_idx': 4, 'text': '功能测试', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 4, 'end_row_offset_idx': 5, 'start_col_offset_idx': 4, 'end_col_offset_idx': 5, 'text': 'P0', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 4, 'end_row_offset_idx': 5, 'start_col_offset_idx': 5, 'end_col_offset_idx': 6, 'text': '已添加2根有效TD管，所有必填项填写完整', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 4, 'end_row_offset_idx': 5, 'start_col_offset_idx': 6, 'end_col_offset_idx': 7, 'text': '1. 填写2组TD管数据及采样信息。2. 点击“提交生成标本编码”按钮。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 4, 'end_row_offset_idx': 5, 'start_col_offset_idx': 7, 'end_col_offset_idx': 8, 'text': '第一根TD管：TD001，采集仪A，流速=50ml，备注=样本1；第二根TD管：TD002，采集仪B，流速=60ml，备注=样本2；采样点：实验室A，气体来源：环境，采样时间：2026/05/07 14:02:00', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 4, 'end_row_offset_idx': 5, 'start_col_offset_idx': 8, 'end_col_offset_idx': 9, 'text': '1. 提交成功，页面跳转至环境样本记录列表。2. 系统为每根TD管生成唯一的环境标本编码（如20260507140200-TD001、20260507140200-TD002）', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 4, 'end_row_offset_idx': 5, 'start_col_offset_idx': 9, 'end_col_offset_idx': 10, 'text': '关联需求REQ-001、REQ-004', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}], [{'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 5, 'end_row_offset_idx': 6, 'start_col_offset_idx': 0, 'end_col_offset_idx': 1, 'text': 'TC-FUTURE-ENV-TD-005', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 5, 'end_row_offset_idx': 6, 'start_col_offset_idx': 1, 'end_col_offset_idx': 2, 'text': 'TD管删除与采集仪序列号联动', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 5, 'end_row_offset_idx': 6, 'start_col_offset_idx': 2, 'end_col_offset_idx': 3, 'text': '环境登记-TD管管理', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 5, 'end_row_offset_idx': 6, 'start_col_offset_idx': 3, 'end_col_offset_idx': 4, 'text': '功能测试', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 5, 'end_row_offset_idx': 6, 'start_col_offset_idx': 4, 'end_col_offset_idx': 5, 'text': 'P1', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 5, 'end_row_offset_idx': 6, 'start_col_offset_idx': 5, 'end_col_offset_idx': 6, 'text': '已添加2根TD管，第二根TD管的采集仪序列号已填写（如采集仪B）', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 5, 'end_row_offset_idx': 6, 'start_col_offset_idx': 6, 'end_col_offset_idx': 7, 'text': '1. 点击第二根TD管输入框旁的垃圾桶图标。2. 观察第二根TD管的输入框及采集仪序列号输入框的变化。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 5, 'end_row_offset_idx': 6, 'start_col_offset_idx': 7, 'end_col_offset_idx': 8, 'text': '第一根TD管：TD001，采集仪A，流速=50ml，备注=样本1；第二根TD管：TD002，采集仪B，流速=60ml，备注=样本2', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 5, 'end_row_offset_idx': 6, 'start_col_offset_idx': 8, 'end_col_offset_idx': 9, 'text': '1. 第二根TD管的输入框被移除。2. 第二根TD管对应的采集仪序列号输入框被清空。3. 第一根TD管的输入框保持不变，数据未丢失。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 5, 'end_row_offset_idx': 6, 'start_col_offset_idx': 9, 'end_col_offset_idx': 10, 'text': '关联需求REQ-003', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}], [{'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 6, 'end_row_offset_idx': 7, 'start_col_offset_idx': 0, 'end_col_offset_idx': 1, 'text': 'TC-FUTURE-ENV-TD-007', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 6, 'end_row_offset_idx': 7, 'start_col_offset_idx': 1, 'end_col_offset_idx': 2, 'text': '50根TD管添加与提交', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 6, 'end_row_offset_idx': 7, 'start_col_offset_idx': 2, 'end_col_offset_idx': 3, 'text': '环境登记-TD管管理', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 6, 'end_row_offset_idx': 7, 'start_col_offset_idx': 3, 'end_col_offset_idx': 4, 'text': '功能测试', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 6, 'end_row_offset_idx': 7, 'start_col_offset_idx': 4, 'end_col_offset_idx': 5, 'text': 'P2', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 6, 'end_row_offset_idx': 7, 'start_col_offset_idx': 5, 'end_col_offset_idx': 6, 'text': '进入环境登记表单，网络稳定', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 6, 'end_row_offset_idx': 7, 'start_col_offset_idx': 6, 'end_col_offset_idx': 7, 'text': '1. 点击“添加TD管”按钮49次，累计添加50组TD管。2. 为每组输入框填写测试数据。3. 点击“提交生成标本编码”按钮。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 6, 'end_row_offset_idx': 7, 'start_col_offset_idx': 7, 'end_col_offset_idx': 8, 'text': '50组TD管数据（示例：TD001，采集仪A001，流速=50ml，备注=样本1；TD002，采集仪A002，流速=51ml，备注=样本2；... TD050，采集仪A050，流速=99ml，备注=样本50）', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 6, 'end_row_offset_idx': 7, 'start_col_offset_idx': 8, 'end_col_offset_idx': 9, 'text': '1. 系统成功处理50根TD管的提交，无页面崩溃、卡顿（响应时间<5秒）。2. 生成50条环境样本记录，每条对应唯一的标本编码。3. 所有样本状态为“待转运”。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 6, 'end_row_offset_idx': 7, 'start_col_offset_idx': 9, 'end_col_offset_idx': 10, 'text': '关联需求REQ-001（边界情况）', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}], [{'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 7, 'end_row_offset_idx': 8, 'start_col_offset_idx': 0, 'end_col_offset_idx': 1, 'text': 'TC-FUTURE-ENV-TD-008', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 7, 'end_row_offset_idx': 8, 'start_col_offset_idx': 1, 'end_col_offset_idx': 2, 'text': '空TD管号提交（无效数据）', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 7, 'end_row_offset_idx': 8, 'start_col_offset_idx': 2, 'end_col_offset_idx': 3, 'text': '环境登记-TD管管理', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 7, 'end_row_offset_idx': 8, 'start_col_offset_idx': 3, 'end_col_offset_idx': 4, 'text': '功能测试', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 7, 'end_row_offset_idx': 8, 'start_col_offset_idx': 4, 'end_col_offset_idx': 5, 'text': 'P2', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 7, 'end_row_offset_idx': 8, 'start_col_offset_idx': 5, 'end_col_offset_idx': 6, 'text': '已添加1根TD管，TD管号为空，其他字段填写完整', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 7, 'end_row_offset_idx': 8, 'start_col_offset_idx': 6, 'end_col_offset_idx': 7, 'text': '1. 填写采集仪序列号、流速、备注，保持TD管号为空。2. 点击“提交生成标本编码”按钮。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 7, 'end_row_offset_idx': 8, 'start_col_offset_idx': 7, 'end_col_offset_idx': 8, 'text': 'TD管号=（空），采集仪序列号=采集仪A，流速=50ml，备注=测试', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 7, 'end_row_offset_idx': 8, 'start_col_offset_idx': 8, 'end_col_offset_idx': 9, 'text': '1. 系统提示“TD管号为必填项，请填写”。2. 表单未提交，TD管号输入框标红。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 7, 'end_row_offset_idx': 8, 'start_col_offset_idx': 9, 'end_col_offset_idx': 10, 'text': '关联需求REQ-002（边界情况）', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}]]}\nFootnotes: None\n\nAnalysis: The table is a test case specification for the '环境登记-TD管管理' (Environmental Registration - TD Tube Management) module. It consists of 8 rows (including a header) and 10 columns. The column headers are: 用例编号 (Test Case ID), 用例标题 (Test Case Title), 所属模块 (Module), 用例类型 (Test Type), 优先级 (Priority), 前置条件 (Preconditions), 测试步骤 (Test Steps), 测试数据 (Test Data), 预期结果 (Expected Results), and 备注 (Remarks). There are 7 test cases with IDs TC-FUTURE-ENV-TD-001 through TC-FUTURE-ENV-TD-008 (note: TC-006 is missing). All cases are functional tests belonging to the '环境登记-TD管管理' module. Priority distribution: 4 cases are P0 (critical: TC-001 multi-TD tube entry, TC-002 duplicate TD tube number validation, TC-003 mandatory field check for missing tube number, TC-004 successful submission with coding), 1 case is P1 (TC-005 deletion and collector serial number linkage), and 2 cases are P2 (TC-007 50 tubes addition and submission boundary, TC-008 empty tube number submission boundary). The test cases cover positive scenarios (TC-001, TC-004), negative scenarios (TC-002, TC-003, TC-008), interaction (TC-005), and boundary (TC-007). Each case includes detailed preconditions, steps, specific test data (e.g., TD001, collector A, flow rate 50ml), and expected results (e.g., system prompts, input field highlighting, successful submission with unique codes). The remarks column ties each case to requirements: REQ-001 (TC-001, TC-007), REQ-002 (TC-002, TC-003, TC-008), REQ-003 (TC-005), REQ-004 (TC-004). Patterns indicate a systematic testing approach for the TD tube management feature, ensuring correctness, validation, and performance.",
+        "file_path": "S51测试用例.xlsx",
+        "chunk_id": "chunk-1f8143580b262733d988f44cc53724bc"
+      }
+    ],
+    "references": [
+      {
+        "reference_id": "1",
+        "file_path": "s27测试用例.pdf"
+      },
+      {
+        "reference_id": "2",
+        "file_path": "S51测试用例.xlsx"
+      }
+    ]
+  },
+  "metadata": {
+    "query_mode": "mix",
+    "keywords": {
+      "high_level": [
+        "用户登录功能测试",
+        "业务规则",
+        "认证机制"
+      ],
+      "low_level": [
+        "登录功能",
+        "测试要点",
+        "认证"
+      ]
+    },
+    "processing_info": {
+      "total_entities_found": 99,
+      "total_relations_found": 129,
+      "entities_after_truncation": 83,
+      "relations_after_truncation": 129,
+      "merged_chunks_count": 118,
+      "final_chunks_count": 2
+    }
+  }
+}

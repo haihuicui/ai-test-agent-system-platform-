@@ -1,0 +1,646 @@
+"use client";
+// NOTE  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2Tm5obVRnPT06Njg2NGJhMDY=
+
+import React, {
+  useState,
+  useRef,
+  useCallback,
+  useMemo,
+  FormEvent,
+  Fragment,
+} from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Square,
+  ArrowUp,
+  CheckCircle,
+  Clock,
+  Circle,
+  FileIcon,
+} from "lucide-react";
+import { ChatMessage } from "@/components/langgraph/ChatMessage";
+import type {
+  TodoItem,
+  ToolCall,
+  ActionRequest,
+  ReviewConfig,
+} from "@/lib/langgraph/types";
+import { Assistant, Message } from "@langchain/langgraph-sdk";
+import { extractStringFromMessageContent } from "@/lib/langgraph/utils";
+import { useChatContext } from "@/providers/ChatProvider";
+import { cn } from "@/lib/utils";
+import { useStickToBottom } from "use-stick-to-bottom";
+import { FilesPopover } from "@/components/langgraph/TasksFilesSidebar";
+
+interface ChatInterfaceProps {
+  assistant: Assistant | null;
+  initialPrompt?: string;
+}
+// eslint-disable  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2Tm5obVRnPT06Njg2NGJhMDY=
+
+const getStatusIcon = (status: TodoItem["status"], className?: string) => {
+  switch (status) {
+    case "completed":
+      return (
+        <CheckCircle
+          size={16}
+          className={cn("text-success/80", className)}
+        />
+      );
+    case "in_progress":
+      return (
+        <Clock
+          size={16}
+          className={cn("text-warning/80", className)}
+        />
+      );
+    default:
+      return (
+        <Circle
+          size={16}
+          className={cn("text-tertiary/70", className)}
+        />
+      );
+  }
+};
+// FIXME  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2Tm5obVRnPT06Njg2NGJhMDY=
+
+export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initialPrompt }) => {
+  const [metaOpen, setMetaOpen] = useState<"tasks" | "files" | null>(null);
+  const tasksContainerRef = useRef<HTMLDivElement | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  const [input, setInput] = useState("");
+  const { scrollRef, contentRef } = useStickToBottom();
+  const initialPromptSentRef = useRef(false);
+  const sendMessageRef = useRef<((content: string) => void) | null>(null);
+  const isMountedRef = useRef(true);
+
+  const {
+    stream,
+    messages,
+    todos,
+    files,
+    ui,
+    setFiles,
+    isLoading,
+    isThreadLoading,
+    interrupt,
+    sendMessage,
+    stopStream,
+    resumeInterrupt,
+  } = useChatContext();
+
+  // 保持 sendMessage 的最新引用
+  React.useEffect(() => {
+    sendMessageRef.current = sendMessage;
+  }, [sendMessage]);
+
+  // 组件挂载/卸载标记
+  React.useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  const submitDisabled = isLoading || !assistant;
+
+  const handleSubmit = useCallback(
+    (e?: FormEvent) => {
+      if (e) {
+        e.preventDefault();
+      }
+      const messageText = input.trim();
+      if (!messageText || isLoading || submitDisabled) return;
+      sendMessage(messageText);
+      setInput("");
+    },
+    [input, isLoading, sendMessage, setInput, submitDisabled]
+  );
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (submitDisabled) return;
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        handleSubmit();
+      }
+    },
+    [handleSubmit, submitDisabled]
+  );
+
+  // 当 initialPrompt 改变时重置标记
+  React.useEffect(() => {
+    initialPromptSentRef.current = false;
+  }, [initialPrompt]);
+
+  // 自动发送初始提示词
+  React.useEffect(() => {
+    if (
+      initialPrompt &&
+      !isLoading &&
+      !isThreadLoading &&
+      assistant &&
+      messages.length === 0 &&
+      !initialPromptSentRef.current
+    ) {
+      // 标记为已发送，防止重复
+      initialPromptSentRef.current = true;
+
+      // 使用 setTimeout 确保组件完全初始化
+      const timer = setTimeout(() => {
+        // 检查组件是否仍然挂载
+        if (isMountedRef.current && sendMessageRef.current) {
+          sendMessageRef.current(initialPrompt);
+        }
+      }, 100);
+
+      return () => {
+        clearTimeout(timer);
+      };
+    }
+  }, [initialPrompt, isLoading, isThreadLoading, assistant, messages.length]);
+
+  // 缓存 message UI 映射，避免每次渲染都 O(n*m) filter
+  const messageUiMap = useMemo(() => {
+    const nextMap = new Map<string, any[]>();
+
+    if (!ui) {
+      return nextMap;
+    }
+
+    ui.forEach((item: any) => {
+      const messageId = item.metadata?.message_id;
+      if (!messageId) {
+        return;
+      }
+
+      const existing = nextMap.get(messageId);
+      if (existing) {
+        existing.push(item);
+      } else {
+        nextMap.set(messageId, [item]);
+      }
+    });
+
+    return nextMap;
+  }, [ui]);
+
+  const processedMessages = useMemo(() => {
+    const messageMap = new Map<
+      string,
+      { message: Message; toolCalls: ToolCall[] }
+    >();
+    // toolCallId -> 拥有该 tool call 的消息 key，用于 O(1) 配对 tool 结果，
+    // 避免对每条 tool 消息都线性扫描整个 messageMap（原先是 O(N²)）。
+    const toolCallOwner = new Map<string, string>();
+
+    messages.forEach((message: Message) => {
+      if (message.type === "ai") {
+        const toolCallsInMessage: Array<{
+          id?: string;
+          function?: { name?: string; arguments?: unknown };
+          name?: string;
+          type?: string;
+          args?: unknown;
+          input?: unknown;
+        }> = [];
+
+        if (
+          message.additional_kwargs?.tool_calls &&
+          Array.isArray(message.additional_kwargs.tool_calls)
+        ) {
+          toolCallsInMessage.push(...message.additional_kwargs.tool_calls);
+        } else if (message.tool_calls && Array.isArray(message.tool_calls)) {
+          toolCallsInMessage.push(
+            ...message.tool_calls.filter(
+              (toolCall: { name?: string }) => toolCall.name !== ""
+            )
+          );
+        } else if (Array.isArray(message.content)) {
+          const toolUseBlocks = message.content.filter(
+            (block: { type?: string }) => block.type === "tool_use"
+          );
+          toolCallsInMessage.push(...toolUseBlocks);
+        }
+
+        const toolCallsWithStatus = toolCallsInMessage.map(
+          (
+            toolCall: {
+              id?: string;
+              function?: { name?: string; arguments?: unknown };
+              name?: string;
+              type?: string;
+              args?: unknown;
+              input?: unknown;
+            },
+            toolCallIndex: number
+          ) => {
+            const name =
+              toolCall.function?.name ||
+              toolCall.name ||
+              toolCall.type ||
+              "unknown";
+            const args =
+              toolCall.function?.arguments ||
+              toolCall.args ||
+              toolCall.input ||
+              {};
+            return {
+              id: toolCall.id || `tool-${message.id}-${toolCallIndex}`,
+              name,
+              args,
+              status: interrupt ? "interrupted" : ("pending" as const),
+            } as ToolCall;
+          }
+        );
+
+        messageMap.set(message.id!, {
+          message,
+          toolCalls: toolCallsWithStatus,
+        });
+        // 记录每个 tool call 归属的消息，供 tool 结果 O(1) 配对
+        for (const tc of toolCallsWithStatus) {
+          toolCallOwner.set(tc.id, message.id!);
+        }
+      } else if (message.type === "tool") {
+        const toolCallId = message.tool_call_id;
+        if (!toolCallId) {
+          return;
+        }
+
+        const ownerKey = toolCallOwner.get(toolCallId);
+        if (!ownerKey) {
+          return;
+        }
+        const data = messageMap.get(ownerKey);
+        if (!data) {
+          return;
+        }
+        const toolCallIndex = data.toolCalls.findIndex(
+          (tc: ToolCall) => tc.id === toolCallId
+        );
+        if (toolCallIndex === -1) {
+          return;
+        }
+        data.toolCalls[toolCallIndex] = {
+          ...data.toolCalls[toolCallIndex],
+          status: "completed" as const,
+          result: extractStringFromMessageContent(message),
+        };
+      } else if (message.type === "human") {
+        messageMap.set(message.id!, {
+          message,
+          toolCalls: [],
+        });
+      }
+    });
+
+    const processedArray = Array.from(messageMap.values());
+    return processedArray.map((data, index) => {
+      const prevMessage = index > 0 ? processedArray[index - 1].message : null;
+      return {
+        ...data,
+        showAvatar: data.message.type !== prevMessage?.type,
+      };
+    });
+  }, [messages, interrupt]);
+
+  const groupedTodos = {
+    in_progress: todos.filter((t) => t.status === "in_progress"),
+    pending: todos.filter((t) => t.status === "pending"),
+    completed: todos.filter((t) => t.status === "completed"),
+  };
+
+  const hasTasks = todos.length > 0;
+  const hasFiles = Object.keys(files).length > 0;
+
+  // Parse out any action requests or review configs from the interrupt
+  const actionRequestsMap: Map<string, ActionRequest> | null = useMemo(() => {
+    const actionRequests =
+      interrupt?.value && (interrupt.value as any)["action_requests"];
+    if (!actionRequests) return new Map<string, ActionRequest>();
+    return new Map(actionRequests.map((ar: ActionRequest) => [ar.name, ar]));
+  }, [interrupt]);
+
+  const reviewConfigsMap: Map<string, ReviewConfig> | null = useMemo(() => {
+    const reviewConfigs =
+      interrupt?.value && (interrupt.value as any)["review_configs"];
+    if (!reviewConfigs) return new Map<string, ReviewConfig>();
+    return new Map(
+      reviewConfigs.map((rc: ReviewConfig) => [rc.actionName, rc])
+    );
+  }, [interrupt]);
+
+  // 滚动完全交由 useStickToBottom 处理（初次加载/发送/流式输出会自动滚到底部，
+  // 用户主动上滑查看历史时停止跟随）。
+  // 原先这里有一段手动 scrollTo({behavior: isLoading?"auto":"smooth"}) 的 effect：
+  // 生成结束(isLoading=false)后它用 "smooth" 触发原生平滑滚动动画，该动画会和
+  // 用户的鼠标滚轮抢夺滚动权；当上层因连接重试等原因频繁重渲染时，effect 被反复
+  // 触发，平滑动画持续重启，表现为"完全滚不动"。故移除，交给库统一管理。
+
+  return (
+    <div className="flex flex-1 flex-col overflow-hidden">
+      <div
+        className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain"
+        ref={scrollRef}
+      >
+        <div
+          className="mx-auto w-full max-w-[1024px] px-6 pb-6 pt-4"
+          ref={contentRef}
+        >
+          {isThreadLoading ? (
+            <div className="flex items-center justify-center p-8">
+              <p className="text-muted-foreground">加载中...</p>
+            </div>
+          ) : (
+            <>
+              {processedMessages.map((data, index) => {
+                const messageUi = messageUiMap.get(data.message.id ?? "");
+                const isLastMessage = index === processedMessages.length - 1;
+                return (
+                  <ChatMessage
+                    key={data.message.id}
+                    message={data.message}
+                    toolCalls={data.toolCalls}
+                    isLoading={isLoading}
+                    isStreaming={isLastMessage && isLoading}
+                    actionRequestsMap={
+                      isLastMessage ? actionRequestsMap : undefined
+                    }
+                    reviewConfigsMap={
+                      isLastMessage ? reviewConfigsMap : undefined
+                    }
+                    ui={messageUi}
+                    stream={isLastMessage ? stream : undefined}
+                    onResumeInterrupt={
+                      isLastMessage ? resumeInterrupt : undefined
+                    }
+                    graphId={isLastMessage ? assistant?.graph_id : undefined}
+                  />
+                );
+              })}
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="flex-shrink-0 bg-background">
+        <div
+          className={cn(
+            "mx-4 mb-6 flex flex-shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-background",
+            "mx-auto w-[calc(100%-32px)] max-w-[1024px] transition-colors duration-200 ease-in-out"
+          )}
+        >
+          {(hasTasks || hasFiles) && (
+            <div className="flex max-h-72 flex-col overflow-y-auto border-b border-border bg-muted empty:hidden">
+              {!metaOpen && (
+                <>
+                  {(() => {
+                    const activeTask = todos.find(
+                      (t) => t.status === "in_progress"
+                    );
+
+                    const totalTasks = todos.length;
+                    const remainingTasks =
+                      totalTasks - groupedTodos.pending.length;
+                    const isCompleted = totalTasks === remainingTasks;
+
+                    const tasksTrigger = (() => {
+                      if (!hasTasks) return null;
+                      return (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setMetaOpen((prev) =>
+                              prev === "tasks" ? null : "tasks"
+                            )
+                          }
+                          className="grid w-full cursor-pointer grid-cols-[auto_auto_1fr] items-center gap-3 px-[18px] py-3 text-left"
+                          aria-expanded={metaOpen === "tasks"}
+                        >
+                          {(() => {
+                            if (isCompleted) {
+                              return [
+                                <CheckCircle
+                                  key="icon"
+                                  size={16}
+                                  className="text-success/80"
+                                />,
+                                <span
+                                  key="label"
+                                  className="ml-[1px] min-w-0 truncate text-sm"
+                                >
+                                  所有任务已完成
+                                </span>,
+                              ];
+                            }
+
+                            if (activeTask != null) {
+                              return [
+                                <div key="icon">
+                                  {getStatusIcon(activeTask.status)}
+                                </div>,
+                                <span
+                                  key="label"
+                                  className="ml-[1px] min-w-0 truncate text-sm"
+                                >
+                                  任务{" "}
+                                  {totalTasks - groupedTodos.pending.length} / {" "}
+                                  {totalTasks}
+                                </span>,
+                                <span
+                                  key="content"
+                                  className="min-w-0 gap-2 truncate text-sm text-muted-foreground"
+                                >
+                                  {activeTask.content}
+                                </span>,
+                              ];
+                            }
+
+                            return [
+                              <Circle
+                                key="icon"
+                                size={16}
+                                className="text-tertiary/70"
+                              />,
+                              <span
+                                key="label"
+                                className="ml-[1px] min-w-0 truncate text-sm"
+                              >
+                                任务 {totalTasks - groupedTodos.pending.length}{" "}
+                                / {totalTasks}
+                              </span>,
+                            ];
+                          })()}
+                        </button>
+                      );
+                    })();
+
+                    const filesTrigger = (() => {
+                      if (!hasFiles) return null;
+                      return (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setMetaOpen((prev) =>
+                              prev === "files" ? null : "files"
+                            )
+                          }
+                          className="flex flex-shrink-0 cursor-pointer items-center gap-2 px-[18px] py-3 text-left text-sm"
+                          aria-expanded={metaOpen === "files"}
+                        >
+                          <FileIcon size={16} />
+                          文件 (状态)
+                          <span className="h-4 min-w-4 rounded-full bg-[#2F6868] px-0.5 text-center text-[10px] leading-[16px] text-white">
+                            {Object.keys(files).length}
+                          </span>
+                        </button>
+                      );
+                    })();
+
+                    return (
+                      <div className="grid grid-cols-[1fr_auto_auto] items-center">
+                        {tasksTrigger}
+                        {filesTrigger}
+                      </div>
+                    );
+                  })()}
+                </>
+              )}
+
+              {metaOpen && (
+                <>
+                  <div className="sticky top-0 flex items-stretch bg-muted text-sm">
+                    {hasTasks && (
+                      <button
+                        type="button"
+                        className="py-3 pr-4 first:pl-[18px] aria-expanded:font-semibold"
+                        onClick={() =>
+                          setMetaOpen((prev) =>
+                            prev === "tasks" ? null : "tasks"
+                          )
+                        }
+                        aria-expanded={metaOpen === "tasks"}
+                      >
+                        任务
+                      </button>
+                    )}
+                    {hasFiles && (
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-2 py-3 pr-4 first:pl-[18px] aria-expanded:font-semibold"
+                        onClick={() =>
+                          setMetaOpen((prev) =>
+                            prev === "files" ? null : "files"
+                          )
+                        }
+                        aria-expanded={metaOpen === "files"}
+                      >
+                        文件 (状态)
+                        <span className="h-4 min-w-4 rounded-full bg-[#2F6868] px-0.5 text-center text-[10px] leading-[16px] text-white">
+                          {Object.keys(files).length}
+                        </span>
+                      </button>
+                    )}
+                    <button
+                      aria-label="Close"
+                      className="flex-1"
+                      onClick={() => setMetaOpen(null)}
+                    />
+                  </div>
+                  <div
+                    ref={tasksContainerRef}
+                    className="px-[18px]"
+                  >
+                    {metaOpen === "tasks" &&
+                      Object.entries(groupedTodos)
+                        .filter(([_, todos]) => todos.length > 0)
+                        .map(([status, todos]) => (
+                          <div
+                            key={status}
+                            className="mb-4"
+                          >
+                            <h3 className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-tertiary">
+                              {
+                                {
+                                  pending: "待处理",
+                                  in_progress: "进行中",
+                                  completed: "已完成",
+                                }[status]
+                              }
+                            </h3>
+                            <div className="grid grid-cols-[auto_1fr] gap-3 rounded-sm p-1 pl-0 text-sm">
+                              {todos.map((todo, index) => (
+                                <Fragment key={`${status}_${todo.id}_${index}`}>
+                                  {getStatusIcon(todo.status, "mt-0.5")}
+                                  <span className="break-words text-inherit">
+                                    {todo.content}
+                                  </span>
+                                </Fragment>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+
+                    {metaOpen === "files" && (
+                      <div className="mb-6">
+                        <FilesPopover
+                          files={files}
+                          setFiles={setFiles}
+                          editDisabled={
+                            isLoading === true || interrupt !== undefined
+                          }
+                        />
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+          <form
+            onSubmit={handleSubmit}
+            className="flex flex-col"
+          >
+            <textarea
+              ref={textareaRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={isLoading ? "运行中..." : "输入您的消息..."}
+              className="font-inherit field-sizing-content flex-1 resize-none border-0 bg-transparent px-[18px] pb-[13px] pt-[14px] text-sm leading-7 text-primary outline-none placeholder:text-tertiary"
+              rows={1}
+            />
+            <div className="flex justify-between gap-2 p-3">
+              <div className="flex justify-end gap-2">
+                <Button
+                  type={isLoading ? "button" : "submit"}
+                  variant={isLoading ? "destructive" : "default"}
+                  onClick={isLoading ? stopStream : handleSubmit}
+                  disabled={!isLoading && (submitDisabled || !input.trim())}
+                >
+                  {isLoading ? (
+                    <>
+                      <Square size={14} />
+                      <span>停止</span>
+                    </>
+                  ) : (
+                    <>
+                      <ArrowUp size={18} />
+                      <span>发送</span>
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+});
+// FIXME  My80OmFIVnBZMlhsdEpUbXRiZm92b2s2Tm5obVRnPT06Njg2NGJhMDY=
+
+ChatInterface.displayName = "ChatInterface";

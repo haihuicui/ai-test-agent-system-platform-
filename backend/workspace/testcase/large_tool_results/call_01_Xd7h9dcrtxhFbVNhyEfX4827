@@ -1,0 +1,2157 @@
+{
+  "status": "success",
+  "message": "Query processed successfully",
+  "data": {
+    "entities": [
+      {
+        "entity_name": "用例:新建TD管检测任务#1",
+        "entity_type": "event",
+        "description": "一个用例，用于新建TD管检测任务。",
+        "source_id": "chunk-53d2d84ba4b8a66fddc523a79876e197",
+        "file_path": "s29测试用例.pdf",
+        "created_at": 1779875345
+      },
+      {
+        "entity_name": "新增报告任务",
+        "entity_type": "method",
+        "description": "系统功能，根据参数customerId、hasPulmmonaryNodule、pulmonaryNoduleSize、barcode、name等创建新的报告任务并添加到多个列表中",
+        "source_id": "chunk-17a962f5657a64916121e886024511cb",
+        "file_path": "S33测试用例.pdf",
+        "created_at": 1779876504
+      },
+      {
+        "entity_name": "异常TD任务",
+        "entity_type": "concept",
+        "description": "异常TD任务是平台中一个用于管理异常TD管相关任务的功能模块。它隶属于任务中心，是任务中心下的一个子模块、分类或子菜单项，具体表现为s16测试用例下的一个节点，代表异常TD任务的处理流程。作为一种专门的任务类型，异常TD任务被标记为异常的热脱附任务，其核心职责是处理异常的TD管检测结果以及相关的异常TD管任务管理工作。\n\n该任务的创建原因在于物流签收地点为本地点，从而触发了异常情况；即当TD管（异常）在指定地点签收时，系统会自动创建该任务。异常TD任务主要针对异常TD管（如重复、损坏等）进行处理，是系统中用于展示和管理异常TD管的任务模块。在任务中心中，它既是一种任务类型，用于处理异常检测任务，也是一个用于管理和创建异常任务的子模块。",
+        "source_id": "chunk-80c34083047e181d70d28f26a286d276<SEP>chunk-efb6ebfc0b0988bcdbbbda656729ed9f<SEP>chunk-e1a7e6682d118fd3b55bd49650662382<SEP>chunk-747de3c44d79b5d050b0e4538a90442a<SEP>chunk-c120c7253784f58def105061cf29312e<SEP>chunk-601966ea2263a797992556bd87282e39<SEP>chunk-fb152d63a007e2531b0c1f843e2757b2<SEP>chunk-dd08c85e140e46a7ec510e789b35b2a3<SEP>chunk-2e5710d727f36ba8ec8dab65ff9e3af2<SEP>chunk-e42a3f57c53bd0366445d2e282ab82b5<SEP>chunk-1df499ac615e547e5e253c3beb1bb6d1<SEP>chunk-c4aa042875f6a85468e02d7b0f395314<SEP>chunk-48478c3f994bdb657be43333618d93aa<SEP>chunk-48c855d52c9a5e8513bb83a77a80dd5f",
+        "file_path": "s16测试用例.pdf<SEP>s32测试用例.pdf<SEP>检测任务.pdf<SEP>检测任务可选设备.pdf<SEP>谱图导入.pdf<SEP>权限分配.pdf<SEP>物流清单.pdf<SEP>检测任务s52.pdf<SEP>老化任务.pdf<SEP>设备管理.pdf<SEP>实验项目s52.pdf<SEP>物资流转（原物流管理）.pdf<SEP>异常TD任务.pdf",
+        "created_at": 1782371132
+      },
+      {
+        "entity_name": "新增报告任务#1",
+        "entity_type": "event",
+        "description": "测试用例，用于验证新增报告任务功能在参数正常、参数错误等场景下的行为",
+        "source_id": "chunk-17a962f5657a64916121e886024511cb",
+        "file_path": "S33测试用例.pdf",
+        "created_at": 1779876506
+      },
+      {
+        "entity_name": "用例:'TD管检测任务生成老化任务#1",
+        "entity_type": "event",
+        "description": "一个用例，描述了TD管检测任务完成后生成老化任务的场景。",
+        "source_id": "chunk-53d2d84ba4b8a66fddc523a79876e197",
+        "file_path": "s29测试用例.pdf",
+        "created_at": 1779875345
+      },
+      {
+        "entity_name": "异常任务",
+        "entity_type": "event",
+        "description": "异常任务是异常中断后标记的任务状态，表示任务未正常完成。<SEP>异常任务是被标记为异常的任务，需要执行清洁流程并停止后续调度。<SEP>异常任务是在物流签收异常时自动创建的，用于处理异常TD管。<SEP>异常任务是需要特殊处理的流程，支持完成、作废和批量操作，可选中多个异常任务进行操作。<SEP>表示操作过程中出现的异常状态任务，可多选处理。",
+        "source_id": "chunk-7caf6945d05e374a00b51d5d15567fec<SEP>chunk-4f50aa87e0ee4778d3ba75cfda3f3db7<SEP>chunk-3b3b2b1c18e50a2fdf34af33ba40aa65<SEP>chunk-1ec8a6cbd2dcfd8a4214e8379626158d<SEP>chunk-12213945bf8e700b05501baf76a65236",
+        "file_path": "S39测试用例.pdf<SEP>S40测试用例.pdf<SEP>s16测试用例.pdf<SEP>s21测试用例.pdf",
+        "created_at": 1779868577
+      },
+      {
+        "entity_name": "任务来源#1",
+        "entity_type": "method",
+        "description": "一个测试用例，用于测试任务来源字段。",
+        "source_id": "chunk-8b784b76bd2e76fe01e7158deac2e90a",
+        "file_path": "s23测试用例.pdf",
+        "created_at": 1779870136
+      },
+      {
+        "entity_name": "清洁流程",
+        "entity_type": "method",
+        "description": "清洁色谱仪的过程，包括发送清洁参数、开始分析等。<SEP>清洁流程是任务调度启动后对标记为待清洁的任务执行的清理过程。<SEP>清洁流程是异常任务后执行的清理操作，包括将六通阀转向废弃口且不启动GC。",
+        "source_id": "chunk-27c59dcdfafb9c0a15b7a7b7c2556265<SEP>chunk-7caf6945d05e374a00b51d5d15567fec<SEP>chunk-4f50aa87e0ee4778d3ba75cfda3f3db7",
+        "file_path": "S37测试用例.pdf<SEP>S39测试用例.pdf<SEP>S40测试用例.pdf",
+        "created_at": 1779862824
+      },
+      {
+        "entity_name": "TC-TASK-CANCEL-005",
+        "entity_type": "data",
+        "description": "TC-TASK-CANCEL-005是一个测试用例，用于测试取消任务功能，被拆分为多个子用例。",
+        "source_id": "chunk-d05fb6df6e75e3f689fb64cd6bf3a715",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782099990
+      },
+      {
+        "entity_name": "s18测试用例",
+        "entity_type": "concept",
+        "description": "s18测试用例是一个思维导图的中心节点，包含七个测试相关配置分支。",
+        "source_id": "chunk-a11c36dbb86c28aa2e35b96c313f9cfe",
+        "file_path": "s18测试用例.pdf",
+        "created_at": 1779867006
+      },
+      {
+        "entity_name": "检测任务趋势#1",
+        "entity_type": "event",
+        "description": "检测任务趋势#1是一个测试用例，涉及任务趋势的检测功能。",
+        "source_id": "chunk-167b490573e7bdfc7325c0c6d6de533b",
+        "file_path": "s28测试用例.pdf",
+        "created_at": 1779874915
+      },
+      {
+        "entity_name": "自定义任务管理",
+        "entity_type": "concept",
+        "description": "自定义任务管理是s18测试用例的一个分支，用于管理自定义任务的测试。",
+        "source_id": "chunk-a11c36dbb86c28aa2e35b96c313f9cfe",
+        "file_path": "s18测试用例.pdf",
+        "created_at": 1779867006
+      },
+      {
+        "entity_name": "异常TD任",
+        "entity_type": "concept",
+        "description": "异常TD任(异常TD任务)是系统中的一个筛选或分类标签，用于管理异常TD相关任务。",
+        "source_id": "chunk-fe9f8917e70f005203e189e82c531c99",
+        "file_path": "标气批次.pdf",
+        "created_at": 1782354127
+      },
+      {
+        "entity_name": "任务管理",
+        "entity_type": "concept",
+        "description": "任务管理是多个软件平台中的核心功能模块，涵盖XMetrix软件系统（亦称METRIX精智析云系统）、ArcoPro、METRIX精智·呼析云以及BayzeProll系统。该模块旨在高效组织与调度各类任务，确保不同业务场景下的任务流转与监控，其核心功能在不同系统中保持一致，但展现形式和权限设置可能存在差异。它常作为自定义模块用于任务管理相关的测试配置，或作为项目管理下的子模块出现。\n\n在界面呈现上，任务管理通常出现在系统界面的左侧导航栏、侧边栏或面包屑导航路径中，作为一个可展开的菜单项、自定义标签或导航模块。例如，在METRIX精智·呼析云2.16.0版本中，它位于左侧导航栏，包含检测报告任务列表等子项；在其他版本中，它作为侧边栏菜单项，展开后同样包含子菜单检测报告任务列表。该模块与采样点管理等功能存在关联，在导航结构中，当前活跃子项常为检测报告任务列表。\n\n任务管理覆盖多种任务类型，包括质控、直吹、送检、检测报告、受试者信息填写等，并支持按设备号进行模糊查询以快速检索。其子功能模块包括检测报告任务列表、受试者信息填写任务列表、质控任务列表、送检任务列表等。该模块负责任务状态和操作的统一管理，提供任务的新建、分配、查看、编辑、删除等完整操作流程，用户可以对未完成任务进行删除操作，并对任务进行查看和编辑。\n\n在BayzeProll系统中，任务管理模块具有权限控制：管理员可以为其分配权限，普通用户只能被分配该模块权限；模块内包含任务列表及相关按钮级权限，具体包括查看任务、创建任务、填写表单、生成报告、任务删除、导出报告。综合来看，任务管理是一个综合性、可配置的功能模块，在不同的系统中其展现形式和权限设置可能有所差异，但核心功能保持一致。",
+        "source_id": "chunk-58848ea998aa4fde313a7ce9f2938304<SEP>chunk-5a956e38fde5b20399e4f71b1cd1177c<SEP>chunk-2c6e84b5bad5e4779f0704a7153cd155<SEP>chunk-0993b38cbdf06250867a506772025562<SEP>chunk-6444941fefaa012d6e78f5c69d1c072c<SEP>chunk-c93cd063a4dc0565d6b310a6099db85d<SEP>chunk-6a0bdd94818406989167e9cf2801ec24<SEP>chunk-8b784b76bd2e76fe01e7158deac2e90a<SEP>chunk-de5451b1ed2c4025218262cc3487312a<SEP>chunk-c0936409aab015f13658e04cfbb2ff46<SEP>chunk-649b74429c1cc667370afa392a940126<SEP>chunk-3cb4c9db782f4b6abddd9df02ae92781<SEP>chunk-dd6411623a31693e3ed3fdc452764eb7<SEP>chunk-a9cee361885834d6458e12387325e049<SEP>chunk-67795afbadc5f312ad41f93511d574a7<SEP>chunk-e96a86ebe542ffec6dc84083b1563479<SEP>chunk-c51595385cd96628a5e86fda5e45a69e<SEP>chunk-442ba79a7c931acb0c2dc22835f6f0b1<SEP>chunk-e09133495b5900bd1caabef95198f67c<SEP>chunk-74bdce6ceea5b06476893f95a2d316f0<SEP>chunk-16ff5c12ad7d01482cf463b2df5804bf<SEP>chunk-db6bcfaac83a804c239dd0cd795c8c22<SEP>chunk-519f1b269f91f78e15c9b0e5cba75e75<SEP>chunk-73a1b178fd33733294c677d967fdab9a<SEP>chunk-56a8144689a523d3ef85d7934616613f<SEP>chunk-8a75d34072785fbfb54a9bf035fea0aa<SEP>chunk-5b6ba21adca3a0954467db9b1fec13ac<SEP>chunk-6189598135361cdf6e5754b3fa26b16e<SEP>chunk-bece585ed2dfb5e5c44d898619f39802<SEP>chunk-480d837307dbe34f95cea5130e572039<SEP>chunk-b0796330cda0340c4ad2143ff2d4f9e3<SEP>chunk-f64ed389ca5a3fce311d48ca85a01dfd<SEP>chunk-13d85ba7a93b18ed91d83ed1ff846f73<SEP>chunk-793b18d21d6272b6940548a28be8f404<SEP>chunk-d4fa749ba0efc816b7c307a8b063ae9a<SEP>chunk-5f2dd742658127f7b407683f304b07ec<SEP>chunk-e4290ffb6c193457cc662e8b9bcd3e70<SEP>chunk-e9797aa4116af470728467718b575aec<SEP>chunk-d0d7d5247600d600417384102d3e06bf<SEP>chunk-eaa584eaf118c02eb565103475d975c6<SEP>chunk-2cd267672005e6a0ebd3ed4bb2aa29f0<SEP>chunk-46a51ea1bfd78cc383c2072a71ad56a1<SEP>chunk-df38e5613d2ce8007f6c94ea961784c3<SEP>chunk-4cb0081579b8fefa7e2b7d392473f6b3<SEP>chunk-c35fddac9926c0122361ad4c7235d741",
+        "file_path": "S38测试用例.pdf<SEP>S41测试用例.pdf<SEP>S43测试用例.pdf<SEP>s15测试用例.pdf<SEP>s18测试用例.pdf<SEP>s20测试用例.pdf<SEP>s23测试用例.pdf<SEP>s26测试用例.pdf<SEP>S33测试用例.pdf<SEP>33.pdf<SEP>20.pdf<SEP>XMetrix_v2.1.pdf<SEP>XMetrix_v2.2.pdf<SEP>XMetrix_v2.4.pdf<SEP>XMetrix_v2.5.pdf<SEP>34.pdf<SEP>定标记录.pdf<SEP>风险计算_任务列表.pdf<SEP>风险计算_用户管理.pdf<SEP>51测试用例.pdf<SEP>定标记录-s52.pdf<SEP>定性表列表s52.pdf<SEP>检测报告任务列表.pdf<SEP>检测项目列表.pdf<SEP>质控任务列表.pdf",
+        "created_at": 1782373260
+      },
+      {
+        "entity_name": "用例:新增/删除TD管#1",
+        "entity_type": "content",
+        "description": "测试用例，针对TD管的新增与删除操作。",
+        "source_id": "chunk-313e136ae906bd5efc0871114ed295c9",
+        "file_path": "s28测试用例.pdf",
+        "created_at": 1779874907
+      },
+      {
+        "entity_name": "查看",
+        "entity_type": "concept",
+        "description": "查看是TD管管理中的一个操作，用于展示已导入的TD管数据列表。<SEP>查看是一个用例，用于浏览任务详细信息。<SEP>查看是一个链接，用于查看问题记录的详细信息。<SEP>查看是字典管理权限中的一个未选中权限项。",
+        "source_id": "chunk-ae4bf2d83feb510b33d7defba968c75d<SEP>chunk-6a0bdd94818406989167e9cf2801ec24<SEP>chunk-bb8fd6dba85e60f38fe787432fb73d72<SEP>chunk-cb02f7e1a96d990201b84f50ddf7d7f6",
+        "file_path": "s13测试用例.pdf<SEP>s20测试用例.pdf<SEP>XCloud_v1.2_Web.pdf<SEP>风险计算_用户管理.pdf",
+        "created_at": 1780538624
+      },
+      {
+        "entity_name": "用例:TD管列表顺序保存#1",
+        "entity_type": "content",
+        "description": "测试用例，针对TD管列表顺序保存操作。",
+        "source_id": "chunk-313e136ae906bd5efc0871114ed295c9",
+        "file_path": "s28测试用例.pdf",
+        "created_at": 1779874907
+      },
+      {
+        "entity_name": "直吹模式",
+        "entity_type": "method",
+        "description": "直吹模式是一种设备的工作模式和检测方法，主要应用于TD10等检测系统中，与采样管模式互斥，二者不能同时使用。该模式不经过采样管，而是采用直接吹气方式进行样本采集和解析，涉及呼气采样和流量控制。在直吹模式下，系统可以完成检测任务，并可修改相关配置。操作过程中存在采样中、待检测、解析中和检测中等多种任务状态，当存在这些未完成的状态时，不可切换至其他模式。此外，该模式还支持捡漏操作，且采样完成后通常先进行捡漏，再进行解析。直吹模式与采样管模式相对应，是样本导入的一种直接方式，用户在选择时需考虑是否有未完成的检测任务。<SEP>设备的一种工作模式，涉及无任务或任务状态。<SEP>一种检测模式，直接吹气进行检测，无需使用采样管。<SEP>直吹模式是一个自定义模块，用于直吹模式下的采样检测功能。",
+        "source_id": "chunk-bf21980654d67319a6cf866659f4c06e<SEP>chunk-4a0ebaa8ba6f2ebe27d676efd6c2a657<SEP>chunk-dcb42dac9865ce55b8cdfe0001c9b01b<SEP>chunk-7caf6945d05e374a00b51d5d15567fec<SEP>chunk-9ac3543964f6578ff22a5d63fab1f482<SEP>chunk-17fb019485b53d341e9b1af1d060e08a<SEP>chunk-4f50aa87e0ee4778d3ba75cfda3f3db7<SEP>chunk-20188083f7cb5b571d5d70e6915b1eb7<SEP>chunk-85207504dbdbc56e7418af3a6044034c<SEP>chunk-fe910910c810e98985a3f75d5c55591a<SEP>chunk-608d8b00ae661453836d5b8f7f6475e8<SEP>chunk-af7ecce505cc0f05283ea99a8b584a53<SEP>chunk-5a956e38fde5b20399e4f71b1cd1177c",
+        "file_path": "S37测试用例.pdf<SEP>S38测试用例.pdf<SEP>S39测试用例.pdf<SEP>S40测试用例.pdf<SEP>S41测试用例.pdf",
+        "created_at": 1779863148
+      },
+      {
+        "entity_name": "新增待检测任务#1",
+        "entity_type": "event",
+        "description": "新增待检测任务#1是新增待检测任务的测试用例。",
+        "source_id": "chunk-4abc228dd0a85238abfd8addc34e74eb",
+        "file_path": "s26测试用例.pdf",
+        "created_at": 1779874153
+      },
+      {
+        "entity_name": "补充异常任务处理逻辑？？？#1",
+        "entity_type": "event",
+        "description": "补充异常任务处理逻辑？？？#1是一个测试用例，验证异常任务处理逻辑(具体内容未详细描述)。",
+        "source_id": "chunk-5a956e38fde5b20399e4f71b1cd1177c",
+        "file_path": "S41测试用例.pdf",
+        "created_at": 1779863158
+      },
+      {
+        "entity_name": "自定义:TD管管理/自定义:新增/用例:清空待导入数据#1",
+        "entity_type": "concept",
+        "description": "测试用例，用于验证清空已上传数据功能，有步骤和预期结果。",
+        "source_id": "chunk-528dfbccb40ac50452cdbfbcec76be91",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865347
+      },
+      {
+        "entity_name": "s16测试用例",
+        "entity_type": "concept",
+        "description": "s16测试用例是一个测试用例框架，包含多个操作节点和子任务。",
+        "source_id": "chunk-80c34083047e181d70d28f26a286d276",
+        "file_path": "s16测试用例.pdf",
+        "created_at": 1779866472
+      },
+      {
+        "entity_name": "历史上机测试1",
+        "entity_type": "concept",
+        "description": "历史上机测试1是历史上机测试的子节点，代表一个具体的测试用例。",
+        "source_id": "chunk-59ceb173246ac1e9c6324f1272fbcc0e",
+        "file_path": "s24测试用例.pdf",
+        "created_at": 1779870584
+      },
+      {
+        "entity_name": "自定义:TD管管理/自定义:新增/用例:表单内TD管重复#1",
+        "entity_type": "concept",
+        "description": "测试用例，用于验证表单内TD管重复校验，无详细步骤预期。",
+        "source_id": "chunk-528dfbccb40ac50452cdbfbcec76be91",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865347
+      },
+      {
+        "entity_name": "批量处理按钮",
+        "entity_type": "method",
+        "description": "系统界面上的按钮，用于触发对多个任务的批量操作。",
+        "source_id": "chunk-1ec8a6cbd2dcfd8a4214e8379626158d",
+        "file_path": "s21测试用例.pdf",
+        "created_at": 1779868577
+      },
+      {
+        "entity_name": "用例:提示TD管数应为10#1",
+        "entity_type": "content",
+        "description": "用例:提示TD管数应为10#1是一个测试用例，包含关于TD管数提示的步骤和预期结果(正常提示)。",
+        "source_id": "chunk-d758cde2dccb09c9add1548c7afdc993",
+        "file_path": "S41测试用例.pdf",
+        "created_at": 1779863299
+      },
+      {
+        "entity_name": "医疗测试任务管理系统",
+        "entity_type": "artifact",
+        "description": "一个用于医疗测试任务管理的软件系统，包含上述软件界面。",
+        "source_id": "chunk-35e1afb164b3d9a4a89dacd511815ced",
+        "file_path": "XMetrix_v2.3.pdf",
+        "created_at": 1779936825
+      },
+      {
+        "entity_name": "自定义:TD管管理/自定义:新增/用例:上传文件#1",
+        "entity_type": "concept",
+        "description": "测试用例，用于验证上传文件并解析数据功能，有步骤和预期结果。",
+        "source_id": "chunk-528dfbccb40ac50452cdbfbcec76be91",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865347
+      },
+      {
+        "entity_name": "检测任务",
+        "entity_type": "concept",
+        "description": "检测任务是系统中的一个核心实体与独立模块，代表一次具体的检测过程或样本分析工作单元。该任务通常由样本物流单签收后自动生成，作为待分配任务归属于某一项目；用户也可直接在平台上手动创建以分析特定样本。检测任务涵盖从创建到结果输出的完整生命周期，其状态集合包括待分配、待检测、检测中、解析中、分析中、已完成、分析失败、检测失败、待清理、已清理、已作废，以及运输中、待转运等与物流操作相关的状态。通过采样登记创建的检测任务类型为“送检项目”，初始状态为“待转运”，后续可流转至待分析或已完成状态。工作流还包含人工分析中、复核中、已发布、已取消等状态及其对应操作。\n\n在类型划分上，检测任务可作为具体的工作任务存在，如检测报告任务、直吹任务、送检任务等；按运行模式可分为直吹模式任务和采样管模式任务。任务拥有项目名称、所属组、所属病种、气体来源、任务类型、谱图类型等字段，管理TD管、苏玛罐、标气等物品的签收和修改，并设有标气类型字段用于判断分析状态字段的展示内容。检测任务具备状态、日志、关联文件等属性，能够提交谱图分析结果并产生检测记录。系统行为方面，当通过BS模式添加检测任务时，系统会发送通知；任务在创建与未完成阶段也会触发事件通知；任务完成后可自动创建老化任务。检测任务由XCloud创建并驱动送检任务的状态流转，作为系统中管理样本分析的单元，具有待分析、分析中等状态可被用户操作。\n\n从系统模块角度看，检测任务是与xmetris s25、xcloud并列的独立模块，同时也是任务中心管理的基本任务单元，与检测报告及s24系统的测试用例上下文相关联。检测任务是整个分析的流程单元，包含状态、检测项目、分析结果等属性，也是呼析云左侧边栏导航菜单中的一项，用于管理检测任务。在任务中心下的表格模块中，检测任务展示样本检测任务的详细信息，包括标本条码、气体来源、采样方式等列。发布后需要为其创建报告单，是系统中的核心事件。平台的功能模块包含子项如检测任务-待分析、新增/签收物品类型等。用户通过操作界面提交检测任务，每个任务可包含多个样本，但每个样本不能同时存在多个未完成的检测任务。检测任务作为任务中心下的主要任务类型，整体上用于管理样本的检测流程，包括待分配、待分析等状态，是系统中管理检测任务的核心模块，同时也可作为筛选分类标签或后台功能模块，与老化任务并列用于设备检测。<SEP>检测任务是对样本进行分析检测的任务，提交后自动创建物流单并进入待分配状态。<SEP>检测任务是物流管理系统中自动创建的任务，当特定物品类型在指定地点签收时触发。<SEP>检测任务是CLOU精智未来云管理后台中的一个菜单项或任务筛选类别。",
+        "source_id": "chunk-27c59dcdfafb9c0a15b7a7b7c2556265<SEP>chunk-e6da75081ef9086fb4c053d66225410d<SEP>chunk-1f178322d0546ae1a3b26405a9605df5<SEP>chunk-58848ea998aa4fde313a7ce9f2938304<SEP>chunk-608d8b00ae661453836d5b8f7f6475e8<SEP>chunk-b8e6641d0d08007db3431ee49381c0ce<SEP>chunk-9841933cd514da80792231df2319ddf7<SEP>chunk-713cc4d5874b2e8382535b5cb04f1d44<SEP>chunk-3b3b2b1c18e50a2fdf34af33ba40aa65<SEP>chunk-936a82968227eb455c3c20bdf195b9df<SEP>chunk-d5900916f1bfc5a54dd14b301fab07a1<SEP>chunk-96183638fe0bad99dc9dd93987f96370<SEP>chunk-c6417e4b8c60bd7579cc3ab30335b2a3<SEP>chunk-f66dec0ba8e2d12f2b2b9cf3145b777b<SEP>chunk-8a98c36ae38c8eeb25db9aa4216ffaf9<SEP>chunk-ad7edd3628a44e67eb079f7e15108bbd<SEP>chunk-25f1cb1e406256cd87fd263bebaf4db1<SEP>chunk-2daa345b401e8ad5329fa25aa5170937<SEP>chunk-0114eaf1591780ecaa1b31cac0cb8618<SEP>chunk-6db3ee750aef8f127faedf3621a7c5c0<SEP>chunk-4abc228dd0a85238abfd8addc34e74eb<SEP>chunk-26a6decf77438bd3bac48f9ed3f86be6<SEP>chunk-b012500077ed86a8d05fd45b1247c317<SEP>chunk-2fc8fba7af5bfa57922c97b13e6e4334<SEP>chunk-de5451b1ed2c4025218262cc3487312a<SEP>chunk-692b455010f79e1754ffe957eb1b4743<SEP>chunk-53d2d84ba4b8a66fddc523a79876e197<SEP>chunk-92e6e3db074dcb3f773e65cd02f1d64e<SEP>chunk-dd5486a83f744668de6e98b6b2da6679<SEP>chunk-39af86e2499209c5cc0eefe0d692bec7<SEP>chunk-32cfe9c230757a58bf202973c03bc901<SEP>chunk-e58a92662b7be26f58448548ade2c841<SEP>chunk-dcecfd8727d6aedcfb965c9fb6ff3672<SEP>chunk-78bbe22117f604c4dfa3a41cb7c0792e<SEP>chunk-efb6ebfc0b0988bcdbbbda656729ed9f<SEP>chunk-fc4eb9a96dc69fd533da68772ec7db9e<SEP>chunk-1af68c7b4677a1f9adbc5e600296cf25<SEP>chunk-880e5b4b63b3acd3d1053062446a08e3<SEP>chunk-919eb72d90cdf4b581afa32b30ab6c65<SEP>chunk-d52e262d8f84c56a07e9d1fcfa1d4c46<SEP>chunk-bd5309f53f2c67cc8f934a0dfca814de<SEP>chunk-4880920ba6ad256d8041d9c9ce55b436<SEP>chunk-2193e2c6a59452bd1b2ea6e9b1bec3c0<SEP>chunk-ac2879d32fa6a2c40f73b13fb3540420<SEP>chunk-d493913f3802b2e18c8eefd1ca9f8381<SEP>chunk-30df855274a892bb8a1806085b39529d<SEP>chunk-c51595385cd96628a5e86fda5e45a69e<SEP>chunk-fd3c2feb3db00c09ee678202d489bb73<SEP>chunk-d6c9c7c0d994127bc5e7fda88a9276ed<SEP>chunk-e1a7e6682d118fd3b55bd49650662382<SEP>chunk-7f18de708772a055b30a04b1908b318f<SEP>chunk-747de3c44d79b5d050b0e4538a90442a<SEP>chunk-c120c7253784f58def105061cf29312e<SEP>chunk-601966ea2263a797992556bd87282e39<SEP>chunk-20c459fad9c08d0c97d0fc465ececb0d<SEP>chunk-0429211d298a75fab4ea458c198ba5e9<SEP>chunk-fb152d63a007e2531b0c1f843e2757b2<SEP>chunk-fe9f8917e70f005203e189e82c531c99<SEP>chunk-dd08c85e140e46a7ec510e789b35b2a3<SEP>chunk-2e5710d727f36ba8ec8dab65ff9e3af2<SEP>chunk-e42a3f57c53bd0366445d2e282ab82b5<SEP>chunk-1df499ac615e547e5e253c3beb1bb6d1<SEP>chunk-c4aa042875f6a85468e02d7b0f395314<SEP>chunk-48478c3f994bdb657be43333618d93aa<SEP>chunk-2f1ebe47b8d9924eff96e67cb79b08bd",
+        "file_path": "S37测试用例.pdf<SEP>S38测试用例.pdf<SEP>S41测试用例.pdf<SEP>S42测试用例.pdf<SEP>s16测试用例.pdf<SEP>s19测试用例.pdf<SEP>s20测试用例.pdf<SEP>s22测试用例.pdf<SEP>s23测试用例.pdf<SEP>s24测试用例.pdf<SEP>s25测试用例.pdf<SEP>s26测试用例.pdf<SEP>s27测试用例.pdf<SEP>s29测试用例.pdf<SEP>s30测试用例.pdf<SEP>s32测试用例.pdf<SEP>s34测试用例.pdf<SEP>S35测试用例.pdf<SEP>S36测试用例.pdf<SEP>34.pdf<SEP>XMetrix_v2.2.pdf<SEP>XMetrix_v2.3.pdf<SEP>检测任务.pdf<SEP>检测任务可选设备.pdf<SEP>谱图导入.pdf<SEP>权限分配.pdf<SEP>实验项目.pdf<SEP>物流清单.pdf<SEP>标气批次.pdf<SEP>检测任务s52.pdf<SEP>老化任务.pdf<SEP>设备管理.pdf<SEP>实验项目s52.pdf<SEP>物资流转（原物流管理）.pdf<SEP>异常TD任务.pdf",
+        "created_at": 1782371040
+      },
+      {
+        "entity_name": "TD2024002",
+        "entity_type": "data",
+        "description": "TD2024002是T/D号值，在测试用例TC-TASK-CREATE-002中作为T/D号字段的值出现。",
+        "source_id": "chunk-0a96ebfc05f2ee0022eb55bffd24860d",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782099989
+      },
+      {
+        "entity_name": "TC-TASK-TYPE-004",
+        "entity_type": "content",
+        "description": "测试用例，覆盖4种任务类型批量取消场景",
+        "source_id": "chunk-6acb30df05ff4a2b9ebf393e3f998bc5",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782099983
+      },
+      {
+        "entity_name": "关联需求",
+        "entity_type": "data",
+        "description": "测试用例对应的需求编号，如REQ-CREATE-001、REQ-CANCEL-001。",
+        "source_id": "chunk-cbf96977f8c503e2df4e2a87730203a7",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100000
+      },
+      {
+        "entity_name": "任务调整",
+        "entity_type": "concept",
+        "description": "取消原因，用于检测报告任务取消",
+        "source_id": "chunk-6acb30df05ff4a2b9ebf393e3f998bc5",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782099984
+      },
+      {
+        "entity_name": "增加任务类型字段#1",
+        "entity_type": "event",
+        "description": "增加任务类型字段#1是增加任务类型字段的测试用例。",
+        "source_id": "chunk-4abc228dd0a85238abfd8addc34e74eb",
+        "file_path": "s26测试用例.pdf",
+        "created_at": 1779874154
+      },
+      {
+        "entity_name": "S41测试用例",
+        "entity_type": "content",
+        "description": "S41测试用例是一组用于测试软件功能的测试用例集合，以流程图形式组织，包含多个自定义模块。<SEP>S41测试用例是一份描述测试场景的文档，以思维导图形式组织，包含多个测试类别和详细用例。",
+        "source_id": "chunk-4e3aedcc9097f0d1a6d69397be8f7195<SEP>chunk-d758cde2dccb09c9add1548c7afdc993",
+        "file_path": "S41测试用例.pdf",
+        "created_at": 1779863297
+      },
+      {
+        "entity_name": "自定义:TD管管理/自定义:新增/用例:校验数据下一步#1",
+        "entity_type": "concept",
+        "description": "测试用例，用于验证校验数据后下一步操作，无详细步骤预期。",
+        "source_id": "chunk-528dfbccb40ac50452cdbfbcec76be91",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865347
+      },
+      {
+        "entity_name": "自定义:任务管理",
+        "entity_type": "concept",
+        "description": "自定义:任务管理是S41测试用例中的一个自定义模块，涉及任务管理。<SEP>这是自定义类别下的一个子类别，专注于任务管理的测试用例。",
+        "source_id": "chunk-d758cde2dccb09c9add1548c7afdc993<SEP>chunk-b7979cd4d72168c70938ddceef31aa96",
+        "file_path": "S41测试用例.pdf<SEP>s20测试用例.pdf",
+        "created_at": 1779867950
+      },
+      {
+        "entity_name": "自定义:TD管管理/自定义:新增/用例:下载模版#1",
+        "entity_type": "concept",
+        "description": "测试用例，用于验证下载模版功能，有步骤和预期结果。",
+        "source_id": "chunk-528dfbccb40ac50452cdbfbcec76be91",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865347
+      },
+      {
+        "entity_name": "审核",
+        "entity_type": "method",
+        "description": "对检测卡预约进行审核的操作。<SEP>一种操作类型，表示对内容进行审核的动作。<SEP>审核是操作内容中的一项操作，涉及对任务的审查或审批，可能出现在任务取消或管理流程中。",
+        "source_id": "chunk-d6d523557052db74e45839e93e0e9798<SEP>chunk-8973e9d98ac15cf8116221c664ae7c77<SEP>chunk-4898e475fa9140c4b0b0faf48ec8ba3c",
+        "file_path": "s34测试用例.pdf<SEP>34.pdf",
+        "created_at": 1779937327
+      },
+      {
+        "entity_name": "TC-TASK-CREATE-005",
+        "entity_type": "content",
+        "description": "TC-TASK-CREATE-005是测试用例编号，测试创建按钮不触发自动填入。",
+        "source_id": "chunk-2738e0c21a402ab239051054197bc957",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782099959
+      },
+      {
+        "entity_name": "退回#1",
+        "entity_type": "event",
+        "description": "测试用例，测试审核退回操作及状态变更、日志、通知。",
+        "source_id": "chunk-d6d523557052db74e45839e93e0e9798",
+        "file_path": "s34测试用例.pdf",
+        "created_at": 1779876849
+      },
+      {
+        "entity_name": "历史上机测试",
+        "entity_type": "concept",
+        "description": "历史上机测试是测试项-school的一个父节点，包含历史上机测试1和历史上机测试2等子测试用例。",
+        "source_id": "chunk-59ceb173246ac1e9c6324f1272fbcc0e",
+        "file_path": "s24测试用例.pdf",
+        "created_at": 1779870583
+      },
+      {
+        "entity_name": "批量操作",
+        "entity_type": "concept",
+        "description": "批量操作是METRIX精智·呼析云/XCloud系统上下文中的一种用户界面功能，旨在同时处理多个对象或数据，以提高操作效率。具体而言，批量操作出现在检测报告任务列表页面的右上角以及质控任务列表界面中，作为一个独立的操作按钮或功能入口。该操作允许用户同时选择多条任务，并对这些选中的任务执行统一的操作，例如同时完成、作废或取消任务。批量操作的核心优势在于能够对多个异常任务或常规任务进行批量处理，从而减少重复性手动操作，提升工作流效率。在质控任务列表中，批量操作同样支持同时对多个任务执行取消等统一处理。总体而言，批量操作是一种面向任务列表的批量处理机制，适用于需要快速对多个任务执行相同动作的场景。",
+        "source_id": "chunk-0993b38cbdf06250867a506772025562<SEP>chunk-12213945bf8e700b05501baf76a65236<SEP>chunk-13d85ba7a93b18ed91d83ed1ff846f73<SEP>chunk-793b18d21d6272b6940548a28be8f404<SEP>chunk-e9797aa4116af470728467718b575aec<SEP>chunk-eaa584eaf118c02eb565103475d975c6",
+        "file_path": "S43测试用例.pdf<SEP>s21测试用例.pdf<SEP>20.pdf<SEP>定标记录.pdf<SEP>质控任务列表.pdf",
+        "created_at": 1782373258
+      },
+      {
+        "entity_name": "重复TD管号校验",
+        "entity_type": "concept",
+        "description": "重复TD管号校验是一个测试用例标题，描述输入重复TD管号时系统弹出提示并阻止提交的测试。",
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097459
+      },
+      {
+        "entity_name": "用例：关联RO任务的任务#1",
+        "entity_type": "event",
+        "description": "自定义实验任务模块下的一个具体测试用例。注意实体名中使用了中文冒号“：”。",
+        "source_id": "chunk-b50e0f11538a64bef57bcbec51ba7b04",
+        "file_path": "s25测试用例.pdf",
+        "created_at": 1779870924
+      },
+      {
+        "entity_name": "TD001",
+        "entity_type": "artifact",
+        "description": "TD001是一个在多个测试用例中使用的TD管编号，用于验证重复编号校验、提交成功和删除联动等场景。<SEP>TD管，编号TD001，用于环境采样",
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc<SEP>chunk-f146093ecca4ac54a79e424f6f562696",
+        "file_path": "S51测试用例.xlsx<SEP>51测试用例.pdf",
+        "created_at": 1782099995
+      },
+      {
+        "entity_name": "自定义实验任务",
+        "entity_type": "concept",
+        "description": "系统的一个顶层模块，包含测试用例如\"用例:关联RO任务的任务#1\"。",
+        "source_id": "chunk-b50e0f11538a64bef57bcbec51ba7b04",
+        "file_path": "s25测试用例.pdf",
+        "created_at": 1779870914
+      },
+      {
+        "entity_name": "用例:关联RO任务的任务#1",
+        "entity_type": "event",
+        "description": "自定义实验任务模块下的一个具体测试用例。",
+        "source_id": "chunk-b50e0f11538a64bef57bcbec51ba7b04",
+        "file_path": "s25测试用例.pdf",
+        "created_at": 1779870923
+      },
+      {
+        "entity_name": "老化任务",
+        "entity_type": "concept",
+        "description": "老化任务是一个在测试与管理系统中定义的多层次实体，其核心涉及对TD管或其他设备进行老化处理。从操作任务角度看，老化任务包含创建、校验、删除等具体步骤，支持手动或自动创建，并可被取消；每次任务完成后会累计老化次数。从流程节点角度看，老化任务属于s16测试用例下的一个节点，内部包含待老化、上传老化记录等多个子节点，其中上传老化记录的操作在当前版本中入口不再展示。作为管理模块，老化任务是一个自定义模块，负责组织与老化相关的测试用例，例如任务状态数量#1等测试逻辑。从完整流程角度，老化任务构成一个包含老化批次、老化时间、老化次数以及待处理TD管列表的操作流程。\n\n在触发条件方面，存在不同描述：通常老化任务在检测任务完成后（检测完成、检测失败或已清理状态）生成，作为后续处理任务；但也有描述指出它在检测任务进入待分析状态时同时创建；在某些特定条件下，老化任务也可能不生成。此外，老化任务在项目管理界面中作为一种任务类型与其他任务并列显示，在任务中心统一管理，并可用于处理样本老化相关操作。作为具体任务类型，老化任务包含批次和管号信息，涉及设备老化流程。\n\n在系统结构上，老化任务是任务中心下属的子模块或子菜单项，用于管理老化相关任务；同时也可作为筛选或分类标签，用于管理老化工作。综合来看，老化任务在不同上下文中分别扮演了操作任务、测试节点、管理模块、完整流程、条件性后处理任务以及筛选标签等多重角色，其定义涵盖了从具体操作到系统抽象的各层级。<SEP>平台中的老化处理任务。<SEP>老化任务是TD管老化处理的具体任务，在导航中作为单独管理模块。<SEP>老化任务是CLOU精智未来云管理后台中的一个菜单项或任务筛选类别。<SEP>质控任务进入分析中状态时自动创建的老化任务。",
+        "source_id": "chunk-9841933cd514da80792231df2319ddf7<SEP>chunk-3b3b2b1c18e50a2fdf34af33ba40aa65<SEP>chunk-8a98c36ae38c8eeb25db9aa4216ffaf9<SEP>chunk-6db3ee750aef8f127faedf3621a7c5c0<SEP>chunk-14bee55c8769ffa847a6e21fdfc888d7<SEP>chunk-e1771468661d88df8215fa4a5cca135e<SEP>chunk-53d2d84ba4b8a66fddc523a79876e197<SEP>chunk-ed91dde2d811d2e31041cc655ed18627<SEP>chunk-928ed73f7d7cf62923d69f6f0b891515<SEP>chunk-78bbe22117f604c4dfa3a41cb7c0792e<SEP>chunk-d52e262d8f84c56a07e9d1fcfa1d4c46<SEP>chunk-d6c9c7c0d994127bc5e7fda88a9276ed<SEP>chunk-e1a7e6682d118fd3b55bd49650662382<SEP>chunk-747de3c44d79b5d050b0e4538a90442a<SEP>chunk-c120c7253784f58def105061cf29312e<SEP>chunk-601966ea2263a797992556bd87282e39<SEP>chunk-fb152d63a007e2531b0c1f843e2757b2<SEP>chunk-fe9f8917e70f005203e189e82c531c99<SEP>chunk-dd08c85e140e46a7ec510e789b35b2a3<SEP>chunk-2e5710d727f36ba8ec8dab65ff9e3af2<SEP>chunk-e42a3f57c53bd0366445d2e282ab82b5<SEP>chunk-1df499ac615e547e5e253c3beb1bb6d1<SEP>chunk-48478c3f994bdb657be43333618d93aa<SEP>chunk-13d85ba7a93b18ed91d83ed1ff846f73",
+        "file_path": "S42测试用例.pdf<SEP>s16测试用例.pdf<SEP>s22测试用例.pdf<SEP>s25测试用例.pdf<SEP>s28测试用例.pdf<SEP>s29测试用例.pdf<SEP>S31测试用例.pdf<SEP>s32测试用例.pdf<SEP>s34测试用例.pdf<SEP>XMetrix_v2.3.pdf<SEP>检测任务.pdf<SEP>检测任务可选设备.pdf<SEP>谱图导入.pdf<SEP>权限分配.pdf<SEP>物流清单.pdf<SEP>标气批次.pdf<SEP>检测任务s52.pdf<SEP>老化任务.pdf<SEP>设备管理.pdf<SEP>实验项目s52.pdf<SEP>异常TD任务.pdf<SEP>质控任务列表.pdf",
+        "created_at": 1782372867
+      },
+      {
+        "entity_name": "TC-SUBJ-LOG-001",
+        "entity_type": "event",
+        "description": "TC-SUBJ-LOG-001是一个测试用例，用于验证创建任务日志功能，优先级P0。",
+        "source_id": "chunk-4ee7a841f208c6563571af725a5af65e",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782099960
+      },
+      {
+        "entity_name": "质控任务",
+        "entity_type": "concept",
+        "description": "质控任务是系统中一种用于质量控制与设备质控的操作任务或任务类型。它可以在系统中被新增、作废和清理，并支持通过PID编号进行查询。在TD管使用过程中，质控任务作为检测任务中的一种类型，会累计使用次数。该任务需要配置检测项目、设备序列号、标气等具体字段，以确保质量控制检测的规范性。此外，质控任务也被视为一个功能模块，专门用于执行质控相关操作，同时它还是任务来源的一种，表示任务源自质控流程。\n\n质控任务是一种自定义的任务列表类别，包含多个数据导出用例。它通过算法调用和工作流来执行，并包含质控类型字段。作为系统中另一个任务类型，质控任务需要同步添加与检测任务相同的功能点，包括保存、修改RT对照表和数据导出。总体而言，质控任务是一种新增的检测任务类型，核心用途是质量控制，并具备操作管理、查询配置、来源标识以及功能点同步等多重特性。<SEP>质控任务是任务的一种类型，用于质量控制目的。<SEP>一种任务类型，用于质量控制<SEP>质控任务是云平台在点击确认后自动生成的检测任务，状态为检测中。<SEP>质控任务是由设备创建并同步到检测中的任务类型。",
+        "source_id": "chunk-61bfb7e222dd19f595675a1fadadf9e5<SEP>chunk-e0f3736c571348619ac573810d3d4eea<SEP>chunk-8b784b76bd2e76fe01e7158deac2e90a<SEP>chunk-be65904aa22ae8bdfeb240fc12b2fed1<SEP>chunk-928ed73f7d7cf62923d69f6f0b891515<SEP>chunk-0a27e42a77a10e864206efbd04aac40f<SEP>chunk-78bbe22117f604c4dfa3a41cb7c0792e<SEP>chunk-fc4eb9a96dc69fd533da68772ec7db9e<SEP>chunk-f8db68e64e75687f5b75f5163931349f<SEP>chunk-4880920ba6ad256d8041d9c9ce55b436<SEP>chunk-2193e2c6a59452bd1b2ea6e9b1bec3c0<SEP>chunk-c8eb894d1846be98aaf8624ca04bb8c8<SEP>chunk-c51595385cd96628a5e86fda5e45a69e<SEP>chunk-fd3c2feb3db00c09ee678202d489bb73<SEP>chunk-d6c9c7c0d994127bc5e7fda88a9276ed<SEP>chunk-6acb30df05ff4a2b9ebf393e3f998bc5<SEP>chunk-d05fb6df6e75e3f689fb64cd6bf3a715<SEP>chunk-1f18ee948450e27cdd532616ff4fd359<SEP>chunk-13d85ba7a93b18ed91d83ed1ff846f73<SEP>chunk-68adbfc7e1b6f645942e1e8efa52396e",
+        "file_path": "s21测试用例.pdf<SEP>s23测试用例.pdf<SEP>s27测试用例.pdf<SEP>S31测试用例.pdf<SEP>s32测试用例.pdf<SEP>S33测试用例.pdf<SEP>S35测试用例.pdf<SEP>XMetrix_v2.2.pdf<SEP>XMetrix_v2.3.pdf<SEP>51测试用例.pdf<SEP>TD24.pdf<SEP>质控任务列表.pdf",
+        "created_at": 1782373247
+      },
+      {
+        "entity_name": "TC-TASK-CREATE-003",
+        "entity_type": "content",
+        "description": "TC-TASK-CREATE-003是测试用例编号，测试连续3次字段继承一致性。",
+        "source_id": "chunk-2738e0c21a402ab239051054197bc957",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782099958
+      },
+      {
+        "entity_name": "TC-TASK-CREATE-001",
+        "entity_type": "content",
+        "description": "TC-TASK-CREATE-001是一个测试用例，验证保存并创建下一个的功能流程，包括填写客户、采样点等信息。",
+        "source_id": "chunk-0a96ebfc05f2ee0022eb55bffd24860d",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782099988
+      },
+      {
+        "entity_name": "历史上机测试2",
+        "entity_type": "concept",
+        "description": "历史上机测试2是历史上机测试的子节点，代表一个具体的测试用例。",
+        "source_id": "chunk-59ceb173246ac1e9c6324f1272fbcc0e",
+        "file_path": "s24测试用例.pdf",
+        "created_at": 1779870584
+      },
+      {
+        "entity_name": "创建任务",
+        "entity_type": "method",
+        "description": "创建任务是用户通过按钮触发的操作，用于新建检测报告任务或受试者信息填写任务。<SEP>创建任务功能通过选择检测设备和结果自动生成新任务。<SEP>创建任务是系统中的一个操作，用于通过选择检测设备和任务来创建新的任务。<SEP>创建任务是任务列表中的一种按钮级权限，允许用户创建任务。<SEP>创建任务是任务列表权限中的一个未选中权限项。<SEP>创建任务是功能名称，指创建任务的操作。<SEP>创建任务是任务管理中的操作方法，用于新建任务。",
+        "source_id": "chunk-a0aacb12a28a35beaac154022edd88c1<SEP>chunk-73a1b178fd33733294c677d967fdab9a<SEP>chunk-56a8144689a523d3ef85d7934616613f<SEP>chunk-0a96ebfc05f2ee0022eb55bffd24860d<SEP>chunk-793b18d21d6272b6940548a28be8f404",
+        "file_path": "XMetrix_v2.2.pdf<SEP>风险计算_任务列表.pdf<SEP>风险计算_用户管理.pdf<SEP>51测试用例.pdf<SEP>质控任务列表.pdf",
+        "created_at": 1782372879
+      },
+      {
+        "entity_name": "用例:变更TD管列表展示位置#1",
+        "entity_type": "event",
+        "description": "测试用例，验证TD管列表与统计展示位置变更。",
+        "source_id": "chunk-928ed73f7d7cf62923d69f6f0b891515",
+        "file_path": "S31测试用例.pdf",
+        "created_at": 1779875981
+      },
+      {
+        "entity_name": "删除任务#1",
+        "entity_type": "event",
+        "description": "删除任务#1是一个测试用例，验证删除检测任务的功能。",
+        "source_id": "chunk-5a956e38fde5b20399e4f71b1cd1177c",
+        "file_path": "S41测试用例.pdf",
+        "created_at": 1779863159
+      },
+      {
+        "entity_name": "新增/删除检测任务",
+        "entity_type": "organization",
+        "description": "新增/删除检测任务是一个自定义模块，用于检测任务的增删操作测试。",
+        "source_id": "chunk-5a956e38fde5b20399e4f71b1cd1177c",
+        "file_path": "S41测试用例.pdf",
+        "created_at": 1779863158
+      },
+      {
+        "entity_name": "质控/环境/TD管检测任务",
+        "entity_type": "concept",
+        "description": "质控/环境/TD管检测任务是多种类型检测任务的统称，用于测试新增功能。",
+        "source_id": "chunk-dd5486a83f744668de6e98b6b2da6679",
+        "file_path": "s30测试用例.pdf",
+        "created_at": 1779875716
+      },
+      {
+        "entity_name": "提示不能为空",
+        "entity_type": "content",
+        "description": "提示不能为空是一种验证规则，当特定字段为空时显示。<SEP>必填项为空时的提示信息。<SEP>提示不能为空是一个常见的预期结果，出现在多个测试用例中，表示系统应提示不能为空。<SEP>提示不能为空是系统预期结果，提示必填字段未填写。<SEP>当PID序列号或结果文件为空时点击确定，系统显示的提示信息，内容为“提示不能为空”。",
+        "source_id": "chunk-413fad31d606975041f20644735f254d<SEP>chunk-300889d4aaad356f00f4749ee317a7c8<SEP>chunk-be65904aa22ae8bdfeb240fc12b2fed1",
+        "file_path": "S40测试用例.pdf<SEP>s12测试用例.pdf<SEP>s22测试用例.pdf<SEP>s23测试用例.pdf<SEP>s27测试用例.pdf",
+        "created_at": 1779874475
+      },
+      {
+        "entity_name": "新增TD管采样样本#1",
+        "entity_type": "concept",
+        "description": "测试用例，验证新增TD管采样样本流程。",
+        "source_id": "chunk-e58a92662b7be26f58448548ade2c841",
+        "file_path": "s32测试用例.pdf",
+        "created_at": 1779876289
+      },
+      {
+        "entity_name": "用例管理组件#1",
+        "entity_type": "content",
+        "description": "用例管理组件#1是一个具体的测试用例，包含步骤内容校验和预期结果提示不能为空。",
+        "source_id": "chunk-584317e5859569d12d2d6b5408a74d91",
+        "file_path": "s22测试用例.pdf",
+        "created_at": 1779869724
+      },
+      {
+        "entity_name": "异常数量、异常原因#1",
+        "entity_type": "event",
+        "description": "异常数量、异常原因#1是一个测试用例，用于验证为多条TD管号添加异常原因后系统自动填入逻辑。",
+        "source_id": "chunk-bcd09be11e4cb8558024dc597bedd9ce",
+        "file_path": "s14测试用例.pdf",
+        "created_at": 1779865587
+      },
+      {
+        "entity_name": "任务列表通用性修改：增加ID字段#1",
+        "entity_type": "concept",
+        "description": "任务列表通用性修改：增加ID字段#1是一个测试用例，用于验证在不同任务状态下ID字段的正确显示。",
+        "source_id": "chunk-6a0bdd94818406989167e9cf2801ec24",
+        "file_path": "s20测试用例.pdf",
+        "created_at": 1779867800
+      },
+      {
+        "entity_name": "测试用例表格",
+        "entity_type": "content",
+        "description": "测试用例表格是一个包含7个测试用例的结构化文档，用于描述环境登记-TD管管理模块的功能测试，包含用例编号、标题、模块、类型、优先级、前置条件、测试步骤、测试数据、预期结果和备注等字段。",
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097459
+      }
+    ],
+    "relationships": [
+      {
+        "src_id": "TD管",
+        "tgt_id": "用例:新增/删除TD管#1",
+        "description": "该用例测试TD管的新增与删除操作。",
+        "keywords": "测试操作",
+        "weight": 1.0,
+        "source_id": "chunk-313e136ae906bd5efc0871114ed295c9",
+        "file_path": "s28测试用例.pdf",
+        "created_at": 1779874923
+      },
+      {
+        "src_id": "新增报告任务",
+        "tgt_id": "新增报告任务#1",
+        "description": "新增报告任务#1是新增报告任务功能的测试用例，验证参数正常与异常情况",
+        "keywords": "功能,测试用例",
+        "weight": 1.0,
+        "source_id": "chunk-17a962f5657a64916121e886024511cb",
+        "file_path": "S33测试用例.pdf",
+        "created_at": 1779876525
+      },
+      {
+        "src_id": "TC-SUBJ-LOG-001",
+        "tgt_id": "检测报告任务",
+        "description": "TC-SUBJ-LOG-001需要先创建检测报告任务作为前置条件。",
+        "keywords": "前置条件,测试用例",
+        "weight": 1.0,
+        "source_id": "chunk-4ee7a841f208c6563571af725a5af65e",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100013
+      },
+      {
+        "src_id": "异常任务",
+        "tgt_id": "清洁流程",
+        "description": "异常任务需要执行清洁流程进行处理。",
+        "keywords": "处理后处置",
+        "weight": 1.0,
+        "source_id": "chunk-4f50aa87e0ee4778d3ba75cfda3f3db7",
+        "file_path": "S40测试用例.pdf",
+        "created_at": 1779862835
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "异常TD任务",
+        "description": "TD管号是异常TD任务的一个标识字段。",
+        "keywords": "字段归属",
+        "weight": 1.0,
+        "source_id": "chunk-48478c3f994bdb657be43333618d93aa",
+        "file_path": "异常TD任务.pdf",
+        "created_at": 1782371044
+      },
+      {
+        "src_id": "s18测试用例",
+        "tgt_id": "自定义任务管理",
+        "description": "s18测试用例包含自定义任务管理作为其一个分支。",
+        "keywords": "包含,组织结构",
+        "weight": 1.0,
+        "source_id": "chunk-a11c36dbb86c28aa2e35b96c313f9cfe",
+        "file_path": "s18测试用例.pdf",
+        "created_at": 1779867008
+      },
+      {
+        "src_id": "LOU口精智·未来云",
+        "tgt_id": "异常TD任务",
+        "description": "LOU口精智·未来云平台包含异常TD任务模块。",
+        "keywords": "包含模块",
+        "weight": 1.0,
+        "source_id": "chunk-601966ea2263a797992556bd87282e39",
+        "file_path": "权限分配.pdf",
+        "created_at": 1779950633
+      },
+      {
+        "src_id": "任务管理",
+        "tgt_id": "查看",
+        "description": "任务管理模块包含查看用例，用于浏览任务详情。",
+        "keywords": "模块,用例",
+        "weight": 1.0,
+        "source_id": "chunk-6a0bdd94818406989167e9cf2801ec24",
+        "file_path": "s20测试用例.pdf",
+        "created_at": 1779867823
+      },
+      {
+        "src_id": "任务",
+        "tgt_id": "关联需求",
+        "description": "任务取消功能需满足关联需求REQ-CANCEL-001。",
+        "keywords": "关联要求",
+        "weight": 1.0,
+        "source_id": "chunk-cbf96977f8c503e2df4e2a87730203a7",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100087
+      },
+      {
+        "src_id": "直吹模式",
+        "tgt_id": "补充异常任务处理逻辑？？？#1",
+        "description": "该测试用例属于直吹模式模块，验证异常任务处理逻辑(具体未知)。",
+        "keywords": "功能测试,归属关系",
+        "weight": 1.0,
+        "source_id": "chunk-5a956e38fde5b20399e4f71b1cd1177c",
+        "file_path": "S41测试用例.pdf",
+        "created_at": 1779863168
+      },
+      {
+        "src_id": "异常TD任务",
+        "tgt_id": "操作",
+        "description": "操作是异常TD任务列表中用于执行操作的字段。",
+        "keywords": "字段归属",
+        "weight": 1.0,
+        "source_id": "chunk-48478c3f994bdb657be43333618d93aa",
+        "file_path": "异常TD任务.pdf",
+        "created_at": 1782371046
+      },
+      {
+        "src_id": "s16测试用例",
+        "tgt_id": "异常TD任务",
+        "description": "s16测试用例框架包含异常TD任务节点。",
+        "keywords": "包含,层次结构",
+        "weight": 1.0,
+        "source_id": "chunk-80c34083047e181d70d28f26a286d276",
+        "file_path": "s16测试用例.pdf",
+        "created_at": 1779866477
+      },
+      {
+        "src_id": "任务中心",
+        "tgt_id": "异常TD任务",
+        "description": "任务中心包含异常TD任务类型。<SEP>任务中心包含异常TD任务，用于处理检测结果异常的TD管。<SEP>任务中心包含异常TD任务子模块。<SEP>任务中心包含异常TD任务子菜单，用于管理异常TD。<SEP>异常TD任务是任务中心中的一种任务类型。<SEP>异常TD任务是任务中心下的一个子模块，属于任务中心。",
+        "keywords": "任务类型,包含,包含关系,子菜单,导航层级,所属关系",
+        "weight": 6.0,
+        "source_id": "chunk-e1a7e6682d118fd3b55bd49650662382<SEP>chunk-747de3c44d79b5d050b0e4538a90442a<SEP>chunk-c120c7253784f58def105061cf29312e<SEP>chunk-48478c3f994bdb657be43333618d93aa<SEP>chunk-48c855d52c9a5e8513bb83a77a80dd5f",
+        "file_path": "检测任务.pdf<SEP>检测任务可选设备.pdf<SEP>谱图导入.pdf<SEP>物流清单.pdf<SEP>异常TD任务.pdf",
+        "created_at": 1782371158
+      },
+      {
+        "src_id": "异常任务",
+        "tgt_id": "批量处理按钮",
+        "description": "异常任务可多选，点击批量处理按钮进行后续操作。",
+        "keywords": "多选,操作触发",
+        "weight": 1.0,
+        "source_id": "chunk-1ec8a6cbd2dcfd8a4214e8379626158d",
+        "file_path": "s21测试用例.pdf",
+        "created_at": 1779868597
+      },
+      {
+        "src_id": "CLOUD 精智·未来云 物流管理界面截图 (image)",
+        "tgt_id": "异常TD任务",
+        "description": "Entity 异常TD任务 belongs to CLOUD 精智·未来云 物流管理界面截图 (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-8fccf8d4ed1718129b3f6bcfe1798b4c",
+        "file_path": "物流清单.pdf",
+        "created_at": 1779963048
+      },
+      {
+        "src_id": "医疗测试任务管理系统",
+        "tgt_id": "检测任务",
+        "description": "医疗测试任务管理系统处理检测任务。",
+        "keywords": "任务处理,功能范围",
+        "weight": 1.0,
+        "source_id": "chunk-35e1afb164b3d9a4a89dacd511815ced",
+        "file_path": "XMetrix_v2.3.pdf",
+        "created_at": 1779936895
+      },
+      {
+        "src_id": "异常TD任务",
+        "tgt_id": "精智·未来云",
+        "description": "精智·未来云系统包含异常TD任务分类。",
+        "keywords": "包含关系,系统功能",
+        "weight": 1.0,
+        "source_id": "chunk-fb152d63a007e2531b0c1f843e2757b2",
+        "file_path": "物流清单.pdf",
+        "created_at": 1779962824
+      },
+      {
+        "src_id": "TC-TASK-TYPE-004",
+        "tgt_id": "任务调整",
+        "description": "测试用例TC-TASK-TYPE-004中检测报告任务使用取消原因任务调整",
+        "keywords": "使用取消原因",
+        "weight": 1.0,
+        "source_id": "chunk-6acb30df05ff4a2b9ebf393e3f998bc5",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100040
+      },
+      {
+        "src_id": "s16测试用例_自定义任务流程思维导图 (image)",
+        "tgt_id": "老化任务",
+        "description": "Entity 老化任务 belongs to s16测试用例_自定义任务流程思维导图 (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-80c34083047e181d70d28f26a286d276",
+        "file_path": "s16测试用例.pdf",
+        "created_at": 1779866478
+      },
+      {
+        "src_id": "S41测试用例",
+        "tgt_id": "自定义:任务管理",
+        "description": "S41测试用例包含自定义:任务管理模块，作为其组成部分。",
+        "keywords": "包含,模块组织",
+        "weight": 1.0,
+        "source_id": "chunk-d758cde2dccb09c9add1548c7afdc993",
+        "file_path": "S41测试用例.pdf",
+        "created_at": 1779863310
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-007",
+        "tgt_id": "环境登记-TD管管理测试用例表 (table)",
+        "description": "Entity TC-FUTURE-ENV-TD-007 belongs to 环境登记-TD管管理测试用例表 (table)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097482
+      },
+      {
+        "src_id": "审核",
+        "tgt_id": "退回#1",
+        "description": "该测试用例测试审核退回操作。",
+        "keywords": "关联,测试涉及",
+        "weight": 1.0,
+        "source_id": "chunk-d6d523557052db74e45839e93e0e9798",
+        "file_path": "s34测试用例.pdf",
+        "created_at": 1779876890
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-002",
+        "tgt_id": "环境登记-TD管管理测试用例表 (table)",
+        "description": "Entity TC-FUTURE-ENV-TD-002 belongs to 环境登记-TD管管理测试用例表 (table)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097479
+      },
+      {
+        "src_id": "异常任务",
+        "tgt_id": "批量操作",
+        "description": "异常任务可通过批量操作同时完成或作废。",
+        "keywords": "处理方式",
+        "weight": 1.0,
+        "source_id": "chunk-12213945bf8e700b05501baf76a65236",
+        "file_path": "s21测试用例.pdf",
+        "created_at": 1779868611
+      },
+      {
+        "src_id": "异常TD任",
+        "tgt_id": "标气批次",
+        "description": "异常TD任筛选标签用于按异常TD任务分类查看标气批次列表。",
+        "keywords": "分类,筛选条件",
+        "weight": 1.0,
+        "source_id": "chunk-fe9f8917e70f005203e189e82c531c99",
+        "file_path": "标气批次.pdf",
+        "created_at": 1782354148
+      },
+      {
+        "src_id": "用例：关联RO任务的任务#1",
+        "tgt_id": "自定义实验任务",
+        "description": "自定义实验任务模块包含该测试用例作为子任务。",
+        "keywords": "包含",
+        "weight": 1.0,
+        "source_id": "chunk-b50e0f11538a64bef57bcbec51ba7b04",
+        "file_path": "s25测试用例.pdf",
+        "created_at": 1779870939
+      },
+      {
+        "src_id": "作废",
+        "tgt_id": "异常TD任务",
+        "description": "作废是异常TD任务表格中每行对应的操作按钮，用于标记任务作废。",
+        "keywords": "操作按钮",
+        "weight": 1.0,
+        "source_id": "chunk-48c855d52c9a5e8513bb83a77a80dd5f",
+        "file_path": "异常TD任务.pdf",
+        "created_at": 1782371162
+      },
+      {
+        "src_id": "s16测试用例",
+        "tgt_id": "老化任务",
+        "description": "s16测试用例框架包含老化任务节点。",
+        "keywords": "包含,层次结构",
+        "weight": 1.0,
+        "source_id": "chunk-80c34083047e181d70d28f26a286d276",
+        "file_path": "s16测试用例.pdf",
+        "created_at": 1779866476
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-002",
+        "tgt_id": "系统",
+        "description": "系统提示“该TD管已存在，请更换其他TD管号”。",
+        "keywords": "提示,错误信息",
+        "weight": 1.0,
+        "source_id": "chunk-7d5b50b36d2042a42c8d05fb250388bf",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100079
+      },
+      {
+        "src_id": "TC-TASK-TYPE-004",
+        "tgt_id": "质控任务",
+        "description": "测试用例TC-TASK-TYPE-004涉及任务类型质控任务",
+        "keywords": "涉及任务类型",
+        "weight": 1.0,
+        "source_id": "chunk-6acb30df05ff4a2b9ebf393e3f998bc5",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100039
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-001",
+        "tgt_id": "环境登记-TD管管理测试用例表 (table)",
+        "description": "Entity TC-FUTURE-ENV-TD-001 belongs to 环境登记-TD管管理测试用例表 (table)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097478
+      },
+      {
+        "src_id": "TC-TASK-CREATE-001",
+        "tgt_id": "创建任务",
+        "description": "TC-TASK-CREATE-001测试用例通过点击创建任务按钮打开弹窗。",
+        "keywords": "执行功能",
+        "weight": 1.0,
+        "source_id": "chunk-0a96ebfc05f2ee0022eb55bffd24860d",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100049
+      },
+      {
+        "src_id": "异常TD任务",
+        "tgt_id": "异常TD任务管理后台新建任务界面 (image)",
+        "description": "Entity 异常TD任务 belongs to 异常TD任务管理后台新建任务界面 (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-48c855d52c9a5e8513bb83a77a80dd5f",
+        "file_path": "异常TD任务.pdf",
+        "created_at": 1782371165
+      },
+      {
+        "src_id": "删除任务#1",
+        "tgt_id": "新增/删除检测任务",
+        "description": "该测试用例属于新增/删除检测任务模块，验证删除检测任务的功能。",
+        "keywords": "功能测试,归属关系",
+        "weight": 1.0,
+        "source_id": "chunk-5a956e38fde5b20399e4f71b1cd1177c",
+        "file_path": "S41测试用例.pdf",
+        "created_at": 1779863167
+      },
+      {
+        "src_id": "测试用例表格",
+        "tgt_id": "环境登记-TD管管理测试用例表 (table)",
+        "description": "Entity 测试用例表格 belongs to 环境登记-TD管管理测试用例表 (table)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097477
+      },
+      {
+        "src_id": "提示不能为空",
+        "tgt_id": "用例管理组件#1",
+        "description": "测试用例用例管理组件#1的预期结果是提示不能为空。",
+        "keywords": "测试,预期",
+        "weight": 1.0,
+        "source_id": "chunk-584317e5859569d12d2d6b5408a74d91",
+        "file_path": "s22测试用例.pdf",
+        "created_at": 1779869727
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-008",
+        "tgt_id": "环境登记-TD管管理测试用例表 (table)",
+        "description": "Entity TC-FUTURE-ENV-TD-008 belongs to 环境登记-TD管管理测试用例表 (table)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097482
+      },
+      {
+        "src_id": "任务列表通用性修改：增加ID字段#1",
+        "tgt_id": "检测报告任务列表",
+        "description": "检测报告任务列表包含任务列表通用性修改：增加ID字段#1测试用例，验证ID字段在不同状态下的显示。",
+        "keywords": "包含,测试用例",
+        "weight": 1.0,
+        "source_id": "chunk-6a0bdd94818406989167e9cf2801ec24",
+        "file_path": "s20测试用例.pdf",
+        "created_at": 1779867826
+      },
+      {
+        "src_id": "异常TD任务",
+        "tgt_id": "陈烨",
+        "description": "陈烨创建了多个异常TD任务。<SEP>陈烨在异常TD任务模块中被列为现有任务的创建人。",
+        "keywords": "人员关联,任务创建,创建任务",
+        "weight": 2.0,
+        "source_id": "chunk-48478c3f994bdb657be43333618d93aa<SEP>chunk-48c855d52c9a5e8513bb83a77a80dd5f",
+        "file_path": "异常TD任务.pdf",
+        "created_at": 1782371161
+      },
+      {
+        "src_id": "S39测试用例",
+        "tgt_id": "自定义任务操作日志",
+        "description": "S39测试用例包含自定义任务操作日志作为顶层类别。",
+        "keywords": "包含,组织",
+        "weight": 1.0,
+        "source_id": "chunk-5a609e07c645f8b77b1570d40db7e420",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862667
+      },
+      {
+        "src_id": "s13测试用例 思维导图 (s13 Test Case Mind Map) (image)",
+        "tgt_id": "自定义:TD管管理/自定义:新增/用例:清空待导入数据#1",
+        "description": "Entity 自定义:TD管管理/自定义:新增/用例:清空待导入数据#1 belongs to s13测试用例 思维导图 (s13 Test Case Mind Map) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-528dfbccb40ac50452cdbfbcec76be91",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865364
+      },
+      {
+        "src_id": "添加测试任务",
+        "tgt_id": "添加测试任务弹出窗口",
+        "description": "点击“添加测试任务”按钮会触发弹出添加测试任务弹出窗口。",
+        "keywords": "触发创建",
+        "weight": 1.0,
+        "source_id": "chunk-88ddfee9f5826ff6cdd3e5264d9be2d5",
+        "file_path": "PROII_生产调试—单模块测试.pdf",
+        "created_at": 1780973377
+      },
+      {
+        "src_id": "s13测试用例 思维导图 (s13 Test Case Mind Map) (image)",
+        "tgt_id": "自定义:TD管管理/自定义:新增/用例:上传文件#1",
+        "description": "Entity 自定义:TD管管理/自定义:新增/用例:上传文件#1 belongs to s13测试用例 思维导图 (s13 Test Case Mind Map) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-528dfbccb40ac50452cdbfbcec76be91",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865363
+      },
+      {
+        "src_id": "工单",
+        "tgt_id": "异常任务",
+        "description": "异常任务可针对工单进行完成或作废操作，支持批量处理。",
+        "keywords": "操作对象",
+        "weight": 1.0,
+        "source_id": "chunk-12213945bf8e700b05501baf76a65236",
+        "file_path": "s21测试用例.pdf",
+        "created_at": 1779868609
+      },
+      {
+        "src_id": "s13测试用例 思维导图 (s13 Test Case Mind Map) (image)",
+        "tgt_id": "自定义:TD管管理/自定义:新增/用例:下载模版#1",
+        "description": "Entity 自定义:TD管管理/自定义:新增/用例:下载模版#1 belongs to s13测试用例 思维导图 (s13 Test Case Mind Map) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-528dfbccb40ac50452cdbfbcec76be91",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865363
+      },
+      {
+        "src_id": "TC-TASK-TYPE-005",
+        "tgt_id": "质控任务",
+        "description": "测试用例TC-TASK-TYPE-005涉及任务类型质控任务",
+        "keywords": "涉及任务类型",
+        "weight": 1.0,
+        "source_id": "chunk-6acb30df05ff4a2b9ebf393e3f998bc5",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100039
+      },
+      {
+        "src_id": "TD001",
+        "tgt_id": "环境登记-TD管管理测试用例表 (table)",
+        "description": "Entity TD001 belongs to 环境登记-TD管管理测试用例表 (table)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097487
+      },
+      {
+        "src_id": "TC-TASK-TYPE-003",
+        "tgt_id": "送检任务列表页面",
+        "description": "测试用例TC-TASK-TYPE-003在送检任务列表页面执行",
+        "keywords": "位于页面",
+        "weight": 1.0,
+        "source_id": "chunk-6acb30df05ff4a2b9ebf393e3f998bc5",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100040
+      },
+      {
+        "src_id": "s16测试用例_自定义任务流程思维导图 (image)",
+        "tgt_id": "异常TD任务",
+        "description": "Entity 异常TD任务 belongs to s16测试用例_自定义任务流程思维导图 (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-80c34083047e181d70d28f26a286d276",
+        "file_path": "s16测试用例.pdf",
+        "created_at": 1779866479
+      },
+      {
+        "src_id": "任务",
+        "tgt_id": "异常任务",
+        "description": "当任务出现异常时被标记为异常任务。",
+        "keywords": "标记",
+        "weight": 1.0,
+        "source_id": "chunk-4f50aa87e0ee4778d3ba75cfda3f3db7",
+        "file_path": "S40测试用例.pdf",
+        "created_at": 1779862836
+      },
+      {
+        "src_id": "s13测试用例 思维导图 (s13 Test Case Mind Map) (image)",
+        "tgt_id": "自定义:TD管管理/自定义:新增/用例:表单内TD管重复#1",
+        "description": "Entity 自定义:TD管管理/自定义:新增/用例:表单内TD管重复#1 belongs to s13测试用例 思维导图 (s13 Test Case Mind Map) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-528dfbccb40ac50452cdbfbcec76be91",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865364
+      },
+      {
+        "src_id": "新增#1",
+        "tgt_id": "新增样本",
+        "description": "新增#1用例属于新增样本模块，点击新增后定位到最新行。",
+        "keywords": "模块,用例归属",
+        "weight": 1.0,
+        "source_id": "chunk-25f1cb1e406256cd87fd263bebaf4db1",
+        "file_path": "s24测试用例.pdf",
+        "created_at": 1779870451
+      },
+      {
+        "src_id": "s13测试用例 思维导图 (s13 Test Case Mind Map) (image)",
+        "tgt_id": "自定义:TD管管理/自定义:新增/用例:校验数据下一步#1",
+        "description": "Entity 自定义:TD管管理/自定义:新增/用例:校验数据下一步#1 belongs to s13测试用例 思维导图 (s13 Test Case Mind Map) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-528dfbccb40ac50452cdbfbcec76be91",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865365
+      },
+      {
+        "src_id": "用例:关联RO任务的任务#1",
+        "tgt_id": "自定义实验任务",
+        "description": "自定义实验任务模块包含该测试用例作为子任务。",
+        "keywords": "包含",
+        "weight": 1.0,
+        "source_id": "chunk-b50e0f11538a64bef57bcbec51ba7b04",
+        "file_path": "s25测试用例.pdf",
+        "created_at": 1779870938
+      },
+      {
+        "src_id": "创建人",
+        "tgt_id": "异常TD任务",
+        "description": "创建人是异常TD任务的一个字段。",
+        "keywords": "字段归属",
+        "weight": 1.0,
+        "source_id": "chunk-48478c3f994bdb657be43333618d93aa",
+        "file_path": "异常TD任务.pdf",
+        "created_at": 1782371046
+      },
+      {
+        "src_id": "用例正常新增#1",
+        "tgt_id": "苏玛罐管理",
+        "description": "用例正常新增#1归属于苏玛罐管理模块。",
+        "keywords": "模块归属,测试关联",
+        "weight": 1.0,
+        "source_id": "chunk-561f8c6acc3e7185ec0fb07ec7d4ce7d",
+        "file_path": "s23测试用例.pdf",
+        "created_at": 1779870226
+      },
+      {
+        "src_id": "TC-SUBJ-LOG-001",
+        "tgt_id": "系统",
+        "description": "在TC-SUBJ-LOG-001中，操作人=系统/设备编号，系统是创建任务的操作主体。",
+        "keywords": "操作主体,日志记录",
+        "weight": 1.0,
+        "source_id": "chunk-4ee7a841f208c6563571af725a5af65e",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100014
+      },
+      {
+        "src_id": "用例管理组件#1",
+        "tgt_id": "自定义指标的新增",
+        "description": "自定义指标的新增节点包含测试用例用例管理组件#1。",
+        "keywords": "包含,层级关系",
+        "weight": 1.0,
+        "source_id": "chunk-584317e5859569d12d2d6b5408a74d91",
+        "file_path": "s22测试用例.pdf",
+        "created_at": 1779869726
+      },
+      {
+        "src_id": "环境登记-TD管管理测试用例表 (table)",
+        "tgt_id": "重复TD管号校验",
+        "description": "Entity 重复TD管号校验 belongs to 环境登记-TD管管理测试用例表 (table)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097479
+      },
+      {
+        "src_id": "TC-TASK-TYPE-004",
+        "tgt_id": "送检任务",
+        "description": "测试用例TC-TASK-TYPE-004涉及任务类型送检任务",
+        "keywords": "涉及任务类型",
+        "weight": 1.0,
+        "source_id": "chunk-6acb30df05ff4a2b9ebf393e3f998bc5",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100040
+      },
+      {
+        "src_id": "Functional Test Cases for Subject Info & Scale Fill and Data Export (table)",
+        "tgt_id": "测试用例体系",
+        "description": "Entity 测试用例体系 belongs to Functional Test Cases for Subject Info & Scale Fill and Data Export (table)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-22d37186835ad09ff55a148cd5f2ca58",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100211
+      },
+      {
+        "src_id": "s16测试用例",
+        "tgt_id": "自定义:老化任务",
+        "description": "s16测试用例框架包含自定义:老化任务节点。",
+        "keywords": "包含,层次结构",
+        "weight": 1.0,
+        "source_id": "chunk-80c34083047e181d70d28f26a286d276",
+        "file_path": "s16测试用例.pdf",
+        "created_at": 1779866480
+      },
+      {
+        "src_id": "异常TD任务",
+        "tgt_id": "新建异常任务",
+        "description": "新建异常任务操作用于创建新的异常TD任务实例。<SEP>新建异常任务是异常TD任务模块中用于创建任务的弹窗。",
+        "keywords": "任务创建,创建操作,操作类型",
+        "weight": 2.0,
+        "source_id": "chunk-48478c3f994bdb657be43333618d93aa<SEP>chunk-48c855d52c9a5e8513bb83a77a80dd5f",
+        "file_path": "异常TD任务.pdf",
+        "created_at": 1782371161
+      },
+      {
+        "src_id": "苏玛罐管理",
+        "tgt_id": "苏玛罐管理-异常新增#1",
+        "description": "苏玛罐管理模块包含异常新增苏玛罐的测试用例。",
+        "keywords": "包含,测试用例",
+        "weight": 1.0,
+        "source_id": "chunk-ad7edd3628a44e67eb079f7e15108bbd",
+        "file_path": "s23测试用例.pdf",
+        "created_at": 1779870144
+      },
+      {
+        "src_id": "异常TD任务",
+        "tgt_id": "异常原因",
+        "description": "异常原因是异常TD任务的一个字段。",
+        "keywords": "字段归属",
+        "weight": 1.0,
+        "source_id": "chunk-48478c3f994bdb657be43333618d93aa",
+        "file_path": "异常TD任务.pdf",
+        "created_at": 1782371045
+      },
+      {
+        "src_id": "TC-TASK-TYPE-002",
+        "tgt_id": "直检任务列表页面",
+        "description": "测试用例TC-TASK-TYPE-2在直检任务列表页面执行",
+        "keywords": "位于页面",
+        "weight": 1.0,
+        "source_id": "chunk-6acb30df05ff4a2b9ebf393e3f998bc5",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100040
+      },
+      {
+        "src_id": "异常任务",
+        "tgt_id": "批量完成操作",
+        "description": "选择多项异常任务后，通过批量完成操作并选择正常或报废结果。",
+        "keywords": "批量处理,结果选择",
+        "weight": 1.0,
+        "source_id": "chunk-1ec8a6cbd2dcfd8a4214e8379626158d",
+        "file_path": "s21测试用例.pdf",
+        "created_at": 1779868598
+      },
+      {
+        "src_id": "s16测试用例_自定义任务流程思维导图 (image)",
+        "tgt_id": "谱图导入",
+        "description": "Entity 谱图导入 belongs to s16测试用例_自定义任务流程思维导图 (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-80c34083047e181d70d28f26a286d276",
+        "file_path": "s16测试用例.pdf",
+        "created_at": 1779866479
+      },
+      {
+        "src_id": "TC-TASK-TYPE-004",
+        "tgt_id": "检测报告任务",
+        "description": "测试用例TC-TASK-TYPE-004涉及任务类型检测报告任务",
+        "keywords": "涉及任务类型",
+        "weight": 1.0,
+        "source_id": "chunk-6acb30df05ff4a2b9ebf393e3f998bc5",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100038
+      },
+      {
+        "src_id": "完成",
+        "tgt_id": "异常TD任务",
+        "description": "完成是异常TD任务表格中每行对应的操作按钮，用于标记任务完成。",
+        "keywords": "操作按钮",
+        "weight": 1.0,
+        "source_id": "chunk-48c855d52c9a5e8513bb83a77a80dd5f",
+        "file_path": "异常TD任务.pdf",
+        "created_at": 1782371162
+      },
+      {
+        "src_id": "TCD工控机测试用例",
+        "tgt_id": "自定义:History",
+        "description": "TCD工控机测试用例包含自定义:History子节点。",
+        "keywords": "分支,包含",
+        "weight": 1.0,
+        "source_id": "chunk-48c309b5c73b0d86575c61cf670388a2",
+        "file_path": "TCD工控机测试用例.pdf",
+        "created_at": 1779864106
+      },
+      {
+        "src_id": "异常TD任务",
+        "tgt_id": "陈华",
+        "description": "陈华创建了多个异常TD任务。",
+        "keywords": "创建任务",
+        "weight": 1.0,
+        "source_id": "chunk-48478c3f994bdb657be43333618d93aa",
+        "file_path": "异常TD任务.pdf",
+        "created_at": 1782371047
+      },
+      {
+        "src_id": "关键事件",
+        "tgt_id": "关键事件:新增#1",
+        "description": "关键事件模块包含新增#1测试用例。",
+        "keywords": "包含,测试用例",
+        "weight": 1.0,
+        "source_id": "chunk-08584584f481d5d939e49a8cfc37e2a0",
+        "file_path": "s22测试用例.pdf",
+        "created_at": 1779869592
+      },
+      {
+        "src_id": "异常TD任务",
+        "tgt_id": "管理",
+        "description": "异常TD任务模块包含管理权限操作。",
+        "keywords": "权限配置",
+        "weight": 1.0,
+        "source_id": "chunk-601966ea2263a797992556bd87282e39",
+        "file_path": "权限分配.pdf",
+        "created_at": 1779950640
+      },
+      {
+        "src_id": "查询",
+        "tgt_id": "状态",
+        "description": "查询用例支持按任务状态过滤任务。",
+        "keywords": "查询条件",
+        "weight": 1.0,
+        "source_id": "chunk-6a0bdd94818406989167e9cf2801ec24",
+        "file_path": "s20测试用例.pdf",
+        "created_at": 1779867822
+      },
+      {
+        "src_id": "s16测试用例_自定义任务流程思维导图 (image)",
+        "tgt_id": "权限管理",
+        "description": "Entity 权限管理 belongs to s16测试用例_自定义任务流程思维导图 (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-80c34083047e181d70d28f26a286d276",
+        "file_path": "s16测试用例.pdf",
+        "created_at": 1779866480
+      },
+      {
+        "src_id": "s22测试用例",
+        "tgt_id": "自定义任务中心",
+        "description": "s22测试用例的中心节点包含自定义任务中心分支。",
+        "keywords": "包含,层级关系",
+        "weight": 1.0,
+        "source_id": "chunk-584317e5859569d12d2d6b5408a74d91",
+        "file_path": "s22测试用例.pdf",
+        "created_at": 1779869728
+      },
+      {
+        "src_id": "异常TD任务",
+        "tgt_id": "访问",
+        "description": "异常TD任务模块包含访问权限操作。",
+        "keywords": "权限配置",
+        "weight": 1.0,
+        "source_id": "chunk-601966ea2263a797992556bd87282e39",
+        "file_path": "权限分配.pdf",
+        "created_at": 1779950640
+      },
+      {
+        "src_id": "用例:完成样本检测通知#1",
+        "tgt_id": "通知",
+        "description": "该用例实现检测完成时发送通知的功能。",
+        "keywords": "发送,实现",
+        "weight": 1.0,
+        "source_id": "chunk-53d2d84ba4b8a66fddc523a79876e197",
+        "file_path": "s29测试用例.pdf",
+        "created_at": 1779875363
+      },
+      {
+        "src_id": "TC-SUBJ-LOG-001",
+        "tgt_id": "受试者信息填写任务",
+        "description": "TC-SUBJ-LOG-001中打开受试者信息填写任务的详情弹窗。",
+        "keywords": "操作对象,测试用例",
+        "weight": 1.0,
+        "source_id": "chunk-4ee7a841f208c6563571af725a5af65e",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100013
+      },
+      {
+        "src_id": "历史上机测试",
+        "tgt_id": "历史上机测试2",
+        "description": "历史上机测试包含历史上机测试2作为其子测试用例。",
+        "keywords": "包含,子节点",
+        "weight": 1.0,
+        "source_id": "chunk-59ceb173246ac1e9c6324f1272fbcc0e",
+        "file_path": "s24测试用例.pdf",
+        "created_at": 1779870586
+      },
+      {
+        "src_id": "P0",
+        "tgt_id": "TC-FUTURE-ENV-TD-002",
+        "description": "TC-FUTURE-ENV-TD-002被分配为P0优先级，表示其为核心关键功能。",
+        "keywords": "优先级分配,关键功能",
+        "weight": 1.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097472
+      },
+      {
+        "src_id": "TC-TASK-TYPE-003",
+        "tgt_id": "送检任务",
+        "description": "测试用例TC-TASK-TYPE-003涉及任务类型送检任务",
+        "keywords": "涉及任务类型",
+        "weight": 1.0,
+        "source_id": "chunk-6acb30df05ff4a2b9ebf393e3f998bc5",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100038
+      },
+      {
+        "src_id": "s22测试用例 测试用例思维导图 (image)",
+        "tgt_id": "用例管理组件#1",
+        "description": "Entity 用例管理组件#1 belongs to s22测试用例 测试用例思维导图 (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-584317e5859569d12d2d6b5408a74d91",
+        "file_path": "s22测试用例.pdf",
+        "created_at": 1779869733
+      },
+      {
+        "src_id": "TC-TASK-TYPE-005",
+        "tgt_id": "送检任务",
+        "description": "测试用例TC-TASK-TYPE-005涉及任务类型送检任务",
+        "keywords": "涉及任务类型",
+        "weight": 1.0,
+        "source_id": "chunk-6acb30df05ff4a2b9ebf393e3f998bc5",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100040
+      },
+      {
+        "src_id": "异常TD任务",
+        "tgt_id": "所属项目",
+        "description": "所属项目是异常TD任务的一个字段。",
+        "keywords": "字段归属",
+        "weight": 1.0,
+        "source_id": "chunk-48478c3f994bdb657be43333618d93aa",
+        "file_path": "异常TD任务.pdf",
+        "created_at": 1782371044
+      },
+      {
+        "src_id": "分配检测任务",
+        "tgt_id": "检测任务",
+        "description": "测试用例“分配检测任务”验证检测任务分配功能。",
+        "keywords": "功能验证,测试用例",
+        "weight": 1.0,
+        "source_id": "chunk-e58a92662b7be26f58448548ade2c841",
+        "file_path": "s32测试用例.pdf",
+        "created_at": 1779876342
+      },
+      {
+        "src_id": "异常TD任务",
+        "tgt_id": "所属客户",
+        "description": "所属客户是异常TD任务的一个字段。",
+        "keywords": "字段归属",
+        "weight": 1.0,
+        "source_id": "chunk-48478c3f994bdb657be43333618d93aa",
+        "file_path": "异常TD任务.pdf",
+        "created_at": 1782371043
+      },
+      {
+        "src_id": "方法:按创建时间筛选",
+        "tgt_id": "用例:检测任务清单界面优化#1",
+        "description": "界面优化用例包含了按创建时间筛选的方法。",
+        "keywords": "优化内容,包含",
+        "weight": 1.0,
+        "source_id": "chunk-53d2d84ba4b8a66fddc523a79876e197",
+        "file_path": "s29测试用例.pdf",
+        "created_at": 1779875360
+      },
+      {
+        "src_id": "TD管(异常)",
+        "tgt_id": "异常TD任务",
+        "description": "TD管(异常)在满足签收地点条件时触发异常TD任务的创建。",
+        "keywords": "关联事件,触发创建",
+        "weight": 1.0,
+        "source_id": "chunk-c4aa042875f6a85468e02d7b0f395314",
+        "file_path": "物资流转（原物流管理）.pdf",
+        "created_at": 1782370172
+      },
+      {
+        "src_id": "新增#1",
+        "tgt_id": "设备版本管理",
+        "description": "设备版本管理模块下包含新增#1测试用例。",
+        "keywords": "包含,测试用例",
+        "weight": 1.0,
+        "source_id": "chunk-692b455010f79e1754ffe957eb1b4743",
+        "file_path": "s27测试用例.pdf",
+        "created_at": 1779874489
+      },
+      {
+        "src_id": "历史上机测试",
+        "tgt_id": "历史上机测试1",
+        "description": "历史上机测试包含历史上机测试1作为其子测试用例。",
+        "keywords": "包含,子节点",
+        "weight": 1.0,
+        "source_id": "chunk-59ceb173246ac1e9c6324f1272fbcc0e",
+        "file_path": "s24测试用例.pdf",
+        "created_at": 1779870586
+      },
+      {
+        "src_id": "发现异常时间",
+        "tgt_id": "异常TD任务",
+        "description": "发现异常时间是异常TD任务的一个字段。",
+        "keywords": "字段归属",
+        "weight": 1.0,
+        "source_id": "chunk-48478c3f994bdb657be43333618d93aa",
+        "file_path": "异常TD任务.pdf",
+        "created_at": 1782371045
+      },
+      {
+        "src_id": "编辑#1",
+        "tgt_id": "设备版本管理",
+        "description": "设备版本管理模块下包含编辑#1测试用例。",
+        "keywords": "包含,测试用例",
+        "weight": 1.0,
+        "source_id": "chunk-692b455010f79e1754ffe957eb1b4743",
+        "file_path": "s27测试用例.pdf",
+        "created_at": 1779874490
+      },
+      {
+        "src_id": "发现异常地点",
+        "tgt_id": "异常TD任务",
+        "description": "发现异常地点是异常TD任务的一个字段。",
+        "keywords": "字段归属",
+        "weight": 1.0,
+        "source_id": "chunk-48478c3f994bdb657be43333618d93aa",
+        "file_path": "异常TD任务.pdf",
+        "created_at": 1782371043
+      },
+      {
+        "src_id": "TC-TASK-TYPE-005",
+        "tgt_id": "检测报告任务",
+        "description": "测试用例TC-TASK-TYPE-005涉及任务类型检测报告任务",
+        "keywords": "涉及任务类型",
+        "weight": 1.0,
+        "source_id": "chunk-6acb30df05ff4a2b9ebf393e3f998bc5",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100039
+      },
+      {
+        "src_id": "BS检测任务",
+        "tgt_id": "异常TD任务",
+        "description": "当物流签收地点为本地点时，BS检测任务会创建异常TD任务。",
+        "keywords": "任务关联,异常处理",
+        "weight": 1.0,
+        "source_id": "chunk-efb6ebfc0b0988bcdbbbda656729ed9f",
+        "file_path": "s32测试用例.pdf",
+        "created_at": 1779876363
+      },
+      {
+        "src_id": "新增用例",
+        "tgt_id": "检测项目列表",
+        "description": "检测项目列表支持新增用例，添加检测项目数据。",
+        "keywords": "功能操作",
+        "weight": 1.0,
+        "source_id": "chunk-bbc556a405fe174733fa2d60daf5b4dc",
+        "file_path": "s15测试用例.pdf",
+        "created_at": 1779866021
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-007",
+        "tgt_id": "功能测试",
+        "description": "TC-FUTURE-ENV-TD-007的类型是功能测试，用于验证系统功能是否符合预期。",
+        "keywords": "功能验证,测试类型",
+        "weight": 1.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097473
+      },
+      {
+        "src_id": "S39测试用例 结构化测试流程图（含用例、步骤、预期结果） (image)",
+        "tgt_id": "自定义TD管模式优化",
+        "description": "Entity 自定义TD管模式优化 belongs to S39测试用例 结构化测试流程图（含用例、步骤、预期结果） (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-5a609e07c645f8b77b1570d40db7e420",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862671
+      },
+      {
+        "src_id": "任务生成时间",
+        "tgt_id": "异常TD任务",
+        "description": "任务生成时间是异常TD任务的一个字段。",
+        "keywords": "字段归属",
+        "weight": 1.0,
+        "source_id": "chunk-48478c3f994bdb657be43333618d93aa",
+        "file_path": "异常TD任务.pdf",
+        "created_at": 1782371046
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-002",
+        "tgt_id": "功能测试",
+        "description": "TC-FUTURE-ENV-TD-002的类型是功能测试，用于验证系统功能是否符合预期。",
+        "keywords": "功能验证,测试类型",
+        "weight": 1.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097471
+      },
+      {
+        "src_id": "异常TD任务",
+        "tgt_id": "物流签收地点",
+        "description": "当物流签收地点为本地点时，系统创建异常TD任务。",
+        "keywords": "关联关系,触发条件",
+        "weight": 1.0,
+        "source_id": "chunk-efb6ebfc0b0988bcdbbbda656729ed9f",
+        "file_path": "s32测试用例.pdf",
+        "created_at": 1779876365
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-004",
+        "tgt_id": "测试用例表格",
+        "description": "测试用例表格包含测试用例TC-FUTURE-ENV-TD-004。",
+        "keywords": "包含关系,用例组织",
+        "weight": 1.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097476
+      },
+      {
+        "src_id": "P0",
+        "tgt_id": "TC-FUTURE-ENV-TD-001",
+        "description": "TC-FUTURE-ENV-TD-001被分配为P0优先级，表示其为核心关键功能。",
+        "keywords": "优先级分配,关键功能",
+        "weight": 1.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097472
+      },
+      {
+        "src_id": "s16测试用例",
+        "tgt_id": "s16测试用例_自定义任务流程思维导图 (image)",
+        "description": "Entity s16测试用例 belongs to s16测试用例_自定义任务流程思维导图 (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-80c34083047e181d70d28f26a286d276",
+        "file_path": "s16测试用例.pdf",
+        "created_at": 1779866483
+      },
+      {
+        "src_id": "s25测试用例系统模块功能流程图 (image)",
+        "tgt_id": "自定义实验任务",
+        "description": "Entity 自定义实验任务 belongs to s25测试用例系统模块功能流程图 (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-b50e0f11538a64bef57bcbec51ba7b04",
+        "file_path": "s25测试用例.pdf",
+        "created_at": 1779870943
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-004",
+        "tgt_id": "TD001",
+        "description": "TC-FUTURE-ENV-TD-004使用TD001作为第一根TD管参与多管提交。<SEP>TC-FUTURE-ENV-TD-004中使用了TD001作为测试数据进行提交",
+        "keywords": "多管提交,提交操作,测试数据,测试数据使用",
+        "weight": 2.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc<SEP>chunk-f146093ecca4ac54a79e424f6f562696",
+        "file_path": "S51测试用例.xlsx<SEP>51测试用例.pdf",
+        "created_at": 1782100069
+      },
+      {
+        "src_id": "s25测试用例系统模块功能流程图 (image)",
+        "tgt_id": "用例:关联RO任务的任务#1",
+        "description": "Entity 用例:关联RO任务的任务#1 belongs to s25测试用例系统模块功能流程图 (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-b50e0f11538a64bef57bcbec51ba7b04",
+        "file_path": "s25测试用例.pdf",
+        "created_at": 1779870947
+      },
+      {
+        "src_id": "s25测试用例系统模块功能流程图 (image)",
+        "tgt_id": "用例：关联RO任务的任务#1",
+        "description": "Entity 用例：关联RO任务的任务#1 belongs to s25测试用例系统模块功能流程图 (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-b50e0f11538a64bef57bcbec51ba7b04",
+        "file_path": "s25测试用例.pdf",
+        "created_at": 1779870950
+      },
+      {
+        "src_id": "s16测试用例_自定义任务流程思维导图 (image)",
+        "tgt_id": "报废",
+        "description": "Entity 报废 belongs to s16测试用例_自定义任务流程思维导图 (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-80c34083047e181d70d28f26a286d276",
+        "file_path": "s16测试用例.pdf",
+        "created_at": 1779866479
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-007",
+        "tgt_id": "测试用例表格",
+        "description": "测试用例表格包含测试用例TC-FUTURE-ENV-TD-007。",
+        "keywords": "包含关系,用例组织",
+        "weight": 1.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097477
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-007",
+        "tgt_id": "环境登记-TD管管理",
+        "description": "TC-FUTURE-ENV-TD-007归属于环境登记-TD管管理模块，用于验证50根TD管添加与提交的边界情况。",
+        "keywords": "归属关系,边界测试",
+        "weight": 1.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097472
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-001",
+        "tgt_id": "功能测试",
+        "description": "TC-FUTURE-ENV-TD-001的类型是功能测试，用于验证系统功能是否符合预期。",
+        "keywords": "功能验证,测试类型",
+        "weight": 1.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097471
+      },
+      {
+        "src_id": "REQ-001",
+        "tgt_id": "TC-FUTURE-ENV-TD-007",
+        "description": "TC-FUTURE-ENV-TD-007关联需求REQ-001，用于覆盖TD管添加功能的边界情况。<SEP>TC-FUTURE-ENV-TD-007作为边界测试验证了REQ-001在50根TD管情况下的功能",
+        "keywords": "关联需求,边界测试,边界覆盖",
+        "weight": 2.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc<SEP>chunk-f146093ecca4ac54a79e424f6f562696",
+        "file_path": "S51测试用例.xlsx<SEP>51测试用例.pdf",
+        "created_at": 1782100068
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-002",
+        "tgt_id": "测试用例表格",
+        "description": "测试用例表格包含测试用例TC-FUTURE-ENV-TD-002。",
+        "keywords": "包含关系,用例组织",
+        "weight": 1.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097474
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-002",
+        "tgt_id": "环境登记-TD管管理",
+        "description": "TC-FUTURE-ENV-TD-002归属于环境登记-TD管管理模块，用于验证重复TD管号校验。",
+        "keywords": "功能测试,归属关系",
+        "weight": 1.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097470
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-007",
+        "tgt_id": "TD001",
+        "description": "TC-FUTURE-ENV-TD-007使用了TD001等50根TD管",
+        "keywords": "测试数据,边界测试",
+        "weight": 1.0,
+        "source_id": "chunk-f146093ecca4ac54a79e424f6f562696",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100069
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-008",
+        "tgt_id": "功能测试",
+        "description": "TC-FUTURE-ENV-TD-008的类型是功能测试，用于验证系统功能是否符合预期。",
+        "keywords": "功能验证,测试类型",
+        "weight": 1.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097473
+      },
+      {
+        "src_id": "s16测试用例_自定义任务流程思维导图 (image)",
+        "tgt_id": "待老化",
+        "description": "Entity 待老化 belongs to s16测试用例_自定义任务流程思维导图 (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-80c34083047e181d70d28f26a286d276",
+        "file_path": "s16测试用例.pdf",
+        "created_at": 1779866480
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-002",
+        "tgt_id": "TD001",
+        "description": "TC-FUTURE-ENV-TD-002使用TD001作为第一根TD管，并再次输入TD001触发重复校验。",
+        "keywords": "测试数据使用,重复校验",
+        "weight": 1.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097475
+      },
+      {
+        "src_id": "TD管采样",
+        "tgt_id": "新增TD管采样样本#1",
+        "description": "测试用例“新增TD管采样样本#1”验证TD管采样样本的新增流程。",
+        "keywords": "功能验证,测试用例",
+        "weight": 1.0,
+        "source_id": "chunk-e58a92662b7be26f58448548ade2c841",
+        "file_path": "s32测试用例.pdf",
+        "created_at": 1779876339
+      },
+      {
+        "src_id": "REQ-002",
+        "tgt_id": "TC-FUTURE-ENV-TD-002",
+        "description": "TC-FUTURE-ENV-TD-002关联需求REQ-002，用于覆盖TD管号校验功能。",
+        "keywords": "关联需求,功能覆盖",
+        "weight": 1.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097473
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-001",
+        "tgt_id": "需求REQ-001",
+        "description": "该测试用例关联需求REQ-001。",
+        "keywords": "关联,需求",
+        "weight": 1.0,
+        "source_id": "chunk-7d5b50b36d2042a42c8d05fb250388bf",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100077
+      },
+      {
+        "src_id": "s24测试用例 思维导图 (Test Case Mind Map for s24) (image)",
+        "tgt_id": "历史上机测试",
+        "description": "Entity 历史上机测试 belongs to s24测试用例 思维导图 (Test Case Mind Map for s24) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-59ceb173246ac1e9c6324f1272fbcc0e",
+        "file_path": "s24测试用例.pdf",
+        "created_at": 1779870590
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-003",
+        "tgt_id": "测试用例表格",
+        "description": "测试用例表格包含测试用例TC-FUTURE-ENV-TD-003。",
+        "keywords": "包含关系,用例组织",
+        "weight": 1.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097475
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-005",
+        "tgt_id": "测试用例表格",
+        "description": "测试用例表格包含测试用例TC-FUTURE-ENV-TD-005。",
+        "keywords": "包含关系,用例组织",
+        "weight": 1.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097475
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-001",
+        "tgt_id": "测试用例表格",
+        "description": "测试用例表格包含测试用例TC-FUTURE-ENV-TD-001。",
+        "keywords": "包含关系,用例组织",
+        "weight": 1.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097474
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-007",
+        "tgt_id": "待转运",
+        "description": "TC-FUTURE-ENV-TD-007提交后所有样本状态为待转运。",
+        "keywords": "样本状态",
+        "weight": 1.0,
+        "source_id": "chunk-f146093ecca4ac54a79e424f6f562696",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100071
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-007",
+        "tgt_id": "添加TD管按钮",
+        "description": "TC-FUTURE-ENV-TD-007通过连续点击添加TD管按钮49次来添加50根TD管。",
+        "keywords": "交互对象,批量添加",
+        "weight": 1.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097477
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-001",
+        "tgt_id": "环境登记-TD管管理",
+        "description": "TC-FUTURE-ENV-TD-001归属于环境登记-TD管管理模块，用于验证多TD管添加入口。",
+        "keywords": "功能测试,归属关系",
+        "weight": 1.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097470
+      },
+      {
+        "src_id": "s24测试用例 思维导图 (Test Case Mind Map for s24) (image)",
+        "tgt_id": "历史上机测试1",
+        "description": "Entity 历史上机测试1 belongs to s24测试用例 思维导图 (Test Case Mind Map for s24) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-59ceb173246ac1e9c6324f1272fbcc0e",
+        "file_path": "s24测试用例.pdf",
+        "created_at": 1779870592
+      },
+      {
+        "src_id": "S41测试用例_测试流程图 (image)",
+        "tgt_id": "用例:提示TD管数应为10#1",
+        "description": "Entity 用例:提示TD管数应为10#1 belongs to S41测试用例_测试流程图 (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-d758cde2dccb09c9add1548c7afdc993",
+        "file_path": "S41测试用例.pdf",
+        "created_at": 1779863311
+      },
+      {
+        "src_id": "s24测试用例 思维导图 (Test Case Mind Map for s24) (image)",
+        "tgt_id": "历史上机测试2",
+        "description": "Entity 历史上机测试2 belongs to s24测试用例 思维导图 (Test Case Mind Map for s24) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-59ceb173246ac1e9c6324f1272fbcc0e",
+        "file_path": "s24测试用例.pdf",
+        "created_at": 1779870592
+      },
+      {
+        "src_id": "s16测试用例_自定义任务流程思维导图 (image)",
+        "tgt_id": "正常上传",
+        "description": "Entity 正常上传 belongs to s16测试用例_自定义任务流程思维导图 (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-80c34083047e181d70d28f26a286d276",
+        "file_path": "s16测试用例.pdf",
+        "created_at": 1779866484
+      },
+      {
+        "src_id": "s16测试用例_自定义任务流程思维导图 (image)",
+        "tgt_id": "自定义:老化任务",
+        "description": "Entity 自定义:老化任务 belongs to s16测试用例_自定义任务流程思维导图 (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-80c34083047e181d70d28f26a286d276",
+        "file_path": "s16测试用例.pdf",
+        "created_at": 1779866483
+      },
+      {
+        "src_id": "s16测试用例_自定义任务流程思维导图 (image)",
+        "tgt_id": "s16测试用例思维导图",
+        "description": "Entity s16测试用例思维导图 belongs to s16测试用例_自定义任务流程思维导图 (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-80c34083047e181d70d28f26a286d276",
+        "file_path": "s16测试用例.pdf",
+        "created_at": 1779866483
+      },
+      {
+        "src_id": "TD管号不存在",
+        "tgt_id": "s16测试用例_自定义任务流程思维导图 (image)",
+        "description": "Entity TD管号不存在 belongs to s16测试用例_自定义任务流程思维导图 (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-80c34083047e181d70d28f26a286d276",
+        "file_path": "s16测试用例.pdf",
+        "created_at": 1779866482
+      },
+      {
+        "src_id": "s16测试用例_自定义任务流程思维导图 (image)",
+        "tgt_id": "异常上传",
+        "description": "Entity 异常上传 belongs to s16测试用例_自定义任务流程思维导图 (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-80c34083047e181d70d28f26a286d276",
+        "file_path": "s16测试用例.pdf",
+        "created_at": 1779866482
+      },
+      {
+        "src_id": "s16测试用例_自定义任务流程思维导图 (image)",
+        "tgt_id": "批量添加任务",
+        "description": "Entity 批量添加任务 belongs to s16测试用例_自定义任务流程思维导图 (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-80c34083047e181d70d28f26a286d276",
+        "file_path": "s16测试用例.pdf",
+        "created_at": 1779866481
+      },
+      {
+        "src_id": "s16测试用例_自定义任务流程思维导图 (image)",
+        "tgt_id": "上传老化记录",
+        "description": "Entity 上传老化记录 belongs to s16测试用例_自定义任务流程思维导图 (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-80c34083047e181d70d28f26a286d276",
+        "file_path": "s16测试用例.pdf",
+        "created_at": 1779866481
+      },
+      {
+        "src_id": "s16测试用例_自定义任务流程思维导图 (image)",
+        "tgt_id": "自定义:详情",
+        "description": "Entity 自定义:详情 belongs to s16测试用例_自定义任务流程思维导图 (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-80c34083047e181d70d28f26a286d276",
+        "file_path": "s16测试用例.pdf",
+        "created_at": 1779866478
+      },
+      {
+        "src_id": "s16测试用例_自定义任务流程思维导图 (image)",
+        "tgt_id": "自定义:操作",
+        "description": "Entity 自定义:操作 belongs to s16测试用例_自定义任务流程思维导图 (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-80c34083047e181d70d28f26a286d276",
+        "file_path": "s16测试用例.pdf",
+        "created_at": 1779866477
+      },
+      {
+        "src_id": "测试用例表格",
+        "tgt_id": "环境登记-TD管管理",
+        "description": "测试用例表格属于环境登记-TD管管理模块，所有用例均围绕该模块功能进行测试。",
+        "keywords": "归属关系,模块定义",
+        "weight": 1.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097469
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-002",
+        "tgt_id": "添加TD管按钮",
+        "description": "在填写第一组TD管数据后，点击添加TD管按钮以新增第二组TD管输入框。",
+        "keywords": "添加TD管,点击",
+        "weight": 1.0,
+        "source_id": "chunk-7d5b50b36d2042a42c8d05fb250388bf",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100080
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-007",
+        "tgt_id": "待转运状态",
+        "description": "TC-FUTURE-ENV-TD-007成功提交后系统将所有样本状态设为待转运状态。",
+        "keywords": "状态设置,结果输出",
+        "weight": 1.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097477
+      },
+      {
+        "src_id": "P2",
+        "tgt_id": "TC-FUTURE-ENV-TD-007",
+        "description": "TC-FUTURE-ENV-TD-007被分配为P2优先级，表示其为非关键或边界功能。",
+        "keywords": "优先级分配,非关键功能",
+        "weight": 1.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097473
+      },
+      {
+        "src_id": "REQ-001",
+        "tgt_id": "TC-FUTURE-ENV-TD-001",
+        "description": "TC-FUTURE-ENV-TD-001关联需求REQ-001，用于覆盖TD管添加功能。",
+        "keywords": "关联需求,功能覆盖",
+        "weight": 1.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097473
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-005",
+        "tgt_id": "TD001",
+        "description": "删除TD002后TD001的数据保持不变",
+        "keywords": "保持不变",
+        "weight": 1.0,
+        "source_id": "chunk-f146093ecca4ac54a79e424f6f562696",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100070
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-008",
+        "tgt_id": "测试用例表格",
+        "description": "测试用例表格包含测试用例TC-FUTURE-ENV-TD-008。",
+        "keywords": "包含关系,用例组织",
+        "weight": 1.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097476
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-008",
+        "tgt_id": "环境登记-TD管管理",
+        "description": "TC-FUTURE-ENV-TD-008归属于环境登记-TD管管理模块，用于验证空TD管号提交的边界情况。",
+        "keywords": "归属关系,边界测试",
+        "weight": 1.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097472
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-002",
+        "tgt_id": "提交生成标本编码按钮",
+        "description": "测试用例点击提交生成标本编码按钮。",
+        "keywords": "提交,点击",
+        "weight": 1.0,
+        "source_id": "chunk-7d5b50b36d2042a42c8d05fb250388bf",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100077
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-002",
+        "tgt_id": "TD管输入框",
+        "description": "测试用例填写第一组和第二组TD管数据。",
+        "keywords": "填写,操作",
+        "weight": 1.0,
+        "source_id": "chunk-7d5b50b36d2042a42c8d05fb250388bf",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100077
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-007",
+        "tgt_id": "采集仪A050",
+        "description": "TC-FUTURE-ENV-TD-007中TD050配属采集仪A050",
+        "keywords": "测试数据,配属",
+        "weight": 1.0,
+        "source_id": "chunk-f146093ecca4ac54a79e424f6f562696",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100071
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-007",
+        "tgt_id": "TD050",
+        "description": "TC-FUTURE-ENV-TD-007使用了TD050作为边界测试数据",
+        "keywords": "测试数据,边界测试",
+        "weight": 1.0,
+        "source_id": "chunk-f146093ecca4ac54a79e424f6f562696",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100070
+      }
+    ],
+    "chunks": [
+      {
+        "reference_id": "1",
+        "content": "S41测试用例\n\n自定义:XUser\n\n自定义:XCloud\n\n自定义:老化批次\n\n用例:老化次数最大值为20#1\n\n步骤:新增/编辑老化批次，老化次数输入大于\n\n20，点击保存\n\n预期:大于20自动变为20\n\n步骤:新增/编辑老化批次，老化次数输入小于\n\n20，点击保存\n\n预期:正常保存\n\n用例:提示TD管数应为10#1\n\n步骤:新增/编辑老化批次，TD管列表提示：应添\n\n加10跟TD管\n\n预期:正常提示\n\n步骤:新增/编辑老化批次，新增小于/大于10跟\n\nTD管，点击提示\n\n预期:提示只能新增10跟TD管，可正常提交\n\n自定义:TD管管理\n\n用例:编辑TD管-当前所在地点#1\n\n步骤:编辑TD管-当前所在地点，点击提交\n\n预期:正常提交\n\n自定义:XMetrix\n\n自定义:任务管理\n\n自定义:检测报告任务\n\n自定义:待检测\n\n用例:客户、采样点、PID字段变更为多选#1\n\n步骤:多选客户进行筛选\n\n预期:正常返回\n\n步骤:多选采样点进行筛选\n\n预期:正常返回\n\n步骤:多选PID进行筛选\n\n预期:正常返回\n\n用例:增加检测结果上传时间、检测项目进行筛\n\n选 #1\n\n步骤:按检测结果上传时间进行筛选\n\n预期:正常返回\n\n步骤:按检测项目进行筛选（多选）\n\n预期:正常返回\n\n自定义:检测中\n\n自定义:....\n\n自定义:人工分析中\n\n用例:增加批量重新计算#1\n\n步骤:多选样本（可选100条），点击重新计算\n\n预期:重新计算样本的风险系数，计算过程中为\n\nloading\n\n自定义:采样&检测\n\n自定义:采样&检测\n\n自定义:直吹模式\n\n用例:调整文案字体大小，标题比内容大#1\n\n自定义:哪里的标题？\n\n用例:开始采样交互优化#1\n\n步骤:新增样本后，点击'确认'开始检测\n\n预期:1、关闭二次确认Modal\n\n2、弹窗提示：采样即将开始loading\n\n3、隐藏'开始采样按钮'及下方文字？？？\n\n用例:调整采样进度逻辑#1\n\n步骤:新增样本，开始采样\n\n预期:1、显示采样体积百分比（已采样体积/目标\n\n体积*100%），怎么计算已采样体积？\n\n2、文案'TD管'变更为'采样管'\n\n3、文案'收集'变更为'采集'\n\n用例:优化采样倒计时逻辑#1\n\n步骤:输入条形码、选择检测项目\n\n预期:重置采样倒计时\n\n步骤:采样倒计时未过半\n\n预期:不展示\n\n步骤:采样倒计时过半\n\n预期:展示倒计时\n\n步骤:采样倒计时过半后，输入条形码/选择检测\n\n项目\n\n预期:隐藏倒计时\n\n用例:补充异常任务处理逻辑？？？#1\n\n自定义:采样管模式\n\n用例:文案修改#1\n\n步骤:'TD管'变更为'采样管'：TD10、新增\n\n样本处的文案\n\n预期:正常变更展示\n\n步骤:'样本'变更为'呼气'：新增样本处的文\n\n案\n\n预期:正常变更展示\n\n步骤:选择采样管模式-下方的文案修改\n\n预期:变更为'使用采集仪或苏玛罐预先采样检\n\n测'\n\n用例:条码号不可重复#1\n\n步骤:直吹模式新增样本，条码号重复\n\n预期:不可新增，提示条码号已存在\n\n步骤:采样管模式新增样本，条码号重复\n\n预期:不可新增，提示条码号已存在\n\n步骤:新增已删除的样本的条码号\n\n预期:正常新增\n\n用例:是否能开盖#1\n\n步骤:有任务处于'解析中'，不包括'待检测'\n\n预期:不可点击开盖\n\n步骤:温度高于阈值\n\n预期:不可点击开盖\n\n步骤:任务均处于待检测，但开启检测状态\n\n预期:不可点击开盖\n\n步骤:调度处于'暂停中'，温度低于阈值，点击\n\n开盖\n\n预期:正常开盖\n\n用例:暂停#1\n\n步骤:所有任务完成后\n\n预期:自动暂停\n\n步骤:有任务处于待检测，有任务处于解析中，点\n\n击暂停\n\n预期:1、不展示倒计时，'暂停'按钮变更为\n\n'开始检测'\n\n2、'解析中'的任务完成检测，'待检测'的\n\n任务不再执行\n\n3、再次点击'开始检测'，继续执行'待检\n\n测'的任务\n\n步骤:点击'开始检测'，任务调度处于'进行\n\n中'\n\n预期:弹窗提示：任务调度已开始\n\n自定义:新增/删除检测任务\n\n用例:删除任务 #1",
+        "file_path": "S41测试用例.pdf",
+        "chunk_id": "chunk-5a956e38fde5b20399e4f71b1cd1177c"
+      },
+      {
+        "reference_id": "2",
+        "content": "\nImage Content Analysis:\nImage Path: /home/chh/workspace/anything-chat-rag/parser_output/TCD工控机测试用例_5c76f08f/TCD工控机测试用例/docling/images/image_0.png\nCaptions: None\nFootnotes: None\n\nVisual Analysis: The image is a flowchart/mind map for the 'TCD工控机测试用例' (TCD Industrial Control Computer Test Case), centered on a blue box labeled 'TCD工控机测试用例'. Branches extend to sub-nodes: **自定义:TEST**, **自定义:Calibrate**, **自定义:Setting**, **自定义:History**, **自定义:Module**, **自定义:ChemLib**, and use cases (用例) like *用例DATA #1*, *用例EXAM #1*, *用例页面变更 #1*, *用例变更",
+        "file_path": "TCD工控机测试用例.pdf",
+        "chunk_id": "chunk-48c309b5c73b0d86575c61cf670388a2"
+      },
+      {
+        "reference_id": "3",
+        "content": "例:新增/删除TD管 #1\n\n用例:TD管列表顺序保存#1\n\n用例:筛选#1\n\n用例:排序#1\n\n用例:筛选#1\n\n用例:排序#1\n\n用例:筛选#1\n\n用例:排序#1\n\n用例:查看详情 #1\n\n用例:筛选#1\n\n用例:排序#1\n\n用例:正常新增#1\n\n自定义:新增校验\n\n自定义:web\n\n自定义:小程序\n\n自定义:全部\n\n自定义:草稿\n\n自定义:已完成\n\n自定义:新增老化批次\n\n自定义:物流管理\n\n自定义:老化批次\n\ns28测试用例\n\n自定义:研究管理\n\n自定义:采样小程序\n\n自定义:数据大屏\n\n自定义:登记二维码\n\n自定义:扫码登记\n\n自定义:采样记录\n\n自定义:任务中心\n\n自定义:时间筛选\n\n自定义:任务中心\n\n自定义:折线图、柱状图、条形图鼠标悬浮展示横\n\n纵坐标\n\n自定义:折线图、柱状图、条形图设置过滤最高和\n\n最低值\n\n用例: 旧二维码#1\n\n用例:新二维码 #1\n\n用例:登记采样信息#1\n\n用例:继续录入#1\n\n用例:筛选#1\n\n自定义:每日检测量\n\n自定义:检测任务趋势折线图表\n\n步骤:原登记二维码入口\n\n步骤:新登记二维码入口\n\n步骤:点击查看二维码信息\n\n步骤:扫描旧二维码\n\n预期:保留展示\n\n预期:在绑定采样点右边展示，一个采样点一个二\n\n维码\n\n预期:增加采样点名称和采样点ID\n\n预期:正常识别填入研究信息，采样点需手动填入\n\n步骤:扫描新二维码\n\n预期:正常识别填入研究信息、采样点信息\n\n步骤:先扫描旧二维码，再扫描新二维码\n\n预期:新二维码的研究信息、采样点信息覆盖填入\n\n步骤:先扫描新二维码，再扫描旧二维码\n\n步骤:完成手动采样登记，点击继续录入\n\n步骤:按'采样点'筛选，只能选择有权限研究的\n\n采样点\n\n用例:字段变更#1\n\n用例:筛选 #1\n\n用例:新增#1\n\n预期:返回对应采样点的记录\n\n步骤:去掉'实际检测设备'字段\n\n预期:图表返回所有设备序列号的检测量\n\n步骤:按'实际检测设备'筛选\n\n预期:返回该设备序列号的检测量\n\n步骤:输入图表名称、统计周期、统计字段，点击\n\n确定\n\n步骤:筛选范围：设备序列号=一个/多个设备序列\n\n号\n\n步骤:筛选范围：统计字段=设备检测时间\n\n预期:返回所有设备检测量\n\n预期:展示选择的设备的检测量\n\n预期:按设备检测时间来展示每日检测量\n\n步骤:筛选范围：统计字段=任务结束时间\n\n预期:按任务结束时间来展示每日检测量\n\n步骤:输入图表名称、统计周期（日/周/月/年，\n\n预期:成功新增并展示折线图表，默认展示所有状\n\n按创建时间展示），点击新增\n\n步骤:输入重复的图表名称\n\n预期:提示名称已存在\n\n步骤:图表名称、统计周期为空，点击新增\n\n预期:提示对应字段不能为空\n\n步骤:任务状态选择'待转运'\n\n预期:展示对应状态的检测任务趋势\n\n步骤:任务状态选择'待分配'\n\n步骤:任务状态选择'待检测'\n\n步骤:任务状态选择'检测中'\n\n步骤:任务状态选择'待分析'\n\n步骤:任务状态选择'已完成'\n\n步骤:任务状态选择'检测失败'\n\n步骤:任务状态选择'待清理'\n\n步骤:任务状态选择'已清理'\n\n步骤:任务状态选择'已作废'\n\n步骤:任务状态选择'全部'\n\n预期:展示对应状态的检测任务趋势\n\n预期:展示对应状态的检测任务趋势\n\n预期:展示对应状态的检测任务趋势\n\n预期:展示对应状态的检测任务趋势\n\n预期:展示对应状态的检测任务趋势\n\n预期:展示对应状态的检测任务趋势\n\n预期:展示对应状态的检测任务趋势\n\n预期:展示对应状态的检测任务趋势\n\n预期:展示对应状态的检测任务趋势\n\n预期:展示对应状态的检测任务趋势\n\n步骤:没有'全部'选项，不选状态\n\n预期:展示所有任务状态的折线图\n\n步骤:变更图表名称、筛选中的任务状态、统计周\n\n期，点击确定\n\n步骤:点击删除并确定\n\n预期:成功编辑保存\n\n预期:成功删除图表\n\n步骤:按备用样本、检测优先级、标本编码、气体\n\n来源、气体类型、采样方式等所有字段进行筛选\n\n预期:展示对应数据的趋势\n\n步骤:周期为日，变更任务状态\n\n预期:按新的状态来展示图表\n\n步骤:按'设备序列号'筛选\n\n预期:返回该设备序列号的检测量\n\n步骤:按采样时间早于/晚于/区间进行筛选\n\n预期:返回对应时间的数据\n\n步骤:",
+        "file_path": "s28测试用例.pdf",
+        "chunk_id": "chunk-313e136ae906bd5efc0871114ed295c9"
+      },
+      {
+        "reference_id": "4",
+        "content": "s22测试用例\n\n自定义:数据大屏\n\n自定义:设备管理\n\n自定义:质控图\n\n自定义:             新增图表\n\n（研究管理统计图表）\n\n设备质控图（气相色谱-质谱仪质控图）\n\n用例:图表名称 #1\n\n步骤:名称为空\n\n预期:提示不能为空\n\n步骤:名称重复\n\n预期:提示名称重复\n\n用例:设备序列号#1\n\n步骤:设备类型为'气相色谱-质谱仪'\n\n预期:选项显示'设备名称和序列号'\n\n步骤:设备类型为'代谢气体分子采集仪'或'代\n\n谢气体分子分析色谱仪'\n\n预期:不展示\n\n步骤:待用状态/报废/鼓掌状态是否展示\n\n预期:？？？\n\n用例:标气类型#1\n\n步骤:待选标气类型\n\n预期:字典中所有的标气类型，包括禁用的\n\n步骤:直接选择标气类型\n\n预期:VOC列展示标气类型中绑定的成分\n\n用例:靶值类型#1\n\n步骤:选择'自定义'\n\n预期:需手动填写平均值、标准差\n\n步骤:选择'源自数据'，再选择已选设备下'质\n\n控数据'\n\n预期:质控数据按10条每页展示，选择选择（选择\n\n一条/多条）\n\n用例:预览 #1\n\n步骤:代谢物展示\n\n预期:为标气类型中所有的VOC\n\n步骤:VOC过多\n\n预期:可滑动展示\n\n步骤:选择框输入代谢物名称搜索\n\n预期:返回对应代谢物\n\n步骤:点击/切换代谢物\n\n预期:展示对应代谢物的质控图\n\n用例:新增#1\n\n步骤:输入图表名称、选择设备序列号、标气类\n\n型、靶值类型，点击新增\n\n预期:成功新增图表\n\n自定义:图表列表\n\n自定义:可编辑、删除？\n\n用例:图表查看 #1\n\n步骤:点击不同的代谢物\n\n预期:展示对应代谢物的质控图\n\n自定义:权限管理\n\n用例:管理权限#1\n\n步骤:图表操作\n\n预期:操作所有\n\n用例:访问权限#1\n\n步骤:图表操作\n\n预期:仅可查看\n\n自定义:研究管理\n\n自定义:研究管理\n\n用例:字段变更#1\n\n步骤:新增/编辑研究，增加预计收集受试者、预\n\n计采样次数字段\n\n预期:正常新增填写数量\n\n步骤:变更预计收集样本字段为采样次数\n\n预期:正常变更填写数量\n\n自定义:研究列表\n\n用例:列表字段变更#1\n\n步骤:样本数量变更为采样次数\n\n预期:正常展示\n\n步骤:增加受试者数量字段\n\n预期:正常展示\n\n自定义:资产管理\n\n自定义:设备管理\n\n自定义:代谢气体分子分析色谱仪\n\n用例:列表字段#1\n\n步骤:沿用当前台账字段\n\n预期:正常展示\n\n用例:设备详情tab#1\n\n步骤:采集仪/色谱仪\n\n预期:不展示质控记录\n\n步骤:质谱仪\n\n预期:正常展示质控记录\n\n用例:设备密码#1\n\n步骤:点击设备账号的二维码\n\n预期:正常查看识别二维码\n\n自定义:代谢气体分析采集仪\n\n用例:列表字段#1\n\n步骤:沿用当前台账字段，去掉ICCID字段\n\n预期:正常展示\n\n自定义:气相色谱-质谱仪\n\n用例:设备详情tab#1\n\n步骤:增加'关键事件'模块，去掉工单列表、使\n\n用记录、配件更换记录模块\n\n预期:正常展示\n\n自定义:关键事件\n\n用例:新增#1\n\n步骤:选择发生时间、事件分类，输入事件说明，\n\n点击确定\n\n预期:正常新增\n\n步骤:未选择发生时间、事件分类，点击确定\n\n预期:提示函发生时间、事件分类不能为空\n\n用例:筛选 #1\n\n步骤:按发生时间搜索\n\n预期:返回对应事件\n\n步骤:按事件分类搜索\n\n预期:返回对应事件\n\n步骤:按事件说明搜索\n\n预期:返回对应事件\n\n步骤:按记录时间搜索\n\n预期:返回对应事件\n\n步骤:按记录人搜索\n\n预期:返回对应事件\n\n用例:翻页#1\n\n步骤:切换到指定页\n\n预期:正常切换\n\n自定义:TD管管理\n\n自定义:TD管统计\n\n用例:数量统计#1\n\n步骤:TD管总数\n\n预期:数量展示正确\n\n步骤:不同状态TD管总数\n\n预期:数量展示正确\n\n步骤:不同状态下，当前所在位置的TD管数量\n\n预期:数量展示正确\n\n用例:TD管状态排序#1\n\n步骤:固定排序\n\n预期:待领用、占用中、已报废、总计\n\n用例:当前所在位置排序#1\n\n步骤:按拼音顺序排列\n\n预期:展示排序\n\n用例:表格折叠#1\n\n步骤:数据多时，可滚动/折叠\n\n预期:正常滚动/折叠",
+        "file_path": "s22测试用例.pdf",
+        "chunk_id": "chunk-08584584f481d5d939e49a8cfc37e2a0"
+      },
+      {
+        "reference_id": "5",
+        "content": "中 / 待检测（有样本无法老化）\n\n自定义:异常（维修过程中不可老化）\n\n自定义:必填校验\n\n自定义:格式校验\n\n自定义:添加单个任务\n\n自定义:字段\n\n自定义:TD管号\n\n自定义:来源：待领用、异常、报废的TD管号\n\n自定义:单选\n\n自定义:可搜索\n\n自定义:老化原因\n\n自定义:必填校验\n\n自定义:添加单个任务\n\n自定义:列表数据\n\n自定义:来源\n\n自定义:新增TD管自动创建 ： 首次老化\n\n自定义:检测任务完成自动创建 ： 检测完成\n\n自定义:谱图上传结果 成功 / 失败\n\n自定义:清理样本（已清理）自动创建 ： 清理样\n\n本\n\n自定义:异常任务（物流单签收异常）完成自动创\n\n建 ： 异常TD创建\n\n自定义:手动创建\n\n自定义:排序\n\n自定义:按创建时间倒序排列\n\n自定义:翻页\n\n自定义:取消老化任务\n\n自定义:勾选\n\n自定义:手动创建的老化任务\n\n自定义:可勾选\n\n自定义:其他任务\n\n自定义:不可勾选\n\n自定义:勾选任务，点击取消老化任务，输入老化\n\n原因，点击确定\n\n自定义:成功取消该老化任务\n\n自定义:部分老化任务没有选择取消原因，点击确\n\n定\n\n自定义:提示该任务需要选择输入取消原因\n\n自定义:编辑\n\n自定义:已完成\n\n自定义:已取消\n\n自定义:异常TD任务\n\n自定义:待处理\n\n自定义:来源\n\n自定义:自动创建\n\n自定义:收件地点为精致未来，物品为空TD管，\n\n异常部分TD管 / 全部TD管？\n\n自定义:异常原因自动填入'采样寄回检查'\n\n自定义:发现异常时间？\n\n自定义:签收地点非精致未来，物品为空TD管，\n\n不创建\n\n自定义:签收地点为精致未来，物品为TD管样\n\n本，不创建\n\n自定义:手动创建\n\n自定义:完成\n\n自定义:处理结果\n\n自定义:正常\n\n自定义:自动创建老化任务\n\n自定义:数据流转至已完成\n\n自定义:作废\n\n自定义:输入作废原因，点击确定，提示'TD管\n\n报废后不可恢复，请谨慎处理'\n\n自定义:确定作废，数据更改为'已作废'\n\n自定义:处理方式\n\n自定义:备注\n\n自定义:处理时间\n\n自定义:作废\n\n自定义:输入作废原因，点击确定\n\n自定义:成功作废该数据，数据流转至已作废tab\n\n自定义:新建异常任务\n\n自定义:TD管号\n\n自定义:任意状态\n\n自定义:单选\n\n自定义:可搜索\n\n自定义:是否任务中\n\n自定义:检测任务中\n\n自定义:提示'该TD管有未完成的检测 / 老化任\n\n务，请先完成或取消其他任务'\n\n自定义:老化任务中\n\n自定义:不在任务中\n\n自定义:正常添加\n\n自定义:异常原因\n\n自定义:发现异常时间\n\n自定义:已完成\n\n自定义:已作废\n\n自定义:谱图导入\n\n自定义:检测任务\n\n自定义:待分配\n\n自定义:数据来源\n\n自定义:物流单\n\n自定义:已签收\n\n自定义:签收地点为'精致未来'\n\n自定义:TD管（样本）\n\n自定义:TD管（空）\n\n自定义:不包含\n\n自定义:签收地点非'精致未来'\n\n自定义:不包含\n\n自定义:未签收\n\n自定义:不包含\n\n自定义:签收TD管采样\n\n自定义:一个采样类型多个TD管样本\n\n自定义:一个人多个采样类型\n\n自定义:TD管采样-TD管号\n\n自定义:顶空瓶+TD管采样-TD管号\n\n自定义:以上为未分配任务的样本 / 取消分析样本\n\n自定义:列表字段\n\n自定义:标本编码\n\n自定义:气体来源\n\n自定义:采样方式\n\n自定义:TD管号\n\n自定义:采样时间\n\n自定义:采样备注\n\n自定义:任务类型\n\n自定义:签收时间\n\n自定义:签收异常原因\n\n自定义:样本存放位置\n\n自定义:项目名称\n\n自定义:所属组织\n\n自定义:关联病种\n\n自定义:采样点\n\n自定义:编辑样本\n\n自定义:修改校验？是否同步采样登记？\n\n自定义:权限\n\n自定义:管理可编辑\n\n自定义:非管理不可编辑\n\n自定义:TD管号\n\n自定义:数据源\n\n自定义:非报废状态TD管号\n\n自定义:选择\n\n自定义:单选\n\n自定义:可搜索\n\n自定义:必填校验\n\n自定义:TD管号、修改原因\n\n自定义:确认修改\n\n自定义:10秒倒计时\n\n自定义:未结束，不可点击\n\n自定义:已结束，可点击\n\n自定义:通用操作\n\n自定义:筛选\n\n用例:按标本编码筛选 #1\n\n步骤:输入标本编码包含xx，点击",
+        "file_path": "s16测试用例.pdf",
+        "chunk_id": "chunk-3b3b2b1c18e50a2fdf34af33ba40aa65"
+      }
+    ],
+    "references": [
+      {
+        "reference_id": "1",
+        "file_path": "S41测试用例.pdf"
+      },
+      {
+        "reference_id": "2",
+        "file_path": "TCD工控机测试用例.pdf"
+      },
+      {
+        "reference_id": "3",
+        "file_path": "s28测试用例.pdf"
+      },
+      {
+        "reference_id": "4",
+        "file_path": "s22测试用例.pdf"
+      },
+      {
+        "reference_id": "5",
+        "file_path": "s16测试用例.pdf"
+      }
+    ]
+  },
+  "metadata": {
+    "query_mode": "mix",
+    "keywords": {
+      "high_level": [
+        "异常任务处理",
+        "测试用例管理",
+        "历史用例回顾"
+      ],
+      "low_level": [
+        "异常TD任务",
+        "测试用例",
+        "历史用例"
+      ]
+    },
+    "processing_info": {
+      "total_entities_found": 115,
+      "total_relations_found": 218,
+      "entities_after_truncation": 65,
+      "relations_after_truncation": 155,
+      "merged_chunks_count": 175,
+      "final_chunks_count": 5
+    }
+  }
+}

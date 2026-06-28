@@ -1,0 +1,149 @@
+"""
+Web 页面管理 API
+
+提供 Web 页面定义的 CRUD 操作接口
+"""
+
+from typing import Optional
+from uuid import UUID
+
+from fastapi import APIRouter, Query, Depends
+
+from app.api.deps import PaginationDep
+from app.schemas.common import SuccessResponse
+from app.services.web_page_service import WebPageService
+from app.config.database import async_session_factory
+
+
+router = APIRouter(prefix="/projects/{project_identifier}/web-pages")
+
+
+async def get_web_page_service():
+    """获取 Web 页面服务实例"""
+    async with async_session_factory() as session:
+        yield WebPageService(session)
+
+
+# ============ Web 页面管理接口 ============
+
+@router.post(
+    "",
+    response_model=SuccessResponse,
+    summary="创建 Web 页面",
+    description="创建新的 Web 页面定义",
+)
+async def create_web_page(
+    project_identifier: str,
+    service: WebPageService = Depends(get_web_page_service),
+    display_name: str = Query(..., description="页面显示名称"),
+    url: str = Query(..., description="页面 URL"),
+    folder_id: Optional[str] = Query(None, description="文件夹 ID"),
+    page_title: Optional[str] = Query(None, description="页面标题"),
+    description: Optional[str] = Query(None, description="页面描述"),
+    page_type: str = Query(default="page", description="页面类型"),
+    elements: Optional[list] = None,
+    navigation: Optional[dict] = None,
+    tags: Optional[list] = None,
+    tag_group: Optional[str] = Query(None, description="标签分组"),
+):
+    """创建 Web 页面定义"""
+    result = await service.create_web_page(
+        project_identifier=project_identifier,
+        display_name=display_name,
+        url=url,
+        folder_id=folder_id,
+        page_title=page_title,
+        description=description,
+        page_type=page_type,
+        elements=elements,
+        navigation=navigation,
+        tags=tags,
+        tag_group=tag_group,
+    )
+
+    return SuccessResponse(data=result, message="Web 页面创建成功")
+
+
+@router.get(
+    "",
+    response_model=SuccessResponse,
+    summary="获取 Web 页面列表",
+    description="获取项目下的所有 Web 页面列表，支持搜索和过滤",
+)
+async def list_web_pages(
+    project_identifier: str,
+    service: WebPageService = Depends(get_web_page_service),
+    pagination: PaginationDep = None,  # type: ignore
+    folder_id: Optional[str] = Query(None, description="文件夹 ID 过滤"),
+    search: Optional[str] = Query(None, description="搜索关键词"),
+):
+    """获取 Web 页面列表"""
+    result = await service.list_web_pages(
+        project_identifier=project_identifier,
+        page=pagination.p,
+        page_size=pagination.page_size,
+        folder_id=folder_id,
+        search=search,
+    )
+
+    return SuccessResponse(data=result)
+
+
+@router.get(
+    "/{page_id}",
+    response_model=SuccessResponse,
+    summary="获取 Web 页面详情",
+    description="获取指定 Web 页面的详细信息",
+)
+async def get_web_page(
+    page_id: str,
+    service: WebPageService = Depends(get_web_page_service),
+):
+    """获取 Web 页面详情"""
+    result = await service.get_web_page(page_id=page_id)
+
+    return SuccessResponse(data=result)
+
+
+@router.patch(
+    "/{page_id}",
+    response_model=SuccessResponse,
+    summary="更新 Web 页面",
+    description="更新 Web 页面定义",
+)
+async def update_web_page(
+    page_id: str,
+    service: WebPageService = Depends(get_web_page_service),
+    display_name: Optional[str] = None,
+    url: Optional[str] = None,
+    description: Optional[str] = None,
+    elements: Optional[list] = None,
+    navigation: Optional[dict] = None,
+):
+    """更新 Web 页面定义"""
+    result = await service.update_web_page(
+        page_id=page_id,
+        display_name=display_name,
+        url=url,
+        description=description,
+        elements=elements,
+        navigation=navigation,
+    )
+
+    return SuccessResponse(data=result, message="Web 页面更新成功")
+
+
+@router.delete(
+    "/{page_id}",
+    response_model=SuccessResponse,
+    summary="删除 Web 页面",
+    description="删除指定的 Web 页面定义",
+)
+async def delete_web_page(
+    page_id: str,
+    service: WebPageService = Depends(get_web_page_service),
+):
+    """删除 Web 页面定义"""
+    await service.delete_web_page(page_id=page_id)
+
+    return SuccessResponse(message="Web 页面删除成功")

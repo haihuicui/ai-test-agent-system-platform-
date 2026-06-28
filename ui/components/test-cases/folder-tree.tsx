@@ -1,0 +1,1190 @@
+"use client";
+// TODO  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2VjJsR1ZnPT06ZmNiMmM3NGY=
+
+import * as React from "react";
+import {
+  ChevronRight,
+  ChevronDown,
+  Folder,
+  FolderOpen,
+  Plus,
+  MoreVertical,
+  Pencil,
+  Trash2,
+  FolderPlus,
+  Copy,
+  Move,
+  Link,
+  Share2,
+  FileText,
+  ChevronsDownUp,
+  ChevronsUpDown,
+  GripVertical,
+  FileCode,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  DndContext,
+  DragOverlay,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragStartEvent,
+  DragEndEvent,
+  DragOverEvent,
+} from "@dnd-kit/core";
+import {
+  useSortable,
+  SortableContext,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { getFolders, moveFolder as moveFolderApi, copyFolder as copyFolderApi, type FolderTreeNode } from "@/lib/api/folders";
+import type { FolderInfo } from "@/lib/api/types";
+import { toast } from "sonner";
+// NOTE  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2VjJsR1ZnPT06ZmNiMmM3NGY=
+
+interface FolderTreeProps {
+  projectId: string;
+  selectedFolderId?: string | null;
+  folderType?: string;  // 添加 folderType 参数
+  onSelectFolder: (folder: FolderInfo | null) => void;
+  onCreateFolder: (parentId?: string) => void;
+  onEditFolder: (folder: FolderInfo) => void;
+  onDeleteFolder: (folder: FolderInfo) => void;
+  onCreateTestCase?: (folder: FolderInfo) => void;
+  onMoveFolder?: (folder: FolderInfo) => void;
+  onCreateAPIEndpoint?: (folderId?: string | null) => void;  // 新增：创建 API 端点的回调
+  onSelectAPIEndpoint?: (endpointId: string) => void;  // 新增：选中 API 端点时的回调
+  selectedAPIEndpointId?: string | null;  // 新增：选中的 API 端点 ID
+}
+
+// 暴露给父组件的方法
+export interface FolderTreeRef {
+  refresh: () => void;
+  updateFolderLocally: (folderId: string, updates: Partial<FolderInfo>) => void;
+  removeFolderLocally: (folderId: string) => void;
+  addFolderLocally: (folder: FolderInfo, parentId: string | null) => void;
+  moveFolderLocally: (folderId: string, newParentId: string | null, updatedFolder: FolderInfo) => void;
+}
+// eslint-disable  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2VjJsR1ZnPT06ZmNiMmM3NGY=
+
+export const FolderTree = React.forwardRef<FolderTreeRef, FolderTreeProps>(function FolderTree({
+  projectId,
+  selectedFolderId,
+  folderType,
+  onSelectFolder,
+  onCreateFolder,
+  onEditFolder,
+  onDeleteFolder,
+  onCreateTestCase,
+  onMoveFolder,
+  onCreateAPIEndpoint,
+  onSelectAPIEndpoint,
+  selectedAPIEndpointId,
+}, ref) {
+  const [folders, setFolders] = React.useState<FolderTreeNode[]>([]);
+  const [expandedIds, setExpandedIds] = React.useState<Set<string>>(new Set());
+  const [loading, setLoading] = React.useState(true);
+  const [activeId, setActiveId] = React.useState<string | null>(null);
+
+  // 拖动状态：使用 state 来触发重渲染
+  const [dropState, setDropState] = React.useState<{
+    overId: string | null;
+    dropPosition: 'before' | 'after' | 'inside' | null;
+  }>({ overId: null, dropPosition: null });
+
+  // 用于节流的 ref
+  const lastDropStateRef = React.useRef(dropState);
+  const rafIdRef = React.useRef<number | null>(null);
+
+  // 配置拖动传感器
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // 移动8px后才开始拖动
+      },
+    })
+  );
+
+  // 计算文件夹及其所有子文件夹的总端点数
+  const calculateTotalEndpoints = (node: FolderTreeNode): number => {
+    let total = node.api_endpoints?.length || 0;
+    if (node.children) {
+      for (const child of node.children) {
+        total += calculateTotalEndpoints(child);
+      }
+    }
+    return total;
+  };
+
+  // 加载根文件夹
+  const loadRootFolders = React.useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await getFolders(projectId, folderType);
+      if (response.success && response.data) {
+        // 过滤确保只显示 parent_id 为 null 的根文件夹
+        const rootFolders = response.data.filter(
+          (f) => f.parent_id === null || f.parent_id === undefined
+        );
+
+        // 打印调试信息
+        console.log('[FolderTree] 根文件夹数量:', rootFolders.length);
+        rootFolders.forEach((f) => {
+          console.log(`[FolderTree] 文件夹 "${f.name}":`, {
+            direct_cases_count: f.direct_cases_count,
+            cases_count: f.cases_count,
+            sub_folders_count: f.sub_folders_count
+          });
+        });
+
+        setFolders(
+          rootFolders.map((f) => ({
+            ...f,
+            children: undefined,
+            loading: false,
+            expanded: false,
+          }))
+        );
+      }
+    } catch (error) {
+      console.error("Failed to load folders:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [projectId, folderType]);
+
+  React.useEffect(() => {
+    if (projectId) {
+      loadRootFolders();
+    }
+  }, [projectId, loadRootFolders]);
+
+  // 加载子文件夹
+  const loadChildren = async (folderId: string) => {
+    try {
+      const response = await getFolders(projectId, folderType, folderId);
+      if (response.success && response.data) {
+        // 查找该文件夹在响应中的数据（包含更新的 api_endpoints）
+        const updatedFolder = response.data.find((f) => f.id === folderId);
+        setFolders((prev) =>
+          updateFolderWithChildren(prev, folderId, response.data, updatedFolder)
+        );
+      }
+    } catch (error) {
+      console.error("Failed to load children:", error);
+    }
+  };
+
+  // 更新文件夹及其子节点，同时更新 api_endpoints
+  const updateFolderWithChildren = (
+    nodes: FolderTreeNode[],
+    parentId: string,
+    children: FolderInfo[],
+    updatedFolder?: FolderInfo
+  ): FolderTreeNode[] => {
+    return nodes.map((node) => {
+      if (node.id === parentId) {
+        // 打印调试信息 - 子文件夹
+        console.log(`[FolderTree] 更新文件夹 "${node.name}" 的子节点:`, children.map(c => ({
+          name: c.name,
+          direct_cases_count: c.direct_cases_count,
+          cases_count: c.cases_count
+        })));
+
+        return {
+          ...node,
+          // 如果有更新的文件夹数据（包含 api_endpoints），则使用它
+          ...(updatedFolder && {
+            api_endpoints: updatedFolder.api_endpoints,
+          }),
+          children: children.filter((c) => c.id !== parentId).map((c) => ({
+            ...c,
+            children: undefined,
+            loading: false,
+            expanded: false,
+          })),
+          loading: false,
+        };
+      }
+      if (node.children) {
+        return {
+          ...node,
+          children: updateFolderWithChildren(node.children, parentId, children, updatedFolder),
+        };
+      }
+      return node;
+    });
+  };
+
+  // 更新文件夹子节点
+  const updateFolderChildren = (
+    nodes: FolderTreeNode[],
+    parentId: string,
+    children: FolderInfo[]
+  ): FolderTreeNode[] => {
+    return nodes.map((node) => {
+      if (node.id === parentId) {
+        return {
+          ...node,
+          children: children.map((c) => ({
+            ...c,
+            children: undefined,
+            loading: false,
+            expanded: false,
+          })),
+          loading: false,
+        };
+      }
+      if (node.children) {
+        return {
+          ...node,
+          children: updateFolderChildren(node.children, parentId, children),
+        };
+      }
+      return node;
+    });
+  };
+
+  // 切换展开/折叠
+  const toggleExpand = async (folder: FolderTreeNode) => {
+    const newExpanded = new Set(expandedIds);
+    if (newExpanded.has(folder.id)) {
+      newExpanded.delete(folder.id);
+    } else {
+      newExpanded.add(folder.id);
+      // 如果还没有加载子文件夹，则加载
+      if (!folder.children && folder.sub_folders_count > 0) {
+        await loadChildren(folder.id);
+      }
+    }
+    setExpandedIds(newExpanded);
+  };
+
+  // 递归收集所有子文件夹 ID
+  const collectAllChildIds = (node: FolderTreeNode): string[] => {
+    const ids: string[] = [node.id];
+    if (node.children) {
+      for (const child of node.children) {
+        ids.push(...collectAllChildIds(child));
+      }
+    }
+    return ids;
+  };
+
+  // 递归加载所有子文件夹
+  const loadAllChildren = async (node: FolderTreeNode): Promise<void> => {
+    if (node.sub_folders_count > 0 && !node.children) {
+      await loadChildren(node.id);
+    }
+    // 获取更新后的节点
+    const findNode = (nodes: FolderTreeNode[], id: string): FolderTreeNode | null => {
+      for (const n of nodes) {
+        if (n.id === id) return n;
+        if (n.children) {
+          const found = findNode(n.children, id);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
+    const updatedNode = findNode(folders, node.id);
+    if (updatedNode?.children) {
+      for (const child of updatedNode.children) {
+        await loadAllChildren(child);
+      }
+    }
+  };
+
+  // 展开全部
+  const handleExpandAll = async (folder: FolderTreeNode) => {
+    // 先加载所有子文件夹
+    await loadAllChildren(folder);
+    // 收集所有子文件夹 ID 并添加到 expandedIds
+    const newExpanded = new Set(expandedIds);
+    const allIds = collectAllChildIds(folder);
+    allIds.forEach((id) => newExpanded.add(id));
+    setExpandedIds(newExpanded);
+    toast.success("已展开全部文件夹");
+  };
+
+  // 折叠全部
+  const handleCollapseAll = (folder: FolderTreeNode) => {
+    const newExpanded = new Set(expandedIds);
+    const allIds = collectAllChildIds(folder);
+    allIds.forEach((id) => newExpanded.delete(id));
+    setExpandedIds(newExpanded);
+    toast.success("已折叠全部文件夹");
+  };
+
+  // 复制文件夹 URL
+  const handleCopyFolderURL = (folder: FolderInfo) => {
+    const url = `${window.location.origin}${window.location.pathname}?folder=${folder.id}`;
+    navigator.clipboard.writeText(url).then(() => {
+      toast.success("文件夹 URL 已复制到剪贴板");
+    }).catch(() => {
+      toast.error("复制失败");
+    });
+  };
+
+  // 通过公共链接分享
+  const handleShareViaPublicLink = (folder: FolderInfo) => {
+    toast.info("公共链接分享功能开发中");
+  };
+
+  // 拖动开始
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  };
+
+  // 跟踪当前鼠标位置（用于计算放置位置）
+  const mousePositionRef = React.useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  // 监听鼠标移动，实时更新位置
+  React.useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      mousePositionRef.current = { x: e.clientX, y: e.clientY };
+    };
+    document.addEventListener('mousemove', handleMouseMove);
+    return () => document.removeEventListener('mousemove', handleMouseMove);
+  }, []);
+
+  // 拖动经过 - 使用 requestAnimationFrame 节流来避免无限循环
+  const handleDragOver = React.useCallback((event: DragOverEvent) => {
+    const { over } = event;
+
+    // 取消之前的 RAF
+    if (rafIdRef.current) {
+      cancelAnimationFrame(rafIdRef.current);
+    }
+
+    if (!over) {
+      if (lastDropStateRef.current.overId !== null || lastDropStateRef.current.dropPosition !== null) {
+        const newState = { overId: null, dropPosition: null };
+        lastDropStateRef.current = newState;
+        setDropState(newState);
+      }
+      return;
+    }
+
+    const newOverId = over.id as string;
+
+    // 获取鼠标相对于目标元素的位置（使用实时鼠标位置）
+    const overElement = document.querySelector(`[data-folder-id="${over.id}"]`);
+    let newPosition: 'before' | 'after' | 'inside' = 'inside';
+
+    if (overElement) {
+      const rect = overElement.getBoundingClientRect();
+      const mouseY = mousePositionRef.current.y;
+      const relativeY = mouseY - rect.top;
+      const height = rect.height;
+
+      // 根据鼠标位置判断放置位置
+      if (relativeY < height * 0.3) {
+        newPosition = 'before'; // 上方
+      } else if (relativeY > height * 0.7) {
+        newPosition = 'after'; // 下方
+      } else {
+        newPosition = 'inside'; // 作为子文件夹
+      }
+    }
+
+    // 只在值真正改变时才更新状态（使用 RAF 节流）
+    if (lastDropStateRef.current.overId !== newOverId || lastDropStateRef.current.dropPosition !== newPosition) {
+      rafIdRef.current = requestAnimationFrame(() => {
+        const newState = { overId: newOverId, dropPosition: newPosition };
+        lastDropStateRef.current = newState;
+        setDropState(newState);
+      });
+    }
+  }, []);
+
+  // 拖动结束
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    const position = lastDropStateRef.current.dropPosition;
+
+    // 取消任何挂起的 RAF
+    if (rafIdRef.current) {
+      cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = null;
+    }
+
+    // 清理状态
+    const resetState = { overId: null, dropPosition: null };
+    lastDropStateRef.current = resetState;
+    setDropState(resetState);
+    setActiveId(null);
+
+    if (!over || active.id === over.id) {
+      return;
+    }
+
+    const activeFolder = findFolderById(folders, active.id as string);
+    const overFolder = findFolderById(folders, over.id as string);
+
+    if (!activeFolder || !overFolder) {
+      return;
+    }
+
+    try {
+      let targetParentId: string | null = null;
+      let message = "";
+
+      if (position === 'inside') {
+        // 移动到目标文件夹内部
+        targetParentId = overFolder.id;
+        message = `已将 "${activeFolder.name}" 移动到 "${overFolder.name}" 下`;
+      } else {
+        // 移动到目标文件夹的同级（使用目标文件夹的父文件夹）
+        targetParentId = overFolder.parent_id || null;
+        message = position === 'before'
+          ? `已将 "${activeFolder.name}" 移动到 "${overFolder.name}" 上方`
+          : `已将 "${activeFolder.name}" 移动到 "${overFolder.name}" 下方`;
+      }
+
+      // 调用 API 移动文件夹
+      const response = await moveFolderApi(projectId, activeFolder.id, targetParentId);
+
+      if (response.success) {
+        toast.success(message);
+        // 本地更新树结构
+        updateTreeAfterMove(activeFolder.id, targetParentId, response.data);
+      } else {
+        toast.error("移动文件夹失败");
+      }
+    } catch (error) {
+      console.error("移动文件夹失败:", error);
+      toast.error("移动文件夹失败");
+    }
+  };
+
+  // 本地更新树结构（移动后）
+  const updateTreeAfterMove = (
+    movedFolderId: string,
+    newParentId: string | null,
+    updatedFolder: FolderInfo
+  ) => {
+    setFolders((prev) => {
+      // 1. 从原位置移除文件夹
+      const removeFolder = (nodes: FolderTreeNode[]): FolderTreeNode[] => {
+        return nodes.filter((node) => {
+          if (node.id === movedFolderId) return false;
+          if (node.children) {
+            node.children = removeFolder(node.children);
+          }
+          return true;
+        });
+      };
+
+      // 2. 创建新的文件夹节点
+      const newNode: FolderTreeNode = {
+        ...updatedFolder,
+        children: findFolderById(prev, movedFolderId)?.children,
+        loading: false,
+        expanded: expandedIds.has(movedFolderId),
+      };
+
+      // 3. 添加到新位置
+      const addFolder = (nodes: FolderTreeNode[], parentId: string | null): FolderTreeNode[] => {
+        if (parentId === null) {
+          // 添加到根级别
+          return [...removeFolder(nodes), newNode];
+        }
+        return nodes.map((node) => {
+          if (node.id === parentId) {
+            return {
+              ...node,
+              children: [...(node.children || []), newNode],
+              sub_folders_count: (node.sub_folders_count || 0) + 1,
+            };
+          }
+          if (node.children) {
+            return { ...node, children: addFolder(node.children, parentId) };
+          }
+          return node;
+        });
+      };
+
+      const withoutMoved = removeFolder(prev);
+      return addFolder(withoutMoved, newParentId);
+    });
+
+    // 如果移动到新的父文件夹下，确保父文件夹展开
+    if (newParentId) {
+      setExpandedIds((prev) => {
+        const newSet = new Set(prev);
+        newSet.add(newParentId);
+        return newSet;
+      });
+    }
+  };
+
+  // 查找文件夹
+  const findFolderById = (
+    nodes: FolderTreeNode[],
+    id: string
+  ): FolderTreeNode | null => {
+    for (const node of nodes) {
+      if (node.id === id) return node;
+      if (node.children) {
+        const found = findFolderById(node.children, id);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+
+  // 本地添加复制后的文件夹
+  const addCopiedFolderToTree = (copiedFolder: FolderInfo, parentId: string | null) => {
+    const newNode: FolderTreeNode = {
+      ...copiedFolder,
+      children: undefined,
+      loading: false,
+      expanded: false,
+    };
+
+    setFolders((prev) => {
+      if (parentId === null) {
+        // 添加到根级别
+        return [...prev, newNode];
+      }
+
+      // 添加到指定父文件夹下
+      const addToParent = (nodes: FolderTreeNode[]): FolderTreeNode[] => {
+        return nodes.map((node) => {
+          if (node.id === parentId) {
+            return {
+              ...node,
+              children: [...(node.children || []), newNode],
+              sub_folders_count: (node.sub_folders_count || 0) + 1,
+            };
+          }
+          if (node.children) {
+            return { ...node, children: addToParent(node.children) };
+          }
+          return node;
+        });
+      };
+      return addToParent(prev);
+    });
+
+    // 确保父文件夹展开
+    if (parentId) {
+      setExpandedIds((prev) => {
+        const newSet = new Set(prev);
+        newSet.add(parentId);
+        return newSet;
+      });
+    }
+  };
+
+  // 内部复制文件夹处理
+  const handleCopyFolderInternal = async (folder: FolderInfo) => {
+    try {
+      const response = await copyFolderApi(projectId, folder.id);
+      if (response.success && response.data) {
+        toast.success(`文件夹 "${folder.name}" 复制成功`);
+        // 本地更新树
+        addCopiedFolderToTree(response.data, folder.parent_id || null);
+      } else {
+        toast.error("复制文件夹失败");
+      }
+    } catch (error) {
+      console.error("Failed to copy folder:", error);
+      toast.error("复制文件夹失败");
+    }
+  };
+
+  // 递归重新加载已展开的文件夹
+  const reloadExpandedFolders = async (nodes: FolderTreeNode[]): Promise<FolderTreeNode[]> => {
+    const reloadedNodes: FolderTreeNode[] = [];
+
+    for (const node of nodes) {
+      const isExpanded = expandedIds.has(node.id);
+      let children: FolderTreeNode[] | undefined = undefined;
+
+      // 如果文件夹是展开的，重新加载其子文件夹和自身的 api_endpoints
+      if (isExpanded && node.sub_folders_count > 0) {
+        try {
+          const response = await getFolders(projectId, folderType, node.id);
+          if (response.success && response.data) {
+            // 查找该文件夹的更新数据（包含 api_endpoints）
+            const updatedFolder = response.data.find((f) => f.id === node.id);
+
+            // 递归重新加载子文件夹
+            const childNodes = response.data.filter((c) => c.parent_id === node.id).map((c) => ({
+              ...c,
+              children: undefined,
+              loading: false,
+              expanded: false,
+            }));
+            children = await reloadExpandedFolders(childNodes);
+
+            reloadedNodes.push({
+              ...node,
+              // 更新 api_endpoints
+              ...(updatedFolder && {
+                api_endpoints: updatedFolder.api_endpoints,
+              }),
+              children,
+              loading: false,
+              expanded: isExpanded,
+            });
+            continue;
+          }
+        } catch (error) {
+          console.error(`Failed to reload children for folder ${node.id}:`, error);
+        }
+      }
+
+      reloadedNodes.push({
+        ...node,
+        children,
+        loading: false,
+        expanded: isExpanded,
+      });
+    }
+
+    return reloadedNodes;
+  };
+
+  // 刷新文件夹树（保持展开状态）
+  const refresh = async () => {
+    try {
+      setLoading(true);
+      const response = await getFolders(projectId, folderType);
+      if (response.success && response.data) {
+        // 过滤根文件夹
+        const rootFolders = response.data.filter(
+          (f) => f.parent_id === null || f.parent_id === undefined
+        );
+
+        // 转换为树节点
+        const rootNodes = rootFolders.map((f) => ({
+          ...f,
+          children: undefined,
+          loading: false,
+          expanded: false,
+        }));
+
+        // 递归重新加载已展开的文件夹
+        const reloadedNodes = await reloadExpandedFolders(rootNodes);
+        setFolders(reloadedNodes);
+      }
+    } catch (error) {
+      console.error("Failed to refresh folders:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 本地更新单个文件夹
+  const updateFolderLocally = (folderId: string, updates: Partial<FolderInfo>) => {
+    setFolders((prev) => {
+      const updateNode = (nodes: FolderTreeNode[]): FolderTreeNode[] => {
+        return nodes.map((node) => {
+          if (node.id === folderId) {
+            return { ...node, ...updates };
+          }
+          if (node.children) {
+            return { ...node, children: updateNode(node.children) };
+          }
+          return node;
+        });
+      };
+      return updateNode(prev);
+    });
+  };
+
+  // 本地删除文件夹
+  const removeFolderLocally = (folderId: string) => {
+    setFolders((prev) => {
+      const removeNode = (nodes: FolderTreeNode[]): FolderTreeNode[] => {
+        return nodes.filter((node) => {
+          if (node.id === folderId) return false;
+          if (node.children) {
+            node.children = removeNode(node.children);
+          }
+          return true;
+        });
+      };
+      return removeNode(prev);
+    });
+  };
+
+  // 本地添加文件夹
+  const addFolderLocally = (folder: FolderInfo, parentId: string | null) => {
+    const newNode: FolderTreeNode = {
+      ...folder,
+      children: undefined,
+      loading: false,
+      expanded: false,
+    };
+
+    setFolders((prev) => {
+      if (parentId === null) {
+        return [...prev, newNode];
+      }
+      const addToParent = (nodes: FolderTreeNode[]): FolderTreeNode[] => {
+        return nodes.map((node) => {
+          if (node.id === parentId) {
+            return {
+              ...node,
+              children: [...(node.children || []), newNode],
+              sub_folders_count: (node.sub_folders_count || 0) + 1,
+            };
+          }
+          if (node.children) {
+            return { ...node, children: addToParent(node.children) };
+          }
+          return node;
+        });
+      };
+      return addToParent(prev);
+    });
+
+    // 展开父文件夹
+    if (parentId) {
+      setExpandedIds((prev) => {
+        const newSet = new Set(prev);
+        newSet.add(parentId);
+        return newSet;
+      });
+    }
+  };
+
+  // 本地移动文件夹
+  const moveFolderLocally = (folderId: string, newParentId: string | null, updatedFolder: FolderInfo) => {
+    updateTreeAfterMove(folderId, newParentId, updatedFolder);
+  };
+
+  // 暴露方法给父组件
+  React.useImperativeHandle(ref, () => ({
+    refresh,
+    updateFolderLocally,
+    removeFolderLocally,
+    addFolderLocally,
+    moveFolderLocally,
+  }));
+
+  // 可拖动的文件夹节点组件
+  const DraggableFolderNode = ({
+    node,
+    level,
+  }: {
+    node: FolderTreeNode;
+    level: number;
+  }) => {
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging,
+      isOver,
+    } = useSortable({ id: node.id });
+
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      opacity: isDragging ? 0.5 : 1,
+    };
+
+    const isExpanded = expandedIds.has(node.id);
+    const isSelected = selectedFolderId === node.id;
+    const hasChildren = node.sub_folders_count > 0;
+
+    // 使用 dropState（state）来确定放置指示器
+    const isDropTarget = dropState.overId === node.id && activeId !== node.id;
+    const currentDropPosition = isDropTarget ? dropState.dropPosition : null;
+
+    return (
+      <div key={node.id}>
+        {/* 上方放置指示器 */}
+        {isDropTarget && currentDropPosition === 'before' && (
+          <div className="h-0.5 bg-primary mb-1" style={{ marginLeft: `${level * 12 + 8}px` }} />
+        )}
+
+        <div
+          ref={setNodeRef}
+          style={style}
+          data-folder-id={node.id}
+          className={cn(
+            "group relative grid rounded-md py-1.5 text-sm hover:bg-accent transition-colors",
+            isSelected && "bg-accent",
+            isDropTarget && currentDropPosition === 'inside' && "bg-primary/10 ring-2 ring-primary"
+          )}
+          // 使用 CSS Grid：左侧固定结构 + 中间名称弹性 + 右侧数字固定
+          // grid-template-columns: [缩进][拖动][展开][图标+名称+菜单 弹性] [数字固定]
+        >
+          <div
+            className="flex items-center col-start-1"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: `${level * 12}px 20px 20px minmax(0, 1fr) 50px`,
+              alignItems: 'center',
+              paddingRight: '8px',
+              paddingLeft: '8px',
+            }}
+          >
+            {/* 1. 缩进占位 */}
+            <div />
+
+            {/* 2. 拖动手柄 */}
+            <div
+              {...attributes}
+              {...listeners}
+              className="cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 flex items-center justify-center"
+            >
+              <GripVertical className="h-4 w-4 text-muted-foreground" />
+            </div>
+
+            {/* 3. 展开/折叠按钮 */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-5 w-5 p-0"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (hasChildren) {
+                  toggleExpand(node);
+                }
+              }}
+            >
+              {hasChildren ? (
+                isExpanded ? (
+                  <ChevronDown className="h-4 w-4" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                )
+              ) : (
+                <span className="w-4" />
+              )}
+            </Button>
+
+            {/* 4. 文件夹图标 + 名称（截断）+ 三点菜单（紧挨名称） */}
+            <div className="flex items-center gap-1 min-w-0 overflow-hidden">
+              <div
+                className="flex cursor-pointer items-center gap-1 min-w-0 overflow-hidden"
+                onClick={() => onSelectFolder(node)}
+              >
+                {isExpanded ? (
+                  <FolderOpen className="h-4 w-4 shrink-0 text-primary" />
+                ) : (
+                  <Folder className="h-4 w-4 shrink-0 text-primary" />
+                )}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="truncate">{node.name}</span>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-xs">
+                    <p className="break-words">{node.name}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+
+              {/* 三点菜单 - 紧挨着名称 */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-5 w-5 shrink-0 opacity-0 group-hover:opacity-100 p-0"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <MoreVertical className="h-3.5 w-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-48">
+                  {/* 展开/折叠 */}
+                  <DropdownMenuItem
+                    onClick={() => handleExpandAll(node)}
+                    disabled={!hasChildren}
+                  >
+                    <ChevronsUpDown className="mr-2 h-4 w-4" />
+                    展开全部
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => handleCollapseAll(node)}
+                    disabled={!hasChildren}
+                  >
+                    <ChevronsDownUp className="mr-2 h-4 w-4" />
+                    折叠全部
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  {/* 创建操作 */}
+                  <DropdownMenuItem
+                    onClick={() => onCreateTestCase?.(node)}
+                  >
+                    <FileText className="mr-2 h-4 w-4" />
+                    创建测试用例
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onCreateFolder(node.id)}>
+                    <FolderPlus className="mr-2 h-4 w-4" />
+                    添加子文件夹
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  {/* 文件夹操作 */}
+                  <DropdownMenuItem onClick={() => handleCopyFolderInternal(node)}>
+                    <Copy className="mr-2 h-4 w-4" />
+                    复制文件夹
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onMoveFolder?.(node)}>
+                    <Move className="mr-2 h-4 w-4" />
+                    移动文件夹
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onEditFolder(node)}>
+                    <Pencil className="mr-2 h-4 w-4" />
+                    编辑文件夹
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  {/* 链接操作 */}
+                  <DropdownMenuItem onClick={() => handleCopyFolderURL(node)}>
+                    <Link className="mr-2 h-4 w-4" />
+                    复制文件夹 URL
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleShareViaPublicLink(node)}>
+                    <Share2 className="mr-2 h-4 w-4" />
+                    通过公共链接分享
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  {/* 删除 */}
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={() => onDeleteFolder(node)}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    删除
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
+            {/* 5. 统计数字 - 固定宽度，右对齐，始终可见 */}
+            <div className="text-xs text-muted-foreground text-right whitespace-nowrap">
+              {folderType === 'api_test' ? (
+                // API 测试模式：显示直接端点数(总端点数)
+                <>
+                  {node.api_endpoints?.length || 0}
+                  ({calculateTotalEndpoints(node)})
+                </>
+              ) : (
+                // 测试用例模式：显示直接用例数(总用例数)
+                <>
+                  {node.direct_cases_count}({node.cases_count})
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* 下方放置指示器 */}
+        {isDropTarget && currentDropPosition === 'after' && (
+          <div className="h-0.5 bg-primary mt-1" style={{ marginLeft: `${level * 12 + 8}px` }} />
+        )}
+
+        {/* 子节点 */}
+        {isExpanded && node.children && (
+          <div>
+            {node.children.map((child) => (
+              <DraggableFolderNode key={child.id} node={child} level={level + 1} />
+            ))}
+          </div>
+        )}
+
+        {/* API 端点节点 */}
+        {isExpanded && node.api_endpoints && node.api_endpoints.length > 0 && (
+          <div>
+            {node.api_endpoints.map((endpoint) => (
+              <div
+                key={endpoint.id}
+                className={cn(
+                  "group grid rounded-md py-1.5 text-sm hover:bg-accent transition-colors cursor-pointer",
+                  selectedAPIEndpointId === endpoint.id && "bg-accent"
+                )}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: `${(level + 1) * 12}px 20px 20px minmax(0, 1fr) 50px`,
+                  alignItems: 'center',
+                  paddingRight: '8px',
+                  paddingLeft: '8px',
+                }}
+                onClick={() => onSelectAPIEndpoint?.(endpoint.id)}
+              >
+                {/* 1. 缩进占位 */}
+                <div />
+
+                {/* 2. 拖动手柄占位 */}
+                <div />
+
+                {/* 3. 展开/折叠按钮占位 */}
+                <div className="flex items-center justify-center">
+                  <span className="w-4" />
+                </div>
+
+                {/* 4. 端点图标 + 名称 */}
+                <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
+                  <FileCode className="h-4 w-4 shrink-0 text-blue-500" />
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="truncate text-xs">{endpoint.display_name}</span>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-xs">
+                      <p className="break-words">{endpoint.display_name}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+
+                {/* 5. 统计数字 - 用例数和执行次数 */}
+                <div className="text-xs text-muted-foreground text-right whitespace-nowrap">
+                  {(() => {
+                    console.log(`[FolderTree] 渲染端点 ${endpoint.display_name}:`, {
+                      total_test_cases: endpoint.total_test_cases,
+                      total_test_runs: endpoint.total_test_runs
+                    });
+                    return `${endpoint.total_test_cases || 0}(${endpoint.total_test_runs || 0})`;
+                  })()}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // 获取所有文件夹ID（用于SortableContext）
+  const getAllFolderIds = (nodes: FolderTreeNode[]): string[] => {
+    const ids: string[] = [];
+    for (const node of nodes) {
+      ids.push(node.id);
+      if (node.children) {
+        ids.push(...getAllFolderIds(node.children));
+      }
+    }
+    return ids;
+  };
+
+  return (
+    <TooltipProvider delayDuration={300}>
+      <div className="flex h-full flex-col border-r">
+        {/* 头部 */}
+        <div className="flex items-center justify-between border-b p-3">
+          <h3 className="font-medium">文件夹</h3>
+          {folderType === 'api_test' && onCreateAPIEndpoint ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => onCreateFolder()}>
+                  <FolderPlus className="mr-2 h-4 w-4" />
+                  创建文件夹
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onCreateAPIEndpoint()}>
+                  <FileCode className="mr-2 h-4 w-4" />
+                  创建接口
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => onCreateFolder()}
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+
+        {/* 文件夹树 */}
+        <ScrollArea className="flex-1">
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
+            onDragEnd={handleDragEnd}
+          >
+            <div className="p-2">
+              {/* 全部用例 */}
+              <div
+                className={cn(
+                  "flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent",
+                  selectedFolderId === null && "bg-accent"
+                )}
+                onClick={() => onSelectFolder(null)}
+              >
+                <Folder className="h-4 w-4 text-muted-foreground" />
+                <span>全部用例</span>
+              </div>
+
+              {/* 文件夹列表 */}
+              {loading ? (
+                <div className="py-4 text-center text-sm text-muted-foreground">
+                  加载中...
+                </div>
+              ) : folders.length === 0 ? (
+                <div className="py-4 text-center text-sm text-muted-foreground">
+                  暂无文件夹
+                </div>
+              ) : (
+                <SortableContext
+                  items={getAllFolderIds(folders)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {folders.map((folder) => (
+                    <DraggableFolderNode key={folder.id} node={folder} level={0} />
+                  ))}
+                </SortableContext>
+              )}
+            </div>
+
+            {/* 拖动覆盖层 */}
+            <DragOverlay>
+              {activeId ? (
+                <div className="rounded-md bg-accent p-2 shadow-lg">
+                  <div className="flex items-center gap-2">
+                    <Folder className="h-4 w-4 text-primary" />
+                    <span className="text-sm font-medium">
+                      {findFolderById(folders, activeId)?.name}
+                    </span>
+                  </div>
+                </div>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
+        </ScrollArea>
+      </div>
+    </TooltipProvider>
+  );
+});
+
+// NOTE  My80OmFIVnBZMlhsdEpUbXRiZm92b2s2VjJsR1ZnPT06ZmNiMmM3NGY=

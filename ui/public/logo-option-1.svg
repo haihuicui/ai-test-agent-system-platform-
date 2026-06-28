@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="o1g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#A78BFA"/>
+      <stop offset="100%" stop-color="#6366F1"/>
+    </linearGradient>
+    <linearGradient id="o1c" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#34F5C5"/>
+      <stop offset="100%" stop-color="#19C37D"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="#0F1729"/>
+  <!-- 放大镜 -->
+  <circle cx="28" cy="28" r="14" fill="none" stroke="url(#o1g)" stroke-width="3.4"/>
+  <line x1="38.5" y1="38.5" x2="50" y2="50" stroke="url(#o1g)" stroke-width="4.2" stroke-linecap="round"/>
+  <!-- 镜中对勾 -->
+  <path d="M21 28 l5 5 l10 -11" fill="none" stroke="url(#o1c)" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

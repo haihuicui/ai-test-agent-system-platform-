@@ -1,0 +1,1270 @@
+{
+  "status": "success",
+  "message": "Query processed successfully",
+  "data": {
+    "entities": [
+      {
+        "entity_name": "签收物流单-签收地点选择#1",
+        "entity_type": "event",
+        "description": "签收物流单时选择签收地点的用例。<SEP>签收物流单-签收地点选择#1是一个测试用例，用于验证物流签收时地点的选择功能。",
+        "source_id": "chunk-e1771468661d88df8215fa4a5cca135e<SEP>chunk-92e6e3db074dcb3f773e65cd02f1d64e",
+        "file_path": "s29测试用例.pdf",
+        "created_at": 1779875341
+      },
+      {
+        "entity_name": "TD管(空)",
+        "entity_type": "artifact",
+        "description": "TD管(空)是一种空的样本容器，在运输物品中用于存放样本。<SEP>一种空的采样容器，用于运输。<SEP>空状态的TD管，默认运输条件为常温。<SEP>TD管(空)是一种运输物品，表示空的TD管。<SEP>TD管(空)是一种运输物品选项，表示空的TD管。<SEP>TD管(空)是一种物品类型，去除签收地点是精智未来时自动创建异常TD任务的逻辑。<SEP>一种空心的TD管，作为运输物品，数量为100，需在常温下运输。",
+        "source_id": "chunk-0d95f4eb4d9aad02bdb58e54d147f927<SEP>chunk-fd7ec210fa5159d9581c9e89a78dc114<SEP>chunk-21d7eeb1224b1f095d98f84674fe77de<SEP>chunk-fb152d63a007e2531b0c1f843e2757b2<SEP>chunk-c4aa042875f6a85468e02d7b0f395314<SEP>chunk-4d50a079f854b1a3a8503c339089f7a5",
+        "file_path": "s14测试用例.pdf<SEP>物流清单.pdf<SEP>物资流转（原物流管理）.pdf",
+        "created_at": 1782370379
+      },
+      {
+        "entity_name": "寄出地点/签收地点#1",
+        "entity_type": "event",
+        "description": "寄出地点/签收地点#1是一个测试用例，涉及可选地点的选择及权限验证。",
+        "source_id": "chunk-692b455010f79e1754ffe957eb1b4743",
+        "file_path": "s27测试用例.pdf",
+        "created_at": 1779874469
+      },
+      {
+        "entity_name": "新增物流单",
+        "entity_type": "concept",
+        "description": "新增物流单是苏玛罐管理中的操作，用于创建物流单据。<SEP>新增物流单是系统中的一个操作界面，用于创建新的物流单，需要填写寄出人、寄出地点、寄出时间、运输物品等信息。<SEP>在物流管理App中创建新物流订单的操作，其界面以弹窗形式呈现。<SEP>新增物流单是一个物流订单表单，用于录入寄出信息及运输物品。<SEP>新增物流单是主界面中的一个功能入口，用于创建新的物流订单。",
+        "source_id": "chunk-0114eaf1591780ecaa1b31cac0cb8618<SEP>chunk-fb152d63a007e2531b0c1f843e2757b2<SEP>chunk-435d24dca0bed5eb7c4661f812b984f0<SEP>chunk-2b65915c9ed3ebb0de80db9499550c5a<SEP>chunk-6d7450ab61062d7339186adb0eeac79d",
+        "file_path": "s25测试用例.pdf<SEP>物流清单.pdf<SEP>物资流转（原物流管理）.pdf",
+        "created_at": 1782370380
+      },
+      {
+        "entity_name": "当前地点",
+        "entity_type": "concept",
+        "description": "当前地点是系统核验的要素，在上传时进行校验。",
+        "source_id": "chunk-9348e364f3ce581b1904ae256496a838",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353447
+      },
+      {
+        "entity_name": "TD管管理模块",
+        "entity_type": "artifact",
+        "description": "TD管管理模块是Linus Studio中的一个功能模块，用于管理TD管的状态、钢号、老化次数等信息，包含表格、搜索栏、新增按钮和分页控件。",
+        "source_id": "chunk-bbbf90b08060b198817f0a010fc21bba",
+        "file_path": "XCloud_v1.2_Web.pdf",
+        "created_at": 1780025293
+      },
+      {
+        "entity_name": "物流单签收#1",
+        "entity_type": "event",
+        "description": "物流单签收#1是一个测试用例，用于验证不同签收结果下物流单状态的变化。",
+        "source_id": "chunk-bcd09be11e4cb8558024dc597bedd9ce",
+        "file_path": "s14测试用例.pdf",
+        "created_at": 1779865587
+      },
+      {
+        "entity_name": "新增按钮",
+        "entity_type": "artifact",
+        "description": "新增按钮是一个在多个系统界面中出现的交互控件，主要用于执行各类数据新增操作。其外观在不同页面中略有差异：在绝大多数页面（如检测项目列表、检测卡列表、阈值设置表格、客户列表、VOC列表、角色管理界面、首页、物联网卡记录页面、TD管记录页面等）中，该按钮以绿色呈现；但在关联采样点列表区域中，该按钮显示为蓝色并带有“+新增”文字标识。尽管颜色存在局部变化，其核心功能是一致的——在对应的数据列表或表格中新增一条记录。\n\n具体而言，新增按钮的功能随所在上下文而不同：在检测项目列表页面，它用于添加新的检测项目；在检测卡列表上方，它用于创建新检测卡；在阈值设置表格中，它用于添加新的风险等级行或阈值行；在客户列表页面，它用于创建新客户；在VOC列表页面，它用于添加新的VOC条目；在角色管理界面中，它用于添加新的系统角色；在首页上，它用于添加新的资产记录；此外，该按钮还可用于添加新的物联网卡记录、添加新的TD管记录，以及在关联采样点列表区域中添加新的采样点。所有描述均指向同一类型的交互控件，其统一作用是在对应数据集合中新增一条空白记录或条目，触发后续的编辑或保存操作。<SEP>界面右上角的绿色新增按钮，用于添加新的地点。<SEP>新增按钮是检测项目列表表格上的操作按钮，用于添加新的检测项目。",
+        "source_id": "chunk-78bbe22117f604c4dfa3a41cb7c0792e<SEP>chunk-ae1900530ec8911c41de1494a7ba191a<SEP>chunk-e2069afe10eaa42ddb6215155f9f4650<SEP>chunk-07abf266a2d9ba6a4b5e7b57e8bc9c12<SEP>chunk-2cd149afc5a41bc0776fe7db054725d1<SEP>chunk-5b6ba21adca3a0954467db9b1fec13ac<SEP>chunk-fe48a276b612ab90d6c6893677027ec8<SEP>chunk-a5a6d8f366859b57cb9bae2b65ab5ee4<SEP>chunk-1c27af6d31ba775ac9402dfb22640a07<SEP>chunk-c52786205ae1d7c9a89ec3503f782b67<SEP>chunk-b7070437d9240cd6d4a60b8684953bad<SEP>chunk-d27762f044c57ef77aedce40dae5f856<SEP>chunk-2b08e4db3688b615f2a888306461b8a1<SEP>chunk-8eda94313fe736b50786f0a5b1293e90<SEP>chunk-9b952a80d8daad97442300bd49623f0f<SEP>chunk-ed95db30f0b14b8d87233efbb6c1a52e<SEP>chunk-bbbf90b08060b198817f0a010fc21bba<SEP>chunk-77f41237ed37facdd7883fed04b9534f<SEP>chunk-9126d768e01884f501f0c584498ab22e",
+        "file_path": "s32测试用例.pdf<SEP>XMetrix_v2.1.pdf<SEP>XMetrix_v2.4.pdf<SEP>34.pdf<SEP>20.pdf<SEP>XCloud_2.0管理后台.pdf<SEP>XCloud_v1.2_Web.pdf<SEP>地点管理.pdf<SEP>检测项目列表.pdf",
+        "created_at": 1782357386
+      },
+      {
+        "entity_name": "排序物流单",
+        "entity_type": "event",
+        "description": "排序物流单是一个测试用例，支持按物流编号或寄出地点排序。",
+        "source_id": "chunk-4bc2988a9eb91ebea67175707d3422c8",
+        "file_path": "S31测试用例.pdf",
+        "created_at": 1779875984
+      },
+      {
+        "entity_name": "TD管(样本)",
+        "entity_type": "artifact",
+        "description": "一种装有样本的采样容器，用于运输。<SEP>装载样本的TD管，默认运输条件为干冰。<SEP>TD管(样本)是用于样本采集的TD管，与环境TD管区分。<SEP>TD管(样本)是采样后获得的样本，具有TD管号，用于后续检测。<SEP>TD管(样本)是一种容器，用于存放样本，需要权限研究才能访问。<SEP>TD管(样本)是一种运输物品，表示含有样本的TD管。<SEP>TD管(样本)是运输物品下拉选项之一，表示带有样本的TD管。",
+        "source_id": "chunk-0d95f4eb4d9aad02bdb58e54d147f927<SEP>chunk-21d7eeb1224b1f095d98f84674fe77de<SEP>chunk-936a82968227eb455c3c20bdf195b9df<SEP>chunk-36dfe62d33aa08c6e2c54fa92d67f9e1<SEP>chunk-692b455010f79e1754ffe957eb1b4743<SEP>chunk-fb152d63a007e2531b0c1f843e2757b2<SEP>chunk-435d24dca0bed5eb7c4661f812b984f0",
+        "file_path": "s14测试用例.pdf<SEP>s19测试用例.pdf<SEP>s27测试用例.pdf<SEP>物流清单.pdf",
+        "created_at": 1779963028
+      },
+      {
+        "entity_name": "查看物流单#1",
+        "entity_type": "event",
+        "description": "查看物流单#1是一个测试用例，包含多个步骤和预期，用于验证不同Tab下的查看权限。<SEP>查看物流单#1是一个测试用例，用于验证不同tab下物流单的可见范围。",
+        "source_id": "chunk-64127cbd8c43ee459300e98d21be5055<SEP>chunk-bcd09be11e4cb8558024dc597bedd9ce",
+        "file_path": "s14测试用例.pdf",
+        "created_at": 1779865586
+      },
+      {
+        "entity_name": "TD管列表",
+        "entity_type": "content",
+        "description": "TD管列表是老化批次关联的TD管数据列表，可空。<SEP>TD管列表是用户输入的一组TD管号，用于批量老化操作。<SEP>TD管列表是主内容区域的一个选项卡，用于展示所有TD管的状态、编号、使用次数和老化次数。",
+        "source_id": "chunk-14bee55c8769ffa847a6e21fdfc888d7<SEP>chunk-9724d30529fdde82fb9260f667f9f3c2<SEP>chunk-8588466962b40b1c04f5a8c3a5c40960",
+        "file_path": "s28测试用例.pdf<SEP>TD管管理-s52.pdf",
+        "created_at": 1782353621
+      },
+      {
+        "entity_name": "引用物流单",
+        "entity_type": "event",
+        "description": "引用物流单是一个测试用例，执行引用操作，作废当前物流单并创建新物流单，同时处理不符合信息。",
+        "source_id": "chunk-4bc2988a9eb91ebea67175707d3422c8",
+        "file_path": "S31测试用例.pdf",
+        "created_at": 1779875984
+      },
+      {
+        "entity_name": "新增",
+        "entity_type": "artifact",
+        "description": "新增是一种在系统中执行的操作或按钮，主要用于添加新的条目、任务或数据。具体而言，它可以在TD管列表中增加一行输入，用于创建新的TD管或使用记录；也可以作为设备台账页面上的按钮，用于添加新设备；此外，它还作为平台中的通用按钮，用于添加新条目。在字典管理权限的上下文中，新增是一个未选中的权限项。需要注意的是，新增操作在某些场景下存在限制，例如不允许对现有的RT对照表执行该操作。总体而言，新增的核心功能是向系统中引入新的元素或记录，但其具体应用范围和权限因上下文而异。<SEP>新增是一个按钮控件，用于添加新的标气记录。",
+        "source_id": "chunk-b2f34033d15b997bd208eb19a41a460a<SEP>chunk-14bee55c8769ffa847a6e21fdfc888d7<SEP>chunk-dd5486a83f744668de6e98b6b2da6679<SEP>chunk-442ba79a7c931acb0c2dc22835f6f0b1<SEP>chunk-601966ea2263a797992556bd87282e39<SEP>chunk-110f84fd89402f7bca6e74b7955639c3<SEP>chunk-fe9f8917e70f005203e189e82c531c99",
+        "file_path": "s14测试用例.pdf<SEP>s28测试用例.pdf<SEP>s30测试用例.pdf<SEP>XMetrix_v2.2.pdf<SEP>权限分配.pdf<SEP>XCloud_v1.2_Web.pdf<SEP>风险计算_用户管理.pdf<SEP>标气批次.pdf",
+        "created_at": 1782354125
+      },
+      {
+        "entity_name": "筛选物流单",
+        "entity_type": "event",
+        "description": "筛选物流单是一个测试用例，通过输入物流编号或寄件地点来搜索物流单。",
+        "source_id": "chunk-4bc2988a9eb91ebea67175707d3422c8",
+        "file_path": "S31测试用例.pdf",
+        "created_at": 1779875984
+      },
+      {
+        "entity_name": "TD管",
+        "entity_type": "artifact",
+        "description": "TD管，正式名称为热脱附管（Thermal Desorption Tube），是一种多功能气体采样容器，通常以试管或管状设备形式呈现，属于热脱附分析的核心耗材。其核心功能包括采集、存储、吸附和释放样本，尤其适用于环境采样中挥发性有机物（VOCs）的采集与富集，并能承担样本运输职责。此外，TD管可用于配气，可单独使用或与苏玛罐组合，常见于呼出气样本的收集场景，同时也可作为存放标准气体（标气）的管状存储容器。在呼吸分析样本采集过程中，TD管被用作样本容器，检测报告任务列表的筛选条件中包含“TD管号”字段。作为一种可更换的管道部件，当TD管被更换后，对应的测试记录中不再包含采样时间。\n\n在管理层面，TD管作为系统中的被管理资产，是TD管管理系统的核心对象，拥有唯一编号（称为TD管号或钢号），并包含生产厂商、采购时间、备注、标本编码、批次等属性字段。系统支持对TD管进行新增、删除、变更及作废操作，信息可编辑，状态可变更，允许重复管号但仍可正常新增。TD管具有多种工作状态，包括空闲、采样中、已吸附、解析中、待清洁、已使用、待领用、老化、检测、报废等，完整覆盖样本从采集、分析到清洁、报废的流程。根据使用场景，TD管分为样本、环境、空三种类型，可进行异常签收；发生漏气时系统会在对应槽位显示标记以便及时处理。在统计方面，TD管作为采样工具被纳入统计图表，并在TD管管理和TD管统计模块中统一管理，同时其编号也作为数据字段用于项目排序。\n\n在实际使用中，TD管可在TD管模式下分组使用，关联采样点和采集仪序列号。采样登记时需输入TD管号，且常与标本编码匹配用于质控数据填充。在检测任务中，TD管绑定样本并累计使用次数，同时涉及老化任务、使用记录等操作。其编号可作为筛选条件精确匹配检测批次中的检测任务，相关检测项目称为TD管检测项目。在物流和任务分配中，TD管作为样本容器流转，在采样和任务分配时被选择，并在TD管清单中统一管理。此外，在Linus Studio系统中，TD管也作为一个选项卡出现，代表设备或样本的管理记录。<SEP>是一种用于气体分析的设备配件，可在设备中绑定或移除，并记录其使用情况。<SEP>热脱附管，在程序指南中涉及添加、移除、日志记录，在表单中作为下拉选择项。<SEP>TD管是用于气体采样的管状设备，具有唯一编号，采样后作为样本载体。<SEP>TD管是一种实验室采样管，在物流系统中作为容器，具有TD管号用于标识。<SEP>TD管是候选列表中显示的一种容器类型，用于装载标准气体。<SEP>TD管是物流管理系统中跟踪的物料之一，通常用于实验室样品采集。",
+        "source_id": "chunk-27c59dcdfafb9c0a15b7a7b7c2556265<SEP>chunk-e6da75081ef9086fb4c053d66225410d<SEP>chunk-1f178322d0546ae1a3b26405a9605df5<SEP>chunk-4a0ebaa8ba6f2ebe27d676efd6c2a657<SEP>chunk-9ac3543964f6578ff22a5d63fab1f482<SEP>chunk-4f50aa87e0ee4778d3ba75cfda3f3db7<SEP>chunk-fe910910c810e98985a3f75d5c55591a<SEP>chunk-608d8b00ae661453836d5b8f7f6475e8<SEP>chunk-9841933cd514da80792231df2319ddf7<SEP>chunk-713cc4d5874b2e8382535b5cb04f1d44<SEP>chunk-3db2fced39f60198ed351afb9b4b0902<SEP>chunk-ae4bf2d83feb510b33d7defba968c75d<SEP>chunk-0d95f4eb4d9aad02bdb58e54d147f927<SEP>chunk-666c50ace1109e21891c724670cd9d32<SEP>chunk-3b3b2b1c18e50a2fdf34af33ba40aa65<SEP>chunk-bb93b2f88bdc92af899f21f668e0ab50<SEP>chunk-e415c8fe3fc12b16c3057e5fc9ec3a9c<SEP>chunk-2c01d7368da5fc92474ddd99f63da1a1<SEP>chunk-36dfe62d33aa08c6e2c54fa92d67f9e1<SEP>chunk-d5900916f1bfc5a54dd14b301fab07a1<SEP>chunk-96183638fe0bad99dc9dd93987f96370<SEP>chunk-08584584f481d5d939e49a8cfc37e2a0<SEP>chunk-ad7edd3628a44e67eb079f7e15108bbd<SEP>chunk-2daa345b401e8ad5329fa25aa5170937<SEP>chunk-0114eaf1591780ecaa1b31cac0cb8618<SEP>chunk-b73fa84f2e62cd8ee612d0bf57ed0648<SEP>chunk-6db3ee750aef8f127faedf3621a7c5c0<SEP>chunk-b3ab54c816fb2f928fa5ee967dbf58bf<SEP>chunk-4abc228dd0a85238abfd8addc34e74eb<SEP>chunk-26a6decf77438bd3bac48f9ed3f86be6<SEP>chunk-b012500077ed86a8d05fd45b1247c317<SEP>chunk-2fc8fba7af5bfa57922c97b13e6e4334<SEP>chunk-de5451b1ed2c4025218262cc3487312a<SEP>chunk-7d7a61c58995feeb84f48700728f7994<SEP>chunk-14bee55c8769ffa847a6e21fdfc888d7<SEP>chunk-313e136ae906bd5efc0871114ed295c9<SEP>chunk-32cfe9c230757a58bf202973c03bc901<SEP>chunk-928ed73f7d7cf62923d69f6f0b891515<SEP>chunk-fc4eb9a96dc69fd533da68772ec7db9e<SEP>chunk-880e5b4b63b3acd3d1053062446a08e3<SEP>chunk-d52e262d8f84c56a07e9d1fcfa1d4c46<SEP>chunk-ac2879d32fa6a2c40f73b13fb3540420<SEP>chunk-cbb67cd8f9b8131bf16184690e43b844<SEP>chunk-16ff5c12ad7d01482cf463b2df5804bf<SEP>chunk-178c65a3e81e250323604cd2f11bcaa5<SEP>chunk-73fb19bf0bb38af0fc1cd9b6bb748850<SEP>chunk-e48afb317d199e4e4c4c788428bc1e17<SEP>chunk-747de3c44d79b5d050b0e4538a90442a<SEP>chunk-c120c7253784f58def105061cf29312e<SEP>chunk-8d297d210ef5e52f44dc279e31f09f78<SEP>chunk-e58db34a9f3e91a9b8f14bbbec786879<SEP>chunk-6330a4d3bf6145fe8641ed1d37d8408e<SEP>chunk-110f84fd89402f7bca6e74b7955639c3<SEP>chunk-75d9d50112f120f44a8ca0cc3f1cba20<SEP>chunk-2ce08d210ffd0c6b46a04789f77908c5<SEP>chunk-230bf3a1b6c213c7c39fa13151204d69<SEP>chunk-9348e364f3ce581b1904ae256496a838<SEP>chunk-e42a3f57c53bd0366445d2e282ab82b5<SEP>chunk-1df499ac615e547e5e253c3beb1bb6d1<SEP>chunk-088e0ab2436e9439bb626c378cb62e06<SEP>chunk-7fed9dde4ee6383fdb1981070ce2fe42<SEP>chunk-6d7450ab61062d7339186adb0eeac79d",
+        "file_path": "S37测试用例.pdf<SEP>S38测试用例.pdf<SEP>S39测试用例.pdf<SEP>S40测试用例.pdf<SEP>S41测试用例.pdf<SEP>S42测试用例.pdf<SEP>s11测试用例.pdf<SEP>s13测试用例.pdf<SEP>s14测试用例.pdf<SEP>s16测试用例.pdf<SEP>s17测试用例.pdf<SEP>s19测试用例.pdf<SEP>s22测试用例.pdf<SEP>s23测试用例.pdf<SEP>s24测试用例.pdf<SEP>s25测试用例.pdf<SEP>s26测试用例.pdf<SEP>s27测试用例.pdf<SEP>s28测试用例.pdf<SEP>s30测试用例.pdf<SEP>S31测试用例.pdf<SEP>s32测试用例.pdf<SEP>s34测试用例.pdf<SEP>S36测试用例.pdf<SEP>XMetrix_v2.2.pdf<SEP>XMetrix_v2.4.pdf<SEP>XCloud_v1.2_小程序.pdf<SEP>TD管管理.pdf<SEP>采样登记.pdf<SEP>环境样本采集.pdf<SEP>检测任务可选设备.pdf<SEP>谱图导入.pdf<SEP>实验项目.pdf<SEP>物流清单优化.pdf<SEP>采样登记优化.pdf<SEP>XCloud_2.0管理后台.pdf<SEP>XCloud_v1.2_Web.pdf<SEP>PROII_历史列表.pdf<SEP>标气管理.pdf<SEP>TD管管理-s52.pdf<SEP>检测报告任务列表.pdf<SEP>设备管理.pdf<SEP>实验项目s52.pdf<SEP>物资流转（原物流管理）.pdf",
+        "created_at": 1782370377
+      },
+      {
+        "entity_name": "当前所在位置排序#1",
+        "entity_type": "concept",
+        "description": "测试用例，用于验证当前位置排序功能，按拼音顺序排列，预期展示排序。",
+        "source_id": "chunk-8a98c36ae38c8eeb25db9aa4216ffaf9",
+        "file_path": "s22测试用例.pdf",
+        "created_at": 1779869564
+      },
+      {
+        "entity_name": "物流单",
+        "entity_type": "artifact",
+        "description": "物流单是物流管理系统中的核心记录与单据，主要用于管理运输流程中的物流信息。它通常包含寄件信息、收件信息、运输物品、签收状态等字段，部分单据还涉及清单、图片、运输条件等附加内容。物流单的状态可划分为未提交、待签收、已签收等，用户可以对物流单进行查看、删除、编辑、保存、提交、签收、修改或作废等操作。新增物流单后，对应物品的状态会变为“运输中”；签收后，单据信息不再允许变更，但签收前可手动修改样本信息。\n\n物流单的应用场景涵盖多种物品的运输，包括TD管（环境样本）、标气、苏玛罐以及一般样本等。在特定场景下，物流单专用于运输TD管或标气，并包含相应的签收信息；其中，签收地点常设定为“精智”。综合而言，物流单是记录运输物品从寄出到签收全过程的关键凭证，适用于环境监测、气体管理等多个领域。<SEP>物流单是物流管理中的记录，包含多个字段如期望目的地、物流编码等。<SEP>物流单用于管理物流信息。<SEP>物流单是记录物流信息的单据，包含物流编号、寄件地点、寄出地点等字段，可进行作废、引用等操作。<SEP>物流单是在提交检测任务后自动创建的单据，包含寄送地点、签收地点、寄送方式、快递编号等信息。",
+        "source_id": "chunk-0d95f4eb4d9aad02bdb58e54d147f927<SEP>chunk-4e945c9f07a671e06aee8ca691e7c2e0<SEP>chunk-21d7eeb1224b1f095d98f84674fe77de<SEP>chunk-666c50ace1109e21891c724670cd9d32<SEP>chunk-b2f34033d15b997bd208eb19a41a460a<SEP>chunk-64127cbd8c43ee459300e98d21be5055<SEP>chunk-bcd09be11e4cb8558024dc597bedd9ce<SEP>chunk-3b3b2b1c18e50a2fdf34af33ba40aa65<SEP>chunk-936a82968227eb455c3c20bdf195b9df<SEP>chunk-ad7edd3628a44e67eb079f7e15108bbd<SEP>chunk-25f1cb1e406256cd87fd263bebaf4db1<SEP>chunk-82f6c62693aee5d1c5d071b22f5f55aa<SEP>chunk-0114eaf1591780ecaa1b31cac0cb8618<SEP>chunk-6db3ee750aef8f127faedf3621a7c5c0<SEP>chunk-4abc228dd0a85238abfd8addc34e74eb<SEP>chunk-26a6decf77438bd3bac48f9ed3f86be6<SEP>chunk-2fc8fba7af5bfa57922c97b13e6e4334<SEP>chunk-de5451b1ed2c4025218262cc3487312a<SEP>chunk-9724d30529fdde82fb9260f667f9f3c2<SEP>chunk-e1771468661d88df8215fa4a5cca135e<SEP>chunk-4bc2988a9eb91ebea67175707d3422c8<SEP>chunk-1df499ac615e547e5e253c3beb1bb6d1",
+        "file_path": "s14测试用例.pdf<SEP>s16测试用例.pdf<SEP>s19测试用例.pdf<SEP>s23测试用例.pdf<SEP>s24测试用例.pdf<SEP>s25测试用例.pdf<SEP>s26测试用例.pdf<SEP>s28测试用例.pdf<SEP>s29测试用例.pdf<SEP>S31测试用例.pdf<SEP>实验项目s52.pdf",
+        "created_at": 1782368372
+      },
+      {
+        "entity_name": "按采样点名称搜索#1",
+        "entity_type": "event",
+        "description": "按采样点名称搜索#1是一个测试用例，用于验证通过采样点名称模糊搜索物流单。",
+        "source_id": "chunk-bcd09be11e4cb8558024dc597bedd9ce",
+        "file_path": "s14测试用例.pdf",
+        "created_at": 1779865587
+      },
+      {
+        "entity_name": "TD管管理",
+        "entity_type": "concept",
+        "description": "TD管管理是SP+系统中的一个功能模块，同时也是呼析云左侧边栏导航菜单中归属于资产管理下的子模块，并在精智未来云管理后台（亦称CLOUD精智未来管理后台或精智·未来云平台）中作为独立模块运行。该模块专门用于管理TD管的相关功能，涵盖导入、校验、预览、查看、编辑等操作，并支持使用记录、库存管理、分配和回收等用例。作为一个基于Web的管理系统，TD管管理旨在集中管理TD管的信息，包括其库存状态、分配流程、回收处理以及物流跟踪，从而实现对TD管全生命周期的有效管控。此外，该模块通过列表形式展示TD管及其使用记录，便于用户进行全面的查看与操作。<SEP>平台中专门用于管理TD管使用的模块。<SEP>TD管管理是系统的功能模块，用于管理TD管的编号、状态、老化信息。<SEP>TD管管理是资产管理下的一个子菜单项，用于管理TD管，在左侧导航栏中显示。",
+        "source_id": "chunk-5a956e38fde5b20399e4f71b1cd1177c<SEP>chunk-ae4bf2d83feb510b33d7defba968c75d<SEP>chunk-08584584f481d5d939e49a8cfc37e2a0<SEP>chunk-6db3ee750aef8f127faedf3621a7c5c0<SEP>chunk-e1a7e6682d118fd3b55bd49650662382<SEP>chunk-747de3c44d79b5d050b0e4538a90442a<SEP>chunk-c120c7253784f58def105061cf29312e<SEP>chunk-0c662b5f29265f3c1c6ad4d1245265db<SEP>chunk-230bf3a1b6c213c7c39fa13151204d69<SEP>chunk-fe9f8917e70f005203e189e82c531c99<SEP>chunk-e42a3f57c53bd0366445d2e282ab82b5<SEP>chunk-1df499ac615e547e5e253c3beb1bb6d1<SEP>chunk-26c65f6eddc40b3d8a0046c002cf294c",
+        "file_path": "S41测试用例.pdf<SEP>s13测试用例.pdf<SEP>s22测试用例.pdf<SEP>s25测试用例.pdf<SEP>XMetrix_v2.3.pdf<SEP>检测任务.pdf<SEP>检测任务可选设备.pdf<SEP>谱图导入.pdf<SEP>PID管理.pdf<SEP>标气管理.pdf<SEP>TD管管理-s52.pdf<SEP>标气批次.pdf<SEP>设备管理.pdf<SEP>实验项目s52.pdf",
+        "created_at": 1782368485
+      },
+      {
+        "entity_name": "期望目的地",
+        "entity_type": "concept",
+        "description": "期望目的地是物流单上的一个字段，可选择精智未来的采样点。",
+        "source_id": "chunk-9724d30529fdde82fb9260f667f9f3c2",
+        "file_path": "s28测试用例.pdf",
+        "created_at": 1779874918
+      },
+      {
+        "entity_name": "添加TD管表单",
+        "entity_type": "content",
+        "description": "一个模态窗口表单，包含4步向导(上传文件、校验数据、预览数据、数据导入)，用于新增TD管入库。<SEP>添加TD管表单是用于新建TD管记录的界面表单，包含上传文件、校验数据、预览数据和数据导入四个步骤。",
+        "source_id": "chunk-d814d2084b65f0a722c021e6e15bd49e<SEP>chunk-6a2ff776c502afb11af8ca8ef1fc3657",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353617
+      },
+      {
+        "entity_name": "当前所在地点",
+        "entity_type": "data",
+        "description": "标气当前所在的位置，用于筛选。<SEP>当前所在地点是TD管的一个字段，记录TD管当前所处位置。",
+        "source_id": "chunk-82f6c62693aee5d1c5d071b22f5f55aa<SEP>chunk-928ed73f7d7cf62923d69f6f0b891515",
+        "file_path": "s24测试用例.pdf<SEP>S31测试用例.pdf",
+        "created_at": 1779875982
+      },
+      {
+        "entity_name": "物流记录表",
+        "entity_type": "content",
+        "description": "物流记录表是物流管理页面中的主要数据表格，包含状态、物流编号、寄件地点、寄出人、寄出时间等列。",
+        "source_id": "chunk-7fed9dde4ee6383fdb1981070ce2fe42",
+        "file_path": "物资流转（原物流管理）.pdf",
+        "created_at": 1782370374
+      },
+      {
+        "entity_name": "接收地点",
+        "entity_type": "concept",
+        "description": "接收地点是物流单中需要手动选择的地点字段，默认值为精智未来(广州)创新与产品交付中心。<SEP>下拉菜单字段，用于选择样本的接收地点，默认值为“1”。",
+        "source_id": "chunk-b0796330cda0340c4ad2143ff2d4f9e3<SEP>chunk-9aa524cd4c2d9e1172c59818b33ebaa1",
+        "file_path": "检测报告任务列表.pdf<SEP>质控任务列表.pdf",
+        "created_at": 1782373243
+      },
+      {
+        "entity_name": "待签收的物资源转单",
+        "entity_type": "concept",
+        "description": "待签收的物资源转单是新增TD管时可同时创建的物料转移单据，用于后续签收流程。",
+        "source_id": "chunk-d814d2084b65f0a722c021e6e15bd49e",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353618
+      },
+      {
+        "entity_name": "签收物流单-筛选#1",
+        "entity_type": "content",
+        "description": "签收物流单-筛选#1是一个测试用例，用于验证物流单的筛选功能。",
+        "source_id": "chunk-92e6e3db074dcb3f773e65cd02f1d64e",
+        "file_path": "s29测试用例.pdf",
+        "created_at": 1779875351
+      },
+      {
+        "entity_name": "TD管(钢号121414)",
+        "entity_type": "artifact",
+        "description": "Linus Studio系统中编号121414的TD管，状态正常，用于采样检测等实验。",
+        "source_id": "chunk-f56a582b25affb3d7776cf745988dfb3",
+        "file_path": "XCloud_v1.2_Web.pdf",
+        "created_at": 1780025277
+      },
+      {
+        "entity_name": "按物流编号搜搜索#1",
+        "entity_type": "event",
+        "description": "按物流编号搜搜索#1是一个测试用例，用于验证通过物流编号模糊搜索物流单。",
+        "source_id": "chunk-bcd09be11e4cb8558024dc597bedd9ce",
+        "file_path": "s14测试用例.pdf",
+        "created_at": 1779865587
+      },
+      {
+        "entity_name": "新增操作",
+        "entity_type": "concept",
+        "description": "用于新增图表或检测批次的操作，需输入图表名称、单位、开始统计状态、结束统计状态。<SEP>使用记录表下方的“+新增”按钮，用于添加新的使用记录。",
+        "source_id": "chunk-0187389780978bb38e9b14e0fe20df8c<SEP>chunk-f56a582b25affb3d7776cf745988dfb3",
+        "file_path": "s30测试用例.pdf<SEP>XCloud_v1.2_Web.pdf",
+        "created_at": 1780025278
+      },
+      {
+        "entity_name": "新增物流单-快递单号OCR识别#1",
+        "entity_type": "event",
+        "description": "新增物流单并通过OCR识别快递单号的用例。",
+        "source_id": "chunk-e1771468661d88df8215fa4a5cca135e",
+        "file_path": "s29测试用例.pdf",
+        "created_at": 1779875341
+      },
+      {
+        "entity_name": "新增物流单表单 (New Logistics Order Form) (image)",
+        "entity_type": "image",
+        "description": "The image shows a web form for creating a new logistics order (新增物流单) in a management system. It captures sender (郑桐), location, time, and item details (TD tubes, sampling tools, etc.) with mandatory fields. Used for logistics management, likely in a scientific/medical context (sample transport).",
+        "source_id": "chunk-435d24dca0bed5eb7c4661f812b984f0",
+        "file_path": "物流清单.pdf",
+        "created_at": 1779962895
+      },
+      {
+        "entity_name": "新增物流单#1",
+        "entity_type": "event",
+        "description": "新增物流单#1是新增物流单功能的测试用例。",
+        "source_id": "chunk-4abc228dd0a85238abfd8addc34e74eb",
+        "file_path": "s26测试用例.pdf",
+        "created_at": 1779874152
+      },
+      {
+        "entity_name": "TD管管理系统",
+        "entity_type": "artifact",
+        "description": "一个用于管理TD管(实验室/医院资产)的web系统，包含使用记录和基本信息选项卡。",
+        "source_id": "chunk-2499f26f1c9e0fd9cb26e6a854427d70",
+        "file_path": "TD管管理.pdf",
+        "created_at": 1779946162
+      },
+      {
+        "entity_name": "期望签收地点",
+        "entity_type": "concept",
+        "description": "期望签收地点是物流单上的一个字段，可按其筛选和排序。",
+        "source_id": "chunk-9724d30529fdde82fb9260f667f9f3c2",
+        "file_path": "s28测试用例.pdf",
+        "created_at": 1779874918
+      },
+      {
+        "entity_name": "TD管(异常)",
+        "entity_type": "artifact",
+        "description": "TD管(异常)是一种物品类型，可选所有状态TD管，签收地点为检测实验室或内部部门时自动创建异常TD任务。",
+        "source_id": "chunk-c4aa042875f6a85468e02d7b0f395314",
+        "file_path": "物资流转（原物流管理）.pdf",
+        "created_at": 1782370163
+      },
+      {
+        "entity_name": "按订单编号搜索#1",
+        "entity_type": "event",
+        "description": "按订单编号搜索#1是一个测试用例，用于验证通过订单编号模糊搜索物流单。",
+        "source_id": "chunk-bcd09be11e4cb8558024dc597bedd9ce",
+        "file_path": "s14测试用例.pdf",
+        "created_at": 1779865587
+      },
+      {
+        "entity_name": "批量添加TD管号",
+        "entity_type": "method",
+        "description": "批量添加TD管号是TD管(异常)物品类型允许的操作，用于添加多个TD管编号。",
+        "source_id": "chunk-c4aa042875f6a85468e02d7b0f395314",
+        "file_path": "物资流转（原物流管理）.pdf",
+        "created_at": 1782370165
+      },
+      {
+        "entity_name": "增加运输中节点#1",
+        "entity_type": "event",
+        "description": "增加运输中节点#1是一个测试用例，涉及新增物流单并记录日志。",
+        "source_id": "chunk-692b455010f79e1754ffe957eb1b4743",
+        "file_path": "s27测试用例.pdf",
+        "created_at": 1779874473
+      },
+      {
+        "entity_name": "查看详情按钮",
+        "entity_type": "artifact",
+        "description": "查看详情按钮是TD管管理模块表格中操作列下的按钮，用于查看TD管的详细信息。",
+        "source_id": "chunk-bbbf90b08060b198817f0a010fc21bba",
+        "file_path": "XCloud_v1.2_Web.pdf",
+        "created_at": 1780025293
+      },
+      {
+        "entity_name": "删除未提交的物流单#1",
+        "entity_type": "event",
+        "description": "删除未提交的物流单#1是一个测试用例，验证删除未提交物流单的功能。<SEP>删除未提交的物流单#1是一个测试用例，用于验证删除未提交物流单的成功性。",
+        "source_id": "chunk-64127cbd8c43ee459300e98d21be5055<SEP>chunk-bcd09be11e4cb8558024dc597bedd9ce",
+        "file_path": "s14测试用例.pdf",
+        "created_at": 1779865586
+      },
+      {
+        "entity_name": "编辑",
+        "entity_type": "artifact",
+        "description": "编辑是系统提供的一种通用操作功能，主要用于修改已有的记录或信息。在采样登记中，编辑操作用于修改已有记录；在TD管管理中，编辑操作用于修改TD管的基本信息，包括生产厂商、采购时间、备注等字段。在任务信息修改场景中，编辑功能允许用户修改TD管并输入相应的修改原因。此外，编辑作为权限表格中的操作按钮，可编辑已有的权限记录；在RT对照表管理中，编辑功能用于修改RT对照表的字段值或整体数据。在用户界面和平台中，编辑通常以按钮形式呈现，用于修改各类条目信息。综上，编辑是一个跨模块的通用修改操作，适用于多种数据对象的维护与更新。<SEP>这是一个操作名称，用于编辑项目或用户信息。<SEP>编辑是表单界面中的灰色按钮，位于右上角，用于触发编辑操作。<SEP>数据整理或样本处理的相关方法或操作。<SEP>系统提供的操作选项，用于修改用户信息。<SEP>编辑是对TD管信息或使用记录进行修改的操作。<SEP>编辑是操作列中的一个按钮，用于修改校准记录的内容。",
+        "source_id": "chunk-413fad31d606975041f20644735f254d<SEP>chunk-ae4bf2d83feb510b33d7defba968c75d<SEP>chunk-c6417e4b8c60bd7579cc3ab30335b2a3<SEP>chunk-0114eaf1591780ecaa1b31cac0cb8618<SEP>chunk-e58a92662b7be26f58448548ade2c841<SEP>chunk-442ba79a7c931acb0c2dc22835f6f0b1<SEP>chunk-cbb67cd8f9b8131bf16184690e43b844<SEP>chunk-16ff5c12ad7d01482cf463b2df5804bf<SEP>chunk-601966ea2263a797992556bd87282e39<SEP>chunk-20c459fad9c08d0c97d0fc465ececb0d<SEP>chunk-92853832877a1d4eebebd6b988c03d90<SEP>chunk-110f84fd89402f7bca6e74b7955639c3<SEP>chunk-4c90e3fdb3f66cdba119f5e0fa2b2326",
+        "file_path": "S40测试用例.pdf<SEP>s13测试用例.pdf<SEP>s25测试用例.pdf<SEP>s32测试用例.pdf<SEP>33.pdf<SEP>XMetrix_v2.2.pdf<SEP>权限分配.pdf<SEP>实验项目.pdf<SEP>XCloud_2.0管理后台.pdf<SEP>XCloud_v1.2_Web.pdf<SEP>定标记录.pdf",
+        "created_at": 1780050586
+      },
+      {
+        "entity_name": "签收物流单#1",
+        "entity_type": "event",
+        "description": "签收物流单#1是签收物流单功能的测试用例。",
+        "source_id": "chunk-4abc228dd0a85238abfd8addc34e74eb",
+        "file_path": "s26测试用例.pdf",
+        "created_at": 1779874152
+      },
+      {
+        "entity_name": "自定义:物流管理",
+        "entity_type": "concept",
+        "description": "自定义:物流管理是s17测试用例的一个分支模块，涉及物品自定义和分页测试。<SEP>自定义功能，用于物流管理。",
+        "source_id": "chunk-3231304701e191f70b5d0d87c456c4a9<SEP>chunk-313e136ae906bd5efc0871114ed295c9",
+        "file_path": "s17测试用例.pdf<SEP>s28测试用例.pdf",
+        "created_at": 1779874906
+      },
+      {
+        "entity_name": "按人名搜索#1",
+        "entity_type": "event",
+        "description": "按人名搜索#1是一个测试用例，用于验证通过寄出人或签收人模糊搜索物流单。",
+        "source_id": "chunk-bcd09be11e4cb8558024dc597bedd9ce",
+        "file_path": "s14测试用例.pdf",
+        "created_at": 1779865587
+      },
+      {
+        "entity_name": "自定义物品: TD管(空)",
+        "entity_type": "artifact",
+        "description": "自定义物品: TD管(空)是一种用于测试的物品类型，在物流/Web模块下具有分页用例。",
+        "source_id": "chunk-3231304701e191f70b5d0d87c456c4a9",
+        "file_path": "s17测试用例.pdf",
+        "created_at": 1779866937
+      },
+      {
+        "entity_name": "用例:编辑TD管-当前所在地点#1",
+        "entity_type": "content",
+        "description": "用例:编辑TD管-当前所在地点#1是一个测试用例，包含步骤(编辑TD管-当前所在地点，点击提交)和预期结果(正常提交)。",
+        "source_id": "chunk-d758cde2dccb09c9add1548c7afdc993",
+        "file_path": "S41测试用例.pdf",
+        "created_at": 1779863299
+      },
+      {
+        "entity_name": "基本信息选项卡",
+        "entity_type": "content",
+        "description": "系统中的一个选项卡，当前处于未激活状态。",
+        "source_id": "chunk-2499f26f1c9e0fd9cb26e6a854427d70",
+        "file_path": "TD管管理.pdf",
+        "created_at": 1779946163
+      },
+      {
+        "entity_name": "编辑TD管-当前所在地点#1",
+        "entity_type": "event",
+        "description": "编辑TD管-当前所在地点#1是一个测试用例，验证编辑TD管当前所在地点并提交的功能。",
+        "source_id": "chunk-5a956e38fde5b20399e4f71b1cd1177c",
+        "file_path": "S41测试用例.pdf",
+        "created_at": 1779863158
+      },
+      {
+        "entity_name": "自定义:TD管管理",
+        "entity_type": "concept",
+        "description": "自定义:TD管管理是自定义:XCloud下的子模块，涉及TD管的管理和测试。<SEP>自定义:TD管管理是一个功能模块，包含新增、校验数据、数据预览、查看、编辑子模块。<SEP>一种自定义标签，用于TD管管理模块。",
+        "source_id": "chunk-d758cde2dccb09c9add1548c7afdc993<SEP>chunk-528dfbccb40ac50452cdbfbcec76be91<SEP>chunk-928ed73f7d7cf62923d69f6f0b891515",
+        "file_path": "S41测试用例.pdf<SEP>s13测试用例.pdf<SEP>S31测试用例.pdf",
+        "created_at": 1779875980
+      },
+      {
+        "entity_name": "当前所在地点字段",
+        "entity_type": "data",
+        "description": "新增的字段，用于记录设备或样本的当前位置。",
+        "source_id": "chunk-1ec8a6cbd2dcfd8a4214e8379626158d",
+        "file_path": "s21测试用例.pdf",
+        "created_at": 1779868576
+      },
+      {
+        "entity_name": "自定义:TD管管理/自定义:新增",
+        "entity_type": "concept",
+        "description": "自定义:TD管管理下的子模块，包含下载模版、上传文件、清空待导入数据、表单内重复、校验数据下一步等测试用例。",
+        "source_id": "chunk-528dfbccb40ac50452cdbfbcec76be91",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865345
+      },
+      {
+        "entity_name": "所在地点",
+        "entity_type": "data",
+        "description": "标气使用记录中的所在地点字段。<SEP>设备或TD管所处的物理位置。",
+        "source_id": "chunk-82f6c62693aee5d1c5d071b22f5f55aa<SEP>chunk-e42a3f57c53bd0366445d2e282ab82b5",
+        "file_path": "s24测试用例.pdf<SEP>设备管理.pdf",
+        "created_at": 1782366791
+      },
+      {
+        "entity_name": "查看详情",
+        "entity_type": "event",
+        "description": "查看详情是打开TD管或设备详细信息的操作。",
+        "source_id": "chunk-110f84fd89402f7bca6e74b7955639c3",
+        "file_path": "XCloud_v1.2_Web.pdf",
+        "created_at": 1780024694
+      },
+      {
+        "entity_name": "实际签收地点",
+        "entity_type": "location",
+        "description": "实际签收地点是物流单上的一个字段，标识实际签收的位置。",
+        "source_id": "chunk-9724d30529fdde82fb9260f667f9f3c2",
+        "file_path": "s28测试用例.pdf",
+        "created_at": 1779874918
+      },
+      {
+        "entity_name": "查看",
+        "entity_type": "concept",
+        "description": "查看是TD管管理中的一个操作，用于展示已导入的TD管数据列表。<SEP>查看是一个用例，用于浏览任务详细信息。<SEP>查看是一个链接，用于查看问题记录的详细信息。<SEP>查看是字典管理权限中的一个未选中权限项。",
+        "source_id": "chunk-ae4bf2d83feb510b33d7defba968c75d<SEP>chunk-6a0bdd94818406989167e9cf2801ec24<SEP>chunk-bb8fd6dba85e60f38fe787432fb73d72<SEP>chunk-cb02f7e1a96d990201b84f50ddf7d7f6",
+        "file_path": "s13测试用例.pdf<SEP>s20测试用例.pdf<SEP>XCloud_v1.2_Web.pdf<SEP>风险计算_用户管理.pdf",
+        "created_at": 1780538624
+      },
+      {
+        "entity_name": "编辑未签收的物流单#1",
+        "entity_type": "event",
+        "description": "编辑未签收的物流单#1是一个测试用例，验证修改待签收物流单的功能。<SEP>编辑未签收的物流单#1是一个测试用例，用于验证修改物流单的权限控制。",
+        "source_id": "chunk-64127cbd8c43ee459300e98d21be5055<SEP>chunk-bcd09be11e4cb8558024dc597bedd9ce",
+        "file_path": "s14测试用例.pdf",
+        "created_at": 1779865586
+      },
+      {
+        "entity_name": "管理后台",
+        "entity_type": "concept",
+        "description": "管理后台是精智·未来云（亦称LOU口精智·未来云、CLOUD精智·未来云或CLOUD精智未来云）系统的后台管理界面，专供系统管理员操作使用。作为整个平台的核心管理入口，该界面集成了权限分配与系统配置功能，支持字典列表、通知中心、字典配置、检测项目设置、订单管理、标气批次管理等子模块的维护与数据管理。同时，管理后台还涵盖系统设置、用户管理、任务中心、资产管理、实验项目、项目管理等行政任务，确保后台各项业务有序运行。其名称通常以文字标题形式出现在精智·未来云管理平台中，明确标示后台管理部分。\n\n此外，该管理后台也被描述为呼析云平台的管理界面，包含系统管理、角色管理等模块，并提供菜单导航功能，用于配置和监控各项任务。平台的核心模块负责配置和监控各类操作，同时支持检测任务的管理。多个描述均指出管理后台是精智·未来云系统的后台管理系统，集成了多个管理模块，通过菜单导航实现功能访问。整体而言，管理后台作为平台的后台管理界面，是系统管理员进行日常运维与业务配置的核心工具。",
+        "source_id": "chunk-300889d4aaad356f00f4749ee317a7c8<SEP>chunk-96183638fe0bad99dc9dd93987f96370<SEP>chunk-e58a92662b7be26f58448548ade2c841<SEP>chunk-d6d523557052db74e45839e93e0e9798<SEP>chunk-ac2879d32fa6a2c40f73b13fb3540420<SEP>chunk-e1a7e6682d118fd3b55bd49650662382<SEP>chunk-747de3c44d79b5d050b0e4538a90442a<SEP>chunk-d855a997cc9843a5f05a566c2936a6b5<SEP>chunk-c120c7253784f58def105061cf29312e<SEP>chunk-601966ea2263a797992556bd87282e39<SEP>chunk-20c459fad9c08d0c97d0fc465ececb0d<SEP>chunk-0429211d298a75fab4ea458c198ba5e9<SEP>chunk-0c662b5f29265f3c1c6ad4d1245265db<SEP>chunk-cd9e8478e61a6763e8e3d1f4d5ba1af8<SEP>chunk-230bf3a1b6c213c7c39fa13151204d69<SEP>chunk-9b2395baba9953b4a001c4c7432c7253<SEP>chunk-38d4722d5f628d38f49e5e997294c803<SEP>chunk-2e5710d727f36ba8ec8dab65ff9e3af2<SEP>chunk-e42a3f57c53bd0366445d2e282ab82b5<SEP>chunk-48478c3f994bdb657be43333618d93aa<SEP>chunk-2f1ebe47b8d9924eff96e67cb79b08bd",
+        "file_path": "s12测试用例.pdf<SEP>s19测试用例.pdf<SEP>s32测试用例.pdf<SEP>s34测试用例.pdf<SEP>S36测试用例.pdf<SEP>TD管管理.pdf<SEP>检测任务.pdf<SEP>检测任务可选设备.pdf<SEP>谱图导入.pdf<SEP>权限分配.pdf<SEP>实验项目.pdf<SEP>PID管理.pdf<SEP>标气管理.pdf<SEP>检测任务s52.pdf<SEP>角色管理.pdf<SEP>老化任务.pdf<SEP>设备管理.pdf<SEP>异常TD任务.pdf",
+        "created_at": 1782371042
+      },
+      {
+        "entity_name": "查看签收成功详情#1",
+        "entity_type": "event",
+        "description": "查看签收成功详情#1是一个测试用例，用于验证签收成功物流单的详情字段展示。",
+        "source_id": "chunk-bcd09be11e4cb8558024dc597bedd9ce",
+        "file_path": "s14测试用例.pdf",
+        "created_at": 1779865588
+      },
+      {
+        "entity_name": "自定义物品: TD管(样本)",
+        "entity_type": "artifact",
+        "description": "自定义物品: TD管(样本)是另一种测试物品类型，同样具有分页用例。",
+        "source_id": "chunk-3231304701e191f70b5d0d87c456c4a9",
+        "file_path": "s17测试用例.pdf",
+        "created_at": 1779866937
+      },
+      {
+        "entity_name": "新增设备",
+        "entity_type": "method",
+        "description": "添加新设备的操作。<SEP>在设备管理中执行的操作，用于在系统中添加新设备。",
+        "source_id": "chunk-300889d4aaad356f00f4749ee317a7c8<SEP>chunk-e42a3f57c53bd0366445d2e282ab82b5",
+        "file_path": "s12测试用例.pdf<SEP>设备管理.pdf",
+        "created_at": 1782366786
+      },
+      {
+        "entity_name": "TD管(商检BS样本)",
+        "entity_type": "artifact",
+        "description": "TD管(商检BS样本)是物流单中新增的物品，用于存储商检BS样本。<SEP>TD管(商检BS样本)是一种物品类型，仅商检样本接收时自动创建。",
+        "source_id": "chunk-b0796330cda0340c4ad2143ff2d4f9e3<SEP>chunk-c4aa042875f6a85468e02d7b0f395314",
+        "file_path": "检测报告任务列表.pdf<SEP>物资流转（原物流管理）.pdf",
+        "created_at": 1782370163
+      }
+    ],
+    "relationships": [
+      {
+        "src_id": "TD管",
+        "tgt_id": "所在地点",
+        "description": "TD管的所在地点在操作中保持不变。",
+        "keywords": "位置信息,绑定关系",
+        "weight": 1.0,
+        "source_id": "chunk-e42a3f57c53bd0366445d2e282ab82b5",
+        "file_path": "设备管理.pdf",
+        "created_at": 1782366809
+      },
+      {
+        "src_id": "TD管(空)",
+        "tgt_id": "新增物流单",
+        "description": "新增物流单的运输物品下拉选项中包含TD管(空)。",
+        "keywords": "包含,选项",
+        "weight": 1.0,
+        "source_id": "chunk-435d24dca0bed5eb7c4661f812b984f0",
+        "file_path": "物流清单.pdf",
+        "created_at": 1779963050
+      },
+      {
+        "src_id": "期望目的地",
+        "tgt_id": "精智未来",
+        "description": "期望目的地的可选值包括精智未来的采样点。",
+        "keywords": "可选值,来源",
+        "weight": 1.0,
+        "source_id": "chunk-9724d30529fdde82fb9260f667f9f3c2",
+        "file_path": "s28测试用例.pdf",
+        "created_at": 1779874931
+      },
+      {
+        "src_id": "TD管管理模块",
+        "tgt_id": "新增按钮",
+        "description": "TD管管理模块提供新增按钮用于添加新TD管。",
+        "keywords": "包含功能",
+        "weight": 1.0,
+        "source_id": "chunk-bbbf90b08060b198817f0a010fc21bba",
+        "file_path": "XCloud_v1.2_Web.pdf",
+        "created_at": 1780025459
+      },
+      {
+        "src_id": "期望目的地",
+        "tgt_id": "物流单",
+        "description": "物流单包含期望目的地字段，用于指定期望的目的地。",
+        "keywords": "字段包含,属性",
+        "weight": 1.0,
+        "source_id": "chunk-9724d30529fdde82fb9260f667f9f3c2",
+        "file_path": "s28测试用例.pdf",
+        "created_at": 1779874930
+      },
+      {
+        "src_id": "TD管(样本)",
+        "tgt_id": "新增物流单",
+        "description": "新增物流单的运输物品下拉选项包含TD管(样本)。",
+        "keywords": "包含,选项",
+        "weight": 1.0,
+        "source_id": "chunk-435d24dca0bed5eb7c4661f812b984f0",
+        "file_path": "物流清单.pdf",
+        "created_at": 1779963054
+      },
+      {
+        "src_id": "删除未提交的物流单#1",
+        "tgt_id": "物流单",
+        "description": "删除未提交的物流单#1用例中，进入未提交的物流单详情并点击删除，可成功删除。",
+        "keywords": "删除操作",
+        "weight": 1.0,
+        "source_id": "chunk-64127cbd8c43ee459300e98d21be5055",
+        "file_path": "s14测试用例.pdf",
+        "created_at": 1779865627
+      },
+      {
+        "src_id": "TD管列表",
+        "tgt_id": "新增",
+        "description": "用户点击新增，在TD管列表下方新增一行输入。",
+        "keywords": "增加行",
+        "weight": 1.0,
+        "source_id": "chunk-14bee55c8769ffa847a6e21fdfc888d7",
+        "file_path": "s28测试用例.pdf",
+        "created_at": 1779874920
+      },
+      {
+        "src_id": "实际签收地点",
+        "tgt_id": "物流单",
+        "description": "物流单包含实际签收地点字段，标识实际签收位置。",
+        "keywords": "字段包含,属性",
+        "weight": 1.0,
+        "source_id": "chunk-9724d30529fdde82fb9260f667f9f3c2",
+        "file_path": "s28测试用例.pdf",
+        "created_at": 1779874930
+      },
+      {
+        "src_id": "TD管",
+        "tgt_id": "新增",
+        "description": "可以通过新增操作创建新的TD管。",
+        "keywords": "创建,操作",
+        "weight": 1.0,
+        "source_id": "chunk-110f84fd89402f7bca6e74b7955639c3",
+        "file_path": "XCloud_v1.2_Web.pdf",
+        "created_at": 1780024712
+      },
+      {
+        "src_id": "物流单",
+        "tgt_id": "编辑未签收的物流单#1",
+        "description": "编辑未签收的物流单#1用例中，进入自己或他人创建的待签收物流单详情并点击修改，可正常修改。",
+        "keywords": "编辑操作",
+        "weight": 1.0,
+        "source_id": "chunk-64127cbd8c43ee459300e98d21be5055",
+        "file_path": "s14测试用例.pdf",
+        "created_at": 1779865627
+      },
+      {
+        "src_id": "TD管",
+        "tgt_id": "物流单",
+        "description": "物流单包含TD管信息，支持修改和作废，但已签收的物流单不可修改。",
+        "keywords": "关联,包含",
+        "weight": 1.0,
+        "source_id": "chunk-2fc8fba7af5bfa57922c97b13e6e4334",
+        "file_path": "s26测试用例.pdf",
+        "created_at": 1779874190
+      },
+      {
+        "src_id": "排序物流单",
+        "tgt_id": "物流单",
+        "description": "排序物流单操作对物流单进行排序。",
+        "keywords": "排列,排序",
+        "weight": 1.0,
+        "source_id": "chunk-4bc2988a9eb91ebea67175707d3422c8",
+        "file_path": "S31测试用例.pdf",
+        "created_at": 1779875998
+      },
+      {
+        "src_id": "TD管管理",
+        "tgt_id": "添加TD管表单",
+        "description": "TD管管理模块提供添加TD管表单作为创建TD管记录的界面入口。",
+        "keywords": "功能模块,界面元素",
+        "weight": 1.0,
+        "source_id": "chunk-d814d2084b65f0a722c021e6e15bd49e",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353631
+      },
+      {
+        "src_id": "引用物流单",
+        "tgt_id": "物流单",
+        "description": "引用物流单操作将当前物流单作废并创建新物流单。",
+        "keywords": "作废,创建",
+        "weight": 1.0,
+        "source_id": "chunk-4bc2988a9eb91ebea67175707d3422c8",
+        "file_path": "S31测试用例.pdf",
+        "created_at": 1779875997
+      },
+      {
+        "src_id": "TD管",
+        "tgt_id": "TD管管理模块",
+        "description": "TD管管理模块通过表格、搜索和操作界面管理多个TD管实例。",
+        "keywords": "管理,跟踪",
+        "weight": 1.0,
+        "source_id": "chunk-bbbf90b08060b198817f0a010fc21bba",
+        "file_path": "XCloud_v1.2_Web.pdf",
+        "created_at": 1780025457
+      },
+      {
+        "src_id": "物流单",
+        "tgt_id": "筛选物流单",
+        "description": "筛选物流单操作通过条件搜索物流单。",
+        "keywords": "搜索,筛选",
+        "weight": 1.0,
+        "source_id": "chunk-4bc2988a9eb91ebea67175707d3422c8",
+        "file_path": "S31测试用例.pdf",
+        "created_at": 1779875997
+      },
+      {
+        "src_id": "TD管",
+        "tgt_id": "物流记录表",
+        "description": "物流记录表跟踪TD管的运输状态和流转信息。",
+        "keywords": "物料追踪,物流运输",
+        "weight": 1.0,
+        "source_id": "chunk-7fed9dde4ee6383fdb1981070ce2fe42",
+        "file_path": "物资流转（原物流管理）.pdf",
+        "created_at": 1782370386
+      },
+      {
+        "src_id": "期望签收地点",
+        "tgt_id": "物流单",
+        "description": "物流单包含期望签收地点字段，用于筛选和排序。",
+        "keywords": "字段包含,属性",
+        "weight": 1.0,
+        "source_id": "chunk-9724d30529fdde82fb9260f667f9f3c2",
+        "file_path": "s28测试用例.pdf",
+        "created_at": 1779874931
+      },
+      {
+        "src_id": "待签收的物资源转单",
+        "tgt_id": "添加TD管表单",
+        "description": "新增TD管时，添加TD管表单可同时创建待签收的物资源转单。",
+        "keywords": "关联创建,物料流转",
+        "weight": 1.0,
+        "source_id": "chunk-d814d2084b65f0a722c021e6e15bd49e",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353633
+      },
+      {
+        "src_id": "期望目的地",
+        "tgt_id": "采样点",
+        "description": "期望目的地字段的可选值包括有权限研究的采样点。",
+        "keywords": "包含,可选值",
+        "weight": 1.0,
+        "source_id": "chunk-9724d30529fdde82fb9260f667f9f3c2",
+        "file_path": "s28测试用例.pdf",
+        "created_at": 1779874933
+      },
+      {
+        "src_id": "TD管(钢号121414)",
+        "tgt_id": "新增操作",
+        "description": "可通过新增操作为TD管添加新的使用记录。",
+        "keywords": "数据管理,记录添加",
+        "weight": 1.0,
+        "source_id": "chunk-f56a582b25affb3d7776cf745988dfb3",
+        "file_path": "XCloud_v1.2_Web.pdf",
+        "created_at": 1780025352
+      },
+      {
+        "src_id": "当前所在地点",
+        "tgt_id": "标气",
+        "description": "标气可通过当前所在地点字段进行筛选。",
+        "keywords": "属性,筛选",
+        "weight": 1.0,
+        "source_id": "chunk-82f6c62693aee5d1c5d071b22f5f55aa",
+        "file_path": "s24测试用例.pdf",
+        "created_at": 1779870459
+      },
+      {
+        "src_id": "TD管(空)",
+        "tgt_id": "新增物流单表单 (New Logistics Order Form) (image)",
+        "description": "Entity TD管(空) belongs to 新增物流单表单 (New Logistics Order Form) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-435d24dca0bed5eb7c4661f812b984f0",
+        "file_path": "物流清单.pdf",
+        "created_at": 1779963057
+      },
+      {
+        "src_id": "所在地点",
+        "tgt_id": "标气",
+        "description": "标气的使用记录中会记录所在地点。",
+        "keywords": "使用记录,属性",
+        "weight": 1.0,
+        "source_id": "chunk-82f6c62693aee5d1c5d071b22f5f55aa",
+        "file_path": "s24测试用例.pdf",
+        "created_at": 1779870461
+      },
+      {
+        "src_id": "TD管",
+        "tgt_id": "TD管管理",
+        "description": "TD管管理模块负责管理TD管的使用和状态。",
+        "keywords": "管理,管理对象",
+        "weight": 1.0,
+        "source_id": "chunk-08584584f481d5d939e49a8cfc37e2a0",
+        "file_path": "s22测试用例.pdf",
+        "created_at": 1779869595
+      },
+      {
+        "src_id": "寄出地点/签收地点#1",
+        "tgt_id": "物流管理",
+        "description": "物流管理模块下包含寄出地点/签收地点#1这个测试用例。",
+        "keywords": "包含,测试用例",
+        "weight": 1.0,
+        "source_id": "chunk-692b455010f79e1754ffe957eb1b4743",
+        "file_path": "s27测试用例.pdf",
+        "created_at": 1779874487
+      },
+      {
+        "src_id": "TD管",
+        "tgt_id": "TD管管理系统",
+        "description": "TD管管理系统用于对TD管进行全生命周期的操作记录和状态跟踪。",
+        "keywords": "管理,资产跟踪",
+        "weight": 1.0,
+        "source_id": "chunk-2499f26f1c9e0fd9cb26e6a854427d70",
+        "file_path": "TD管管理.pdf",
+        "created_at": 1779946174
+      },
+      {
+        "src_id": "TD管管理",
+        "tgt_id": "编辑TD管-当前所在地点#1",
+        "description": "该测试用例属于TD管管理模块，验证编辑TD管当前所在地点并提交的功能。",
+        "keywords": "功能测试,归属关系",
+        "weight": 1.0,
+        "source_id": "chunk-5a956e38fde5b20399e4f71b1cd1177c",
+        "file_path": "S41测试用例.pdf",
+        "created_at": 1779863166
+      },
+      {
+        "src_id": "TD管(异常)",
+        "tgt_id": "批量添加TD管号",
+        "description": "TD管(异常)物品类型允许使用批量添加TD管号功能。",
+        "keywords": "功能关联,操作允许",
+        "weight": 1.0,
+        "source_id": "chunk-c4aa042875f6a85468e02d7b0f395314",
+        "file_path": "物资流转（原物流管理）.pdf",
+        "created_at": 1782370173
+      },
+      {
+        "src_id": "任务日志",
+        "tgt_id": "增加运输中节点#1",
+        "description": "任务日志模块下包含增加运输中节点#1测试用例。",
+        "keywords": "包含,测试用例",
+        "weight": 1.0,
+        "source_id": "chunk-692b455010f79e1754ffe957eb1b4743",
+        "file_path": "s27测试用例.pdf",
+        "created_at": 1779874491
+      },
+      {
+        "src_id": "TD管管理模块",
+        "tgt_id": "查看详情按钮",
+        "description": "TD管管理模块的表格操作列中包含查看详情按钮。",
+        "keywords": "功能,包含",
+        "weight": 1.0,
+        "source_id": "chunk-bbbf90b08060b198817f0a010fc21bba",
+        "file_path": "XCloud_v1.2_Web.pdf",
+        "created_at": 1780025460
+      },
+      {
+        "src_id": "寄出地点/签收地点#1",
+        "tgt_id": "小程序",
+        "description": "小程序平台下包含寄出地点/签收地点#1测试用例。",
+        "keywords": "包含,测试用例",
+        "weight": 1.0,
+        "source_id": "chunk-692b455010f79e1754ffe957eb1b4743",
+        "file_path": "s27测试用例.pdf",
+        "created_at": 1779874488
+      },
+      {
+        "src_id": "TD管管理",
+        "tgt_id": "编辑",
+        "description": "TD管管理模块中，通过编辑操作修改TD管的基本信息，包括生产厂商、采购时间、备注。",
+        "keywords": "功能操作,数据修改",
+        "weight": 1.0,
+        "source_id": "chunk-ae4bf2d83feb510b33d7defba968c75d",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865191
+      },
+      {
+        "src_id": "S41测试用例_测试流程图 (image)",
+        "tgt_id": "用例:编辑TD管-当前所在地点#1",
+        "description": "Entity 用例:编辑TD管-当前所在地点#1 belongs to S41测试用例_测试流程图 (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-d758cde2dccb09c9add1548c7afdc993",
+        "file_path": "S41测试用例.pdf",
+        "created_at": 1779863312
+      },
+      {
+        "src_id": "自定义:物流管理",
+        "tgt_id": "自定义物品: TD管(空)",
+        "description": "自定义:物流管理模块下包含自定义物品: TD管(空)作为测试物品。",
+        "keywords": "包含",
+        "weight": 1.0,
+        "source_id": "chunk-3231304701e191f70b5d0d87c456c4a9",
+        "file_path": "s17测试用例.pdf",
+        "created_at": 1779866942
+      },
+      {
+        "src_id": "Sample Reception UI in METRIX 精智·呼析云 2.16.0 (image)",
+        "tgt_id": "接收地点",
+        "description": "Entity 接收地点 belongs to Sample Reception UI in METRIX 精智·呼析云 2.16.0 (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-9aa524cd4c2d9e1172c59818b33ebaa1",
+        "file_path": "质控任务列表.pdf",
+        "created_at": 1782373290
+      },
+      {
+        "src_id": "TD管管理系统",
+        "tgt_id": "基本信息选项卡",
+        "description": "TD管管理系统包含基本信息选项卡，用于查看TD管的基本信息。",
+        "keywords": "包含,系统功能",
+        "weight": 1.0,
+        "source_id": "chunk-2499f26f1c9e0fd9cb26e6a854427d70",
+        "file_path": "TD管管理.pdf",
+        "created_at": 1779946171
+      },
+      {
+        "src_id": "当前所在地点",
+        "tgt_id": "用例:基本信息添加新字段#1",
+        "description": "该测试用例验证当前所在地点字段取当前值。",
+        "keywords": "字段定义,测试验证",
+        "weight": 1.0,
+        "source_id": "chunk-928ed73f7d7cf62923d69f6f0b891515",
+        "file_path": "S31测试用例.pdf",
+        "created_at": 1779875995
+      },
+      {
+        "src_id": "自定义:TD管管理",
+        "tgt_id": "自定义:TD管管理/自定义:新增",
+        "description": "自定义:TD管管理包含自定义:新增子模块。",
+        "keywords": "包含,子模块",
+        "weight": 1.0,
+        "source_id": "chunk-528dfbccb40ac50452cdbfbcec76be91",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865349
+      },
+      {
+        "src_id": "用例:编辑TD管-当前所在地点#1",
+        "tgt_id": "自定义:TD管管理",
+        "description": "自定义:TD管管理模块包含测试用例“用例:编辑TD管-当前所在地点#1”。",
+        "keywords": "包含,测试用例归属",
+        "weight": 1.0,
+        "source_id": "chunk-d758cde2dccb09c9add1548c7afdc993",
+        "file_path": "S41测试用例.pdf",
+        "created_at": 1779863306
+      },
+      {
+        "src_id": "TD管",
+        "tgt_id": "查看详情",
+        "description": "可以通过查看详情操作查看TD管的详细信息。",
+        "keywords": "操作,查看",
+        "weight": 1.0,
+        "source_id": "chunk-110f84fd89402f7bca6e74b7955639c3",
+        "file_path": "XCloud_v1.2_Web.pdf",
+        "created_at": 1780024713
+      },
+      {
+        "src_id": "地点管理",
+        "tgt_id": "当前地点",
+        "description": "当前地点是地点管理模块中的要素之一。",
+        "keywords": "功能归属",
+        "weight": 1.0,
+        "source_id": "chunk-9348e364f3ce581b1904ae256496a838",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353449
+      },
+      {
+        "src_id": "TD管管理",
+        "tgt_id": "查看",
+        "description": "TD管管理模块中，通过查看操作展示已导入的TD管数据列表。",
+        "keywords": "功能操作,数据查看",
+        "weight": 1.0,
+        "source_id": "chunk-ae4bf2d83feb510b33d7defba968c75d",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865191
+      },
+      {
+        "src_id": "接收地点",
+        "tgt_id": "样本接收界面",
+        "description": "接收地点字段是样本接收界面的必填输入项。",
+        "keywords": "表单字段",
+        "weight": 1.0,
+        "source_id": "chunk-9aa524cd4c2d9e1172c59818b33ebaa1",
+        "file_path": "质控任务列表.pdf",
+        "created_at": 1782373286
+      },
+      {
+        "src_id": "TD管管理",
+        "tgt_id": "管理后台",
+        "description": "管理后台包含TD管管理模块。",
+        "keywords": "包含",
+        "weight": 1.0,
+        "source_id": "chunk-0c662b5f29265f3c1c6ad4d1245265db",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350044
+      },
+      {
+        "src_id": "web",
+        "tgt_id": "寄出地点/签收地点#1",
+        "description": "web平台下包含寄出地点/签收地点#1测试用例。",
+        "keywords": "包含,测试用例",
+        "weight": 1.0,
+        "source_id": "chunk-692b455010f79e1754ffe957eb1b4743",
+        "file_path": "s27测试用例.pdf",
+        "created_at": 1779874488
+      },
+      {
+        "src_id": "自定义:物流管理",
+        "tgt_id": "自定义物品: TD管(样本)",
+        "description": "自定义:物流管理模块下包含自定义物品: TD管(样本)作为测试物品。",
+        "keywords": "包含",
+        "weight": 1.0,
+        "source_id": "chunk-3231304701e191f70b5d0d87c456c4a9",
+        "file_path": "s17测试用例.pdf",
+        "created_at": 1779866942
+      },
+      {
+        "src_id": "内部人员",
+        "tgt_id": "查看物流单#1",
+        "description": "内部人员执行查看物流单#1用例，验证不同tab下的查看权限。",
+        "keywords": "执行",
+        "weight": 1.0,
+        "source_id": "chunk-bcd09be11e4cb8558024dc597bedd9ce",
+        "file_path": "s14测试用例.pdf",
+        "created_at": 1779865630
+      },
+      {
+        "src_id": "TD管",
+        "tgt_id": "新增设备",
+        "description": "执行新增设备操作时，会在TD管管理的使用记录中增加记录。",
+        "keywords": "操作关联,记录更新",
+        "weight": 1.0,
+        "source_id": "chunk-e42a3f57c53bd0366445d2e282ab82b5",
+        "file_path": "设备管理.pdf",
+        "created_at": 1782366805
+      },
+      {
+        "src_id": "快速创建物流单",
+        "tgt_id": "接收地点",
+        "description": "快速创建物流单功能需要填写接收地点字段，以指定目的地。",
+        "keywords": "功能涉及,字段设置",
+        "weight": 1.0,
+        "source_id": "chunk-b0796330cda0340c4ad2143ff2d4f9e3",
+        "file_path": "检测报告任务列表.pdf",
+        "created_at": 1782356113
+      },
+      {
+        "src_id": "TD管(商检BS样本)",
+        "tgt_id": "快速创建物流单",
+        "description": "快速创建物流单中新增的物品为TD管(商检BS样本)，用于存放样本。",
+        "keywords": "功能涉及,物品关联",
+        "weight": 1.0,
+        "source_id": "chunk-b0796330cda0340c4ad2143ff2d4f9e3",
+        "file_path": "检测报告任务列表.pdf",
+        "created_at": 1782356114
+      },
+      {
+        "src_id": "内部人员",
+        "tgt_id": "删除未提交的物流单#1",
+        "description": "内部人员执行删除未提交的物流单#1用例，验证删除成功。",
+        "keywords": "执行",
+        "weight": 1.0,
+        "source_id": "chunk-bcd09be11e4cb8558024dc597bedd9ce",
+        "file_path": "s14测试用例.pdf",
+        "created_at": 1779865631
+      },
+      {
+        "src_id": "TD管管理",
+        "tgt_id": "设备管理",
+        "description": "设备管理模块包含TD管管理功能。",
+        "keywords": "功能模块,包含关系",
+        "weight": 1.0,
+        "source_id": "chunk-e42a3f57c53bd0366445d2e282ab82b5",
+        "file_path": "设备管理.pdf",
+        "created_at": 1782366805
+      },
+      {
+        "src_id": "内部人员",
+        "tgt_id": "编辑未签收的物流单#1",
+        "description": "内部人员执行编辑未签收的物流单#1用例，验证修改权限控制。",
+        "keywords": "执行",
+        "weight": 1.0,
+        "source_id": "chunk-bcd09be11e4cb8558024dc597bedd9ce",
+        "file_path": "s14测试用例.pdf",
+        "created_at": 1779865631
+      },
+      {
+        "src_id": "TD管管理系统",
+        "tgt_id": "使用记录选项卡",
+        "description": "TD管管理系统包含使用记录选项卡，用于查看TD管的使用记录。",
+        "keywords": "包含,系统功能",
+        "weight": 1.0,
+        "source_id": "chunk-2499f26f1c9e0fd9cb26e6a854427d70",
+        "file_path": "TD管管理.pdf",
+        "created_at": 1779946171
+      },
+      {
+        "src_id": "寄出地点",
+        "tgt_id": "签收物流单-签收地点选择#1",
+        "description": "签收地点不能选择与寄出地点相同的地点。",
+        "keywords": "地点,限制",
+        "weight": 1.0,
+        "source_id": "chunk-e1771468661d88df8215fa4a5cca135e",
+        "file_path": "s29测试用例.pdf",
+        "created_at": 1779875356
+      },
+      {
+        "src_id": "TD管管理",
+        "tgt_id": "上传文件",
+        "description": "TD管管理模块中，通过上传文件操作导入TD管数据。",
+        "keywords": "功能操作,数据导入",
+        "weight": 1.0,
+        "source_id": "chunk-ae4bf2d83feb510b33d7defba968c75d",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865188
+      },
+      {
+        "src_id": "签收地点",
+        "tgt_id": "签收物流单-签收地点选择#1",
+        "description": "签收物流单-签收地点选择#1操作选择签收地点。",
+        "keywords": "地点,选择",
+        "weight": 1.0,
+        "source_id": "chunk-e1771468661d88df8215fa4a5cca135e",
+        "file_path": "s29测试用例.pdf",
+        "created_at": 1779875355
+      },
+      {
+        "src_id": "TD管(样本)",
+        "tgt_id": "新增物流单表单 (New Logistics Order Form) (image)",
+        "description": "Entity TD管(样本) belongs to 新增物流单表单 (New Logistics Order Form) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-435d24dca0bed5eb7c4661f812b984f0",
+        "file_path": "物流清单.pdf",
+        "created_at": 1779963060
+      },
+      {
+        "src_id": "上传操作",
+        "tgt_id": "当前地点",
+        "description": "上传时核验当前所在地点是否正理。",
+        "keywords": "核验",
+        "weight": 1.0,
+        "source_id": "chunk-9348e364f3ce581b1904ae256496a838",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353450
+      },
+      {
+        "src_id": "上传",
+        "tgt_id": "当前地点",
+        "description": "上传时核验当前所在地点是否正理。",
+        "keywords": "核验",
+        "weight": 1.0,
+        "source_id": "chunk-9348e364f3ce581b1904ae256496a838",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353450
+      },
+      {
+        "src_id": "已签收Tab",
+        "tgt_id": "查看物流单#1",
+        "description": "查看物流单#1用例中包含步骤：在已签收Tab查看，预期可查看自己及他人创建的物流单。",
+        "keywords": "测试步骤",
+        "weight": 1.0,
+        "source_id": "chunk-64127cbd8c43ee459300e98d21be5055",
+        "file_path": "s14测试用例.pdf",
+        "created_at": 1779865626
+      },
+      {
+        "src_id": "待签收Tab",
+        "tgt_id": "查看物流单#1",
+        "description": "查看物流单#1用例中包含步骤：在待签收Tab查看，预期可查看自己及他人创建的物流单。",
+        "keywords": "测试步骤",
+        "weight": 1.0,
+        "source_id": "chunk-64127cbd8c43ee459300e98d21be5055",
+        "file_path": "s14测试用例.pdf",
+        "created_at": 1779865625
+      },
+      {
+        "src_id": "未提交Tab",
+        "tgt_id": "查看物流单#1",
+        "description": "查看物流单#1用例中包含步骤：在未提交Tab查看，预期仅可查看自己创建的物流单。",
+        "keywords": "测试步骤",
+        "weight": 1.0,
+        "source_id": "chunk-64127cbd8c43ee459300e98d21be5055",
+        "file_path": "s14测试用例.pdf",
+        "created_at": 1779865624
+      },
+      {
+        "src_id": "实际签收地点",
+        "tgt_id": "收件地点",
+        "description": "步骤中将“收件地点”字段变更为“实际签收地点”。",
+        "keywords": "字段变更,替代",
+        "weight": 1.0,
+        "source_id": "chunk-9724d30529fdde82fb9260f667f9f3c2",
+        "file_path": "s28测试用例.pdf",
+        "created_at": 1779874932
+      },
+      {
+        "src_id": "当前所在位置排序#1",
+        "tgt_id": "按拼音顺序排列",
+        "description": "测试用例当前所在位置排序#1包含步骤按拼音顺序排列。",
+        "keywords": "包含步骤",
+        "weight": 1.0,
+        "source_id": "chunk-8a98c36ae38c8eeb25db9aa4216ffaf9",
+        "file_path": "s22测试用例.pdf",
+        "created_at": 1779869580
+      },
+      {
+        "src_id": "快递单号OCR识别",
+        "tgt_id": "新增物流单-快递单号OCR识别#1",
+        "description": "新增物流单-快递单号OCR识别#1操作使用OCR识别快递单号。",
+        "keywords": "使用,方法",
+        "weight": 1.0,
+        "source_id": "chunk-e1771468661d88df8215fa4a5cca135e",
+        "file_path": "s29测试用例.pdf",
+        "created_at": 1779875355
+      },
+      {
+        "src_id": "当前所在地点字段",
+        "tgt_id": "当前所在地点字段添加操作",
+        "description": "当前所在地点字段被添加到新增/编辑/列表字段中。",
+        "keywords": "字段变更,新增",
+        "weight": 1.0,
+        "source_id": "chunk-1ec8a6cbd2dcfd8a4214e8379626158d",
+        "file_path": "s21测试用例.pdf",
+        "created_at": 1779868597
+      }
+    ],
+    "chunks": [
+      {
+        "reference_id": "1",
+        "content": "J.单管济有地点默沃为：床来（广州）\n\n增“归民方“须加生点作为归属方，允许备 改，项共亡的点答率 在地点”，用来记家TD情入本而的研的他置\n\n新片D答时，单中地如个司“当前际\n\nTRN\n\n5.新增T管时。\n\n购含销部（地点D：8F000004)\n\n上传时核验当前所在地点是否正理，否则线 示精式讲误\n\n，可手动选择是否同时签知待\n\n上片文\n\nb. 快演国号：\n\n8.客这方式：白带\n\n.远单图片：空\n\nd.丧进人：操作用户\n\nPit\n\n用+\n\nht\n\n.零避时间：提交时间\n\nU物品：T（空}\n\n0.丧造地点：手动造择\n\nh.清单：所有新TD管\n\n(点管理)\n\n用+\n\nPt\n\n9\n\n方\n\n.标气起输时，穿定的TD管事买时服为在位\n\n.TD管状点考知：已集出、，千动更\n\nk途加州片：空\n\n盖理贴蛋票，并在使用记录中体理\n\n1.运输全件：紫温\n\n1.数量-所选1D管效\n\n用+\n\nA.符选、统计、列表等柜关展示应宣同多更\n\n7A2号\n\n2#ta unonx\n\nD管\n\n十\n\n上行文作\n\nPJV>显3蛋\n\n124\n\n高等TD糖可同时创比符签校的物齐实较单\n\n手动这挥有递地点\n\n有活地点美点2次\n\n1087\n\nrut\n\nT5\n\nB\n\n4\n\n上月十\n\n86 anon3 X\n\n世月29\n\n二*1A\n\nA1+\n\nM.vt.\n\nT\n\n归属方\n\nX CLCUO 4S S\n\n人\n\n2\n\n1\n\n1\n\nC\n\nRLRR\n\n195\n\n**\n\n*\n\n占ut\n\n增列衰导出\"功能，导出TD管列表内齐，\n\n2.嫩属方\n\n不彬染件",
+        "file_path": "TD管管理-s52.pdf",
+        "chunk_id": "chunk-9348e364f3ce581b1904ae256496a838"
+      },
+      {
+        "reference_id": "2",
+        "content": "行输入\n\n激活日期\n\n取消\n\n确定\n\n为必填项\n\n状态\n\n在用\n\n流量\n\n卡号\n\n关联设备\n\n购买日期\n\n备注\n\n多行输入\n\n激活日期\n\n修改原因\n\n多行输入\n\n取消\n\n确定\n\n郑\n\n账户设置\n\n03\n\n退出登录\n\nU\n\nLinus Studio\n\n口\n\n首页\n\n首页\n\n品\n\n数据治理\n\n研究管理\n\n状态\n\n正常\n\n搜索\n\n钢号/关联标本条码\n\n队列管理\n\n数据分析\n\nSql查询\n\nTD管\n\n物联网卡\n\n新增\n\n分析引擎\n\n状态\n\n钢号\n\n老化次数1L\n\n老化时间1L\n\n厂商\n\n备注\n\n操作\n\n资产管理\n\n正常\n\n121616\n\n查看详情\n\n设备管理\n\n耗材管理\n\n正常\n\n121515\n\n查看详情\n\n系统管理\n\n正常\n\n121414\n\n查看详情\n\n组织管理\n\n异常\n\n121313\n\n查看详情\n\n用户管理\n\n字典管理\n\n报废\n\n121212\n\n查看详情\n\n报废\n\n121211\n\n查看详情\n\n共658条\n\n2\n\n10条/页\n\n该TD管已存在！\n\n为必填项\n\n状态\n\n正常\n\n厂商\n\n钢号\n\n备注\n\n多行输入\n\n取消\n\n确定\n\n钢号\n\n121414\n\n状态\n\n正常\n\n厂商\n\n莱创应用\n\n入库时间2021年2月15日15:05:02\n\n编辑\n\n备注\n\nXXXXXX\n\n使用记录\n\n十新增\n\n序号\n\n使用类型\n\n使用时间\n\n关联标本编码\n\n老化次数\n\n老化时间\n\n备注\n\n操作\n\n4\n\n采样检测\n\n2023/7/1210:01:07\n\nLSDC-SDBS#123478\n\n编辑\n\n3\n\n采样检测\n\n2023/6/112:25:07\n\nLSD-KQ#000002\n\n2\n\n2023/5/1715:45:23\n\n空气检测需老化\n\n编辑\n\n2\n\n本底检测\n\nLSD-BD#000001\n\n化处理\n\n实验室本底监测无需老\n\n编辑\n\n新TD管使用前的初次\n\n1\n\n初次老化\n\n1\n\n2023/5/213:15:14\n\n老化\n\n编辑",
+        "file_path": "XCloud_v1.2_Web.pdf",
+        "chunk_id": "chunk-110f84fd89402f7bca6e74b7955639c3"
+      },
+      {
+        "reference_id": "1",
+        "content": "\nImage Content Analysis:\nImage Path: /home/chh/workspace/anything-chat-rag/parser_output/TD管管理-s52_a9898c73/TD管管理-s52/docling/images/image_1.png\nCaptions: None\nFootnotes: None\n\nVisual Analysis: The image displays a web-based management interface for '精智·未来云' (Jingzhi Future Cloud) focused on **TD管管理** (TD Tube Management). A central modal window titled *添加TD管表单* (Add TD Tube Form) shows a 4-step process (上传文件/Upload File, 校验数据/Verify Data, 预览数据/Preview Data, 数据导入/Data Import) with the final step (数据导入) completed (green checkmark, '数据导入成功，共1条' - Data import successful, 1 item). Below, a note states *新增TD管可同时创建待签收的物资源转单* (Adding a TD tube can create a pending material transfer order), with a blue *创建流转单* (Create Transfer Order) button triggering a sub-modal: *手动选择寄送地点* (Manually Select Delivery Location). This sub-modal has a required dropdown (*寄送地点/Delivery Location*, default '地点名称') and buttons *取消* (Cancel)/*创建流转单* (Create Transfer Order). A *完成* (Complete) button is at the modal’s bottom. The background shows a sidebar (menu items: 资产管理/Asset Management, TD管管理, 物流管理, etc.) and a data table listing TD tubes (status: 占用中/In Use, locations like 广医门诊四楼, 精智未来广州实验室). Visual style: clean, modern UI with white modals, blue accents, green checkmark, red arrow. Context aligns with TD tube management, data import, and material transfer workflows.",
+        "file_path": "TD管管理-s52.pdf",
+        "chunk_id": "chunk-d814d2084b65f0a722c021e6e15bd49e"
+      },
+      {
+        "reference_id": "3",
+        "content": "1.加入批量输入TD管号功能\n\n%CLOU口精智未来云\n\n管理后台\n\n颜\n\n任务中心\n\n老化任务\n\n数据大屏\n\n待老化(1890)\n\n已完成（41095）\n\n已取消（4085）\n\n十创建老化任务\n\n筛选\n\n轻排序\n\nC刷新\n\n实验项目\n\nTD管号\n\n老化原因\n\n任务来源\n\n任务创建时间\n\n创建人\n\n通知中心\n\n350317\n\n检测报告任务完成\n\n2026/06/10 11:26:55\n\n任务中心\n\n350801\n\n检测报告任务完成\n\n2026/06/10 11:26:51\n\n检测批次\n\n350651\n\n检测报告任务完成\n\n2026/06/10 115:01\n\n检测任务\n\n350452\n\n检测报告任务完成\n\n2026/06/10 11:08:22\n\n谱图导入\n\n350629\n\n08:02\n\n老化批次\n\n350485\n\n新增老化任务\n\n×\n\n07.21\n\n老化任务\n\n131944\n\n新增\n\n校验\n\n批量输入\n\n共0根TD管\n\n06:15\n\n异常TD任务\n\n330341\n\nTD管编号*\n\n老化原因*批量应用\n\n提示\n\n操作\n\n5955\n\n目资产管理\n\n350547\n\n.5242\n\n物流管理\n\n350543\n\n:52:03\n\n字典管理\n\n350601\n\n暂无数据\n\n:42-48\n\n组织管理\n\n350782\n\n2:41:47\n\n采样点管理\n\n322268\n\n:39:49\n\n350831\n\n:38:46\n\n系统管理\n\n取消\n\n创建\n\n350511\n\n:32-46\n\n350610\n\n检测报告任务完成\n\n2026/06/10 10:29.06\n\n350459\n\n检测报告任务完成\n\n2026/06/10 10:27:08\n\n350638\n\n检测报告任务完成\n\n2026/06/10 10:17:20\n\n350473\n\n检测报告任务完成\n\n2026/06/10 10:16.18\n\n350509\n\n检测报告任务完成\n\n2026/06/10 10:09:58\n\n共1891条\n\n20条/页\n\n版权所有@ Copyright ChromX Health All Rights Reserved 粤ICP备2022036775号-1",
+        "file_path": "老化任务.pdf",
+        "chunk_id": "chunk-2e5710d727f36ba8ec8dab65ff9e3af2"
+      },
+      {
+        "reference_id": "4",
+        "content": "Table Analysis:\nImage Path: \nCaption: None\nStructure: {'table_cells': [{'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 0, 'end_row_offset_idx': 1, 'start_col_offset_idx': 0, 'end_col_offset_idx': 1, 'text': '用例编号', 'column_header': True, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 0, 'end_row_offset_idx': 1, 'start_col_offset_idx': 1, 'end_col_offset_idx': 2, 'text': '用例标题', 'column_header': True, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 0, 'end_row_offset_idx': 1, 'start_col_offset_idx': 2, 'end_col_offset_idx': 3, 'text': '所属模块', 'column_header': True, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 0, 'end_row_offset_idx': 1, 'start_col_offset_idx': 3, 'end_col_offset_idx': 4, 'text': '用例类型', 'column_header': True, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 0, 'end_row_offset_idx': 1, 'start_col_offset_idx': 4, 'end_col_offset_idx': 5, 'text': '优先级', 'column_header': True, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 0, 'end_row_offset_idx': 1, 'start_col_offset_idx': 5, 'end_col_offset_idx': 6, 'text': '前置条件', 'column_header': True, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 0, 'end_row_offset_idx': 1, 'start_col_offset_idx': 6, 'end_col_offset_idx': 7, 'text': '测试步骤', 'column_header': True, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 0, 'end_row_offset_idx': 1, 'start_col_offset_idx': 7, 'end_col_offset_idx': 8, 'text': '测试数据', 'column_header': True, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 0, 'end_row_offset_idx': 1, 'start_col_offset_idx': 8, 'end_col_offset_idx': 9, 'text': '预期结果', 'column_header': True, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 0, 'end_row_offset_idx': 1, 'start_col_offset_idx': 9, 'end_col_offset_idx': 10, 'text': '备注', 'column_header': True, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 1, 'end_row_offset_idx': 2, 'start_col_offset_idx': 0, 'end_col_offset_idx': 1, 'text': 'TC-FUTURE-ENV-TD-001', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 1, 'end_row_offset_idx': 2, 'start_col_offset_idx': 1, 'end_col_offset_idx': 2, 'text': '多TD管添加入口验证', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 1, 'end_row_offset_idx': 2, 'start_col_offset_idx': 2, 'end_col_offset_idx': 3, 'text': '环境登记-TD管管理', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 1, 'end_row_offset_idx': 2, 'start_col_offset_idx': 3, 'end_col_offset_idx': 4, 'text': '功能测试', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 1, 'end_row_offset_idx': 2, 'start_col_offset_idx': 4, 'end_col_offset_idx': 5, 'text': 'P0', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 1, 'end_row_offset_idx': 2, 'start_col_offset_idx': 5, 'end_col_offset_idx': 6, 'text': '进入环境登记/采样表单页面', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 1, 'end_row_offset_idx': 2, 'start_col_offset_idx': 6, 'end_col_offset_idx': 7, 'text': '1. 观察页面是否存在蓝色“添加TD管”按钮。2. 点击“添加TD管”按钮1次，观察是否出现新的TD管信息输入框。3. 再次点击“添加TD管”按钮4次，观察输入框数量。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 1, 'end_row_offset_idx': 2, 'start_col_offset_idx': 7, 'end_col_offset_idx': 8, 'text': '无', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 1, 'end_row_offset_idx': 2, 'start_col_offset_idx': 8, 'end_col_offset_idx': 9, 'text': '1. 页面存在“添加TD管”按钮，样式清晰可点击。2. 点击1次后，新增1组TD管输入框。3. 点击5次后，累计显示6组TD管输入框，所有必填字段均标记为*。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 1, 'end_row_offset_idx': 2, 'start_col_offset_idx': 9, 'end_col_offset_idx': 10, 'text': '关联需求REQ-001', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 2, 'end_row_offset_idx': 3, 'start_col_offset_idx': 0, 'end_col_offset_idx': 1, 'text': 'TC-FUTURE-ENV-TD-002', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 2, 'end_row_offset_idx': 3, 'start_col_offset_idx': 1, 'end_col_offset_idx': 2, 'text': '重复TD管号校验', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 2, 'end_row_offset_idx': 3, 'start_col_offset_idx': 2, 'end_col_offset_idx': 3, 'text': '环境登记-TD管管理', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 2, 'end_row_offset_idx': 3, 'start_col_offset_idx': 3, 'end_col_offset_idx': 4, 'text': '功能测试', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 2, 'end_row_offset_idx': 3, 'start_col_offset_idx': 4, 'end_col_offset_idx': 5, 'text': 'P0', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 2, 'end_row_offset_idx': 3, 'start_col_offset_idx': 5, 'end_col_offset_idx': 6, 'text': '已添加1根TD管（TD001），且输入框未关闭', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 2, 'end_row_offset_idx': 3, 'start_col_offset_idx': 6, 'end_col_offset_idx': 7, 'text': '1. 填写第一组TD管数据，点击“添加TD管”按钮。2. 填写第二组TD管数据（TD管号=TD001），点击“提交生成标本编码”按钮。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 2, 'end_row_offset_idx': 3, 'start_col_offset_idx': 7, 'end_col_offset_idx': 8, 'text': '第一根TD管：TD001，采集仪A，流速=50ml，备注=测试1；第二根TD管：TD001，采集仪B，流速=60ml，备注=测试2', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 2, 'end_row_offset_idx': 3, 'start_col_offset_idx': 8, 'end_col_offset_idx': 9, 'text': '1. 输入第二组TD管号=TD001后，系统立即弹出提示：“该TD管已存在，请更换其他TD管号”。2. 第二组TD管的输入框标红，表单未提交。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 2, 'end_row_offset_idx': 3, 'start_col_offset_idx': 9, 'end_col_offset_idx': 10, 'text': '关联需求REQ-002', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 3, 'end_row_offset_idx': 4, 'start_col_offset_idx': 0, 'end_col_offset_idx': 1, 'text': 'TC-FUTURE-ENV-TD-003', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 3, 'end_row_offset_idx': 4, 'start_col_offset_idx': 1, 'end_col_offset_idx': 2, 'text': '必填项校验（TD管号缺失）', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 3, 'end_row_offset_idx': 4, 'start_col_offset_idx': 2, 'end_col_offset_idx': 3, 'text': '环境登记-TD管管理', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 3, 'end_row_offset_idx': 4, 'start_col_offset_idx': 3, 'end_col_offset_idx': 4, 'text': '功能测试', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 3, 'end_row_offset_idx': 4, 'start_col_offset_idx': 4, 'end_col_offset_idx': 5, 'text': 'P0', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 3, 'end_row_offset_idx': 4, 'start_col_offset_idx': 5, 'end_col_offset_idx': 6, 'text': '已添加1根TD管，TD管号输入框为空', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 3, 'end_row_offset_idx': 4, 'start_col_offset_idx': 6, 'end_col_offset_idx': 7, 'text': '1. 填写采集仪序列号、流速、备注，保持TD管号为空。2. 点击“提交生成标本编码”按钮。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 3, 'end_row_offset_idx': 4, 'start_col_offset_idx': 7, 'end_col_offset_idx': 8, 'text': 'TD管号=（空），采集仪序列号=采集仪A，流速=50ml，备注=测试', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 3, 'end_row_offset_idx': 4, 'start_col_offset_idx': 8, 'end_col_offset_idx': 9, 'text': '1. 系统提示“TD管号为必填项，请填写”。2. TD管号输入框标红，表单未提交。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 3, 'end_row_offset_idx': 4, 'start_col_offset_idx': 9, 'end_col_offset_idx': 10, 'text': '关联需求REQ-002', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 4, 'end_row_offset_idx': 5, 'start_col_offset_idx': 0, 'end_col_offset_idx': 1, 'text': 'TC-FUTURE-ENV-TD-004', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 4, 'end_row_offset_idx': 5, 'start_col_offset_idx': 1, 'end_col_offset_idx': 2, 'text': '多TD管提交成功与编码分配', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 4, 'end_row_offset_idx': 5, 'start_col_offset_idx': 2, 'end_col_offset_idx': 3, 'text': '环境登记-TD管管理', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 4, 'end_row_offset_idx': 5, 'start_col_offset_idx': 3, 'end_col_offset_idx': 4, 'text': '功能测试', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 4, 'end_row_offset_idx': 5, 'start_col_offset_idx': 4, 'end_col_offset_idx': 5, 'text': 'P0', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 4, 'end_row_offset_idx': 5, 'start_col_offset_idx': 5, 'end_col_offset_idx': 6, 'text': '已添加2根有效TD管，所有必填项填写完整', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 4, 'end_row_offset_idx': 5, 'start_col_offset_idx': 6, 'end_col_offset_idx': 7, 'text': '1. 填写2组TD管数据及采样信息。2. 点击“提交生成标本编码”按钮。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 4, 'end_row_offset_idx': 5, 'start_col_offset_idx': 7, 'end_col_offset_idx': 8, 'text': '第一根TD管：TD001，采集仪A，流速=50ml，备注=样本1；第二根TD管：TD002，采集仪B，流速=60ml，备注=样本2；采样点：实验室A，气体来源：环境，采样时间：2026/05/07 14:02:00', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 4, 'end_row_offset_idx': 5, 'start_col_offset_idx': 8, 'end_col_offset_idx': 9, 'text': '1. 提交成功，页面跳转至环境样本记录列表。2. 系统为每根TD管生成唯一的环境标本编码（如20260507140200-TD001、20260507140200-TD002）', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 4, 'end_row_offset_idx': 5, 'start_col_offset_idx': 9, 'end_col_offset_idx': 10, 'text': '关联需求REQ-001、REQ-004', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 5, 'end_row_offset_idx': 6, 'start_col_offset_idx': 0, 'end_col_offset_idx': 1, 'text': 'TC-FUTURE-ENV-TD-005', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 5, 'end_row_offset_idx': 6, 'start_col_offset_idx': 1, 'end_col_offset_idx': 2, 'text': 'TD管删除与采集仪序列号联动', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 5, 'end_row_offset_idx': 6, 'start_col_offset_idx': 2, 'end_col_offset_idx': 3, 'text': '环境登记-TD管管理', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 5, 'end_row_offset_idx': 6, 'start_col_offset_idx': 3, 'end_col_offset_idx': 4, 'text': '功能测试', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 5, 'end_row_offset_idx': 6, 'start_col_offset_idx': 4, 'end_col_offset_idx': 5, 'text': 'P1', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 5, 'end_row_offset_idx': 6, 'start_col_offset_idx': 5, 'end_col_offset_idx': 6, 'text': '已添加2根TD管，第二根TD管的采集仪序列号已填写（如采集仪B）', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 5, 'end_row_offset_idx': 6, 'start_col_offset_idx': 6, 'end_col_offset_idx': 7, 'text': '1. 点击第二根TD管输入框旁的垃圾桶图标。2. 观察第二根TD管的输入框及采集仪序列号输入框的变化。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 5, 'end_row_offset_idx': 6, 'start_col_offset_idx': 7, 'end_col_offset_idx': 8, 'text': '第一根TD管：TD001，采集仪A，流速=50ml，备注=样本1；第二根TD管：TD002，采集仪B，流速=60ml，备注=样本2', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 5, 'end_row_offset_idx': 6, 'start_col_offset_idx': 8, 'end_col_offset_idx': 9, 'text': '1. 第二根TD管的输入框被移除。2. 第二根TD管对应的采集仪序列号输入框被清空。3. 第一根TD管的输入框保持不变，数据未丢失。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 5, 'end_row_offset_idx': 6, 'start_col_offset_idx': 9, 'end_col_offset_idx': 10, 'text': '关联需求REQ-003', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 6, 'end_row_offset_idx': 7, 'start_col_offset_idx': 0, 'end_col_offset_idx': 1, 'text': 'TC-FUTURE-ENV-TD-007', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 6, 'end_row_offset_idx': 7, 'start_col_offset_idx': 1, 'end_col_offset_idx': 2, 'text': '50根TD管添加与提交', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 6, 'end_row_offset_idx': 7, 'start_col_offset_idx': 2, 'end_col_offset_idx': 3, 'text': '环境登记-TD管管理', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 6, 'end_row_offset_idx': 7, 'start_col_offset_idx': 3, 'end_col_offset_idx': 4, 'text': '功能测试', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 6, 'end_row_offset_idx': 7, 'start_col_offset_idx': 4, 'end_col_offset_idx': 5, 'text': 'P2', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 6, 'end_row_offset_idx': 7, 'start_col_offset_idx': 5, 'end_col_offset_idx': 6, 'text': '进入环境登记表单，网络稳定', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 6, 'end_row_offset_idx': 7, 'start_col_offset_idx': 6, 'end_col_offset_idx': 7, 'text': '1. 点击“添加TD管”按钮49次，累计添加50组TD管。2. 为每组输入框填写测试数据。3. 点击“提交生成标本编码”按钮。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 6, 'end_row_offset_idx': 7, 'start_col_offset_idx': 7, 'end_col_offset_idx': 8, 'text': '50组TD管数据（示例：TD001，采集仪A001，流速=50ml，备注=样本1；TD002，采集仪A002，流速=51ml，备注=样本2；... TD050，采集仪A050，流速=99ml，备注=样本50）', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 6, 'end_row_offset_idx': 7, 'start_col_offset_idx': 8, 'end_col_offset_idx': 9, 'text': '1. 系统成功处理50根TD管的提交，无页面崩溃、卡顿（响应时间<5秒）。2. 生成50条环境样本记录，每条对应唯一的标本编码。3. 所有样本状态为“待转运”。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 6, 'end_row_offset_idx': 7, 'start_col_offset_idx': 9, 'end_col_offset_idx': 10, 'text': '关联需求REQ-001（边界情况）', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 7, 'end_row_offset_idx': 8, 'start_col_offset_idx': 0, 'end_col_offset_idx': 1, 'text': 'TC-FUTURE-ENV-TD-008', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 7, 'end_row_offset_idx': 8, 'start_col_offset_idx': 1, 'end_col_offset_idx': 2, 'text': '空TD管号提交（无效数据）', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 7, 'end_row_offset_idx': 8, 'start_col_offset_idx': 2, 'end_col_offset_idx': 3, 'text': '环境登记-TD管管理', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 7, 'end_row_offset_idx': 8, 'start_col_offset_idx': 3, 'end_col_offset_idx': 4, 'text': '功能测试', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 7, 'end_row_offset_idx': 8, 'start_col_offset_idx': 4, 'end_col_offset_idx': 5, 'text': 'P2', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 7, 'end_row_offset_idx': 8, 'start_col_offset_idx': 5, 'end_col_offset_idx': 6, 'text': '已添加1根TD管，TD管号为空，其他字段填写完整', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 7, 'end_row_offset_idx': 8, 'start_col_offset_idx': 6, 'end_col_offset_idx': 7, 'text': '1. 填写采集仪序列号、流速、备注，保持TD管号为空。2. 点击“提交生成标本编码”按钮。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 7, 'end_row_offset_idx': 8, 'start_col_offset_idx': 7, 'end_col_offset_idx': 8, 'text': 'TD管号=（空），采集仪序列号=采集仪A，流速=50ml，备注=测试', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 7, 'end_row_offset_idx': 8, 'start_col_offset_idx': 8, 'end_col_offset_idx': 9, 'text': '1. 系统提示“TD管号为必填项，请填写”。2. 表单未提交，TD管号输入框标红。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 7, 'end_row_offset_idx': 8, 'start_col_offset_idx': 9, 'end_col_offset_idx': 10, 'text': '关联需求REQ-002（边界情况）', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}], 'num_rows': 8, 'num_cols': 10, 'grid': [[{'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 0, 'end_row_offset_idx': 1, 'start_col_offset_idx': 0, 'end_col_offset_idx': 1, 'text': '用例编号', 'column_header': True, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 0, 'end_row_offset_idx': 1, 'start_col_offset_idx': 1, 'end_col_offset_idx': 2, 'text': '用例标题', 'column_header': True, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 0, 'end_row_offset_idx': 1, 'start_col_offset_idx': 2, 'end_col_offset_idx': 3, 'text': '所属模块', 'column_header': True, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 0, 'end_row_offset_idx': 1, 'start_col_offset_idx': 3, 'end_col_offset_idx': 4, 'text': '用例类型', 'column_header': True, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 0, 'end_row_offset_idx': 1, 'start_col_offset_idx': 4, 'end_col_offset_idx': 5, 'text': '优先级', 'column_header': True, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 0, 'end_row_offset_idx': 1, 'start_col_offset_idx': 5, 'end_col_offset_idx': 6, 'text': '前置条件', 'column_header': True, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 0, 'end_row_offset_idx': 1, 'start_col_offset_idx': 6, 'end_col_offset_idx': 7, 'text': '测试步骤', 'column_header': True, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 0, 'end_row_offset_idx': 1, 'start_col_offset_idx': 7, 'end_col_offset_idx': 8, 'text': '测试数据', 'column_header': True, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 0, 'end_row_offset_idx': 1, 'start_col_offset_idx': 8, 'end_col_offset_idx': 9, 'text': '预期结果', 'column_header': True, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 0, 'end_row_offset_idx': 1, 'start_col_offset_idx': 9, 'end_col_offset_idx': 10, 'text': '备注', 'column_header': True, 'row_header': False, 'row_section': False, 'fillable': False}], [{'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 1, 'end_row_offset_idx': 2, 'start_col_offset_idx': 0, 'end_col_offset_idx': 1, 'text': 'TC-FUTURE-ENV-TD-001', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 1, 'end_row_offset_idx': 2, 'start_col_offset_idx': 1, 'end_col_offset_idx': 2, 'text': '多TD管添加入口验证', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 1, 'end_row_offset_idx': 2, 'start_col_offset_idx': 2, 'end_col_offset_idx': 3, 'text': '环境登记-TD管管理', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 1, 'end_row_offset_idx': 2, 'start_col_offset_idx': 3, 'end_col_offset_idx': 4, 'text': '功能测试', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 1, 'end_row_offset_idx': 2, 'start_col_offset_idx': 4, 'end_col_offset_idx': 5, 'text': 'P0', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 1, 'end_row_offset_idx': 2, 'start_col_offset_idx': 5, 'end_col_offset_idx': 6, 'text': '进入环境登记/采样表单页面', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 1, 'end_row_offset_idx': 2, 'start_col_offset_idx': 6, 'end_col_offset_idx': 7, 'text': '1. 观察页面是否存在蓝色“添加TD管”按钮。2. 点击“添加TD管”按钮1次，观察是否出现新的TD管信息输入框。3. 再次点击“添加TD管”按钮4次，观察输入框数量。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 1, 'end_row_offset_idx': 2, 'start_col_offset_idx': 7, 'end_col_offset_idx': 8, 'text': '无', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 1, 'end_row_offset_idx': 2, 'start_col_offset_idx': 8, 'end_col_offset_idx': 9, 'text': '1. 页面存在“添加TD管”按钮，样式清晰可点击。2. 点击1次后，新增1组TD管输入框。3. 点击5次后，累计显示6组TD管输入框，所有必填字段均标记为*。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 1, 'end_row_offset_idx': 2, 'start_col_offset_idx': 9, 'end_col_offset_idx': 10, 'text': '关联需求REQ-001', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}], [{'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 2, 'end_row_offset_idx': 3, 'start_col_offset_idx': 0, 'end_col_offset_idx': 1, 'text': 'TC-FUTURE-ENV-TD-002', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 2, 'end_row_offset_idx': 3, 'start_col_offset_idx': 1, 'end_col_offset_idx': 2, 'text': '重复TD管号校验', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 2, 'end_row_offset_idx': 3, 'start_col_offset_idx': 2, 'end_col_offset_idx': 3, 'text': '环境登记-TD管管理', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 2, 'end_row_offset_idx': 3, 'start_col_offset_idx': 3, 'end_col_offset_idx': 4, 'text': '功能测试', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 2, 'end_row_offset_idx': 3, 'start_col_offset_idx': 4, 'end_col_offset_idx': 5, 'text': 'P0', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 2, 'end_row_offset_idx': 3, 'start_col_offset_idx': 5, 'end_col_offset_idx': 6, 'text': '已添加1根TD管（TD001），且输入框未关闭', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 2, 'end_row_offset_idx': 3, 'start_col_offset_idx': 6, 'end_col_offset_idx': 7, 'text': '1. 填写第一组TD管数据，点击“添加TD管”按钮。2. 填写第二组TD管数据（TD管号=TD001），点击“提交生成标本编码”按钮。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 2, 'end_row_offset_idx': 3, 'start_col_offset_idx': 7, 'end_col_offset_idx': 8, 'text': '第一根TD管：TD001，采集仪A，流速=50ml，备注=测试1；第二根TD管：TD001，采集仪B，流速=60ml，备注=测试2', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 2, 'end_row_offset_idx': 3, 'start_col_offset_idx': 8, 'end_col_offset_idx': 9, 'text': '1. 输入第二组TD管号=TD001后，系统立即弹出提示：“该TD管已存在，请更换其他TD管号”。2. 第二组TD管的输入框标红，表单未提交。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 2, 'end_row_offset_idx': 3, 'start_col_offset_idx': 9, 'end_col_offset_idx': 10, 'text': '关联需求REQ-002', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}], [{'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 3, 'end_row_offset_idx': 4, 'start_col_offset_idx': 0, 'end_col_offset_idx': 1, 'text': 'TC-FUTURE-ENV-TD-003', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 3, 'end_row_offset_idx': 4, 'start_col_offset_idx': 1, 'end_col_offset_idx': 2, 'text': '必填项校验（TD管号缺失）', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 3, 'end_row_offset_idx': 4, 'start_col_offset_idx': 2, 'end_col_offset_idx': 3, 'text': '环境登记-TD管管理', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 3, 'end_row_offset_idx': 4, 'start_col_offset_idx': 3, 'end_col_offset_idx': 4, 'text': '功能测试', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 3, 'end_row_offset_idx': 4, 'start_col_offset_idx': 4, 'end_col_offset_idx': 5, 'text': 'P0', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 3, 'end_row_offset_idx': 4, 'start_col_offset_idx': 5, 'end_col_offset_idx': 6, 'text': '已添加1根TD管，TD管号输入框为空', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 3, 'end_row_offset_idx': 4, 'start_col_offset_idx': 6, 'end_col_offset_idx': 7, 'text': '1. 填写采集仪序列号、流速、备注，保持TD管号为空。2. 点击“提交生成标本编码”按钮。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 3, 'end_row_offset_idx': 4, 'start_col_offset_idx': 7, 'end_col_offset_idx': 8, 'text': 'TD管号=（空），采集仪序列号=采集仪A，流速=50ml，备注=测试', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 3, 'end_row_offset_idx': 4, 'start_col_offset_idx': 8, 'end_col_offset_idx': 9, 'text': '1. 系统提示“TD管号为必填项，请填写”。2. TD管号输入框标红，表单未提交。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 3, 'end_row_offset_idx': 4, 'start_col_offset_idx': 9, 'end_col_offset_idx': 10, 'text': '关联需求REQ-002', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}], [{'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 4, 'end_row_offset_idx': 5, 'start_col_offset_idx': 0, 'end_col_offset_idx': 1, 'text': 'TC-FUTURE-ENV-TD-004', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 4, 'end_row_offset_idx': 5, 'start_col_offset_idx': 1, 'end_col_offset_idx': 2, 'text': '多TD管提交成功与编码分配', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 4, 'end_row_offset_idx': 5, 'start_col_offset_idx': 2, 'end_col_offset_idx': 3, 'text': '环境登记-TD管管理', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 4, 'end_row_offset_idx': 5, 'start_col_offset_idx': 3, 'end_col_offset_idx': 4, 'text': '功能测试', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 4, 'end_row_offset_idx': 5, 'start_col_offset_idx': 4, 'end_col_offset_idx': 5, 'text': 'P0', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 4, 'end_row_offset_idx': 5, 'start_col_offset_idx': 5, 'end_col_offset_idx': 6, 'text': '已添加2根有效TD管，所有必填项填写完整', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 4, 'end_row_offset_idx': 5, 'start_col_offset_idx': 6, 'end_col_offset_idx': 7, 'text': '1. 填写2组TD管数据及采样信息。2. 点击“提交生成标本编码”按钮。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 4, 'end_row_offset_idx': 5, 'start_col_offset_idx': 7, 'end_col_offset_idx': 8, 'text': '第一根TD管：TD001，采集仪A，流速=50ml，备注=样本1；第二根TD管：TD002，采集仪B，流速=60ml，备注=样本2；采样点：实验室A，气体来源：环境，采样时间：2026/05/07 14:02:00', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 4, 'end_row_offset_idx': 5, 'start_col_offset_idx': 8, 'end_col_offset_idx': 9, 'text': '1. 提交成功，页面跳转至环境样本记录列表。2. 系统为每根TD管生成唯一的环境标本编码（如20260507140200-TD001、20260507140200-TD002）', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 4, 'end_row_offset_idx': 5, 'start_col_offset_idx': 9, 'end_col_offset_idx': 10, 'text': '关联需求REQ-001、REQ-004', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}], [{'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 5, 'end_row_offset_idx': 6, 'start_col_offset_idx': 0, 'end_col_offset_idx': 1, 'text': 'TC-FUTURE-ENV-TD-005', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 5, 'end_row_offset_idx': 6, 'start_col_offset_idx': 1, 'end_col_offset_idx': 2, 'text': 'TD管删除与采集仪序列号联动', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 5, 'end_row_offset_idx': 6, 'start_col_offset_idx': 2, 'end_col_offset_idx': 3, 'text': '环境登记-TD管管理', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 5, 'end_row_offset_idx': 6, 'start_col_offset_idx': 3, 'end_col_offset_idx': 4, 'text': '功能测试', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 5, 'end_row_offset_idx': 6, 'start_col_offset_idx': 4, 'end_col_offset_idx': 5, 'text': 'P1', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 5, 'end_row_offset_idx': 6, 'start_col_offset_idx': 5, 'end_col_offset_idx': 6, 'text': '已添加2根TD管，第二根TD管的采集仪序列号已填写（如采集仪B）', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 5, 'end_row_offset_idx': 6, 'start_col_offset_idx': 6, 'end_col_offset_idx': 7, 'text': '1. 点击第二根TD管输入框旁的垃圾桶图标。2. 观察第二根TD管的输入框及采集仪序列号输入框的变化。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 5, 'end_row_offset_idx': 6, 'start_col_offset_idx': 7, 'end_col_offset_idx': 8, 'text': '第一根TD管：TD001，采集仪A，流速=50ml，备注=样本1；第二根TD管：TD002，采集仪B，流速=60ml，备注=样本2', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 5, 'end_row_offset_idx': 6, 'start_col_offset_idx': 8, 'end_col_offset_idx': 9, 'text': '1. 第二根TD管的输入框被移除。2. 第二根TD管对应的采集仪序列号输入框被清空。3. 第一根TD管的输入框保持不变，数据未丢失。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 5, 'end_row_offset_idx': 6, 'start_col_offset_idx': 9, 'end_col_offset_idx': 10, 'text': '关联需求REQ-003', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}], [{'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 6, 'end_row_offset_idx': 7, 'start_col_offset_idx': 0, 'end_col_offset_idx': 1, 'text': 'TC-FUTURE-ENV-TD-007', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 6, 'end_row_offset_idx': 7, 'start_col_offset_idx': 1, 'end_col_offset_idx': 2, 'text': '50根TD管添加与提交', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 6, 'end_row_offset_idx': 7, 'start_col_offset_idx': 2, 'end_col_offset_idx': 3, 'text': '环境登记-TD管管理', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 6, 'end_row_offset_idx': 7, 'start_col_offset_idx': 3, 'end_col_offset_idx': 4, 'text': '功能测试', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 6, 'end_row_offset_idx': 7, 'start_col_offset_idx': 4, 'end_col_offset_idx': 5, 'text': 'P2', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 6, 'end_row_offset_idx': 7, 'start_col_offset_idx': 5, 'end_col_offset_idx': 6, 'text': '进入环境登记表单，网络稳定', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 6, 'end_row_offset_idx': 7, 'start_col_offset_idx': 6, 'end_col_offset_idx': 7, 'text': '1. 点击“添加TD管”按钮49次，累计添加50组TD管。2. 为每组输入框填写测试数据。3. 点击“提交生成标本编码”按钮。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 6, 'end_row_offset_idx': 7, 'start_col_offset_idx': 7, 'end_col_offset_idx': 8, 'text': '50组TD管数据（示例：TD001，采集仪A001，流速=50ml，备注=样本1；TD002，采集仪A002，流速=51ml，备注=样本2；... TD050，采集仪A050，流速=99ml，备注=样本50）', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 6, 'end_row_offset_idx': 7, 'start_col_offset_idx': 8, 'end_col_offset_idx': 9, 'text': '1. 系统成功处理50根TD管的提交，无页面崩溃、卡顿（响应时间<5秒）。2. 生成50条环境样本记录，每条对应唯一的标本编码。3. 所有样本状态为“待转运”。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 6, 'end_row_offset_idx': 7, 'start_col_offset_idx': 9, 'end_col_offset_idx': 10, 'text': '关联需求REQ-001（边界情况）', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}], [{'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 7, 'end_row_offset_idx': 8, 'start_col_offset_idx': 0, 'end_col_offset_idx': 1, 'text': 'TC-FUTURE-ENV-TD-008', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 7, 'end_row_offset_idx': 8, 'start_col_offset_idx': 1, 'end_col_offset_idx': 2, 'text': '空TD管号提交（无效数据）', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 7, 'end_row_offset_idx': 8, 'start_col_offset_idx': 2, 'end_col_offset_idx': 3, 'text': '环境登记-TD管管理', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 7, 'end_row_offset_idx': 8, 'start_col_offset_idx': 3, 'end_col_offset_idx': 4, 'text': '功能测试', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 7, 'end_row_offset_idx': 8, 'start_col_offset_idx': 4, 'end_col_offset_idx': 5, 'text': 'P2', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 7, 'end_row_offset_idx': 8, 'start_col_offset_idx': 5, 'end_col_offset_idx': 6, 'text': '已添加1根TD管，TD管号为空，其他字段填写完整', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 7, 'end_row_offset_idx': 8, 'start_col_offset_idx': 6, 'end_col_offset_idx': 7, 'text': '1. 填写采集仪序列号、流速、备注，保持TD管号为空。2. 点击“提交生成标本编码”按钮。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 7, 'end_row_offset_idx': 8, 'start_col_offset_idx': 7, 'end_col_offset_idx': 8, 'text': 'TD管号=（空），采集仪序列号=采集仪A，流速=50ml，备注=测试', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 7, 'end_row_offset_idx': 8, 'start_col_offset_idx': 8, 'end_col_offset_idx': 9, 'text': '1. 系统提示“TD管号为必填项，请填写”。2. 表单未提交，TD管号输入框标红。', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}, {'row_span': 1, 'col_span': 1, 'start_row_offset_idx': 7, 'end_row_offset_idx': 8, 'start_col_offset_idx': 9, 'end_col_offset_idx': 10, 'text': '关联需求REQ-002（边界情况）', 'column_header': False, 'row_header': False, 'row_section': False, 'fillable': False}]]}\nFootnotes: None\n\nAnalysis: The table is a test case specification for the '环境登记-TD管管理' (Environmental Registration - TD Tube Management) module. It consists of 8 rows (including a header) and 10 columns. The column headers are: 用例编号 (Test Case ID), 用例标题 (Test Case Title), 所属模块 (Module), 用例类型 (Test Type), 优先级 (Priority), 前置条件 (Preconditions), 测试步骤 (Test Steps), 测试数据 (Test Data), 预期结果 (Expected Results), and 备注 (Remarks). There are 7 test cases with IDs TC-FUTURE-ENV-TD-001 through TC-FUTURE-ENV-TD-008 (note: TC-006 is missing). All cases are functional tests belonging to the '环境登记-TD管管理' module. Priority distribution: 4 cases are P0 (critical: TC-001 multi-TD tube entry, TC-002 duplicate TD tube number validation, TC-003 mandatory field check for missing tube number, TC-004 successful submission with coding), 1 case is P1 (TC-005 deletion and collector serial number linkage), and 2 cases are P2 (TC-007 50 tubes addition and submission boundary, TC-008 empty tube number submission boundary). The test cases cover positive scenarios (TC-001, TC-004), negative scenarios (TC-002, TC-003, TC-008), interaction (TC-005), and boundary (TC-007). Each case includes detailed preconditions, steps, specific test data (e.g., TD001, collector A, flow rate 50ml), and expected results (e.g., system prompts, input field highlighting, successful submission with unique codes). The remarks column ties each case to requirements: REQ-001 (TC-001, TC-007), REQ-002 (TC-002, TC-003, TC-008), REQ-003 (TC-005), REQ-004 (TC-004). Patterns indicate a systematic testing approach for the TD tube management feature, ensuring correctness, validation, and performance.",
+        "file_path": "S51测试用例.xlsx",
+        "chunk_id": "chunk-1f8143580b262733d988f44cc53724bc"
+      }
+    ],
+    "references": [
+      {
+        "reference_id": "1",
+        "file_path": "TD管管理-s52.pdf"
+      },
+      {
+        "reference_id": "2",
+        "file_path": "XCloud_v1.2_Web.pdf"
+      },
+      {
+        "reference_id": "3",
+        "file_path": "老化任务.pdf"
+      },
+      {
+        "reference_id": "4",
+        "file_path": "S51测试用例.xlsx"
+      }
+    ]
+  },
+  "metadata": {
+    "query_mode": "mix",
+    "keywords": {
+      "high_level": [
+        "TD管管理",
+        "新增TD管",
+        "物流单管理"
+      ],
+      "low_level": [
+        "当前所在地点",
+        "归属方",
+        "物流单",
+        "测试用例"
+      ]
+    },
+    "processing_info": {
+      "total_entities_found": 66,
+      "total_relations_found": 69,
+      "entities_after_truncation": 62,
+      "relations_after_truncation": 69,
+      "merged_chunks_count": 141,
+      "final_chunks_count": 5
+    }
+  }
+}

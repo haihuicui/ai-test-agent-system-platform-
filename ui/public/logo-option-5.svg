@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="o5g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FDBA74"/>
+      <stop offset="100%" stop-color="#F97316"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="#0F1729"/>
+  <!-- 灯泡(智能/AI) -->
+  <path d="M32 14 C24 14 18 20 18 28 C18 34 22 37 24 40 L24 44 L40 44 L40 40 C42 37 46 34 46 28 C46 20 40 14 32 14 Z"
+        fill="none" stroke="url(#o5g)" stroke-width="3" stroke-linejoin="round"/>
+  <line x1="25" y1="48" x2="39" y2="48" stroke="url(#o5g)" stroke-width="3" stroke-linecap="round"/>
+  <line x1="27" y1="52" x2="37" y2="52" stroke="url(#o5g)" stroke-width="3" stroke-linecap="round"/>
+  <!-- 灯泡内对勾 -->
+  <path d="M27 29 l4 4 l7 -8" fill="none" stroke="#19C37D" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

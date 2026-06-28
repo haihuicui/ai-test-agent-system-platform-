@@ -1,0 +1,2371 @@
+{
+  "status": "success",
+  "message": "Query processed successfully",
+  "data": {
+    "entities": [
+      {
+        "entity_name": "登录密码",
+        "entity_type": "data",
+        "description": "登录密码是用户登录系统的验证信息，要求加密、40字符内。",
+        "source_id": "chunk-17fb019485b53d341e9b1af1d060e08a",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862518
+      },
+      {
+        "entity_name": "登录功能",
+        "entity_type": "event",
+        "description": "登录功能指用户通过提供账号和密码进入系统的操作流程。",
+        "source_id": "chunk-17fb019485b53d341e9b1af1d060e08a",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862519
+      },
+      {
+        "entity_name": "账号规则",
+        "entity_type": "concept",
+        "description": "账号规则规定用户名必填，姓名和联系方式可选，密码长度至少6位且可包含字母、数字或符号。",
+        "source_id": "chunk-87e78fd9b549cb8c46d36545f6036738",
+        "file_path": "风险计算_用户管理.pdf",
+        "created_at": 1780538626
+      },
+      {
+        "entity_name": "登录账号",
+        "entity_type": "data",
+        "description": "登录账号是用户登录系统的凭证，要求为非中文、20字符内。",
+        "source_id": "chunk-17fb019485b53d341e9b1af1d060e08a",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862518
+      },
+      {
+        "entity_name": "新增用户功能",
+        "entity_type": "event",
+        "description": "新增用户功能指在系统中创建新用户账号的操作流程。",
+        "source_id": "chunk-17fb019485b53d341e9b1af1d060e08a",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862519
+      },
+      {
+        "entity_name": "登录#1",
+        "entity_type": "event",
+        "description": "登录#1是登录功能的测试用例。",
+        "source_id": "chunk-4abc228dd0a85238abfd8addc34e74eb",
+        "file_path": "s26测试用例.pdf",
+        "created_at": 1779874153
+      },
+      {
+        "entity_name": "确认密码",
+        "entity_type": "data",
+        "description": "确认密码是用于确保登录密码输入一致性的二次输入。",
+        "source_id": "chunk-17fb019485b53d341e9b1af1d060e08a",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862518
+      },
+      {
+        "entity_name": "用户名客户权限为空点击确定",
+        "entity_type": "event",
+        "description": "用户名客户权限为空点击确定是一个测试步骤，在输入字段为空时点击确定按钮。",
+        "source_id": "chunk-0f1993029a2fbc6220b615b7bec212a3",
+        "file_path": "S33测试用例.pdf",
+        "created_at": 1779876387
+      },
+      {
+        "entity_name": "用户登录",
+        "entity_type": "content",
+        "description": "用户登录系统的动作，登录后自动弹出告警列表。<SEP>用户登录系统的操作，登录后12小时无操作需刷新页面。<SEP>用户登录是ChromXHRA的一个界面或功能，用于用户输入账号和密码进行身份验证。<SEP>用户登录是登录界面顶部显示的白色中文文字，指示该页面的功能。",
+        "source_id": "chunk-20188083f7cb5b571d5d70e6915b1eb7<SEP>chunk-0187389780978bb38e9b14e0fe20df8c<SEP>chunk-abfaa2bcd8ab16373853f9355c52146f<SEP>chunk-cd4d5f0070a914bfe545b8a60c49c25e",
+        "file_path": "S40测试用例.pdf<SEP>s30测试用例.pdf<SEP>风险计算_登录页.pdf",
+        "created_at": 1780535357
+      },
+      {
+        "entity_name": "登录",
+        "entity_type": "content",
+        "description": "登录是软件系统的用户身份验证功能，包含正常登录和异常登录用例。<SEP>登录是用户通过账号和密码进入系统的操作。<SEP>登录是显示在登录面板顶部的中文文字，表示登录操作入口。",
+        "source_id": "chunk-06b1eeeb9b201d991f4107bd4d9eb95d<SEP>chunk-f66dec0ba8e2d12f2b2b9cf3145b777b<SEP>chunk-f434f440d8f163b1573301b798ef002e",
+        "file_path": "s20测试用例.pdf<SEP>XCloud_2.0管理后台.pdf",
+        "created_at": 1780022175
+      },
+      {
+        "entity_name": "用户管理",
+        "entity_type": "concept",
+        "description": "用户管理是一个广泛存在于多个系统管理后台中的功能模块或子模块，用于对平台用户的账号、角色和权限进行综合管理。在架构上，它通常隶属于后台管理下的系统管理子模块，在侧边栏或左侧菜单中作为一个菜单项（或子菜单）出现，且可能处于激活状态。该模块的核心职责包括支持新增用户、编辑用户信息、重置用户密码、对用户列表进行排序与筛选，以及设置用户权限等操作；此外，还包含用户名等基本信息，专注于用户信息的维护与权限控制。\n\n用户管理模块在多个具体系统中均有体现，例如云呼气平台、XCloud 2.0、Linus Studio系统、ChromXHRA以及BayzeProll系统等。在这些系统中，其功能定位基本一致，但在具体操作范围上略有差异：在BayzeProll系统中，用户管理仅允许执行增、删、改操作。用户管理模块通常以“系统管理”下的子菜单项或子功能形式呈现，部分描述明确指出其为“系统管理下的子菜单项”或“系统管理模块下的子模块”。\n\n综上，用户管理是一个跨系统的、以用户账号与权限管理为核心的标准化功能组件，其具体实现可能因系统而异，但整体职责保持一致。<SEP>用户管理是管理后台中用于管理用户的模块。",
+        "source_id": "chunk-7d7a61c58995feeb84f48700728f7994<SEP>chunk-e1a7e6682d118fd3b55bd49650662382<SEP>chunk-747de3c44d79b5d050b0e4538a90442a<SEP>chunk-c120c7253784f58def105061cf29312e<SEP>chunk-601966ea2263a797992556bd87282e39<SEP>chunk-6330a4d3bf6145fe8641ed1d37d8408e<SEP>chunk-bd26d5a906bf73ca2f4e78062d5e23fb<SEP>chunk-cf8213e510483360d2933624b0326731<SEP>chunk-110f84fd89402f7bca6e74b7955639c3<SEP>chunk-641d4a425cf8cdde299da5acd1f2cf0e<SEP>chunk-75d9d50112f120f44a8ca0cc3f1cba20<SEP>chunk-abfaa2bcd8ab16373853f9355c52146f<SEP>chunk-56a8144689a523d3ef85d7934616613f<SEP>chunk-9b2395baba9953b4a001c4c7432c7253",
+        "file_path": "s27测试用例.pdf<SEP>34.pdf<SEP>检测任务.pdf<SEP>检测任务可选设备.pdf<SEP>谱图导入.pdf<SEP>权限分配.pdf<SEP>XCloud_2.0管理后台.pdf<SEP>XCloud_v1.2_Web.pdf<SEP>风险计算_登录页.pdf<SEP>风险计算_用户管理.pdf<SEP>角色管理.pdf",
+        "created_at": 1782358306
+      },
+      {
+        "entity_name": "无权限登录",
+        "entity_type": "event",
+        "description": "无权限登录是用户尝试登录但无操作权限的测试步骤，系统会触发相应提示。",
+        "source_id": "chunk-36dfe62d33aa08c6e2c54fa92d67f9e1",
+        "file_path": "s19测试用例.pdf",
+        "created_at": 1779867238
+      },
+      {
+        "entity_name": "密码",
+        "entity_type": "concept",
+        "description": "密码是用户登录时输入的凭证，与账号配合验证。<SEP>密码是用户登录平台的凭证之一。<SEP>密码是设备登记后生成的，用于访问设备。<SEP>密码是用户登录的凭证，需输入两次确认。<SEP>密码是用户信息区域中的必填输入框字段。",
+        "source_id": "chunk-06b1eeeb9b201d991f4107bd4d9eb95d<SEP>chunk-f66dec0ba8e2d12f2b2b9cf3145b777b<SEP>chunk-16ff5c12ad7d01482cf463b2df5804bf<SEP>chunk-6330a4d3bf6145fe8641ed1d37d8408e<SEP>chunk-cb02f7e1a96d990201b84f50ddf7d7f6",
+        "file_path": "s20测试用例.pdf<SEP>XMetrix_v2.4.pdf<SEP>XCloud_2.0管理后台.pdf<SEP>风险计算_用户管理.pdf",
+        "created_at": 1780538623
+      },
+      {
+        "entity_name": "用户名",
+        "entity_type": "concept",
+        "description": "用户名是系统中的用户标识，在测试中作为输入字段进行权限新增、搜索等操作。<SEP>输入字段，在权限表格和新增权限对话框中用于输入或显示用户名。<SEP>用户名是表格和权限编辑中的字段，用于标识用户。<SEP>用户名是用户管理模块中的一个字段，用于标识用户。<SEP>用户名是用户界面中用于标识用户名称的文本标签。<SEP>用户名是用户信息区域中的必填输入框字段。",
+        "source_id": "chunk-c0936409aab015f13658e04cfbb2ff46<SEP>chunk-e96a86ebe542ffec6dc84083b1563479<SEP>chunk-7ef4c6977cc0de385584fe9b3d6c7691<SEP>chunk-92e908f325207a8833fd3c4c666da72a<SEP>chunk-f397774b118c46891aa5490d8aef85e3<SEP>chunk-cb02f7e1a96d990201b84f50ddf7d7f6",
+        "file_path": "S33测试用例.pdf<SEP>33.pdf<SEP>34.pdf<SEP>XCloud_v1.2_小程序.pdf<SEP>风险计算_用户管理.pdf",
+        "created_at": 1780538623
+      },
+      {
+        "entity_name": "重新填写#1用例",
+        "entity_type": "content",
+        "description": "测试用例，验证受试者重新填写问卷的规则。",
+        "source_id": "chunk-3db2fced39f60198ed351afb9b4b0902",
+        "file_path": "s11测试用例.pdf",
+        "created_at": 1779864363
+      },
+      {
+        "entity_name": "权限管理测试",
+        "entity_type": "event",
+        "description": "权限管理测试是一系列测试用例，用于验证不同权限用户对定标记录的操作能力，包括编辑和查看权限。",
+        "source_id": "chunk-35d019619819f9d4c3ef1428f9148595",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100009
+      },
+      {
+        "entity_name": "用例:继续录入#1",
+        "entity_type": "content",
+        "description": "测试用例，针对继续录入操作。",
+        "source_id": "chunk-313e136ae906bd5efc0871114ed295c9",
+        "file_path": "s28测试用例.pdf",
+        "created_at": 1779874908
+      },
+      {
+        "entity_name": "用户B",
+        "entity_type": "person",
+        "description": "用户B是一个测试用户，角色为查看员，仅拥有定标记录的查看权限，无编辑权限。<SEP>用户B仅拥有定标记录-查看权限，无下发权限。",
+        "source_id": "chunk-d3bf45a42ee78029ec0bc855da017a7d<SEP>chunk-35d019619819f9d4c3ef1428f9148595",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100003
+      },
+      {
+        "entity_name": "测试用户1",
+        "entity_type": "person",
+        "description": "一个用于测试系统的用户账号。<SEP>这是一个系统测试用户，账号为“测试用户1”，具有数据录入操作权限。",
+        "source_id": "chunk-e62fb0b9d1d59b9c810e06f96e36d790<SEP>chunk-20c459fad9c08d0c97d0fc465ececb0d",
+        "file_path": "设备名称搜索.pdf<SEP>实验项目.pdf",
+        "created_at": 1779961139
+      },
+      {
+        "entity_name": "用户A",
+        "entity_type": "person",
+        "description": "用户A是一个测试用户，角色为实验员，拥有定标记录的编辑权限。",
+        "source_id": "chunk-35d019619819f9d4c3ef1428f9148595",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100009
+      },
+      {
+        "entity_name": "输入中英文",
+        "entity_type": "method",
+        "description": "测试步骤，在低值阈值字段中输入中英文混合字符。<SEP>输入中英文是用户向输入框输入中文字符或英文字符的操作，触发格式验证。",
+        "source_id": "chunk-8a98c36ae38c8eeb25db9aa4216ffaf9<SEP>chunk-167b490573e7bdfc7325c0c6d6de533b",
+        "file_path": "s22测试用例.pdf<SEP>s28测试用例.pdf",
+        "created_at": 1779874915
+      },
+      {
+        "entity_name": "用户",
+        "entity_type": "person",
+        "description": "用户是各类软件平台（如云呼气平台、肺癌风险分析平台、XCloud平台及其他操作系统）的核心操作者，承担测试、使用、管理等多重职能。其具体角色包括安装者、分析员、医生、测试人员、最终用户、上传人、分析人、发布人等，不同角色对应不同的操作权限。用户的属性涵盖用户名、手机号码、密码、邮箱等，系统可为其分配角色和权限。用户通过登录系统获得访问权限，可根据需要切换用户身份或退出账号。\n\n用户可执行的操作范围广泛，包括点击暂停、开盖、删除任务、搜索、排序、通知设置、变更分析结果、提交发布、新增、删除、校验、拖拽、下载以及数据导出、任务分析和谱图查看等。用户还能接收微信通知和短信通知，并可通过导入Excel表执行批量修改风险系数操作。作为检测卡的使用者，用户参与激活、预约、查看报告等流程。在具体使用场景中，用户需上传RT对照表并接收UI通知，通过点击“知道了”按钮确认错误并修正格式；也可请求导出谱图链接并进行下载。在数据录入系统中，用户在收到重复编码提示后执行重新录入操作；在个人信息填写和扫码采样时，会被引导扫描二维码并填写问卷。此外，用户还使用该软件应用进行环境样本采集相关任务，以及在定标界面中查看谱峰、检查R2值，并准备导出或保存校准数据。总之，用户是系统操作与数据交互的主体，其功能与权限因角色和平台而异。<SEP>用户已登录系统，具有任务管理权限，可以执行创建、取消任务等操作。",
+        "source_id": "chunk-27c59dcdfafb9c0a15b7a7b7c2556265<SEP>chunk-dad058a665f715c868cb5ebb012ea907<SEP>chunk-f66dec0ba8e2d12f2b2b9cf3145b777b<SEP>chunk-8813bd8cc303e4ab61e6bddea1c4cead<SEP>chunk-b3ab54c816fb2f928fa5ee967dbf58bf<SEP>chunk-7d7a61c58995feeb84f48700728f7994<SEP>chunk-92e6e3db074dcb3f773e65cd02f1d64e<SEP>chunk-0187389780978bb38e9b14e0fe20df8c<SEP>chunk-ed91dde2d811d2e31041cc655ed18627<SEP>chunk-d6d523557052db74e45839e93e0e9798<SEP>chunk-52cf1f2ce6ebdbdc896e5399d2ba4d13<SEP>chunk-7fec32f5eed14a278bf048b6fdc1c8e5<SEP>chunk-ff5e6581adea4bb5faae67d12b0a3f45<SEP>chunk-4c4de4cd372a8a4b19870222eacee4fa<SEP>chunk-16ff5c12ad7d01482cf463b2df5804bf<SEP>chunk-cbf96977f8c503e2df4e2a87730203a7",
+        "file_path": "S37测试用例.pdf<SEP>s12测试用例.pdf<SEP>s20测试用例.pdf<SEP>s21测试用例.pdf<SEP>s26测试用例.pdf<SEP>s27测试用例.pdf<SEP>s29测试用例.pdf<SEP>s30测试用例.pdf<SEP>S31测试用例.pdf<SEP>s34测试用例.pdf<SEP>33.pdf<SEP>34.pdf<SEP>XMetrix_v2.2.pdf<SEP>XMetrix_v2.4.pdf<SEP>XMetrix_v2.3.pdf<SEP>XCloud_v1.2_小程序.pdf<SEP>环境样本采集.pdf<SEP>定标记录.pdf<SEP>51测试用例.pdf",
+        "created_at": 1782099999
+      },
+      {
+        "entity_name": "错误账号",
+        "entity_type": "UNKNOWN",
+        "description": "用户输入错误的账号时，系统提示账号/密码不正确。",
+        "source_id": "chunk-f66dec0ba8e2d12f2b2b9cf3145b777b",
+        "file_path": "s20测试用例.pdf",
+        "created_at": 1779867837
+      },
+      {
+        "entity_name": "新增",
+        "entity_type": "artifact",
+        "description": "新增是一种在系统中执行的操作或按钮，主要用于添加新的条目、任务或数据。具体而言，它可以在TD管列表中增加一行输入，用于创建新的TD管或使用记录；也可以作为设备台账页面上的按钮，用于添加新设备；此外，它还作为平台中的通用按钮，用于添加新条目。在字典管理权限的上下文中，新增是一个未选中的权限项。需要注意的是，新增操作在某些场景下存在限制，例如不允许对现有的RT对照表执行该操作。总体而言，新增的核心功能是向系统中引入新的元素或记录，但其具体应用范围和权限因上下文而异。<SEP>新增是一个按钮控件，用于添加新的标气记录。",
+        "source_id": "chunk-b2f34033d15b997bd208eb19a41a460a<SEP>chunk-14bee55c8769ffa847a6e21fdfc888d7<SEP>chunk-dd5486a83f744668de6e98b6b2da6679<SEP>chunk-442ba79a7c931acb0c2dc22835f6f0b1<SEP>chunk-601966ea2263a797992556bd87282e39<SEP>chunk-110f84fd89402f7bca6e74b7955639c3<SEP>chunk-fe9f8917e70f005203e189e82c531c99",
+        "file_path": "s14测试用例.pdf<SEP>s28测试用例.pdf<SEP>s30测试用例.pdf<SEP>XMetrix_v2.2.pdf<SEP>权限分配.pdf<SEP>XCloud_v1.2_Web.pdf<SEP>风险计算_用户管理.pdf<SEP>标气批次.pdf",
+        "created_at": 1782354125
+      },
+      {
+        "entity_name": "空密码",
+        "entity_type": "UNKNOWN",
+        "description": "用户密码为空时，系统提示输入。",
+        "source_id": "chunk-f66dec0ba8e2d12f2b2b9cf3145b777b",
+        "file_path": "s20测试用例.pdf",
+        "created_at": 1779867839
+      },
+      {
+        "entity_name": "新增#1",
+        "entity_type": "event",
+        "description": "新增#1是一个测试用例，用于验证软件系统中各类模块的新增功能。该测试用例覆盖多个业务场景，包括物流单新增后在不同选项卡下的可见性验证、人员列表中新增人员数据的步骤与预期结果检查、样本模块中点击新增后能否定位到最新行、版本记录新增时对版本名称、版本类型、关联设备等字段的输入验证，以及图表模块的新增操作并预期成功新增图表。总体而言，新增#1作为一个通用新增功能验证用例，被应用于物流、人员管理、样本、版本管理及图表等多个模块，确保新增流程的正确性和界面的及时响应。<SEP>测试用例，测试新增检测卡功能，包括正常创建和异常输入。",
+        "source_id": "chunk-bcd09be11e4cb8558024dc597bedd9ce<SEP>chunk-56d7a4454df33eea2c98c2fc35c70ff9<SEP>chunk-25f1cb1e406256cd87fd263bebaf4db1<SEP>chunk-692b455010f79e1754ffe957eb1b4743<SEP>chunk-e1771468661d88df8215fa4a5cca135e<SEP>chunk-dd5486a83f744668de6e98b6b2da6679<SEP>chunk-e58a92662b7be26f58448548ade2c841<SEP>chunk-d6d523557052db74e45839e93e0e9798",
+        "file_path": "s14测试用例.pdf<SEP>s18测试用例.pdf<SEP>s24测试用例.pdf<SEP>s27测试用例.pdf<SEP>s29测试用例.pdf<SEP>s30测试用例.pdf<SEP>s32测试用例.pdf<SEP>s34测试用例.pdf",
+        "created_at": 1779876849
+      },
+      {
+        "entity_name": "XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "entity_type": "image",
+        "description": "This image is a detailed flowchart documenting test cases for a software system (likely XMetrix S33), focusing on custom processes, permissions (e.g., 报告单自助权限), and user interactions. It outlines steps (e.g., username/permission handling) and expected outcomes (e.g., error prompts, successful actions), aligning with surrounding test case context (e.g., role settings, field validation).",
+        "source_id": "chunk-0f1993029a2fbc6220b615b7bec212a3",
+        "file_path": "S33测试用例.pdf",
+        "created_at": 1779876330
+      },
+      {
+        "entity_name": "账号",
+        "entity_type": "data",
+        "description": "账号是用户登录时输入的标识，用于验证用户身份。<SEP>账号是用户登录平台的凭证之一。<SEP>这是一个数据字段，用于标识用户的登录账号。<SEP>账号是用户的登录标识，来自飞书同步且不可更改。<SEP>账号是个人信息表单中的一个字段，用于输入用户账号。",
+        "source_id": "chunk-06b1eeeb9b201d991f4107bd4d9eb95d<SEP>chunk-f66dec0ba8e2d12f2b2b9cf3145b777b<SEP>chunk-20c459fad9c08d0c97d0fc465ececb0d<SEP>chunk-6330a4d3bf6145fe8641ed1d37d8408e<SEP>chunk-dac75327fcc4095e888cd47f960e4e31",
+        "file_path": "s20测试用例.pdf<SEP>实验项目.pdf<SEP>XCloud_2.0管理后台.pdf",
+        "created_at": 1780022164
+      },
+      {
+        "entity_name": "输入字符超过50",
+        "entity_type": "method",
+        "description": "测试步骤，在低值提示字段中输入超过50个字符。",
+        "source_id": "chunk-8a98c36ae38c8eeb25db9aa4216ffaf9",
+        "file_path": "s22测试用例.pdf",
+        "created_at": 1779869568
+      },
+      {
+        "entity_name": "张三",
+        "entity_type": "person",
+        "description": "张三这一名称指向多个不同实体，其身份、所属机构和角色存在明显冲突。根据现有信息，至少可区分出四个独立的“张三”实体。\n\n**实体一：中山大学第一附属医院相关的张三**。此张三为男性，年龄存有矛盾信息，部分记录显示为30岁，另有出生日期2000年2月1日（推算约25岁）。手机号码为133****7788。他具有多重角色：作为系统用户，在XCloud 2.0管理后台中创建了临床管理员、资产管理员和普通用户等角色；作为患者曾预约亚太国际体检中心的呼气检测项目；作为受试者参与研究项目（如“研究1”），提供姓名、性别、出生日期、手机号及检测体征数据；作为合作专家，所属组织为中山大学第一附属医院（亦称中山大学附属第一医院），账号同为“张三”。他还担任二代机研发项目和一代机优化项目的负责人，并作为主要研究者（PI）主导“研究名称1”。在系统中，他所属部门为临床中心，拥有超级管理员、临床管理员等系统角色，同时负责在云呼气平台中上传和管理伦理申请文件。此外，他曾使用账号修改组织信息，记录时间为2023年8月30日。\n\n**实体二：上海瑞金医院相关的张三**。此张三隶属于上海瑞金医院呼吸科，系统用户名称和账号均为“张三”，手机号码为13145585521，账号创建时间为2023年5月10日。他担任临床协作员、设备协作员、数据分析师等角色，出现在协作人员列表中，拥有多个协作角色和权限。他在系统中执行编辑、上传等操作，同时与物流工作流相关，出现在用户管理信息中；作为物流寄件人，曾寄出单号为CXWL2409270023和CXWL2409260022的包裹，其中一条物流记录状态为“签收异常”。\n\n**实体三：63岁的测试用户张三**。此张三为男性，年龄63岁，在系统中作为测试用户出现，相关信息仅包含年龄和性别，未关联特定机构或手机号码。\n\n**实体四：受试者张三（可能独立）**。此张三仅出现在受试者信息填写任务中，作为受试者姓名存在，缺乏其他身份信息（如机构、手机号、年龄），无法确认其与前述实体是否相同，故单独列出。\n\n此外，系统用户管理列表中显示多条张三记录，涉及不同角色、部门和职位，但联系方式相同，这些记录可能分属上述不同实体，因核心信息（手机号、机构）各不相同，需根据具体场景加以区分。",
+        "source_id": "chunk-938ef22b635d8d3fbfc60393c82a4da1<SEP>chunk-57f1efc393c748e33903f63a920c6c15<SEP>chunk-c7888f9a575297e8bf5e9e3c544d92bf<SEP>chunk-fccba77594b03434c34ec2df5929f922<SEP>chunk-178c65a3e81e250323604cd2f11bcaa5<SEP>chunk-20c459fad9c08d0c97d0fc465ececb0d<SEP>chunk-fb152d63a007e2531b0c1f843e2757b2<SEP>chunk-6330a4d3bf6145fe8641ed1d37d8408e<SEP>chunk-bd26d5a906bf73ca2f4e78062d5e23fb<SEP>chunk-cf8213e510483360d2933624b0326731<SEP>chunk-128b116e9f676ce0a4860eeab3b8bcff<SEP>chunk-8175f3e057d3eea9b3b86b643e4cc29a<SEP>chunk-6f470c4d5dd576bbbaa4b95298ae20c0<SEP>chunk-4ee7a841f208c6563571af725a5af65e<SEP>chunk-2a33b6eec12fd58609349c1af114bbdc",
+        "file_path": "商业化小程序.pdf<SEP>34.pdf<SEP>XCloud_v1.2_小程序.pdf<SEP>实验项目.pdf<SEP>物流清单.pdf<SEP>XCloud_2.0管理后台.pdf<SEP>51测试用例.pdf",
+        "created_at": 1782099985
+      },
+      {
+        "entity_name": "多TD管添加入口验证",
+        "entity_type": "concept",
+        "description": "多TD管添加入口验证是一个测试用例标题，描述通过点击按钮添加多组TD管输入框的测试。",
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097459
+      },
+      {
+        "entity_name": "当前登录用户",
+        "entity_type": "person",
+        "description": "当前登录用户是在系统中执行操作的用户角色。",
+        "source_id": "chunk-4ee7a841f208c6563571af725a5af65e",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782099961
+      },
+      {
+        "entity_name": "下拉搜索选择用户名",
+        "entity_type": "event",
+        "description": "下拉搜索选择用户名是一个测试步骤，涉及用户从下拉列表中选择用户名。",
+        "source_id": "chunk-0f1993029a2fbc6220b615b7bec212a3",
+        "file_path": "S33测试用例.pdf",
+        "created_at": 1779876386
+      },
+      {
+        "entity_name": "添加第三方用户权限#1",
+        "entity_type": "event",
+        "description": "添加第三方用户权限#1是测试用例，验证第三方用户权限的添加及状态切换。",
+        "source_id": "chunk-2193e2c6a59452bd1b2ea6e9b1bec3c0",
+        "file_path": "S35测试用例.pdf",
+        "created_at": 1779877096
+      },
+      {
+        "entity_name": "用户C",
+        "entity_type": "person",
+        "description": "用户C是一个测试用户，角色为管理员，拥有定标记录的编辑和管理权限，包括下发定量表权限。<SEP>用户C是系统管理员，拥有定标记录-下发权限。",
+        "source_id": "chunk-d3bf45a42ee78029ec0bc855da017a7d<SEP>chunk-35d019619819f9d4c3ef1428f9148595",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100003
+      },
+      {
+        "entity_name": "小程序-为空校验#1",
+        "entity_type": "method",
+        "description": "一个测试用例，步骤：新增/编辑未输入采样流速；预期：提示不能为空。",
+        "source_id": "chunk-8b784b76bd2e76fe01e7158deac2e90a",
+        "file_path": "s23测试用例.pdf",
+        "created_at": 1779870135
+      },
+      {
+        "entity_name": "姓名字段",
+        "entity_type": "artifact",
+        "description": "姓名字段是一个输入框，接受1至60个字符的文字。<SEP>姓名字段是采样登记表中的一个字段，支持编辑和必填验证。<SEP>表单中的必填字段，用于输入用户姓名，带有红色星号标记。<SEP>基础信息区域中的输入框，用于填写用户姓名，标记为必填项。<SEP>表单中的必填文本框，占位符为“请输入受试者姓名”。",
+        "source_id": "chunk-3e830a70da5fb5097649650f92c6c906<SEP>chunk-d253ba1c6b1e52f3efcc606c62903dba<SEP>chunk-229e34b45def66dcd0c347b5a0e4f34d<SEP>chunk-1cb76c9390ce8c3edadc00093520d10c<SEP>chunk-aa52dc43395179d201752c4f80fe5234",
+        "file_path": "s11测试用例.pdf<SEP>s30测试用例.pdf<SEP>商业化小程序.pdf<SEP>XMetrix_v2.2.pdf",
+        "created_at": 1779940729
+      },
+      {
+        "entity_name": "必填验证",
+        "entity_type": "UNKNOWN",
+        "description": "当姓名字段设置为必填且为空时，系统提示姓名不能为空。",
+        "source_id": "chunk-d253ba1c6b1e52f3efcc606c62903dba",
+        "file_path": "s30测试用例.pdf",
+        "created_at": 1779875740
+      },
+      {
+        "entity_name": "列表数据顺序",
+        "entity_type": "concept",
+        "description": "测试用例中验证列表数据显示顺序的测试点。",
+        "source_id": "chunk-300889d4aaad356f00f4749ee317a7c8",
+        "file_path": "s12测试用例.pdf",
+        "created_at": 1779864704
+      },
+      {
+        "entity_name": "李四",
+        "entity_type": "person",
+        "description": "李四是BayzeProll系统中的一个示例用户，用户信息包括用户名、姓名、联系方式、密码等。<SEP>李四是BayzeProll中的一个用户名，在用户列表中显示为选中状态，其权限包括任务列表中的填写表单、生成报告和导出报告。<SEP>李四是BayzeProll中的一个用户，显示在界面左侧用户列表中。<SEP>李四是一个测试用户，女性，生日1990/06/15，手机号15912345678。<SEP>李四是一个受试者，用于测试用例中的信息填写，性别女，生日1990年6月15日，手机号15912345678。",
+        "source_id": "chunk-56a8144689a523d3ef85d7934616613f<SEP>chunk-4ee7a841f208c6563571af725a5af65e<SEP>chunk-6831903baaea264b3689fe877296364e",
+        "file_path": "风险计算_用户管理.pdf<SEP>51测试用例.pdf",
+        "created_at": 1782099968
+      },
+      {
+        "entity_name": "预期: 提示对应字段不能为空",
+        "entity_type": "content",
+        "description": "测试预期节点，描述系统应提示对应字段不能为空。",
+        "source_id": "chunk-ad8b654521ef098b4857e73285b1575c",
+        "file_path": "S36测试用例.pdf",
+        "created_at": 1779877406
+      },
+      {
+        "entity_name": "姓名",
+        "entity_type": "data",
+        "description": "姓名是一个在多个数据系统和业务流程中广泛使用的字段，用于标识和记录个人身份信息。作为受试者、被采样人、受检者、参与者等不同角色人员身份的核心属性，姓名出现在人员列表、信息录入表单、受试者信息填写任务、报告单列表、个人资料登记、研究注册表单、研究报名表单以及注册表单等多种场景中。在数据导出环节，姓名属于受脱敏控制的人员信息，以保障隐私安全；在数据存储层面，它作为受试者信息的字段之一，出现在名为“examinee_info.csv”的文件中。\n\n在具体实现上，姓名字段通常使用单行文本框控件，被标记为必填项，不允许为空，且无数据源和格式限制。在信息采集过程中，姓名可通过扫描身份证自动填入，从而提升效率和准确性。此外，姓名还常作为搜索筛选条件，帮助用户在列表中查找和定位特定人员；例如，在侧边栏中有搜索字段，占位符为“请输入”，用于输入姓名以筛选任务。在表格中，姓名也是一列，用于标识任务关联的人员姓名。在用户信息区域中，姓名作为可选输入框字段出现。\n\n总体而言，姓名贯穿于数据输入、搜索、导出、脱敏及文件存储等多个环节，是标识个体身份不可或缺的基础信息字段。<SEP>姓名是检测报告任务列表中的一个查询字段，允许输入，用于筛选受试者。<SEP>姓名是采样登记中需要手动输入或通过扫描身份证自动填入的个人信息。",
+        "source_id": "chunk-6e6152f5c43eb513dfe1a0f425a330d4<SEP>chunk-56d7a4454df33eea2c98c2fc35c70ff9<SEP>chunk-6a0bdd94818406989167e9cf2801ec24<SEP>chunk-2daa345b401e8ad5329fa25aa5170937<SEP>chunk-b3ab54c816fb2f928fa5ee967dbf58bf<SEP>chunk-17a962f5657a64916121e886024511cb<SEP>chunk-c0936409aab015f13658e04cfbb2ff46<SEP>chunk-f8db68e64e75687f5b75f5163931349f<SEP>chunk-ac2879d32fa6a2c40f73b13fb3540420<SEP>chunk-52cf1f2ce6ebdbdc896e5399d2ba4d13<SEP>chunk-7cb24e6b7932ae447ac0c29bff65322b<SEP>chunk-85612c5377c989f7e1d0421d9373030d<SEP>chunk-6330a4d3bf6145fe8641ed1d37d8408e<SEP>chunk-4ee7a841f208c6563571af725a5af65e<SEP>chunk-80abc7784927a909ee143f5bc1fdeb8d<SEP>chunk-b0796330cda0340c4ad2143ff2d4f9e3<SEP>chunk-ac1b274ac9578d951043f70aef136031",
+        "file_path": "s13测试用例.pdf<SEP>s18测试用例.pdf<SEP>s20测试用例.pdf<SEP>s24测试用例.pdf<SEP>S33测试用例.pdf<SEP>S36测试用例.pdf<SEP>33.pdf<SEP>34.pdf<SEP>XCloud_v1.2_小程序.pdf<SEP>XMetrix_v2.2.pdf<SEP>采样登记.pdf<SEP>采样登记优化.pdf<SEP>风险计算_任务列表.pdf<SEP>风险计算_用户管理.pdf<SEP>51测试用例.pdf<SEP>检测报告任务列表.pdf<SEP>手动登记可填问卷.pdf",
+        "created_at": 1782368662
+      },
+      {
+        "entity_name": "管理权限/非管理权限",
+        "entity_type": "content",
+        "description": "这是测试用例中出现的步骤，涉及管理权限和非管理权限的操作，用于控制功能入口的显示。",
+        "source_id": "chunk-7f25e100e203125a6c2e099ea972e12a",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862652
+      },
+      {
+        "entity_name": "数据脱敏#1",
+        "entity_type": "event",
+        "description": "测试用例，用于验证数据脱敏开关对姓名和电话加密的影响。",
+        "source_id": "chunk-6e6152f5c43eb513dfe1a0f425a330d4",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865186
+      },
+      {
+        "entity_name": "必填校验",
+        "entity_type": "concept",
+        "description": "必填校验是对签收操作中必填字段进行非空检查的规则或测试用例。<SEP>必填校验是一种验证方法，确保字段不为空。<SEP>一种输入校验规则，确保必填字段在提交前有值，适用于多个操作场景。",
+        "source_id": "chunk-4e945c9f07a671e06aee8ca691e7c2e0<SEP>chunk-75667450ede2ed0dafd80a6f4b3b0989<SEP>chunk-3b3b2b1c18e50a2fdf34af33ba40aa65",
+        "file_path": "s14测试用例.pdf<SEP>s16测试用例.pdf",
+        "created_at": 1779866369
+      },
+      {
+        "entity_name": "用户名输入框",
+        "entity_type": "artifact",
+        "description": "用户名输入框是登录界面中的一个矩形输入框，带有蓝色边框，预填有白色文本“admin”，用于输入用户名。",
+        "source_id": "chunk-cd4d5f0070a914bfe545b8a60c49c25e",
+        "file_path": "风险计算_登录页.pdf",
+        "created_at": 1780535357
+      },
+      {
+        "entity_name": "自定义:TD管管理/自定义:新增/用例:校验数据下一步#1",
+        "entity_type": "concept",
+        "description": "测试用例，用于验证校验数据后下一步操作，无详细步骤预期。",
+        "source_id": "chunk-528dfbccb40ac50452cdbfbcec76be91",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865347
+      },
+      {
+        "entity_name": "登录界面",
+        "entity_type": "artifact",
+        "description": "登录界面是XCloud管理后台的入口，包含登录面板、QR码和品牌信息。<SEP>XCloud管理后台的登录界面，集合了多种登录方式，包括飞书和微信登录。<SEP>登录界面是ChromXHRA软件的用户界面，包含输入框和登录按钮，背景为深蓝色，带有水印文字“CHROM”和“精智未来”。",
+        "source_id": "chunk-f8b5a4c90db5e1e695e48852d6aa3efb<SEP>chunk-f434f440d8f163b1573301b798ef002e<SEP>chunk-cd4d5f0070a914bfe545b8a60c49c25e",
+        "file_path": "XCloud_2.0管理后台.pdf<SEP>风险计算_登录页.pdf",
+        "created_at": 1780535357
+      },
+      {
+        "entity_name": "登记样本，点击开始解析",
+        "entity_type": "method",
+        "description": "测试步骤之一，涉及用户操作：登记样本并点击开始解析。",
+        "source_id": "chunk-e7aed5a6965b4a43d475f002037e6175",
+        "file_path": "S40测试用例.pdf",
+        "created_at": 1779862937
+      },
+      {
+        "entity_name": "空账号",
+        "entity_type": "UNKNOWN",
+        "description": "用户账号为空时，系统提示输入。",
+        "source_id": "chunk-f66dec0ba8e2d12f2b2b9cf3145b777b",
+        "file_path": "s20测试用例.pdf",
+        "created_at": 1779867838
+      },
+      {
+        "entity_name": "TC-SUBJ-LOG-002",
+        "entity_type": "event",
+        "description": "TC-SUBJ-LOG-002是一个测试用例，用于验证保存信息日志功能，优先级P0。",
+        "source_id": "chunk-4ee7a841f208c6563571af725a5af65e",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782099960
+      },
+      {
+        "entity_name": "用例:新增通知#1",
+        "entity_type": "event",
+        "description": "测试用例，验证新增通知时的字段校验和重复名称检测。",
+        "source_id": "chunk-928ed73f7d7cf62923d69f6f0b891515",
+        "file_path": "S31测试用例.pdf",
+        "created_at": 1779875981
+      },
+      {
+        "entity_name": "患者信息录入系统的验证规则",
+        "entity_type": "concept",
+        "description": "患者信息录入系统的验证规则包括数字范围、字符长度、文件类型、文件大小和文件数量限制等，应用于相应字段。",
+        "source_id": "chunk-217fdbf09f9d19e5f4997467ada7438c",
+        "file_path": "34.pdf",
+        "created_at": 1779937381
+      },
+      {
+        "entity_name": "用户F",
+        "entity_type": "person",
+        "description": "用户F对定标记录模块无任何权限。",
+        "source_id": "chunk-d3bf45a42ee78029ec0bc855da017a7d",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100004
+      },
+      {
+        "entity_name": "校验规则",
+        "entity_type": "concept",
+        "description": "PID序列号长度为20字符，可输入英文、数字及特定符号。",
+        "source_id": "chunk-0c662b5f29265f3c1c6ad4d1245265db",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350031
+      },
+      {
+        "entity_name": "登录页",
+        "entity_type": "artifact",
+        "description": "登录页是用户登录系统的界面。",
+        "source_id": "chunk-d3bf45a42ee78029ec0bc855da017a7d",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100004
+      },
+      {
+        "entity_name": "添加批注#1",
+        "entity_type": "method",
+        "description": "一个测试用例，步骤：输入备注，点击提交；预期：成功提交添加。",
+        "source_id": "chunk-8b784b76bd2e76fe01e7158deac2e90a",
+        "file_path": "s23测试用例.pdf",
+        "created_at": 1779870134
+      },
+      {
+        "entity_name": "用例:重置密码",
+        "entity_type": "method",
+        "description": "用例:重置密码是涉及密码重置操作的测试用例，可能属于自定义权限管理类别。",
+        "source_id": "chunk-5a609e07c645f8b77b1570d40db7e420",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862654
+      },
+      {
+        "entity_name": "web-为空校验#1",
+        "entity_type": "method",
+        "description": "一个测试用例，步骤：新增/编辑未输入采样流速；预期：正常提交，可以为空。",
+        "source_id": "chunk-8b784b76bd2e76fe01e7158deac2e90a",
+        "file_path": "s23测试用例.pdf",
+        "created_at": 1779870134
+      },
+      {
+        "entity_name": "自定义权限管理",
+        "entity_type": "concept",
+        "description": "自定义权限管理是S39测试用例的一个顶层类别，涵盖权限控制相关测试，如谱图变更权限。",
+        "source_id": "chunk-5a609e07c645f8b77b1570d40db7e420",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862653
+      },
+      {
+        "entity_name": "页数切换#1",
+        "entity_type": "method",
+        "description": "一个测试用例，步骤：未明确。",
+        "source_id": "chunk-8b784b76bd2e76fe01e7158deac2e90a",
+        "file_path": "s23测试用例.pdf",
+        "created_at": 1779870135
+      },
+      {
+        "entity_name": "操作#1",
+        "entity_type": "concept",
+        "description": "操作#1是一个测试用例，测试查看、编辑定性表的操作。<SEP>测试用例，验证通用操作功能。",
+        "source_id": "chunk-0993b38cbdf06250867a506772025562<SEP>chunk-e58a92662b7be26f58448548ade2c841",
+        "file_path": "S43测试用例.pdf<SEP>s32测试用例.pdf",
+        "created_at": 1779876295
+      },
+      {
+        "entity_name": "用户ID",
+        "entity_type": "data",
+        "description": "用户ID是检测卡添加日志中的操作人标识。<SEP>用户ID是操作人字段的具体取值，用于标识执行操作的用户。",
+        "source_id": "chunk-89f2a43a4609624578beec8729aa8e8c<SEP>chunk-156ffd4cbb1b2061aa3c6b58d84ad8a4",
+        "file_path": "s34测试用例.pdf<SEP>34.pdf",
+        "created_at": 1779937384
+      },
+      {
+        "entity_name": "详情",
+        "entity_type": "method",
+        "description": "详情是一个通用的交互元素，广泛存在于各类系统或功能模块中，用于查看特定实体的详细内容。其表现形式多样，可以是按钮、视图、页面或链接，核心作用在于展示给定对象（如定标记录、物流单、任务、样本、数据、检测报告、工单、设备台账、校准记录等）的完整字段信息。在定标记录场景中，详情是查看定标记录详细内容的按钮或功能；在物流单场景中，详情是展示物流单所有字段信息的视图或数据集合，对应的物流单详情页面支持查看和修改物流单信息；在任务管理场景中，详情是查看任务具体信息的界面或操作，也可作为查看任务或样本详细信息的视图；在数据管理场景中，详情是查看数据详细信息的内容页面，同时也是查看单条数据详细信息的操作。此外，详情功能还包含查看RT对照表等具体子功能。\n\n从用户操作角度看，详情是用户在系统中可执行的操作，用于查看任务或记录的详细信息。在表格中，详情通常作为每行任务对应的操作按钮或链接呈现，其展示条件为任意（即始终可见），点击即可查看对应实体（如任务、工单、设备、校准记录等）的详细信息。例如，详情是任务表格中操作列的一个链接，是数据行操作列中的一个按钮，是检测报告任务列表表格行中的一个操作按钮，是工单表格中的操作链接，是设备台账表格中的操作链接，是操作列中查看校准记录的按钮，也是任务列表中的操作链接。作为上下文敏感的术语，详情在不同系统中承担着统一的功能——为用户提供访问和浏览特定条目完整信息的入口。",
+        "source_id": "chunk-b8e6641d0d08007db3431ee49381c0ce<SEP>chunk-0d95f4eb4d9aad02bdb58e54d147f927<SEP>chunk-4e945c9f07a671e06aee8ca691e7c2e0<SEP>chunk-b2f34033d15b997bd208eb19a41a460a<SEP>chunk-0114eaf1591780ecaa1b31cac0cb8618<SEP>chunk-b012500077ed86a8d05fd45b1247c317<SEP>chunk-14bee55c8769ffa847a6e21fdfc888d7<SEP>chunk-9724d30529fdde82fb9260f667f9f3c2<SEP>chunk-e58a92662b7be26f58448548ade2c841<SEP>chunk-a0aacb12a28a35beaac154022edd88c1<SEP>chunk-442ba79a7c931acb0c2dc22835f6f0b1<SEP>chunk-16ff5c12ad7d01482cf463b2df5804bf<SEP>chunk-fe9f8917e70f005203e189e82c531c99<SEP>chunk-480d837307dbe34f95cea5130e572039<SEP>chunk-dd08c85e140e46a7ec510e789b35b2a3<SEP>chunk-13d85ba7a93b18ed91d83ed1ff846f73<SEP>chunk-793b18d21d6272b6940548a28be8f404<SEP>chunk-e9797aa4116af470728467718b575aec",
+        "file_path": "S42测试用例.pdf<SEP>s14测试用例.pdf<SEP>s25测试用例.pdf<SEP>s26测试用例.pdf<SEP>s28测试用例.pdf<SEP>s32测试用例.pdf<SEP>XMetrix_v2.2.pdf<SEP>XMetrix_v2.4.pdf<SEP>XMetrix_v2.3.pdf<SEP>34.pdf<SEP>20.pdf<SEP>XCloud_v1.2_Web.pdf<SEP>定标记录.pdf<SEP>标气批次.pdf<SEP>检测报告任务列表.pdf<SEP>检测任务s52.pdf<SEP>质控任务列表.pdf",
+        "created_at": 1782373263
+      },
+      {
+        "entity_name": "自定义:必填校验",
+        "entity_type": "concept",
+        "description": "系统中对必填字段进行校验的规则。",
+        "source_id": "chunk-39380d320906782dd139b181fcc50386",
+        "file_path": "s16测试用例.pdf",
+        "created_at": 1779866365
+      },
+      {
+        "entity_name": "切换用户",
+        "entity_type": "event",
+        "description": "切换用户是系统功能，点击切换为用户后弹窗二次确认成功切换。",
+        "source_id": "chunk-b3ab54c816fb2f928fa5ee967dbf58bf",
+        "file_path": "s26测试用例.pdf",
+        "created_at": 1779874144
+      },
+      {
+        "entity_name": "没有权限进来",
+        "entity_type": "method",
+        "description": "测试步骤，模拟用户没有权限进入首页的情况。",
+        "source_id": "chunk-8a98c36ae38c8eeb25db9aa4216ffaf9",
+        "file_path": "s22测试用例.pdf",
+        "created_at": 1779869568
+      },
+      {
+        "entity_name": "新增样本#1",
+        "entity_type": "concept",
+        "description": "测试用例，验证新增样本功能的正确性。",
+        "source_id": "chunk-e58a92662b7be26f58448548ade2c841",
+        "file_path": "s32测试用例.pdf",
+        "created_at": 1779876289
+      },
+      {
+        "entity_name": "验证人员",
+        "entity_type": "person",
+        "description": "验证人员是负责执行验证操作的用户，需要特定的功能支持。",
+        "source_id": "chunk-020243c69ae080181472c1d61df263ca",
+        "file_path": "PROII_队列进样.pdf",
+        "created_at": 1780563822
+      }
+    ],
+    "relationships": [
+      {
+        "src_id": "TD管",
+        "tgt_id": "必填校验",
+        "description": "必填校验应用于TD管号字段。",
+        "keywords": "必填,验证规则",
+        "weight": 1.0,
+        "source_id": "chunk-3b3b2b1c18e50a2fdf34af33ba40aa65",
+        "file_path": "s16测试用例.pdf",
+        "created_at": 1779866383
+      },
+      {
+        "src_id": "登录功能",
+        "tgt_id": "登录密码",
+        "description": "登录功能需要用户提供登录密码作为凭证进行身份验证。",
+        "keywords": "用户输入,身份验证",
+        "weight": 1.0,
+        "source_id": "chunk-17fb019485b53d341e9b1af1d060e08a",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862533
+      },
+      {
+        "src_id": "用户",
+        "tgt_id": "登录",
+        "description": "用户输入账号和密码完成登录。",
+        "keywords": "认证,输入",
+        "weight": 1.0,
+        "source_id": "chunk-f66dec0ba8e2d12f2b2b9cf3145b777b",
+        "file_path": "s20测试用例.pdf",
+        "created_at": 1779867836
+      },
+      {
+        "src_id": "登录功能",
+        "tgt_id": "登录账号",
+        "description": "登录功能需要用户提供登录账号作为凭证进行身份验证。",
+        "keywords": "用户输入,身份验证",
+        "weight": 1.0,
+        "source_id": "chunk-17fb019485b53d341e9b1af1d060e08a",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862533
+      },
+      {
+        "src_id": "必填校验",
+        "tgt_id": "物流单",
+        "description": "必填校验确保物流单在签收时必填字段已填写完整。",
+        "keywords": "约束,验证",
+        "weight": 1.0,
+        "source_id": "chunk-4e945c9f07a671e06aee8ca691e7c2e0",
+        "file_path": "s14测试用例.pdf",
+        "created_at": 1779865603
+      },
+      {
+        "src_id": "新增用户功能",
+        "tgt_id": "确认密码",
+        "description": "在新增用户时，需要输入确认密码来确保登录密码输入正确。",
+        "keywords": "密码一致性,数据验证",
+        "weight": 1.0,
+        "source_id": "chunk-17fb019485b53d341e9b1af1d060e08a",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862535
+      },
+      {
+        "src_id": "密码",
+        "tgt_id": "用户",
+        "description": "用户使用密码进行登录认证。",
+        "keywords": "使用凭证",
+        "weight": 1.0,
+        "source_id": "chunk-f66dec0ba8e2d12f2b2b9cf3145b777b",
+        "file_path": "s20测试用例.pdf",
+        "created_at": 1779867831
+      },
+      {
+        "src_id": "用户登录",
+        "tgt_id": "用户管理",
+        "description": "用户登录是用户管理模块的入口，负责身份验证。",
+        "keywords": "功能关联",
+        "weight": 1.0,
+        "source_id": "chunk-abfaa2bcd8ab16373853f9355c52146f",
+        "file_path": "风险计算_登录页.pdf",
+        "created_at": 1780535113
+      },
+      {
+        "src_id": "用户",
+        "tgt_id": "错误账号",
+        "description": "用户输入错误的账号时，系统提示账号/密码不正确。",
+        "keywords": "异常登录",
+        "weight": 1.0,
+        "source_id": "chunk-f66dec0ba8e2d12f2b2b9cf3145b777b",
+        "file_path": "s20测试用例.pdf",
+        "created_at": 1779867837
+      },
+      {
+        "src_id": "密码",
+        "tgt_id": "登录",
+        "description": "登录功能需要用户输入密码进行身份验证。",
+        "keywords": "使用,输入",
+        "weight": 1.0,
+        "source_id": "chunk-06b1eeeb9b201d991f4107bd4d9eb95d",
+        "file_path": "s20测试用例.pdf",
+        "created_at": 1779867808
+      },
+      {
+        "src_id": "用户",
+        "tgt_id": "空密码",
+        "description": "用户密码为空时，系统提示输入。",
+        "keywords": "异常登录",
+        "weight": 1.0,
+        "source_id": "chunk-f66dec0ba8e2d12f2b2b9cf3145b777b",
+        "file_path": "s20测试用例.pdf",
+        "created_at": 1779867839
+      },
+      {
+        "src_id": "权限管理测试",
+        "tgt_id": "用户B",
+        "description": "权限管理测试包含用户B的测试用例，验证无编辑权限时的界面表现。",
+        "keywords": "权限验证,测试执行",
+        "weight": 1.0,
+        "source_id": "chunk-35d019619819f9d4c3ef1428f9148595",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100104
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "必填校验",
+        "description": "必填校验应用于TD管号字段，确保填写。",
+        "keywords": "校验规则",
+        "weight": 1.0,
+        "source_id": "chunk-3b3b2b1c18e50a2fdf34af33ba40aa65",
+        "file_path": "s16测试用例.pdf",
+        "created_at": 1779866381
+      },
+      {
+        "src_id": "权限管理测试",
+        "tgt_id": "用户A",
+        "description": "权限管理测试包含用户A的测试用例，验证编辑权限的有效性。",
+        "keywords": "权限验证,测试执行",
+        "weight": 1.0,
+        "source_id": "chunk-35d019619819f9d4c3ef1428f9148595",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100104
+      },
+      {
+        "src_id": "登录",
+        "tgt_id": "首页",
+        "description": "成功登录后用户将进入首页。",
+        "keywords": "导航,结果",
+        "weight": 1.0,
+        "source_id": "chunk-06b1eeeb9b201d991f4107bd4d9eb95d",
+        "file_path": "s20测试用例.pdf",
+        "created_at": 1779867809
+      },
+      {
+        "src_id": "用户",
+        "tgt_id": "用户登录",
+        "description": "用户执行登录操作进入系统。",
+        "keywords": "登录行为",
+        "weight": 1.0,
+        "source_id": "chunk-0187389780978bb38e9b14e0fe20df8c",
+        "file_path": "s30测试用例.pdf",
+        "created_at": 1779875742
+      },
+      {
+        "src_id": "搜索",
+        "tgt_id": "用户名",
+        "description": "搜索功能支持根据用户名进行匹配查询。",
+        "keywords": "匹配,查询",
+        "weight": 1.0,
+        "source_id": "chunk-c0936409aab015f13658e04cfbb2ff46",
+        "file_path": "S33测试用例.pdf",
+        "created_at": 1779876530
+      },
+      {
+        "src_id": "新增",
+        "tgt_id": "新增#1",
+        "description": "测试用例新增#1用于验证新增操作的功能正确性。",
+        "keywords": "功能关联,测试用例",
+        "weight": 1.0,
+        "source_id": "chunk-dd5486a83f744668de6e98b6b2da6679",
+        "file_path": "s30测试用例.pdf",
+        "created_at": 1779875737
+      },
+      {
+        "src_id": "XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "tgt_id": "角色管理",
+        "description": "Entity 角色管理 belongs to XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-0f1993029a2fbc6220b615b7bec212a3",
+        "file_path": "S33测试用例.pdf",
+        "created_at": 1779876396
+      },
+      {
+        "src_id": "排序",
+        "tgt_id": "页数切换#1",
+        "description": "排序模块包含页数切换测试用例。",
+        "keywords": "包含,测试",
+        "weight": 1.0,
+        "source_id": "chunk-8b784b76bd2e76fe01e7158deac2e90a",
+        "file_path": "s23测试用例.pdf",
+        "created_at": 1779870155
+      },
+      {
+        "src_id": "登录",
+        "tgt_id": "账号",
+        "description": "登录功能需要用户输入账号进行身份验证。",
+        "keywords": "使用,输入",
+        "weight": 1.0,
+        "source_id": "chunk-06b1eeeb9b201d991f4107bd4d9eb95d",
+        "file_path": "s20测试用例.pdf",
+        "created_at": 1779867807
+      },
+      {
+        "src_id": "队列进样",
+        "tgt_id": "验证人员",
+        "description": "验证人员需要队列进样功能，以便完成验证任务。",
+        "keywords": "功能要求,需求",
+        "weight": 1.0,
+        "source_id": "chunk-020243c69ae080181472c1d61df263ca",
+        "file_path": "PROII_队列进样.pdf",
+        "created_at": 1780563823
+      },
+      {
+        "src_id": "张三",
+        "tgt_id": "当前登录用户",
+        "description": "在测试中，张三代表当前登录用户。",
+        "keywords": "用户身份,角色关联",
+        "weight": 1.0,
+        "source_id": "chunk-4ee7a841f208c6563571af725a5af65e",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100018
+      },
+      {
+        "src_id": "用户名",
+        "tgt_id": "用户管理",
+        "description": "用户管理模块中包含用户名字段，被用作筛选数据源路径的一部分。",
+        "keywords": "数据引用,模块字段",
+        "weight": 1.0,
+        "source_id": "chunk-92e908f325207a8833fd3c4c666da72a",
+        "file_path": "34.pdf",
+        "created_at": 1779937430
+      },
+      {
+        "src_id": "新增字段低值提示#1",
+        "tgt_id": "检测项目列表",
+        "description": "自定义模块检测项目列表包含测试用例新增字段低值提示#1。",
+        "keywords": "包含,自定义",
+        "weight": 1.0,
+        "source_id": "chunk-8a98c36ae38c8eeb25db9aa4216ffaf9",
+        "file_path": "s22测试用例.pdf",
+        "created_at": 1779869579
+      },
+      {
+        "src_id": "权限管理测试",
+        "tgt_id": "用户C",
+        "description": "权限管理测试包含用户C的测试用例，验证下发权限的操作能力。",
+        "keywords": "权限验证,测试执行",
+        "weight": 1.0,
+        "source_id": "chunk-35d019619819f9d4c3ef1428f9148595",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100105
+      },
+      {
+        "src_id": "BayzeProll User Management Interface (User Info & Permissions) (image)",
+        "tgt_id": "用户名",
+        "description": "Entity 用户名 belongs to BayzeProll User Management Interface (User Info & Permissions) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-cb02f7e1a96d990201b84f50ddf7d7f6",
+        "file_path": "风险计算_用户管理.pdf",
+        "created_at": 1780538647
+      },
+      {
+        "src_id": "用户",
+        "tgt_id": "账号",
+        "description": "用户使用账号进行登录认证。",
+        "keywords": "使用凭证",
+        "weight": 1.0,
+        "source_id": "chunk-f66dec0ba8e2d12f2b2b9cf3145b777b",
+        "file_path": "s20测试用例.pdf",
+        "created_at": 1779867831
+      },
+      {
+        "src_id": "METRIX 精智·呼析云 - 报告单自助权限新增界面 (image)",
+        "tgt_id": "用户名",
+        "description": "Entity 用户名 belongs to METRIX 精智·呼析云 - 报告单自助权限新增界面 (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-7ef4c6977cc0de385584fe9b3d6c7691",
+        "file_path": "33.pdf",
+        "created_at": 1779929915
+      },
+      {
+        "src_id": "姓名字段",
+        "tgt_id": "必填验证",
+        "description": "当姓名字段设置为必填且为空时，系统提示姓名不能为空。",
+        "keywords": "验证规则",
+        "weight": 1.0,
+        "source_id": "chunk-d253ba1c6b1e52f3efcc606c62903dba",
+        "file_path": "s30测试用例.pdf",
+        "created_at": 1779875741
+      },
+      {
+        "src_id": "XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "tgt_id": "报告单自助权限",
+        "description": "Entity 报告单自助权限 belongs to XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-0f1993029a2fbc6220b615b7bec212a3",
+        "file_path": "S33测试用例.pdf",
+        "created_at": 1779876396
+      },
+      {
+        "src_id": "当前登录用户",
+        "tgt_id": "李四",
+        "description": "在测试中，李四代表当前登录用户。",
+        "keywords": "用户身份,角色关联",
+        "weight": 1.0,
+        "source_id": "chunk-4ee7a841f208c6563571af725a5af65e",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100018
+      },
+      {
+        "src_id": "测试用户1",
+        "tgt_id": "项目管理",
+        "description": "测试用户1在项目管理中具有数据录入的操作权限。",
+        "keywords": "权限",
+        "weight": 1.0,
+        "source_id": "chunk-20c459fad9c08d0c97d0fc465ececb0d",
+        "file_path": "实验项目.pdf",
+        "created_at": 1779961145
+      },
+      {
+        "src_id": "姓名",
+        "tgt_id": "数据脱敏#1",
+        "description": "测试用例“数据脱敏#1”验证开启脱敏后姓名加密，关闭后正常展示。",
+        "keywords": "测试,验证",
+        "weight": 1.0,
+        "source_id": "chunk-6e6152f5c43eb513dfe1a0f425a330d4",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865198
+      },
+      {
+        "src_id": "ArcoPro Data Field Configuration Table (image)",
+        "tgt_id": "用户名",
+        "description": "Entity 用户名 belongs to ArcoPro Data Field Configuration Table (image)<SEP>Entity 用户名 belongs to ArcoPro Data Field Configuration Table (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 20.0,
+        "source_id": "chunk-92e908f325207a8833fd3c4c666da72a",
+        "file_path": "34.pdf",
+        "created_at": 1779937439
+      },
+      {
+        "src_id": "用户名输入框",
+        "tgt_id": "登录界面",
+        "description": "登录界面包含用户名输入框，用于用户输入用户名。",
+        "keywords": "组件包含",
+        "weight": 1.0,
+        "source_id": "chunk-cd4d5f0070a914bfe545b8a60c49c25e",
+        "file_path": "风险计算_登录页.pdf",
+        "created_at": 1780535369
+      },
+      {
+        "src_id": "XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "tgt_id": "步骤",
+        "description": "Entity 步骤 belongs to XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-0f1993029a2fbc6220b615b7bec212a3",
+        "file_path": "S33测试用例.pdf",
+        "created_at": 1779876394
+      },
+      {
+        "src_id": "用户",
+        "tgt_id": "空账号",
+        "description": "用户账号为空时，系统提示输入。",
+        "keywords": "异常登录",
+        "weight": 1.0,
+        "source_id": "chunk-f66dec0ba8e2d12f2b2b9cf3145b777b",
+        "file_path": "s20测试用例.pdf",
+        "created_at": 1779867838
+      },
+      {
+        "src_id": "s13测试用例 思维导图 (s13 Test Case Mind Map) (image)",
+        "tgt_id": "自定义:研究正则表达式/用例:设备二维码展示#1",
+        "description": "Entity 自定义:研究正则表达式/用例:设备二维码展示#1 belongs to s13测试用例 思维导图 (s13 Test Case Mind Map) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-528dfbccb40ac50452cdbfbcec76be91",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865362
+      },
+      {
+        "src_id": "TC-SUBJ-LOG-002",
+        "tgt_id": "张三",
+        "description": "TC-SUBJ-LOG-002使用张三作为受试者姓名进行保存操作。",
+        "keywords": "测试数据,用户身份",
+        "weight": 1.0,
+        "source_id": "chunk-4ee7a841f208c6563571af725a5af65e",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100014
+      },
+      {
+        "src_id": "XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "tgt_id": "管理权限",
+        "description": "Entity 管理权限 belongs to XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-0f1993029a2fbc6220b615b7bec212a3",
+        "file_path": "S33测试用例.pdf",
+        "created_at": 1779876402
+      },
+      {
+        "src_id": "s13测试用例 思维导图 (s13 Test Case Mind Map) (image)",
+        "tgt_id": "自定义:TD管管理/自定义:新增/用例:校验数据下一步#1",
+        "description": "Entity 自定义:TD管管理/自定义:新增/用例:校验数据下一步#1 belongs to s13测试用例 思维导图 (s13 Test Case Mind Map) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-528dfbccb40ac50452cdbfbcec76be91",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865365
+      },
+      {
+        "src_id": "METRIX 精智·呼析云 - 报告单自助权限编辑界面 (image)",
+        "tgt_id": "用户名",
+        "description": "Entity 用户名 belongs to METRIX 精智·呼析云 - 报告单自助权限编辑界面 (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-e96a86ebe542ffec6dc84083b1563479",
+        "file_path": "33.pdf",
+        "created_at": 1779929884
+      },
+      {
+        "src_id": "用户F",
+        "tgt_id": "登录页",
+        "description": "用户F通过登录页登录系统。",
+        "keywords": "使用,登录",
+        "weight": 1.0,
+        "source_id": "chunk-d3bf45a42ee78029ec0bc855da017a7d",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100098
+      },
+      {
+        "src_id": "XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "tgt_id": "客户权限",
+        "description": "Entity 客户权限 belongs to XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-0f1993029a2fbc6220b615b7bec212a3",
+        "file_path": "S33测试用例.pdf",
+        "created_at": 1779876397
+      },
+      {
+        "src_id": "用例:重置密码",
+        "tgt_id": "自定义权限管理",
+        "description": "自定义权限管理包含用例:重置密码，用于测试密码重置功能。",
+        "keywords": "包含,用户管理",
+        "weight": 1.0,
+        "source_id": "chunk-5a609e07c645f8b77b1570d40db7e420",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862671
+      },
+      {
+        "src_id": "XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "tgt_id": "预期",
+        "description": "Entity 预期 belongs to XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-0f1993029a2fbc6220b615b7bec212a3",
+        "file_path": "S33测试用例.pdf",
+        "created_at": 1779876394
+      },
+      {
+        "src_id": "操作#1",
+        "tgt_id": "详情",
+        "description": "测试用例“操作#1”验证查看详情操作。",
+        "keywords": "功能验证,测试用例",
+        "weight": 1.0,
+        "source_id": "chunk-e58a92662b7be26f58448548ade2c841",
+        "file_path": "s32测试用例.pdf",
+        "created_at": 1779876342
+      },
+      {
+        "src_id": "多TD管添加入口验证",
+        "tgt_id": "环境登记-TD管管理测试用例表 (table)",
+        "description": "Entity 多TD管添加入口验证 belongs to 环境登记-TD管管理测试用例表 (table)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097478
+      },
+      {
+        "src_id": "切换用户",
+        "tgt_id": "用户",
+        "description": "用户点击切换用户后，弹窗二次确认成功切换。",
+        "keywords": "操作,身份切换",
+        "weight": 1.0,
+        "source_id": "chunk-b3ab54c816fb2f928fa5ee967dbf58bf",
+        "file_path": "s26测试用例.pdf",
+        "created_at": 1779874178
+      },
+      {
+        "src_id": "报告单自助权限",
+        "tgt_id": "用户名",
+        "description": "报告单自助权限页面中的用户名输入框用于按用户名搜索已有权限。",
+        "keywords": "搜索条件,表格字段",
+        "weight": 1.0,
+        "source_id": "chunk-7ef4c6977cc0de385584fe9b3d6c7691",
+        "file_path": "33.pdf",
+        "created_at": 1779929909
+      },
+      {
+        "src_id": "新增样本#1",
+        "tgt_id": "样本",
+        "description": "测试用例“新增样本#1”验证新增样本功能的正确性。",
+        "keywords": "功能验证,测试用例",
+        "weight": 1.0,
+        "source_id": "chunk-e58a92662b7be26f58448548ade2c841",
+        "file_path": "s32测试用例.pdf",
+        "created_at": 1779876338
+      },
+      {
+        "src_id": "用户名",
+        "tgt_id": "重置按钮",
+        "description": "重置按钮用于清空用户名等过滤条件，恢复默认显示。",
+        "keywords": "过滤操作",
+        "weight": 1.0,
+        "source_id": "chunk-e96a86ebe542ffec6dc84083b1563479",
+        "file_path": "33.pdf",
+        "created_at": 1779929880
+      },
+      {
+        "src_id": "用例:基本信息添加新字段#1",
+        "tgt_id": "老化次数",
+        "description": "该测试用例验证老化次数字段的累计规则。",
+        "keywords": "字段定义,测试验证",
+        "weight": 1.0,
+        "source_id": "chunk-928ed73f7d7cf62923d69f6f0b891515",
+        "file_path": "S31测试用例.pdf",
+        "created_at": 1779875994
+      },
+      {
+        "src_id": "分配卷王问卷权限#1用例",
+        "tgt_id": "角色管理",
+        "description": "角色管理模块包含分配卷王问卷权限用例。",
+        "keywords": "包含",
+        "weight": 1.0,
+        "source_id": "chunk-3db2fced39f60198ed351afb9b4b0902",
+        "file_path": "s11测试用例.pdf",
+        "created_at": 1779864369
+      },
+      {
+        "src_id": "新增用户功能",
+        "tgt_id": "登录密码",
+        "description": "在新增用户时，需要输入登录密码作为新用户的初始密码。",
+        "keywords": "密码设置,数据输入",
+        "weight": 1.0,
+        "source_id": "chunk-17fb019485b53d341e9b1af1d060e08a",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862534
+      },
+      {
+        "src_id": "XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "tgt_id": "XMetrix S33测试用例",
+        "description": "Entity XMetrix S33测试用例 belongs to XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-0f1993029a2fbc6220b615b7bec212a3",
+        "file_path": "S33测试用例.pdf",
+        "created_at": 1779876395
+      },
+      {
+        "src_id": "提交检测",
+        "tgt_id": "颜",
+        "description": "用户颜使用提交检测功能，可能触发任务创建流程。",
+        "keywords": "操作,用户交互",
+        "weight": 1.0,
+        "source_id": "chunk-1df499ac615e547e5e253c3beb1bb6d1",
+        "file_path": "实验项目s52.pdf",
+        "created_at": 1782368383
+      },
+      {
+        "src_id": "XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "tgt_id": "点击确定",
+        "description": "Entity 点击确定 belongs to XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-0f1993029a2fbc6220b615b7bec212a3",
+        "file_path": "S33测试用例.pdf",
+        "created_at": 1779876395
+      },
+      {
+        "src_id": "用户E",
+        "tgt_id": "登录页",
+        "description": "用户E通过登录页登录系统。",
+        "keywords": "使用,登录",
+        "weight": 1.0,
+        "source_id": "chunk-d3bf45a42ee78029ec0bc855da017a7d",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100097
+      },
+      {
+        "src_id": "BayzeProll User Management Interface (User Info & Permissions) (image)",
+        "tgt_id": "密码",
+        "description": "Entity 密码 belongs to BayzeProll User Management Interface (User Info & Permissions) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-cb02f7e1a96d990201b84f50ddf7d7f6",
+        "file_path": "风险计算_用户管理.pdf",
+        "created_at": 1780538647
+      },
+      {
+        "src_id": "权限相关",
+        "tgt_id": "添加第三方用户权限#1",
+        "description": "添加第三方用户权限#1测试验证第三方用户权限的添加和状态切换。",
+        "keywords": "测试覆盖",
+        "weight": 1.0,
+        "source_id": "chunk-2193e2c6a59452bd1b2ea6e9b1bec3c0",
+        "file_path": "S35测试用例.pdf",
+        "created_at": 1779877108
+      },
+      {
+        "src_id": "XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "tgt_id": "自定义流程自助流程",
+        "description": "Entity 自定义流程自助流程 belongs to XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-0f1993029a2fbc6220b615b7bec212a3",
+        "file_path": "S33测试用例.pdf",
+        "created_at": 1779876391
+      },
+      {
+        "src_id": "必填项为空",
+        "tgt_id": "必填项错误提示",
+        "description": "当必填字段为空时，系统将显示错误提示。",
+        "keywords": "错误处理,验证规则",
+        "weight": 1.0,
+        "source_id": "chunk-2738e0c21a402ab239051054197bc957",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100012
+      },
+      {
+        "src_id": "喵喵",
+        "tgt_id": "用户名",
+        "description": "喵喵的用户名字段为“喵喵”。",
+        "keywords": "用户标识",
+        "weight": 1.0,
+        "source_id": "chunk-e96a86ebe542ffec6dc84083b1563479",
+        "file_path": "33.pdf",
+        "created_at": 1779929878
+      },
+      {
+        "src_id": "必填验证",
+        "tgt_id": "您的姓名字段",
+        "description": "当您的姓名字段设置为必填且为空时，系统提示姓名不能为空。",
+        "keywords": "验证规则",
+        "weight": 1.0,
+        "source_id": "chunk-d253ba1c6b1e52f3efcc606c62903dba",
+        "file_path": "s30测试用例.pdf",
+        "created_at": 1779875741
+      },
+      {
+        "src_id": "XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "tgt_id": "权限配置",
+        "description": "Entity 权限配置 belongs to XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-0f1993029a2fbc6220b615b7bec212a3",
+        "file_path": "S33测试用例.pdf",
+        "created_at": 1779876397
+      },
+      {
+        "src_id": "用户C",
+        "tgt_id": "系统",
+        "description": "用户C登录系统执行操作。",
+        "keywords": "使用,登录",
+        "weight": 1.0,
+        "source_id": "chunk-d3bf45a42ee78029ec0bc855da017a7d",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100096
+      },
+      {
+        "src_id": "XCloud管理后台",
+        "tgt_id": "登录",
+        "description": "登录文字是XCloud管理后台登录界面的顶部标题。",
+        "keywords": "界面元素,系统入口",
+        "weight": 1.0,
+        "source_id": "chunk-f434f440d8f163b1573301b798ef002e",
+        "file_path": "XCloud_2.0管理后台.pdf",
+        "created_at": 1780022335
+      },
+      {
+        "src_id": "新增字段低值提示#1",
+        "tgt_id": "输入字符超过50",
+        "description": "测试用例新增字段低值提示#1包含步骤输入字符超过50。",
+        "keywords": "包含步骤",
+        "weight": 1.0,
+        "source_id": "chunk-8a98c36ae38c8eeb25db9aa4216ffaf9",
+        "file_path": "s22测试用例.pdf",
+        "created_at": 1779869583
+      },
+      {
+        "src_id": "添加第三方用户权限#1",
+        "tgt_id": "飞书",
+        "description": "第三方用户通过飞书登录云平台，根据状态获得或失去权限。",
+        "keywords": "登录平台",
+        "weight": 1.0,
+        "source_id": "chunk-2193e2c6a59452bd1b2ea6e9b1bec3c0",
+        "file_path": "S35测试用例.pdf",
+        "created_at": 1779877112
+      },
+      {
+        "src_id": "密码输入框",
+        "tgt_id": "登录界面",
+        "description": "登录界面包含密码输入框，用于用户输入密码。",
+        "keywords": "组件包含",
+        "weight": 1.0,
+        "source_id": "chunk-cd4d5f0070a914bfe545b8a60c49c25e",
+        "file_path": "风险计算_登录页.pdf",
+        "created_at": 1780535369
+      },
+      {
+        "src_id": "操作人",
+        "tgt_id": "用户ID",
+        "description": "操作人字段的取值是用户ID，标识执行动作的操作者。",
+        "keywords": "字段映射,数据赋值",
+        "weight": 1.0,
+        "source_id": "chunk-156ffd4cbb1b2061aa3c6b58d84ad8a4",
+        "file_path": "34.pdf",
+        "created_at": 1779937692
+      },
+      {
+        "src_id": "用户B",
+        "tgt_id": "登录页",
+        "description": "用户B通过登录页登录系统。",
+        "keywords": "使用,登录",
+        "weight": 1.0,
+        "source_id": "chunk-d3bf45a42ee78029ec0bc855da017a7d",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100096
+      },
+      {
+        "src_id": "XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "tgt_id": "设置访问权限",
+        "description": "Entity 设置访问权限 belongs to XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-0f1993029a2fbc6220b615b7bec212a3",
+        "file_path": "S33测试用例.pdf",
+        "created_at": 1779876399
+      },
+      {
+        "src_id": "风险评分",
+        "tgt_id": "风险评分验证",
+        "description": "风险评分验证规则确保风险评分必填且取值在0到1之间。",
+        "keywords": "字段校验,规则约束",
+        "weight": 1.0,
+        "source_id": "chunk-20444d6a41d9ea6fa6972d3b2bcc9988",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100031
+      },
+      {
+        "src_id": "XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "tgt_id": "设置管理权限",
+        "description": "Entity 设置管理权限 belongs to XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-0f1993029a2fbc6220b615b7bec212a3",
+        "file_path": "S33测试用例.pdf",
+        "created_at": 1779876398
+      },
+      {
+        "src_id": "用户登录",
+        "tgt_id": "登录界面",
+        "description": "登录界面顶部显示“用户登录”文字，表明页面用途。",
+        "keywords": "文字内容",
+        "weight": 1.0,
+        "source_id": "chunk-cd4d5f0070a914bfe545b8a60c49c25e",
+        "file_path": "风险计算_登录页.pdf",
+        "created_at": 1780535368
+      },
+      {
+        "src_id": "XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "tgt_id": "下拉搜索选择用户名",
+        "description": "Entity 下拉搜索选择用户名 belongs to XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-0f1993029a2fbc6220b615b7bec212a3",
+        "file_path": "S33测试用例.pdf",
+        "created_at": 1779876397
+      },
+      {
+        "src_id": "新增用户功能",
+        "tgt_id": "登录账号",
+        "description": "在新增用户时，需要输入登录账号作为新用户账号的一部分。",
+        "keywords": "数据输入,账号创建",
+        "weight": 1.0,
+        "source_id": "chunk-17fb019485b53d341e9b1af1d060e08a",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862533
+      },
+      {
+        "src_id": "XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "tgt_id": "设置权限",
+        "description": "Entity 设置权限 belongs to XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-0f1993029a2fbc6220b615b7bec212a3",
+        "file_path": "S33测试用例.pdf",
+        "created_at": 1779876395
+      },
+      {
+        "src_id": "用户D",
+        "tgt_id": "登录页",
+        "description": "用户D通过登录页登录系统。",
+        "keywords": "使用,登录",
+        "weight": 1.0,
+        "source_id": "chunk-d3bf45a42ee78029ec0bc855da017a7d",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100097
+      },
+      {
+        "src_id": "XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "tgt_id": "自定义流程变量",
+        "description": "Entity 自定义流程变量 belongs to XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-0f1993029a2fbc6220b615b7bec212a3",
+        "file_path": "S33测试用例.pdf",
+        "created_at": 1779876393
+      },
+      {
+        "src_id": "用例:新增用户",
+        "tgt_id": "自定义权限管理",
+        "description": "自定义权限管理包含用例:新增用户，用于测试用户新增功能。",
+        "keywords": "包含,用户管理",
+        "weight": 1.0,
+        "source_id": "chunk-5a609e07c645f8b77b1570d40db7e420",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862670
+      },
+      {
+        "src_id": "XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "tgt_id": "自定义流程任务",
+        "description": "Entity 自定义流程任务 belongs to XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-0f1993029a2fbc6220b615b7bec212a3",
+        "file_path": "S33测试用例.pdf",
+        "created_at": 1779876393
+      },
+      {
+        "src_id": "刷新页面",
+        "tgt_id": "用户登录",
+        "description": "用户登录后12小时无操作需刷新页面，否则跳转至登录页面。",
+        "keywords": "登录逻辑,超时处理",
+        "weight": 1.0,
+        "source_id": "chunk-0187389780978bb38e9b14e0fe20df8c",
+        "file_path": "s30测试用例.pdf",
+        "created_at": 1779875742
+      },
+      {
+        "src_id": "XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "tgt_id": "自定义流程报告内容",
+        "description": "Entity 自定义流程报告内容 belongs to XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-0f1993029a2fbc6220b615b7bec212a3",
+        "file_path": "S33测试用例.pdf",
+        "created_at": 1779876393
+      },
+      {
+        "src_id": "字段配置",
+        "tgt_id": "字段配置#1",
+        "description": "测试用例“字段配置#1”验证字段配置功能。",
+        "keywords": "测试用例,配置功能",
+        "weight": 1.0,
+        "source_id": "chunk-e58a92662b7be26f58448548ade2c841",
+        "file_path": "s32测试用例.pdf",
+        "created_at": 1779876340
+      },
+      {
+        "src_id": "XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "tgt_id": "自定义人工任务中心",
+        "description": "Entity 自定义人工任务中心 belongs to XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-0f1993029a2fbc6220b615b7bec212a3",
+        "file_path": "S33测试用例.pdf",
+        "created_at": 1779876392
+      },
+      {
+        "src_id": "校验数据",
+        "tgt_id": "翻页",
+        "description": "校验数据功能中，支持通过点击下一页、指定页数或切换每页条数进行翻页操作。",
+        "keywords": "用户界面,页面切换",
+        "weight": 1.0,
+        "source_id": "chunk-ae4bf2d83feb510b33d7defba968c75d",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865193
+      },
+      {
+        "src_id": "XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "tgt_id": "自定义流程传输列表",
+        "description": "Entity 自定义流程传输列表 belongs to XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-0f1993029a2fbc6220b615b7bec212a3",
+        "file_path": "S33测试用例.pdf",
+        "created_at": 1779876392
+      },
+      {
+        "src_id": "必填项",
+        "tgt_id": "提交",
+        "description": "提交操作前需检查必填项，若未填写则提示必填项未填写。<SEP>提交操作会检查必填项是否填写，未填写则提示错误。",
+        "keywords": "检查,约束,验证",
+        "weight": 2.0,
+        "source_id": "chunk-21d7eeb1224b1f095d98f84674fe77de<SEP>chunk-666c50ace1109e21891c724670cd9d32",
+        "file_path": "s14测试用例.pdf",
+        "created_at": 1779865608
+      },
+      {
+        "src_id": "搜索按钮",
+        "tgt_id": "用户名",
+        "description": "搜索按钮根据输入的用户名等条件对表格数据进行筛选。",
+        "keywords": "过滤操作",
+        "weight": 1.0,
+        "source_id": "chunk-e96a86ebe542ffec6dc84083b1563479",
+        "file_path": "33.pdf",
+        "created_at": 1779929880
+      },
+      {
+        "src_id": "检测项目",
+        "tgt_id": "详情查看",
+        "description": "详情查看测试用例用于验证检测项目详情页的查看功能，确保不可编辑。",
+        "keywords": "测试用例,验证",
+        "weight": 1.0,
+        "source_id": "chunk-6444941fefaa012d6e78f5c69d1c072c",
+        "file_path": "s15测试用例.pdf",
+        "created_at": 1779866027
+      },
+      {
+        "src_id": "XCloud管理后台",
+        "tgt_id": "添加第三方用户权限#1",
+        "description": "该测试用例涉及XCloud管理后台的权限管理功能。",
+        "keywords": "系统关联",
+        "weight": 1.0,
+        "source_id": "chunk-2193e2c6a59452bd1b2ea6e9b1bec3c0",
+        "file_path": "S35测试用例.pdf",
+        "created_at": 1779877109
+      },
+      {
+        "src_id": "数据脱敏#1",
+        "tgt_id": "电话",
+        "description": "测试用例“数据脱敏#1”验证开启脱敏后电话加密，关闭后正常展示。",
+        "keywords": "测试,验证",
+        "weight": 1.0,
+        "source_id": "chunk-6e6152f5c43eb513dfe1a0f425a330d4",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865199
+      },
+      {
+        "src_id": "XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "tgt_id": "用户名客户权限为空点击确定",
+        "description": "Entity 用户名客户权限为空点击确定 belongs to XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-0f1993029a2fbc6220b615b7bec212a3",
+        "file_path": "S33测试用例.pdf",
+        "created_at": 1779876398
+      },
+      {
+        "src_id": "XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "tgt_id": "可在XMetrix报告单自助权限中新增编辑删除操作",
+        "description": "Entity 可在XMetrix报告单自助权限中新增编辑删除操作 belongs to XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-0f1993029a2fbc6220b615b7bec212a3",
+        "file_path": "S33测试用例.pdf",
+        "created_at": 1779876401
+      },
+      {
+        "src_id": "XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "tgt_id": "可在XMetrix报告单自助权限中查看见证不可新增编辑删除操作",
+        "description": "Entity 可在XMetrix报告单自助权限中查看见证不可新增编辑删除操作 belongs to XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-0f1993029a2fbc6220b615b7bec212a3",
+        "file_path": "S33测试用例.pdf",
+        "created_at": 1779876401
+      },
+      {
+        "src_id": "XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "tgt_id": "正常关闭弹窗",
+        "description": "Entity 正常关闭弹窗 belongs to XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-0f1993029a2fbc6220b615b7bec212a3",
+        "file_path": "S33测试用例.pdf",
+        "created_at": 1779876401
+      },
+      {
+        "src_id": "XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "tgt_id": "正常新增",
+        "description": "Entity 正常新增 belongs to XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-0f1993029a2fbc6220b615b7bec212a3",
+        "file_path": "S33测试用例.pdf",
+        "created_at": 1779876400
+      },
+      {
+        "src_id": "XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "tgt_id": "提示对应字段不能为空",
+        "description": "Entity 提示对应字段不能为空 belongs to XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-0f1993029a2fbc6220b615b7bec212a3",
+        "file_path": "S33测试用例.pdf",
+        "created_at": 1779876400
+      },
+      {
+        "src_id": "XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "tgt_id": "点击取消",
+        "description": "Entity 点击取消 belongs to XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-0f1993029a2fbc6220b615b7bec212a3",
+        "file_path": "S33测试用例.pdf",
+        "created_at": 1779876399
+      },
+      {
+        "src_id": "XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "tgt_id": "没有设置权限",
+        "description": "Entity 没有设置权限 belongs to XMetrix S33 Test Case Flowchart (Custom Process & Permissions) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-0f1993029a2fbc6220b615b7bec212a3",
+        "file_path": "S33测试用例.pdf",
+        "created_at": 1779876399
+      },
+      {
+        "src_id": "用例:继续录入#1",
+        "tgt_id": "采样信息",
+        "description": "该用例测试完成手动采样后点击继续录入的功能。",
+        "keywords": "测试操作",
+        "weight": 1.0,
+        "source_id": "chunk-313e136ae906bd5efc0871114ed295c9",
+        "file_path": "s28测试用例.pdf",
+        "created_at": 1779874925
+      },
+      {
+        "src_id": "患者信息录入系统的验证规则",
+        "tgt_id": "附件",
+        "description": "附件字段受验证规则限制，允许特定文件类型，每文件最大12M，最多9个文件。",
+        "keywords": "文件类型/大小/数量,限制",
+        "weight": 1.0,
+        "source_id": "chunk-217fdbf09f9d19e5f4997467ada7438c",
+        "file_path": "34.pdf",
+        "created_at": 1779937673
+      },
+      {
+        "src_id": "Medical Form Field Configuration Table (Patient Data Entry) (image)",
+        "tgt_id": "患者信息录入系统的验证规则",
+        "description": "Entity 患者信息录入系统的验证规则 belongs to Medical Form Field Configuration Table (Patient Data Entry) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-217fdbf09f9d19e5f4997467ada7438c",
+        "file_path": "34.pdf",
+        "created_at": 1779937680
+      },
+      {
+        "src_id": "用户信息区域",
+        "tgt_id": "用户名",
+        "description": "用户信息区域包含用户名输入字段(必填)。",
+        "keywords": "包含,输入字段",
+        "weight": 1.0,
+        "source_id": "chunk-cb02f7e1a96d990201b84f50ddf7d7f6",
+        "file_path": "风险计算_用户管理.pdf",
+        "created_at": 1780538638
+      },
+      {
+        "src_id": "S36测试用例流程图 - 标气管理与谱图上传测试 (image)",
+        "tgt_id": "预期: 提示对应字段不能为空",
+        "description": "Entity 预期: 提示对应字段不能为空 belongs to S36测试用例流程图 - 标气管理与谱图上传测试 (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-ad8b654521ef098b4857e73285b1575c",
+        "file_path": "S36测试用例.pdf",
+        "created_at": 1779877414
+      },
+      {
+        "src_id": "新增权限",
+        "tgt_id": "用户名",
+        "description": "新增权限操作需要输入用户名作为参数。",
+        "keywords": "操作,输入",
+        "weight": 1.0,
+        "source_id": "chunk-c0936409aab015f13658e04cfbb2ff46",
+        "file_path": "S33测试用例.pdf",
+        "created_at": 1779876529
+      },
+      {
+        "src_id": "新增权限模态对话框",
+        "tgt_id": "用户名",
+        "description": "新增权限模态对话框中的用户名输入框为必填字段。",
+        "keywords": "表单字段,输入要求",
+        "weight": 1.0,
+        "source_id": "chunk-7ef4c6977cc0de385584fe9b3d6c7691",
+        "file_path": "33.pdf",
+        "created_at": 1779929908
+      },
+      {
+        "src_id": "小程序",
+        "tgt_id": "小程序-为空校验#1",
+        "description": "小程序模块包含为空校验测试用例。",
+        "keywords": "包含,测试",
+        "weight": 1.0,
+        "source_id": "chunk-8b784b76bd2e76fe01e7158deac2e90a",
+        "file_path": "s23测试用例.pdf",
+        "created_at": 1779870152
+      },
+      {
+        "src_id": "小程序",
+        "tgt_id": "小程序-特殊字符校验#1",
+        "description": "小程序模块包含特殊字符校验测试用例。",
+        "keywords": "包含,测试",
+        "weight": 1.0,
+        "source_id": "chunk-8b784b76bd2e76fe01e7158deac2e90a",
+        "file_path": "s23测试用例.pdf",
+        "created_at": 1779870153
+      },
+      {
+        "src_id": "S39测试用例流程图 (S39 Test Case Flowchart) (image)",
+        "tgt_id": "管理权限/非管理权限",
+        "description": "Entity 管理权限/非管理权限 belongs to S39测试用例流程图 (S39 Test Case Flowchart) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-7f25e100e203125a6c2e099ea972e12a",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862666
+      },
+      {
+        "src_id": "用户名",
+        "tgt_id": "第三方用户",
+        "description": "用户名来源中包含第三方用户类型。",
+        "keywords": "来源,类型",
+        "weight": 1.0,
+        "source_id": "chunk-c0936409aab015f13658e04cfbb2ff46",
+        "file_path": "S33测试用例.pdf",
+        "created_at": 1779876533
+      },
+      {
+        "src_id": "XCloud Management Backend Feishu QR Login Interface with Breathomics Emphasis (image)",
+        "tgt_id": "登录",
+        "description": "Entity 登录 belongs to XCloud Management Backend Feishu QR Login Interface with Breathomics Emphasis (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-f434f440d8f163b1573301b798ef002e",
+        "file_path": "XCloud_2.0管理后台.pdf",
+        "created_at": 1780022341
+      },
+      {
+        "src_id": "User Profile Section with Hospital Association (XX Hospital) (image)",
+        "tgt_id": "用户名",
+        "description": "Entity 用户名 belongs to User Profile Section with Hospital Association (XX Hospital) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-f397774b118c46891aa5490d8aef85e3",
+        "file_path": "XCloud_v1.2_小程序.pdf",
+        "created_at": 1779942482
+      },
+      {
+        "src_id": "用户名",
+        "tgt_id": "蓝色圆角矩形标签",
+        "description": "蓝色圆角矩形标签位于用户名文本的下方或相邻位置，与用户名共同构成用户信息区域。",
+        "keywords": "排列,相邻",
+        "weight": 1.0,
+        "source_id": "chunk-f397774b118c46891aa5490d8aef85e3",
+        "file_path": "XCloud_v1.2_小程序.pdf",
+        "created_at": 1779942481
+      },
+      {
+        "src_id": "删除权限",
+        "tgt_id": "用户名",
+        "description": "删除权限操作移除指定用户名的客户权限。",
+        "keywords": "操作,移除",
+        "weight": 1.0,
+        "source_id": "chunk-c0936409aab015f13658e04cfbb2ff46",
+        "file_path": "S33测试用例.pdf",
+        "created_at": 1779876529
+      },
+      {
+        "src_id": "圆形头像占位符",
+        "tgt_id": "用户名",
+        "description": "用户名文本标签位于圆形头像占位符的右侧，共同构成用户信息展示区域。",
+        "keywords": "布局,相邻",
+        "weight": 1.0,
+        "source_id": "chunk-f397774b118c46891aa5490d8aef85e3",
+        "file_path": "XCloud_v1.2_小程序.pdf",
+        "created_at": 1779942480
+      },
+      {
+        "src_id": "S40测试用例 Flowchart (Test Case Documentation) (image (technical diagram/flowchart))",
+        "tgt_id": "登记样本，点击开始解析",
+        "description": "Entity 登记样本，点击开始解析 belongs to S40测试用例 Flowchart (Test Case Documentation) (image (technical diagram/flowchart))",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-e7aed5a6965b4a43d475f002037e6175",
+        "file_path": "S40测试用例.pdf",
+        "created_at": 1779862943
+      },
+      {
+        "src_id": "Appointment - related Action Log Table (image)",
+        "tgt_id": "用户ID",
+        "description": "Entity 用户ID belongs to Appointment - related Action Log Table (image)<SEP>Entity 用户ID belongs to Appointment - related Action Log Table (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 20.0,
+        "source_id": "chunk-156ffd4cbb1b2061aa3c6b58d84ad8a4",
+        "file_path": "34.pdf",
+        "created_at": 1779937696
+      },
+      {
+        "src_id": "地点管理",
+        "tgt_id": "当前地点",
+        "description": "当前地点是地点管理模块中的要素之一。",
+        "keywords": "功能归属",
+        "weight": 1.0,
+        "source_id": "chunk-9348e364f3ce581b1904ae256496a838",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353449
+      },
+      {
+        "src_id": "BayzeProll User Management GUI with Documentation (image)",
+        "tgt_id": "账号规则",
+        "description": "Entity 账号规则 belongs to BayzeProll User Management GUI with Documentation (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-87e78fd9b549cb8c46d36545f6036738",
+        "file_path": "风险计算_用户管理.pdf",
+        "created_at": 1780538658
+      },
+      {
+        "src_id": "下拉搜索选择用户名",
+        "tgt_id": "客户权限",
+        "description": "下拉搜索选择用户名步骤中涉及客户权限的选择。",
+        "keywords": "权限,选择",
+        "weight": 1.0,
+        "source_id": "chunk-0f1993029a2fbc6220b615b7bec212a3",
+        "file_path": "S33测试用例.pdf",
+        "created_at": 1779876391
+      },
+      {
+        "src_id": "xmetrix",
+        "tgt_id": "登录",
+        "description": "xmetrix系统包含登录功能模块。",
+        "keywords": "功能模块,包含",
+        "weight": 1.0,
+        "source_id": "chunk-06b1eeeb9b201d991f4107bd4d9eb95d",
+        "file_path": "s20测试用例.pdf",
+        "created_at": 1779867807
+      },
+      {
+        "src_id": "密码",
+        "tgt_id": "用户信息区域",
+        "description": "用户信息区域包含密码输入字段(必填)。",
+        "keywords": "包含,输入字段",
+        "weight": 1.0,
+        "source_id": "chunk-cb02f7e1a96d990201b84f50ddf7d7f6",
+        "file_path": "风险计算_用户管理.pdf",
+        "created_at": 1780538638
+      },
+      {
+        "src_id": "患者信息录入系统的验证规则",
+        "tgt_id": "既往史",
+        "description": "既往史字段受验证规则限制，最多50字符。",
+        "keywords": "字符长度,限制",
+        "weight": 1.0,
+        "source_id": "chunk-217fdbf09f9d19e5f4997467ada7438c",
+        "file_path": "34.pdf",
+        "created_at": 1779937672
+      },
+      {
+        "src_id": "分配检测任务",
+        "tgt_id": "必填校验",
+        "description": "分配检测任务时必填校验确保关键字段已填写。",
+        "keywords": "校验规则",
+        "weight": 1.0,
+        "source_id": "chunk-75667450ede2ed0dafd80a6f4b3b0989",
+        "file_path": "s16测试用例.pdf",
+        "created_at": 1779866379
+      },
+      {
+        "src_id": "分配卷王问卷权限#1用例",
+        "tgt_id": "卷王问卷",
+        "description": "用例验证分配卷王问卷管理权限。",
+        "keywords": "涉及",
+        "weight": 1.0,
+        "source_id": "chunk-3db2fced39f60198ed351afb9b4b0902",
+        "file_path": "s11测试用例.pdf",
+        "created_at": 1779864372
+      },
+      {
+        "src_id": "卷王问卷",
+        "tgt_id": "重新填写#1用例",
+        "description": "用例验证同个受试者根据卷王问卷变更重新填写规则。",
+        "keywords": "涉及",
+        "weight": 1.0,
+        "source_id": "chunk-3db2fced39f60198ed351afb9b4b0902",
+        "file_path": "s11测试用例.pdf",
+        "created_at": 1779864371
+      },
+      {
+        "src_id": "添加第三方用户权限#1",
+        "tgt_id": "第三方用户",
+        "description": "添加第三方用户权限#1用例中，添加第三方用户并控制其权限状态。",
+        "keywords": "权限设置",
+        "weight": 1.0,
+        "source_id": "chunk-2193e2c6a59452bd1b2ea6e9b1bec3c0",
+        "file_path": "S35测试用例.pdf",
+        "created_at": 1779877111
+      },
+      {
+        "src_id": "web",
+        "tgt_id": "web-为空校验#1",
+        "description": "web模块包含为空校验测试用例。",
+        "keywords": "包含,测试",
+        "weight": 1.0,
+        "source_id": "chunk-8b784b76bd2e76fe01e7158deac2e90a",
+        "file_path": "s23测试用例.pdf",
+        "created_at": 1779870152
+      },
+      {
+        "src_id": "卷王问卷",
+        "tgt_id": "编辑问卷提示#1用例",
+        "description": "用例验证编辑问卷时的提示与卷王问卷的一致性。",
+        "keywords": "涉及",
+        "weight": 1.0,
+        "source_id": "chunk-3db2fced39f60198ed351afb9b4b0902",
+        "file_path": "s11测试用例.pdf",
+        "created_at": 1779864370
+      },
+      {
+        "src_id": "分配卷王问卷权限#1用例",
+        "tgt_id": "权限设置",
+        "description": "权限设置测试点包含分配卷王问卷权限#1用例。",
+        "keywords": "包含",
+        "weight": 1.0,
+        "source_id": "chunk-3db2fced39f60198ed351afb9b4b0902",
+        "file_path": "s11测试用例.pdf",
+        "created_at": 1779864373
+      },
+      {
+        "src_id": "必填校验",
+        "tgt_id": "清理样本",
+        "description": "清理样本时必填校验确保输入截止时间和原因。",
+        "keywords": "校验规则",
+        "weight": 1.0,
+        "source_id": "chunk-75667450ede2ed0dafd80a6f4b3b0989",
+        "file_path": "s16测试用例.pdf",
+        "created_at": 1779866379
+      },
+      {
+        "src_id": "必填校验",
+        "tgt_id": "新建分析任务",
+        "description": "新建分析任务时必填校验确保采样方式中TD管号等字段必填。",
+        "keywords": "校验规则",
+        "weight": 1.0,
+        "source_id": "chunk-75667450ede2ed0dafd80a6f4b3b0989",
+        "file_path": "s16测试用例.pdf",
+        "created_at": 1779866380
+      },
+      {
+        "src_id": "自定义:TD管管理/自定义:新增",
+        "tgt_id": "自定义:TD管管理/自定义:新增/用例:校验数据下一步#1",
+        "description": "自定义:新增子模块(TD管管理)包含用例:校验数据下一步#1。",
+        "keywords": "包含,测试用例",
+        "weight": 1.0,
+        "source_id": "chunk-528dfbccb40ac50452cdbfbcec76be91",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865354
+      },
+      {
+        "src_id": "登记样本，点击开始解析",
+        "tgt_id": "进度条前10%处理开启解析后的升温阶段#1",
+        "description": "该测试用例包含步骤“登记样本，点击开始解析”。",
+        "keywords": "前置操作,步骤关联",
+        "weight": 1.0,
+        "source_id": "chunk-e7aed5a6965b4a43d475f002037e6175",
+        "file_path": "S40测试用例.pdf",
+        "created_at": 1779862939
+      },
+      {
+        "src_id": "患者信息录入系统的验证规则",
+        "tgt_id": "肺结节大小(mm)",
+        "description": "肺结节大小字段受验证规则限制，值必须在0-999之间且总长度5(含小数点)。",
+        "keywords": "数值范围,限制",
+        "weight": 1.0,
+        "source_id": "chunk-217fdbf09f9d19e5f4997467ada7438c",
+        "file_path": "34.pdf",
+        "created_at": 1779937672
+      },
+      {
+        "src_id": "编辑问卷",
+        "tgt_id": "编辑问卷提示#1用例",
+        "description": "编辑问卷测试点包含编辑问卷提示#1用例。",
+        "keywords": "包含",
+        "weight": 1.0,
+        "source_id": "chunk-3db2fced39f60198ed351afb9b4b0902",
+        "file_path": "s11测试用例.pdf",
+        "created_at": 1779864372
+      },
+      {
+        "src_id": "编辑问卷场景",
+        "tgt_id": "编辑问卷提示#1用例",
+        "description": "场景包含编辑问卷提示#1用例。",
+        "keywords": "包含",
+        "weight": 1.0,
+        "source_id": "chunk-3db2fced39f60198ed351afb9b4b0902",
+        "file_path": "s11测试用例.pdf",
+        "created_at": 1779864369
+      },
+      {
+        "src_id": "设置问卷不重新填写场景",
+        "tgt_id": "重新填写#1用例",
+        "description": "场景包含重新填写#1用例。",
+        "keywords": "包含",
+        "weight": 1.0,
+        "source_id": "chunk-3db2fced39f60198ed351afb9b4b0902",
+        "file_path": "s11测试用例.pdf",
+        "created_at": 1779864369
+      },
+      {
+        "src_id": "外部用户",
+        "tgt_id": "添加第三方用户权限#1",
+        "description": "第三方用户状态关闭后，登录小程序为外部用户权限。",
+        "keywords": "权限关联",
+        "weight": 1.0,
+        "source_id": "chunk-2193e2c6a59452bd1b2ea6e9b1bec3c0",
+        "file_path": "S35测试用例.pdf",
+        "created_at": 1779877113
+      },
+      {
+        "src_id": "US1640L223",
+        "tgt_id": "测试用户1",
+        "description": "测试用户1是该序列号对应设备的医院联系人。",
+        "keywords": "联系人",
+        "weight": 1.0,
+        "source_id": "chunk-e62fb0b9d1d59b9c810e06f96e36d790",
+        "file_path": "设备名称搜索.pdf",
+        "created_at": 1779960644
+      },
+      {
+        "src_id": "US1742L413",
+        "tgt_id": "测试用户1",
+        "description": "测试用户1是该序列号对应设备的医院联系人。",
+        "keywords": "联系人",
+        "weight": 1.0,
+        "source_id": "chunk-e62fb0b9d1d59b9c810e06f96e36d790",
+        "file_path": "设备名称搜索.pdf",
+        "created_at": 1779960643
+      },
+      {
+        "src_id": "BA2400005989860833192",
+        "tgt_id": "测试用户1",
+        "description": "测试用户1是该序列号对应设备的医院联系人。",
+        "keywords": "联系人",
+        "weight": 1.0,
+        "source_id": "chunk-e62fb0b9d1d59b9c810e06f96e36d790",
+        "file_path": "设备名称搜索.pdf",
+        "created_at": 1779960642
+      },
+      {
+        "src_id": "内部用户",
+        "tgt_id": "添加第三方用户权限#1",
+        "description": "第三方用户添加后，若状态正常，登录小程序为内部用户权限。",
+        "keywords": "权限关联",
+        "weight": 1.0,
+        "source_id": "chunk-2193e2c6a59452bd1b2ea6e9b1bec3c0",
+        "file_path": "S35测试用例.pdf",
+        "created_at": 1779877113
+      },
+      {
+        "src_id": "密码",
+        "tgt_id": "设备登记",
+        "description": "设备登记后生成密码。",
+        "keywords": "凭证,生成",
+        "weight": 1.0,
+        "source_id": "chunk-16ff5c12ad7d01482cf463b2df5804bf",
+        "file_path": "XMetrix_v2.4.pdf",
+        "created_at": 1779936785
+      },
+      {
+        "src_id": "用例: 新增标气批次#1",
+        "tgt_id": "预期: 提示对应字段不能为空",
+        "description": "该测试用例包含提示对应字段不能为空的预期结果。",
+        "keywords": "包含,测试预期",
+        "weight": 1.0,
+        "source_id": "chunk-ad8b654521ef098b4857e73285b1575c",
+        "file_path": "S36测试用例.pdf",
+        "created_at": 1779877409
+      },
+      {
+        "src_id": "是否有权限#1",
+        "tgt_id": "管理权限/非管理权限",
+        "description": "用例“是否有权限#1”包含步骤“管理权限/非管理权限”。",
+        "keywords": "包含,步骤",
+        "weight": 1.0,
+        "source_id": "chunk-7f25e100e203125a6c2e099ea972e12a",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862657
+      },
+      {
+        "src_id": "是否有变更谱图权限#1",
+        "tgt_id": "管理权限/非管理权限",
+        "description": "用例“是否有变更谱图权限#1”包含步骤“管理权限/非管理权限”。",
+        "keywords": "包含,步骤",
+        "weight": 1.0,
+        "source_id": "chunk-7f25e100e203125a6c2e099ea972e12a",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862656
+      },
+      {
+        "src_id": "分配卷王问卷权限#1用例",
+        "tgt_id": "问卷管理权限",
+        "description": "用例分配的是问卷管理权限。",
+        "keywords": "关联",
+        "weight": 1.0,
+        "source_id": "chunk-3db2fced39f60198ed351afb9b4b0902",
+        "file_path": "s11测试用例.pdf",
+        "created_at": 1779864372
+      },
+      {
+        "src_id": "上传操作",
+        "tgt_id": "当前地点",
+        "description": "上传时核验当前所在地点是否正理。",
+        "keywords": "核验",
+        "weight": 1.0,
+        "source_id": "chunk-9348e364f3ce581b1904ae256496a838",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353450
+      },
+      {
+        "src_id": "自定义:研究正则表达式",
+        "tgt_id": "自定义:研究正则表达式/用例:设备二维码展示#1",
+        "description": "自定义:研究正则表达式模块包含用例:设备二维码展示#1。",
+        "keywords": "包含,测试用例",
+        "weight": 1.0,
+        "source_id": "chunk-528dfbccb40ac50452cdbfbcec76be91",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865351
+      },
+      {
+        "src_id": "注销功能",
+        "tgt_id": "登录功能",
+        "description": "用户通过注销功能退出当前会话，返回到登录功能状态。",
+        "keywords": "会话结束,状态切换",
+        "weight": 1.0,
+        "source_id": "chunk-17fb019485b53d341e9b1af1d060e08a",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862535
+      },
+      {
+        "src_id": "启用用户功能",
+        "tgt_id": "登录功能",
+        "description": "启用用户后，该用户将能恢复正常登录功能。",
+        "keywords": "状态恢复,访问控制",
+        "weight": 1.0,
+        "source_id": "chunk-17fb019485b53d341e9b1af1d060e08a",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862534
+      },
+      {
+        "src_id": "登录功能",
+        "tgt_id": "禁用用户功能",
+        "description": "禁用用户后，该用户将无法通过登录功能进入系统。",
+        "keywords": "状态影响,访问控制",
+        "weight": 1.0,
+        "source_id": "chunk-17fb019485b53d341e9b1af1d060e08a",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862534
+      },
+      {
+        "src_id": "新增字段低值阈值#1",
+        "tgt_id": "输入中英文",
+        "description": "测试用例新增字段低值阈值#1包含步骤输入中英文。",
+        "keywords": "包含步骤",
+        "weight": 1.0,
+        "source_id": "chunk-8a98c36ae38c8eeb25db9aa4216ffaf9",
+        "file_path": "s22测试用例.pdf",
+        "created_at": 1779869583
+      },
+      {
+        "src_id": "PID编码规则",
+        "tgt_id": "校验规则",
+        "description": "PID编码规则规定了PID序列号的校验规则，包括长度20字符。",
+        "keywords": "规则约束,长度限制",
+        "weight": 1.0,
+        "source_id": "chunk-0c662b5f29265f3c1c6ad4d1245265db",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350039
+      },
+      {
+        "src_id": "展示字段",
+        "tgt_id": "新增字段低值提示#1",
+        "description": "测试用例新增字段低值提示#1包含步骤展示字段。",
+        "keywords": "包含步骤",
+        "weight": 1.0,
+        "source_id": "chunk-8a98c36ae38c8eeb25db9aa4216ffaf9",
+        "file_path": "s22测试用例.pdf",
+        "created_at": 1779869583
+      },
+      {
+        "src_id": "上传",
+        "tgt_id": "当前地点",
+        "description": "上传时核验当前所在地点是否正理。",
+        "keywords": "核验",
+        "weight": 1.0,
+        "source_id": "chunk-9348e364f3ce581b1904ae256496a838",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353450
+      },
+      {
+        "src_id": "自定义:研究正则表达式/用例:设备二维码展示#1",
+        "tgt_id": "预期:展示设备二维码",
+        "description": "用例:设备二维码展示#1(研究正则表达式)包含预期:展示设备二维码。",
+        "keywords": "包含,预期",
+        "weight": 1.0,
+        "source_id": "chunk-528dfbccb40ac50452cdbfbcec76be91",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865353
+      },
+      {
+        "src_id": "步骤:点击查看二维码",
+        "tgt_id": "自定义:研究正则表达式/用例:设备二维码展示#1",
+        "description": "用例:设备二维码展示#1(研究正则表达式)包含步骤:点击查看二维码。",
+        "keywords": "包含,步骤",
+        "weight": 1.0,
+        "source_id": "chunk-528dfbccb40ac50452cdbfbcec76be91",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865352
+      },
+      {
+        "src_id": "同个受试者仅填写一次",
+        "tgt_id": "重新填写#1用例",
+        "description": "同个受试者仅填写一次测试点包含重新填写#1用例。",
+        "keywords": "包含",
+        "weight": 1.0,
+        "source_id": "chunk-3db2fced39f60198ed351afb9b4b0902",
+        "file_path": "s11测试用例.pdf",
+        "created_at": 1779864373
+      },
+      {
+        "src_id": "Xmetrix-首页展示#1",
+        "tgt_id": "没有权限进来",
+        "description": "测试用例Xmetrix-首页展示#1包含步骤没有权限进来。",
+        "keywords": "包含步骤",
+        "weight": 1.0,
+        "source_id": "chunk-8a98c36ae38c8eeb25db9aa4216ffaf9",
+        "file_path": "s22测试用例.pdf",
+        "created_at": 1779869582
+      },
+      {
+        "src_id": "登录密码",
+        "tgt_id": "重置密码功能",
+        "description": "重置密码功能用于修改用户的登录密码，并使旧密码失效。",
+        "keywords": "密码更新,数据修改",
+        "weight": 1.0,
+        "source_id": "chunk-17fb019485b53d341e9b1af1d060e08a",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862534
+      },
+      {
+        "src_id": "列表数据顺序",
+        "tgt_id": "用例",
+        "description": "列表数据顺序是测试用例之一。",
+        "keywords": "测试关联",
+        "weight": 1.0,
+        "source_id": "chunk-300889d4aaad356f00f4749ee317a7c8",
+        "file_path": "s12测试用例.pdf",
+        "created_at": 1779864725
+      },
+      {
+        "src_id": "用例:新增通知#1",
+        "tgt_id": "自定义:通知中心",
+        "description": "该测试用例验证在通知中心模块中新增通知的操作及字段校验。",
+        "keywords": "新增功能,测试验证",
+        "weight": 1.0,
+        "source_id": "chunk-928ed73f7d7cf62923d69f6f0b891515",
+        "file_path": "S31测试用例.pdf",
+        "created_at": 1779875988
+      },
+      {
+        "src_id": "提示只能输入数字",
+        "tgt_id": "输入中英文",
+        "description": "步骤输入中英文的预期结果是提示只能输入数字。<SEP>输入中英文后提示只能输入数字。",
+        "keywords": "输入验证,错误提示,预期结果",
+        "weight": 2.0,
+        "source_id": "chunk-8a98c36ae38c8eeb25db9aa4216ffaf9<SEP>chunk-167b490573e7bdfc7325c0c6d6de533b",
+        "file_path": "s22测试用例.pdf<SEP>s28测试用例.pdf",
+        "created_at": 1779874929
+      },
+      {
+        "src_id": "无权限登录",
+        "tgt_id": "未授权账号提示",
+        "description": "当用户无权限登录时，系统触发并显示“未授权账号，请联系管理员”提示消息。",
+        "keywords": "显示,触发",
+        "weight": 1.0,
+        "source_id": "chunk-36dfe62d33aa08c6e2c54fa92d67f9e1",
+        "file_path": "s19测试用例.pdf",
+        "created_at": 1779867251
+      },
+      {
+        "src_id": "自动截断多余字符",
+        "tgt_id": "输入字符超过50",
+        "description": "步骤输入字符超过50的预期结果是自动截断多余字符。",
+        "keywords": "预期结果",
+        "weight": 1.0,
+        "source_id": "chunk-8a98c36ae38c8eeb25db9aa4216ffaf9",
+        "file_path": "s22测试用例.pdf",
+        "created_at": 1779869588
+      },
+      {
+        "src_id": "添加批注#1",
+        "tgt_id": "谱图导入增加批注",
+        "description": "谱图导入增加批注模块包含了添加批注这个测试用例。",
+        "keywords": "包含,测试",
+        "weight": 1.0,
+        "source_id": "chunk-8b784b76bd2e76fe01e7158deac2e90a",
+        "file_path": "s23测试用例.pdf",
+        "created_at": 1779870151
+      }
+    ],
+    "chunks": [
+      {
+        "reference_id": "1",
+        "content": "'保留？不再\n\n保留此入口\n\n自定义:定性定量算法加速\n\n用例:定性定量 #1\n\n步骤:选择多条任务进行定性定量，完成定性定量\n\n预期:1、正常完成定性定量\n\n2、完成速度提升\n\n自定义:软件开机自启\n\n用例:软件开机自启#1\n\n步骤:开机\n\n预期:1、跳过windows系统的账号密码\n\n2、直接启动USer软件\n\n自定义:USer2\n\n自定义:XMetrix S43测试用例\n\n自定义:XCloud\n\n自定义:设备管理\n\n自定义:角色管理\n\n自定义:老化任务草稿\n\n用例:设备账号密码权限#1\n\n用例:新增设备#1\n\n用例:创建草稿#1\n\n用例:草稿列表排序 #1\n\n用例:草稿列表筛选#1\n\n用例:编辑草稿#1\n\n步骤:设备新增/管理权限\n\n步骤:设备操作/访问权限\n\n步骤:新增'代谢气体分子分析色谱仪'\n\n步骤:新增'代谢气体分子采集仪'\n\n步骤:新增'气相色谱-质谱仪'\n\n自定义:需要清理历史数据？\n\n用例:'代谢气体分子分析色谱仪'列表增加'账\n\n号密码'字段#1\n\n预期:可查看:\n\n1、设备账号tab\n\n2、账号密码字段\n\n预期:不可查看：\n\n1、设备账号tab\n\n2、账号密码字段\n\n预期:自动分配设备账号和密码\n\n预期:不分配设备账号和密码\n\n预期:不分配设备账号和密码\n\n步骤:点击'账号密码'：'查看'按钮\n\n预期:1、正常弹窗查看账号密码\n\n2、正常复制账号、密码\n\n预期:1、弹窗提示输入草稿名称\n\na、名称为空，点击'确定' -> 提示名称不能为\n\n空\n\nb、输入名称（30字符），点击'确定' -> 成\n\n步骤:点击'创建老化任务'，\n\n输入老化TD信息，\n\n点击'保存草稿'（不校验）\n\n步骤:默认排序\n\n步骤:按草稿名称排序\n\n步骤:按创建时间排序\n\n步骤:按创建人排序\n\n步骤:按草稿名称筛选\n\n步骤:按创建时间筛选\n\n步骤:按创建人筛选\n\n步骤:点击'编辑'，\n\n输入老化TD管信息，\n\n点击'保存草稿'\n\n步骤:点击'编辑'，\n\n输入老化TD管信息，\n\n点击'创建'\n\n步骤:点击'编辑'，\n\n输入老化TD管信息，\n\n点击'取消'\n\n步骤:点击'编辑'，\n\n输入老化TD管信息，\n\n点击'删除'\n\n功新增草稿\n\n预期:按创建时间倒序排序，新增的排在前面\n\n预期:正常顺序/倒序排序\n\n预期:正常顺序/倒序排序\n\n预期:正常顺序/倒序排序\n\n预期:正常匹配返回\n\n预期:正常匹配返回\n\n预期:正常匹配返回\n\n预期:1、弹窗提示输入草稿名称（默认已有名\n\n称）\n\na、名称为空，点击'确定' -> 提示名称不能为\n\n空\n\nb、输入名称（30字符），点击'确定' -> 成\n\n功新增草稿\n\n预期:1、校验通过，成功新增\n\n2、校验不通过，提示校验不通过原因\n\n预期:1、未变更信息，直接退出\n\n2、有变更信息，提示有未保存信息，是否继续\n\n退出\n\n预期:弹窗二次确认是否删除：确定，成功删除",
+        "file_path": "S43测试用例.pdf",
+        "chunk_id": "chunk-b4ee8a2d92df64c72f8c1d1435f6287c"
+      },
+      {
+        "reference_id": "2",
+        "content": "开启\n\n自定义:设备管理\n\n自定义:版本变更记录（色谱仪和采集仪）\n\n用例:新增#1\n\n步骤:选择变更时间、硬件版本、软件版本、备\n\n注，点击确定\n\n预期:成功新增\n\n步骤:变更时间、硬件版本、软件版为空，点击确\n\n定\n\n预期:提示对应字段不能为空\n\n步骤:可选硬件版本（多个设备版本管理下）\n\n预期:当前设备在'设备版本管理'中版本类型为\n\n'硬件版本'的版本号（版本名称），且状态为\n\n步骤:可选软件版本\n\n预期:当前设备在'设备版本管理'中版本类型为\n\n'软件版本'的版本号（版本名称），且状态为\n\n开启\n\n步骤:备注输入超过200字符\n\n预期:自动截断多余字符\n\n用例:作废#1\n\n步骤:进入详情，点击'作废'，弹窗二次确认\n\n预期:成功作废，状态变更为'作废'\n\n用例:列表排序 #1\n\n步骤:默认排序\n\n预期:按变更时间倒序排序，新增的在上面\n\n步骤:选择按'变更时间'正序/倒序\n\n预期:正常排序展示\n\n步骤:选择按'记录时间'正序/倒序排列\n\n预期:正常排序展示\n\n自定义:设备台账\n\n用例:字段配置#1\n\n步骤:点击配置字段，选择字段，点击确定\n\n预期:列表按配置的字段展示\n\n步骤:不同用户设置不同字段\n\n预期:按对应用户设置的字段展示\n\n用例:列表宽度#1\n\n步骤:拖动列表字段宽度，点击保存\n\n预期:保存展示设置的字段宽度\n\n步骤:不同用户设置的字段宽度\n\n预期:按对应用户设置的宽度展示\n\n用例:新增字段：所在采样点 #1\n\n步骤:色谱仪最后一次安装工单关联多个采样点\n\n预期:所在采样点字段展示对应值\n\n步骤:采集仪最后一次安装工单关联多个采样点\n\n预期:所在采样点字段展示对应值\n\n步骤:质谱仪没有'所在采样点'字段\n\n预期:不展示\n\n自定义:返厂待用、设备报废不展示所在采样点，\n\n故障展示采样点\n\n自定义:用户管理\n\n自定义:第三方用户\n\n用例:新增用户#1\n\n步骤:输入用户名、系统角色、职位、手机号码、\n\n邮箱、密码、确认密码，点击确定\n\n预期:成功新增\n\n步骤:用户名、系统角色、手机号码、密码、确认\n\n密码为空，点击确定\n\n预期:提示对应字段不能为空\n\n步骤:输入已存在的'用户名'\n\n预期:可以重复\n\n步骤:输入已存在的'手机号码'\n\n预期:提示重复\n\n步骤:密码不包含大写小写特殊字符，或少于8位\n\n预期:提示密码格式应包含大写小写特殊字符，且\n\n超过8位字符\n\n步骤:密码和确认密码不一致\n\n预期:提示不一致\n\n用例:编辑用户#1\n\n步骤:编辑用户状态、用户名、系统角色，职位、\n\n手机号码、邮箱，点击确定\n\n预期:成功编辑\n\n步骤:输入已存在的'手机号码'\n\n预期:提示重复\n\n用例:重置密码 #1\n\n步骤:点击重置密码，输入密码和确认密码，点击\n\n确定\n\n预期:成功重置密码，可按新的密码登录\n\n用例:列表排序#1\n\n步骤:默认排序\n\n预期:按创建时间倒序，新增的在上面\n\n用例:筛选 #1\n\n步骤:按用户名筛选\n\n预期:返回对应用户\n\n步骤:按系统角色筛选\n\n预期:返回对应用户\n\n步骤:按职位筛选\n\n预期:返回对应用户\n\n步骤:按手机号码筛选\n\n预期:返回对应用户\n\n步骤:按邮箱筛选\n\n预期:返回对应用户\n\n用例:权限#1\n\n步骤:设置管理权限\n\n预期:可新增、编辑、查看\n\n步骤:设置访问权限\n\n预期:仅可查看\n\n步骤:没有设置权限\n\n预期:不可查看\n\n用例:角色权限#1\n\n步骤:系统角色选择云呼气平台访问/操作/管理\n\n预期:可全局查看、操作所有研究，没有问卷平\n\n台、研究管理-科研工具、进度管理、质控记\n\n录，只有临床数据\n\n步骤:研究管理-研究成员可选择第三方用户\n\n预期:对研究有查看、操作权限\n\n用例:登录#1\n\n步骤:输入手机号、密码、验证码，点击登录\n\n预期:成功登录\n\n步骤:手机登录，输入手机号码、验证码，点击登\n\n录\n\n预期:成功登录\n\n步骤:用户状态为关闭\n\n预期:不可登录\n\n步骤:组织人员删掉用户名登录，只能通过手机号\n\n码登录\n\n预期:分支主题\n\n步骤:绑定微信，微信登录\n\n预期:分支主题\n\n自定义:物流管理\n\n自定义:web\n\n用例:寄出地点/签收地点#1\n\n步骤:可选地点\n\n预期:有权限研究（访问权限以上）关联的采样点\n\n用例:样本选择范围#1\n\n步骤:TD管（样本）\n\n预期:有权限研究（访问权限以上）的样本",
+        "file_path": "s27测试用例.pdf",
+        "chunk_id": "chunk-7d7a61c58995feeb84f48700728f7994"
+      },
+      {
+        "reference_id": "3",
+        "content": "SP+6位顺序位\n\ns13测试用例\n\n自定义:TD管管理\n\n自定义:新增\n\n用例:下载模版 #1\n\n步骤:点击下载模版\n\n预期:正常下载模版，模版字段为TD管号、生产\n\n产商、采购时间、备注\n\n用例:上传文件#1\n\n步骤:点击上传文件，选择文件上传\n\n预期:成功解析文件数据，共x条数据，\n\n可点击下一步操作\n\n用例:清空待导入数据 #1\n\n步骤:点击清空数据\n\n预期:成功清空已上传的数据，\n\n下一步按钮置灰不可点击\n\n自定义:校验数据\n\n用例:表单内TD管重复#1\n\n步骤:上传文件数据有多条TD管一样的数据\n\n预期:上传失败，提示表单中包含重复数据XX\n\n条，序号为：xx、xx\n\n用例:表单与数据库完全重复#1\n\n步骤:文件导入多条与数据库完全重复的数据\n\n预期:弹窗展示已跳过的完全重复数据\n\n用例:表单与数据库部分重复（TD管号重复，其\n\n他不同）#1\n\n步骤:生产厂商不同，其他相同\n\n预期:该数据展示在待确认重复列表上\n\n步骤:采购时间相同，其他不同\n\n预期:该数据展示在待确认重复列表上\n\n步骤:备注相同，其他不同\n\n预期:该数据展示在待确认重复列表上\n\n用例:TD管号格式错误#1\n\n步骤:TD管号为5位的数字\n\n预期:上传数据时就提示该TD管号格式不正确\n\n用例:生产产商不存在#1\n\n步骤:生产厂商不是来自供应商字典\n\n预期:提示厂商错误，可点击修改选择厂商\n\n用例:采购时间格式错误#1\n\n步骤:采购日期为随机数字\n\n预期:提示采购时间错误，可点击修改选择时间\n\n用例:备注字符数超限#1\n\n步骤:备注字符数超过50字符\n\n预期:提示备注错误，可点击修改\n\n用例:校验数据下一步 #1\n\n步骤:未完成全部格式错误校验，点击下一步\n\n预期:无法进入下一步，提示请修改格式错误的字\n\n段\n\n用例:校验数据页面翻页 #1\n\n步骤:点击下一页\n\n预期:正常切换到下一页\n\n用例:预览数据页面翻页 #1\n\n步骤:点击下一页\n\n预期:正常切换到下一页\n\n用例:TD管号为空 #1\n\n步骤:上传数据包含多条TD管号为空的数据\n\n预期:上传数据时就提示TD管为空，包含几条为\n\n空数据\n\n用例:必填项 #1\n\n步骤:上传多条有正确TD管号，生产厂商、采购\n\n时间、备注为空的数据\n\n预期:正常上传\n\n自定义:数据预览\n\n用例:预览数据提交#1\n\n步骤:校验数据提交后，预览数据正常查看，且仅\n\n包含来源为待上传的数据，点击下一步\n\n预期:跳转上传成功页面，成功上传数据\n\n自定义:查看\n\n用例:数据展示#1\n\n步骤:新增导入完TD管数据\n\n预期:列表正常展示导入的数据\n\n用例:翻页 #1\n\n步骤:点击下一页\n\n预期:正常切换到下一页\n\n步骤:点击指定页数\n\n预期:正常切换到指定页数\n\n步骤:切换每页条数\n\n预期:正常切换\n\n自定义:编辑\n\n用例:编辑TD管基本信息#1\n\n步骤:更改生产厂商、采购时间、备注，点击保存\n\n预期:成功编辑TD管信息\n\n用例:编辑备注信息 #1\n\n步骤:备注输入超过50字符\n\n预期:超过部分自动截断\n\n自定义:采样点管理\n\n自定义:新增\n\n用例:新增采样点#1\n\n步骤:点击新增，\n\n输入采样点名称、采样点位置、备注，\n\n点击确定\n\n预期:成功新增该采样点，且自动生成采样点ID：\n\n步骤:输入重复的采样点名称，点击确定\n\n预期:提示名称已存在\n\n步骤:输入采样点名称超过10字符\n\n预期:超出部分自动截断\n\n步骤:输入采样点备注超过50字符\n\n预期:超出部分自动截断\n\n步骤:输入采样点位置超过50字符\n\n预期:超出部分自动截断\n\n步骤:不输入采样点名称，输入采样点位置和备\n\n注，点击确定\n\n预期:提示采样点名称不能为空\n\n自定义:编辑\n\n用例:编辑信息 #1\n\n步骤:点击编辑，\n\n输入采样点名称、采样点位置、备注，\n\n关闭状态，\n\n点击确定\n\n预期:成功编辑该采样点信息\n\n步骤:修改采样点名称\n\n预期:提示'如已打印研究二维码，请及时更新物\n\n料'\n\n自定义:查看\n\n用例:数据展示#1\n\n步骤:新增完采样点信息\n\n预期:列表正常展示新增的采样点信息\n\n用例:翻页 #1\n\n步骤:点击下一页\n\n预期:正常切换到下一页\n\n步骤:点击指定页数\n\n预期:正常切换到指定页数\n\n步骤:切换每页条数\n\n预期:正常",
+        "file_path": "s13测试用例.pdf",
+        "chunk_id": "chunk-ae4bf2d83feb510b33d7defba968c75d"
+      },
+      {
+        "reference_id": "4",
+        "content": "#1\n\n步骤:找到对应程序，点击卸载\n\n预期:卸载成功后，快捷图标、安装文件全部删除\n\n自定义:登录\n\n用例:正常登录#1\n\n步骤:输入账号、密码，点击登录\n\n预期:成功登录至首页\n\n用例:异常登录#1\n\n步骤:输入错误的账号/密码\n\n预期:提示账号/密码不正确\n\n步骤:账号/密码为空\n\n预期:提示输入账号/密码\n\n自定义:风险系数计算\n\n自定义:单样本计算\n\n用例:正常计算#1\n\n步骤:输入参数（样本号、年龄、物质浓度），点\n\n击运行\n\n预期:正常计算展示结果\n\n自定义:批量计算\n\n用例:下载模版#1\n\n步骤:点击下载模版\n\n预期:正常下载查看\n\n用例:上传结果文件#1\n\n步骤:点击上传，选择结果文件\n\n预期:正常上传\n\n用例:删除上传的文件#1\n\n步骤:点击结果文件删除\n\n预期:正常删除\n\n用例:运行结果文件 #1\n\n步骤:上传结果文件后，点击运行\n\n预期:正常运行展示结果\n\n用例:结果展示操作 #1\n\n步骤:点击导出结果\n\n预期:正常导出查看\n\n步骤:点击导出报告\n\n预期:正常导出报告\n\n步骤:点击查看报告\n\n预期:正常查看报告\n\n自定义:风险系数计算\n\n自定义:单样本计算\n\n用例:正常计算#1\n\n步骤:参数输入样本号、年龄、物质浓度，点击运\n\n行\n\n预期:结果正常展示\n\n用例:异常计算#1\n\n步骤:输入不存在的样本号，点击运行\n\n预期:提示样本号不存在\n\n步骤:样本号/年龄/物质浓度为空\n\n预期:提示不能为空\n\n步骤:年龄/物质浓度输入超大值\n\n预期:正常计算\n\n步骤:样本号/年龄/物质浓度输入中文\n\n预期:提示只能输入数字\n\n用例:导出报告单#1\n\n步骤:在结果展示页，点击导出报告单\n\n预期:正常导出查看\n\n自定义:批量计算\n\n用例:下载模版#1\n\n步骤:点击下载模版\n\n预期:正常下载查看\n\n自定义:上传文件\n\n用例:正常上传#1\n\n步骤:分支主题\n\n预期:分支主题\n\n自定义:异常上传\n\n自定义:报告列表\n\n用例:查询#1\n\n步骤:输入样本号，点击查询\n\n预期:返回对应样本号的数据\n\n步骤:选择分析时间，点击查询\n\n预期:返回时间区间的数据\n\n步骤:输入风险系数范围，点击查询\n\n预期:返回对应风险系数区间的数据\n\n步骤:风险选择高风险，点击查询\n\n预期:返回高风险的数据\n\n步骤:风险选择中风险，点击查询\n\n预期:返回中风险的数据\n\n步骤:风险选择低风险，点击查询\n\n预期:返回低风险的数据\n\n步骤:输入样本号、分析时间、风险系数、风险，\n\n点击查询\n\n预期:返回符合查询条件交集的数据\n\n步骤:输入样本号、分析时间、风险系数、风险，\n\n点击重置\n\n预期:重置输入的查询条件\n\n用例:查看报告#1\n\n步骤:点击查看报告\n\n预期:跳转至报告页，正常查看报告\n\n用例:分页#1\n\n步骤:点击切换不同页数\n\n预期:正常切换查看\n\n自定义:设置\n\n用例:设置界面保护时间 #1\n\n步骤:输入5，点击保存\n\n预期:正常保存\n\n步骤:无操作5分钟后\n\n预期:自动退出至登录页\n\n自定义:关于\n\n用例:页面查看#1\n\n步骤:点击关于\n\n预期:正常查看关于页面的信息\n\n自定义:首页\n\n用例:页面查看#1\n\n步骤:点击首页\n\n预期:正常查看首页页面的信息\n\n自定义:激活\n\n用例:正常激活#1\n\n步骤:输入正确的激活码，点击激活\n\n预期:成功激活进入登录页\n\n用例:异常激活#1\n\n步骤:输入错误的激活码，点击激活\n\n预期:提示'序列号填写错误，请重试'\n\n自定义:xmetrix",
+        "file_path": "s20测试用例.pdf",
+        "chunk_id": "chunk-06b1eeeb9b201d991f4107bd4d9eb95d"
+      },
+      {
+        "reference_id": "5",
+        "content": "左滑返回\n\n预期:弹窗是否保存当前编辑，确认保存，数据流\n\n转到未提交tab\n\n用例:提交 #1\n\n步骤:有必填项未填写，点击提交\n\n预期:提示必填项未填写\n\n步骤:填完必填项，点击提交\n\n预期:弹窗确定提交物流单，确定，数据流转到待\n\n签收tab\n\n用例:取消 #1\n\n步骤:点击取消\n\n预期:直接退出新增页面\n\n自定义:列表数据\n\n自定义:搜索\n\n用例:按采样点名称搜索#1\n\n步骤:输入采样点名称，回车\n\n预期:模糊匹配返回对应物流单\n\n用例:按人名搜索#1\n\n步骤:输入寄出人，回车\n\n预期:模糊匹配返回对应物流单\n\n自定义:详情\n\n自定义:操作\n\n用例:保存 #1\n\n步骤:有必填项未填写，点击保存，弹窗是否保存\n\n当前编辑，取消保存\n\n预期:关闭弹窗，停留在当前页\n\n步骤:有必填项未填写，点击保存，弹窗是否保存\n\n当前编辑，确认保存\n\n预期:数据流转到未提交tab，不分配物流单号\n\n步骤:有必填项未填写，左滑返回\n\n预期:弹窗是否保存当前编辑，确认保存，数据流\n\n转到未提交tab\n\n用例:提交 #1\n\n步骤:填完必填项，点击提交\n\n预期:弹窗确定提交物流单，确定，数据流转到待\n\n签收tab\n\n步骤:有必填项未填写，点击提交\n\n预期:提示必填项未填写\n\n用例:取消 #1\n\n步骤:点击取消\n\n预期:直接退出新增页面\n\n自定义:待签收\n\n自定义:列表数据\n\n自定义:搜索\n\n用例:按人名搜索#1\n\n步骤:输入寄出人，回车\n\n预期:模糊匹配返回对应物流单\n\n用例:按采样点名称搜索#1\n\n步骤:输入采样点名称，回车\n\n预期:模糊匹配返回对应物流单\n\n用例:按物流编号搜索#1\n\n步骤:输入物流编号，回车\n\n预期:模糊匹配返回对应物流单\n\n用例:按订单编号搜索#1\n\n步骤:输入订单编号，回车\n\n预期:模糊匹配返回对应物流单\n\n自定义:字段\n\n用例:生成物流编号 #1\n\n步骤:编码规则\n\n预期:CXWL+年月日240720+四位顺序号\n\n用例:时间 #1\n\n步骤:提交时间\n\n预期:当前时间\n\n自定义:详情\n\n用例:修改 #1\n\n步骤:点击修改，弹窗提示'即将跳转编辑页面，\n\n未保存签收信息将被清空'，确定\n\n预期:清空已输入信息（签收信息、签收状态），\n\n进入编辑物流单页面\n\n步骤:修改寄件信息、运输物品，点击提交\n\n预期:输入修改原因，确定，成功修改\n\n用例:签收信息 #1\n\n步骤:默认值\n\n预期:自动填入签收人、签收时间\n\n步骤:手动输入签收人、签收地点、签收时间\n\n预期:正常输入\n\n自定义:签收物品\n\n用例:签收成功 #1\n\n步骤:签收物品为样本（TD管-样本），\n\n输入签收图片、样本存放位置（多选）、备注，\n\n点击完成签收\n\n预期:弹窗提示'签收完成后不允许修改'，点击\n\n确定，\n\n成功完成签收，状态从待签收变更为已签收\n\n步骤:签收物品非样本（顶空瓶等），\n\n输入签收图片、备注，点击完成签收\n\n预期:弹窗提示'签收完成后不允许修改'，点击\n\n确定，\n\n成功完成签收，状态从待签收变更为已签收\n\n自定义:签收异常\n\n用例:签收没有清单的物品 #1\n\n步骤:输入异常数量、异常原因、异常图片、样本\n\n存放位置（运输物品为样本）、备注\n\n预期:正常签收\n\n用例:签收有清单的物品 #1\n\n步骤:输入清单、异常图片、样本存放位置（样本\n\n物品）、备注，点击签收完成\n\n预期:成功完成签收\n\n自定义:添加异常清单\n\n用例:清单物品来源 #1\n\n步骤:来源\n\n预期:新建物流单的清单物品\n\n用例:搜索#1\n\n步骤:输入TD管号，回车\n\n预期:返回对应清单物品\n\n步骤:输入标本标码，回车\n\n预期:返回对应清单物品\n\n步骤:输入异常原因，回车\n\n预期:返回对应清单物品\n\n用例:异常原因#1\n\n步骤:选择异常原因'不符合签收要求'\n\n预期:正常选择，该TD管号变更为异常状态\n\n步骤:选择异常原因'物品丢失'\n\n预期:正常选择，该TD管号变更为异常状态\n\n步骤:选择异常原因'物品对视'\n\n预期:正常选择，该TD管号变更为异常状态\n\n步骤",
+        "file_path": "s14测试用例.pdf",
+        "chunk_id": "chunk-666c50ace1109e21891c724670cd9d32"
+      }
+    ],
+    "references": [
+      {
+        "reference_id": "1",
+        "file_path": "S43测试用例.pdf"
+      },
+      {
+        "reference_id": "2",
+        "file_path": "s27测试用例.pdf"
+      },
+      {
+        "reference_id": "3",
+        "file_path": "s13测试用例.pdf"
+      },
+      {
+        "reference_id": "4",
+        "file_path": "s20测试用例.pdf"
+      },
+      {
+        "reference_id": "5",
+        "file_path": "s14测试用例.pdf"
+      }
+    ]
+  },
+  "metadata": {
+    "query_mode": "mix",
+    "keywords": {
+      "high_level": [
+        "用户登录功能测试",
+        "用户名密码验证",
+        "业务规则"
+      ],
+      "low_level": [
+        "用户名",
+        "密码",
+        "验证规则",
+        "测试要点",
+        "登录流程"
+      ]
+    },
+    "processing_info": {
+      "total_entities_found": 106,
+      "total_relations_found": 177,
+      "entities_after_truncation": 69,
+      "relations_after_truncation": 173,
+      "merged_chunks_count": 134,
+      "final_chunks_count": 5
+    }
+  }
+}

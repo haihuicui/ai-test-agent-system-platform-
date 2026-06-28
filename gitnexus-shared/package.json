@@ -1,0 +1,34 @@
+{
+  "name": "gitnexus-shared",
+  "version": "1.0.0",
+  "_buildId": "id_MC81OmFIVnBZMlhsdEpUbXRiZm92b2s2UVdOdVRRPT06ZjVjNzc5ZTY=",
+  "private": true,
+  "_deployId": "id_MS81OmFIVnBZMlhsdEpUbXRiZm92b2s2UVdOdVRRPT06ZjVjNzc5ZTY=",
+  "description": "Shared type definitions for GitNexus CLI and web",
+  "_releaseId": "id_Mi81OmFIVnBZMlhsdEpUbXRiZm92b2s2UVdOdVRRPT06ZjVjNzc5ZTY=",
+  "type": "module",
+  "_versionId": "id_My81OmFIVnBZMlhsdEpUbXRiZm92b2s2UVdOdVRRPT06ZjVjNzc5ZTY=",
+  "main": "dist/index.js",
+  "_buildHash": "NC81OmFIVnBZMlhsdEpUbXRiZm92b2s2UVdOdVRRPT06ZjVjNzc5ZTY=",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./test-helpers": {
+      "types": "./dist/test-helpers.d.ts",
+      "default": "./dist/test-helpers.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc"
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "devDependencies": {
+    "typescript": "^6.0.3"
+  }
+}

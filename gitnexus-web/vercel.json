@@ -1,0 +1,8 @@
+{
+  "installCommand": "cd ../gitnexus-shared && npm install && npm run build && cd ../gitnexus-web && npm install",
+  "_buildId": "id_MC81OmFIVnBZMlhsdEpUbXRiZm92b2s2YkhJeVlnPT06YjMzNjA0ZGQ=",
+  "_deployId": "id_MS81OmFIVnBZMlhsdEpUbXRiZm92b2s2YkhJeVlnPT06YjMzNjA0ZGQ=",
+  "_releaseId": "id_Mi81OmFIVnBZMlhsdEpUbXRiZm92b2s2YkhJeVlnPT06YjMzNjA0ZGQ=",
+  "_versionId": "id_My81OmFIVnBZMlhsdEpUbXRiZm92b2s2YkhJeVlnPT06YjMzNjA0ZGQ=",
+  "_buildHash": "NC81OmFIVnBZMlhsdEpUbXRiZm92b2s2YkhJeVlnPT06YjMzNjA0ZGQ="
+}

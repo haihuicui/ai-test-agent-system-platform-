@@ -1,0 +1,1680 @@
+"""
+测试运行服务
+
+处理测试运行相关的业务逻辑
+参考: https://www.browserstack.com/docs/test-management/api-reference/test-runs
+"""
+
+import asyncio
+import logging
+from datetime import datetime, timezone, timedelta
+from pathlib import Path
+from typing import Optional, Union
+from uuid import UUID
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.config.minio_client import MinIOClient
+from app.models.test_run import TestRun, TestRunTestCase, TestRunScriptJob, TestRunSchedule
+from app.models.api_test import APITestRun
+from app.repositories.api_test_repo import APITestRunRepository
+from app.services.test_execution_engine import TestExecutionService
+from app.models.test_case import TestCase
+from app.repositories.test_run_repo import (
+    TestRunRepository,
+    TestRunTestCaseRepository,
+    TestRunScriptJobRepository,
+    TestRunScheduleRepository,
+)
+from app.repositories.project_repo import ProjectRepository
+from app.repositories.test_case_repo import TestCaseRepository
+from app.repositories.test_plan_repo import TestPlanRepository
+from app.schemas.test_run import (
+    TestRunCreate,
+    TestRunPatchUpdate,
+    TestRunFullReplace,
+    TestRunInfo,
+    TestRunListInfo,
+    TestRunMinifiedInfo,
+    TestRunTestCaseInfo,
+    TestRunTestCaseMinifiedInfo,
+    TestRunLinks,
+    OverallProgress,
+    AddTestCasesRequest,
+    RemoveTestCasesRequest,
+    TestRunAssignRequest,
+    CloseTestRunRequest,
+    ConfigurationMapping,
+    TestPlanRef,
+    TestStepBrief,
+    IssueTracker,
+    TestCaseFilter,
+    TestRunScriptJobInfo,
+    TestRunScriptJobCreate,
+    TestRunScheduleInfo,
+    TestRunScheduleCreate,
+    TestRunScheduleUpdate,
+)
+from app.schemas.enums import (
+    TestRunActiveState,
+    TestRunState,
+    TestResultStatus,
+    FilterScope,
+    ExecutionMode,
+    TriggerType,
+    ScriptType,
+    JobStatus,
+)
+from app.utils.exceptions import NotFoundException, BadRequestException
+from app.config.settings import settings
+from app.config.database import async_session_factory
+
+
+logger = logging.getLogger(__name__)
+
+
+class TestRunService:
+    """测试运行服务类"""
+
+    def __init__(self, session: AsyncSession, mongodb=None):
+        self.session = session
+        self.mongodb = mongodb
+        self.repo = TestRunRepository(session)
+        self.tc_repo = TestRunTestCaseRepository(session)
+        self.script_job_repo = TestRunScriptJobRepository(session)
+        self.schedule_repo = TestRunScheduleRepository(session)
+        self.project_repo = ProjectRepository(session)
+        self.test_case_repo = TestCaseRepository(session)
+        self.test_plan_repo = TestPlanRepository(session)
+
+    # ============ 内部工具 ============
+
+    async def _get_project_by_identifier(self, project_identifier: str):
+        """根据标识符获取项目"""
+        project = await self.project_repo.get_by_identifier(project_identifier)
+        if not project:
+            raise NotFoundException(
+                resource_type="项目", resource_id=project_identifier
+            )
+        return project
+
+    async def _require_test_run(
+        self, project_id: UUID, test_run_identifier: str
+    ) -> TestRun:
+        test_run = await self.repo.get_by_identifier(test_run_identifier)
+        if not test_run or test_run.project_id != project_id:
+            raise NotFoundException(
+                resource_type="测试运行", resource_id=test_run_identifier
+            )
+        return test_run
+# pylint: disable  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2V1doaFV3PT06MzhkMDVhYzE=
+
+    async def _resolve_test_plan_id(
+        self, identifier: Optional[str], project_id: UUID
+    ) -> Optional[UUID]:
+        """把 TP-x / STP-x identifier 解析为 test_plans.id"""
+        if not identifier:
+            return None
+        tp = await self.test_plan_repo.get_by_identifier(identifier)
+        if not tp or tp.project_id != project_id:
+            raise BadRequestException(
+                message=f"测试计划 '{identifier}' 不存在或不属于该项目"
+            )
+        return tp.id
+
+    def _overall_progress(self, test_run: TestRun) -> OverallProgress:
+        """从模型字段构造 BS 7 字段进度"""
+        return OverallProgress(
+            untested=test_run.untested_count or 0,
+            passed=test_run.passed_count or 0,
+            retest=test_run.retest_count or 0,
+            failed=test_run.failed_count or 0,
+            blocked=test_run.blocked_count or 0,
+            skipped=test_run.skipped_count or 0,
+            in_progress=test_run.in_progress_count or 0,
+        )
+
+    def _links(
+        self, project_identifier: str, test_run_identifier: str
+    ) -> TestRunLinks:
+        base = (
+            f"{settings.api_prefix}/projects/{project_identifier}"
+            f"/test-runs/{test_run_identifier}"
+        )
+        return TestRunLinks(self=base, test_cases=f"{base}/test-cases")
+
+    def _test_plan_ref(self, plan) -> Optional[TestPlanRef]:
+        if not plan:
+            return None
+        return TestPlanRef(identifier=plan.identifier, name=plan.name)
+
+    def _configuration_map_to_schema(
+        self, raw: Optional[list[dict]]
+    ) -> Optional[list[ConfigurationMapping]]:
+        if not raw:
+            return None
+        return [ConfigurationMapping(**item) for item in raw]
+
+    def _issue_tracker_to_schema(
+        self, raw: Optional[dict]
+    ) -> Optional[IssueTracker]:
+        if not raw:
+            return None
+        return IssueTracker(**raw)
+
+    def _filter_test_cases_to_schema(
+        self, raw: Optional[dict]
+    ) -> Optional[TestCaseFilter]:
+        if not raw:
+            return None
+        return TestCaseFilter(**raw)
+
+    async def _to_test_run_test_case_info(
+        self, item: TestRunTestCase, *, fetch_steps: bool = False
+    ) -> TestRunTestCaseInfo:
+        tc = item.test_case
+        steps: Optional[list[TestStepBrief]] = None
+        if fetch_steps and tc and tc.steps:
+            steps = [
+                TestStepBrief(
+                    id=s.id,
+                    order=s.step_number,
+                    description=s.action,
+                    result=s.expected_result,
+                )
+                for s in tc.steps[:30]
+            ]
+
+        return TestRunTestCaseInfo(
+            id=item.id,
+            test_run_id=item.test_run_id,
+            test_case_id=item.test_case_id,
+            identifier=tc.identifier if tc else "",
+            name=tc.name if tc else "",
+            description=tc.description if tc else None,
+            case_type=tc.test_case_type if tc else None,
+            priority=tc.priority if tc else None,
+            status=str(tc.state.value) if tc and tc.state else None,
+            folder_id=tc.folder_id if tc else None,
+            folder_path=None,
+            configuration_id=item.configuration_id,
+            assignee=item.assignee,
+            latest_status=item.latest_status,
+            latest_result_id=item.latest_result_id,
+            dataset=tc.dataset if tc else None,
+            steps=steps,
+            created_at=item.created_at,
+            last_updated_at=item.updated_at,
+            created_by=tc.created_by if tc else None,
+            last_updated_by=tc.last_updated_by if tc else None,
+        )
+
+    def _to_minified_test_case(
+        self, item: TestRunTestCase
+    ) -> TestRunTestCaseMinifiedInfo:
+        tc = item.test_case
+        return TestRunTestCaseMinifiedInfo(
+            identifier=tc.identifier if tc else "",
+            name=tc.name if tc else "",
+            description=tc.description if tc else None,
+            latest_status=item.latest_status,
+        )
+
+    def _to_script_job_info(self, job: TestRunScriptJob) -> TestRunScriptJobInfo:
+        return TestRunScriptJobInfo(
+            id=job.id,
+            test_run_id=job.test_run_id,
+            script_type=job.script_type,
+            script_id=job.script_id,
+            script_identifier=job.script_identifier,
+            script_name=job.script_name,
+            execution_order=job.execution_order,
+            execution_mode=job.execution_mode,
+            status=job.status,
+            started_at=job.started_at,
+            completed_at=job.completed_at,
+            duration_ms=job.duration_ms,
+            result_summary=job.result_summary,
+            error_message=job.error_message,
+            stdout=job.stdout,
+            stderr=job.stderr,
+            report_path=job.report_path,
+            retry_count=job.retry_count,
+            max_retries=job.max_retries,
+            created_at=job.created_at,
+            updated_at=job.updated_at,
+        )
+
+    def _to_schedule_info(self, schedule: TestRunSchedule) -> TestRunScheduleInfo:
+        return TestRunScheduleInfo(
+            id=schedule.id,
+            project_id=schedule.project_id,
+            name=schedule.name,
+            description=schedule.description,
+            trigger_type=schedule.trigger_type,
+            trigger_config=schedule.trigger_config,
+            is_enabled=schedule.is_enabled,
+            next_run_at=schedule.next_run_at,
+            last_run_at=schedule.last_run_at,
+            test_run_template=schedule.test_run_template,
+            created_at=schedule.created_at,
+            updated_at=schedule.updated_at,
+        )
+
+    async def _to_info(
+        self,
+        test_run: TestRun,
+        project_identifier: str,
+        *,
+        include_inline_test_cases: bool = True,
+        include_script_jobs: bool = True,
+    ) -> TestRunInfo:
+        # 关联计划
+        plan = None
+        sub_plan = None
+        if test_run.test_plan_id:
+            plan = await self.test_plan_repo.get_by_id(test_run.test_plan_id)
+        if test_run.sub_test_plan_id:
+            sub_plan = await self.test_plan_repo.get_by_id(
+                test_run.sub_test_plan_id
+            )
+# noqa  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2V1doaFV3PT06MzhkMDVhYzE=
+
+        inline_cases: Optional[list[TestRunTestCaseInfo]] = None
+        if include_inline_test_cases:
+            items = await self.tc_repo.get_all_for_run(
+                test_run.id, with_steps=False
+            )
+            inline_cases = [
+                await self._to_test_run_test_case_info(i) for i in items
+            ]
+
+        script_jobs: Optional[list[TestRunScriptJobInfo]] = None
+        if include_script_jobs:
+            jobs, _ = await self.script_job_repo.get_by_test_run(test_run.id)
+            script_jobs = [self._to_script_job_info(j) for j in jobs]
+
+        return TestRunInfo(
+            id=test_run.id,
+            identifier=test_run.identifier,
+            name=test_run.name,
+            description=test_run.description,
+            run_state=test_run.run_state,
+            active_state=test_run.active_state,
+            assignee=test_run.assignee,
+            test_case_assignee=test_run.test_case_assignee,
+            project_id=test_run.project_id,
+            test_plan=self._test_plan_ref(plan),
+            sub_test_plan=self._test_plan_ref(sub_plan),
+            test_cases_count=test_run.test_cases_count or 0,
+            passed_count=test_run.passed_count or 0,
+            failed_count=test_run.failed_count or 0,
+            customstatus_count=test_run.custom_status_count or 0,
+            tags=test_run.tags or [],
+            issues=test_run.issues or [],
+            issue_tracker=self._issue_tracker_to_schema(test_run.issue_tracker),
+            configurations=test_run.configurations or [],
+            configuration_map=self._configuration_map_to_schema(
+                test_run.configuration_map
+            ),
+            folder_ids=test_run.folder_ids,
+            include_all=test_run.include_all,
+            filter_scope=test_run.filter_scope or FilterScope.GLOBAL,
+            filter_test_cases=self._filter_test_cases_to_schema(
+                test_run.filter_test_cases
+            ),
+            overall_progress=self._overall_progress(test_run),
+            test_cases=inline_cases,
+            execution_mode=test_run.execution_mode or ExecutionMode.SEQUENTIAL,
+            max_concurrency=test_run.max_concurrency or 5,
+            trigger_type=test_run.trigger_type or TriggerType.MANUAL,
+            script_jobs=script_jobs,
+            created_at=test_run.created_at,
+            updated_at=test_run.updated_at,
+            closed_at=test_run.closed_at,
+            links=self._links(project_identifier, test_run.identifier),
+        )
+
+    def _to_minified_info(
+        self, test_run: TestRun, project_identifier: str
+    ) -> TestRunMinifiedInfo:
+        return TestRunMinifiedInfo(
+            id=test_run.id,
+            identifier=test_run.identifier,
+            name=test_run.name,
+            description=test_run.description,
+            run_state=test_run.run_state,
+            active_state=test_run.active_state,
+            assignee=test_run.assignee,
+            project_id=test_run.project_id,
+            tags=test_run.tags or [],
+            configurations=test_run.configurations or [],
+            overall_progress=self._overall_progress(test_run),
+            created_at=test_run.created_at,
+            updated_at=test_run.updated_at,
+            links=self._links(project_identifier, test_run.identifier),
+        )
+
+    def _to_list_info(self, test_run: TestRun) -> TestRunListInfo:
+        return TestRunListInfo(
+            id=test_run.id,
+            identifier=test_run.identifier,
+            name=test_run.name,
+            run_state=test_run.run_state,
+            active_state=test_run.active_state,
+            assignee=test_run.assignee,
+            project_id=test_run.project_id,
+            test_cases_count=test_run.test_cases_count or 0,
+            configurations=test_run.configurations or [],
+            overall_progress=self._overall_progress(test_run),
+            created_at=test_run.created_at,
+            closed_at=test_run.closed_at,
+            execution_mode=test_run.execution_mode or ExecutionMode.SEQUENTIAL,
+            max_concurrency=test_run.max_concurrency or 5,
+            trigger_type=test_run.trigger_type or TriggerType.MANUAL,
+        )
+
+    # ============ 测试用例解析 (BS 优先级) ============
+
+    async def _resolve_test_cases_for_create(
+        self,
+        project_id: UUID,
+        data: Union[TestRunCreate, TestRunFullReplace],
+    ) -> list[TestCase]:
+        """
+        按 BS 规范的 5 级优先级解析最终用例集合:
+        1. include_all=True
+        2. folder_ids + filter_test_cases + filter_scope=within_folders
+        3. folder_ids only
+        4. filter_test_cases + filter_scope=global
+        5. 显式 test_cases identifier 列表
+        """
+        if data.include_all:
+            return await self.test_case_repo.get_by_project_with_filters(
+                project_id=project_id,
+                offset=0,
+                limit=100000,
+            )
+
+        folder_ids_str: Optional[list[str]] = None
+        if data.folder_ids:
+            folder_ids_str = [str(fid) for fid in data.folder_ids]
+
+        filt = data.filter_test_cases
+        filter_scope = data.filter_scope or FilterScope.GLOBAL
+
+        # 2: 文件夹 + 过滤 (within_folders)
+        if folder_ids_str and filt and filter_scope == FilterScope.WITHIN_FOLDERS:
+            return await self.test_case_repo.get_by_project_with_filters(
+                project_id=project_id,
+                offset=0,
+                limit=100000,
+                folder_ids=folder_ids_str,
+                statuses=filt.status,
+                priorities=filt.priority,
+                case_types=filt.case_type,
+                owners=filt.owner,
+                tags=filt.tags,
+                custom_fields=filt.custom_fields,
+            )
+
+        # 3: 仅文件夹
+        if folder_ids_str:
+            return await self.test_case_repo.get_by_project_with_filters(
+                project_id=project_id,
+                offset=0,
+                limit=100000,
+                folder_ids=folder_ids_str,
+            )
+
+        # 4: 全局过滤
+        if filt:
+            return await self.test_case_repo.get_by_project_with_filters(
+                project_id=project_id,
+                offset=0,
+                limit=100000,
+                statuses=filt.status,
+                priorities=filt.priority,
+                case_types=filt.case_type,
+                owners=filt.owner,
+                tags=filt.tags,
+                custom_fields=filt.custom_fields,
+            )
+
+        # 5: 显式列表
+        if data.test_cases:
+            resolved: list[TestCase] = []
+            seen: set[UUID] = set()
+            for ident in data.test_cases:
+                tc = await self.test_case_repo.get_by_identifier(ident)
+                if tc and tc.project_id == project_id and tc.id not in seen:
+                    resolved.append(tc)
+                    seen.add(tc.id)
+            return resolved
+
+        return []
+
+    @staticmethod
+    def _build_configuration_lookup(
+        configuration_map: Optional[list[ConfigurationMapping]],
+    ) -> dict[str, list[int]]:
+        """把 ConfigurationMapping 列表展开为 {tc_identifier: [config_ids]}"""
+        lookup: dict[str, list[int]] = {}
+        if not configuration_map:
+            return lookup
+        for entry in configuration_map:
+            ids = entry.configuration_ids or []
+            keys = (
+                [entry.test_case_id]
+                if isinstance(entry.test_case_id, str)
+                else list(entry.test_case_id)
+            )
+            for key in keys:
+                lookup.setdefault(key, []).extend(ids)
+        return lookup
+
+    async def _materialize_test_run_test_cases(
+        self,
+        test_run_id: UUID,
+        cases: list[TestCase],
+        *,
+        global_configurations: Optional[list[int]],
+        configuration_map: Optional[list[ConfigurationMapping]],
+        default_assignee: Optional[str],
+    ) -> list[TestRunTestCase]:
+        """根据用例集合 + 配置映射创建关联 (configuration_map 覆盖全局 configurations)"""
+        per_case_map = self._build_configuration_lookup(configuration_map)
+        created: list[TestRunTestCase] = []
+
+        for tc in cases:
+            config_ids = per_case_map.get(tc.identifier)
+            if config_ids is None:
+                config_ids = list(global_configurations or [])
+
+            if config_ids:
+                for cid in config_ids:
+                    created.append(
+                        TestRunTestCase(
+                            test_run_id=test_run_id,
+                            test_case_id=tc.id,
+                            configuration_id=cid,
+                            assignee=default_assignee,
+                            latest_status=TestResultStatus.UNTESTED,
+                        )
+                    )
+            else:
+                created.append(
+                    TestRunTestCase(
+                        test_run_id=test_run_id,
+                        test_case_id=tc.id,
+                        assignee=default_assignee,
+                        latest_status=TestResultStatus.UNTESTED,
+                    )
+                )
+
+        if created:
+            await self.tc_repo.add_test_cases(test_run_id, created)
+        return created
+
+    # ============ 公共服务 ============
+
+    async def get_list(
+        self,
+        project_identifier: str,
+        *,
+        run_states: Optional[list[TestRunState]] = None,
+        assignees: Optional[list[str]] = None,
+        test_plan_id: Optional[str] = None,
+        include_closed: bool = False,
+        closed_before=None,
+        closed_after=None,
+        created_before=None,
+        created_after=None,
+        search: Optional[str] = None,
+        offset: int = 0,
+        limit: int = 30,
+    ) -> tuple[list[TestRunListInfo], int]:
+        project = await self._get_project_by_identifier(project_identifier)
+# noqa  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2V1doaFV3PT06MzhkMDVhYzE=
+
+        resolved_plan_id: Optional[UUID] = None
+        if test_plan_id:
+            tp = await self.test_plan_repo.get_by_identifier(test_plan_id)
+            if tp and tp.project_id == project.id:
+                resolved_plan_id = tp.id
+
+        test_runs, total = await self.repo.get_list(
+            project_id=project.id,
+            run_states=run_states,
+            assignees=assignees,
+            test_plan_id=resolved_plan_id,
+            include_closed=include_closed,
+            closed_before=closed_before,
+            closed_after=closed_after,
+            created_before=created_before,
+            created_after=created_after,
+            search=search,
+            offset=offset,
+            limit=limit,
+        )
+        return [self._to_list_info(tr) for tr in test_runs], total
+
+    async def get_detail(
+        self,
+        project_identifier: str,
+        test_run_identifier: str,
+        *,
+        minify: bool = False,
+    ) -> Union[TestRunInfo, TestRunMinifiedInfo]:
+        project = await self._get_project_by_identifier(project_identifier)
+        test_run = await self._require_test_run(project.id, test_run_identifier)
+
+        if minify:
+            return self._to_minified_info(test_run, project_identifier)
+        return await self._to_info(test_run, project_identifier)
+
+    # 兼容别名
+    async def get_by_identifier(
+        self, project_identifier: str, test_run_identifier: str
+    ) -> TestRunInfo:
+        return await self.get_detail(
+            project_identifier, test_run_identifier, minify=False
+        )
+
+    async def create(
+        self,
+        project_identifier: str,
+        data: TestRunCreate,
+    ) -> TestRunInfo:
+        project = await self._get_project_by_identifier(project_identifier)
+# type: ignore  My80OmFIVnBZMlhsdEpUbXRiZm92b2s2V1doaFV3PT06MzhkMDVhYzE=
+
+        # 互斥校验已在 schema 层，但是 service 再校验一次以确保稳健
+        if data.test_plan_id and data.sub_test_plan_id:
+            raise BadRequestException(
+                message="test_plan_id 与 sub_test_plan_id 不能同时提供"
+            )
+
+        plan_id = await self._resolve_test_plan_id(data.test_plan_id, project.id)
+        sub_plan_id = await self._resolve_test_plan_id(
+            data.sub_test_plan_id, project.id
+        )
+
+        identifier = await self.repo.generate_identifier(project.id)
+
+        test_run = TestRun(
+            project_id=project.id,
+            identifier=identifier,
+            name=data.name,
+            description=data.description,
+            run_state=data.run_state,
+            active_state=TestRunActiveState.ACTIVE,
+            assignee=data.assignee,
+            test_case_assignee=data.test_case_assignee,
+            test_plan_id=plan_id,
+            sub_test_plan_id=sub_plan_id,
+            tags=data.tags or [],
+            issues=data.issues or [],
+            issue_tracker=data.issue_tracker.model_dump()
+            if data.issue_tracker
+            else None,
+            configurations=data.configurations or [],
+            configuration_map=[
+                m.model_dump() for m in data.configuration_map
+            ]
+            if data.configuration_map
+            else None,
+            folder_ids=data.folder_ids,
+            include_all=bool(data.include_all),
+            filter_scope=data.filter_scope or FilterScope.GLOBAL,
+            filter_test_cases=data.filter_test_cases.model_dump()
+            if data.filter_test_cases
+            else None,
+            execution_mode=data.execution_mode or ExecutionMode.SEQUENTIAL,
+            max_concurrency=data.max_concurrency or 5,
+            trigger_type=TriggerType.MANUAL,
+        )
+        test_run = await self.repo.create(test_run)
+
+        # 解析用例并创建关联（兼容旧模式）
+        cases = await self._resolve_test_cases_for_create(project.id, data)
+        await self._materialize_test_run_test_cases(
+            test_run.id,
+            cases,
+            global_configurations=data.configurations,
+            configuration_map=data.configuration_map,
+            default_assignee=data.test_case_assignee or data.assignee,
+        )
+
+        # 创建脚本作业（新方式：直接脚本选择）
+        if data.scripts:
+            jobs: list[TestRunScriptJob] = []
+            for i, sel in enumerate(data.scripts):
+                jobs.append(
+                    TestRunScriptJob(
+                        test_run_id=test_run.id,
+                        script_type=sel.script_type,
+                        script_id=UUID(sel.script_id),
+                        script_identifier=sel.script_identifier or "",
+                        script_name=sel.script_name,
+                        execution_order=sel.execution_order or i,
+                        execution_mode=sel.execution_mode
+                        or (data.execution_mode or ExecutionMode.SEQUENTIAL),
+                        execution_config=sel.execution_config,
+                        status=JobStatus.PENDING,
+                        max_retries=0,
+                    )
+                )
+            await self.script_job_repo.create_many(jobs)
+
+        await self.repo.update_counts(test_run.id)
+        await self.session.refresh(test_run)
+        return await self._to_info(test_run, project_identifier)
+
+    async def patch_update(
+        self,
+        project_identifier: str,
+        test_run_identifier: str,
+        data: TestRunPatchUpdate,
+    ) -> TestRunInfo:
+        """PATCH /test-runs/{id}/update - 部分更新"""
+        project = await self._get_project_by_identifier(project_identifier)
+        test_run = await self._require_test_run(project.id, test_run_identifier)
+
+        payload = data.model_dump(exclude_unset=True)
+
+        # sub_test_plan_id (identifier → UUID)
+        if "sub_test_plan_id" in payload:
+            ident = payload.pop("sub_test_plan_id")
+            test_run.sub_test_plan_id = (
+                await self._resolve_test_plan_id(ident, project.id)
+                if ident
+                else None
+            )
+
+        # configuration_map serialize
+        if "configuration_map" in payload:
+            cm = payload.pop("configuration_map")
+            test_run.configuration_map = (
+                [m.model_dump() if hasattr(m, "model_dump") else m for m in cm]
+                if cm is not None
+                else None
+            )
+
+        # filter_test_cases serialize
+        if "filter_test_cases" in payload:
+            ftc = payload.pop("filter_test_cases")
+            test_run.filter_test_cases = (
+                ftc.model_dump() if hasattr(ftc, "model_dump") else ftc
+            )
+
+        # 平铺字段
+        for key, value in payload.items():
+            if hasattr(test_run, key):
+                setattr(test_run, key, value)
+
+        test_run = await self.repo.update(test_run)
+        return await self._to_info(test_run, project_identifier)
+
+    async def full_replace(
+        self,
+        project_identifier: str,
+        test_run_identifier: str,
+        data: TestRunFullReplace,
+    ) -> TestRunInfo:
+        """POST /test-runs/{id}/update - 全量替换 (保留 identifier/created_at)"""
+        project = await self._get_project_by_identifier(project_identifier)
+        test_run = await self._require_test_run(project.id, test_run_identifier)
+
+        if data.test_plan_id and data.sub_test_plan_id:
+            raise BadRequestException(
+                message="test_plan_id 与 sub_test_plan_id 不能同时提供"
+            )
+
+        plan_id = await self._resolve_test_plan_id(data.test_plan_id, project.id)
+        sub_plan_id = await self._resolve_test_plan_id(
+            data.sub_test_plan_id, project.id
+        )
+
+        test_run.name = data.name
+        test_run.description = data.description
+        test_run.run_state = data.run_state
+        test_run.assignee = data.assignee
+        test_run.test_case_assignee = data.test_case_assignee
+        test_run.test_plan_id = plan_id
+        test_run.sub_test_plan_id = sub_plan_id
+        test_run.tags = data.tags or []
+        test_run.issues = data.issues or []
+        test_run.issue_tracker = (
+            data.issue_tracker.model_dump() if data.issue_tracker else None
+        )
+        test_run.configurations = data.configurations or []
+        test_run.configuration_map = (
+            [m.model_dump() for m in data.configuration_map]
+            if data.configuration_map
+            else None
+        )
+        test_run.folder_ids = data.folder_ids
+        test_run.include_all = bool(data.include_all)
+        test_run.filter_scope = data.filter_scope or FilterScope.GLOBAL
+        test_run.filter_test_cases = (
+            data.filter_test_cases.model_dump()
+            if data.filter_test_cases
+            else None
+        )
+
+        await self.repo.update(test_run)
+
+        # 重建关联用例
+        await self.tc_repo.remove_all_for_run(test_run.id)
+        cases = await self._resolve_test_cases_for_create(project.id, data)
+        await self._materialize_test_run_test_cases(
+            test_run.id,
+            cases,
+            global_configurations=data.configurations,
+            configuration_map=data.configuration_map,
+            default_assignee=data.test_case_assignee or data.assignee,
+        )
+
+        await self.repo.update_counts(test_run.id)
+        await self.session.refresh(test_run)
+        return await self._to_info(test_run, project_identifier)
+
+    async def delete(
+        self,
+        project_identifier: str,
+        test_run_identifier: str,
+    ) -> None:
+        project = await self._get_project_by_identifier(project_identifier)
+        test_run = await self._require_test_run(project.id, test_run_identifier)
+        await self.repo.delete(test_run)
+
+    async def close_test_run(
+        self,
+        project_identifier: str,
+        test_run_identifier: str,
+        data: CloseTestRunRequest,
+    ) -> TestRunInfo:
+        project = await self._get_project_by_identifier(project_identifier)
+        test_run = await self._require_test_run(project.id, test_run_identifier)
+
+        test_run.active_state = data.active_state or TestRunActiveState.CLOSED
+        if test_run.active_state == TestRunActiveState.CLOSED:
+            test_run.closed_at = datetime.now(timezone.utc)
+        else:
+            test_run.closed_at = None
+
+        test_run = await self.repo.update(test_run)
+        return await self._to_info(test_run, project_identifier)
+
+    async def get_test_cases(
+        self,
+        project_identifier: str,
+        test_run_identifier: str,
+        *,
+        status: Optional[TestResultStatus] = None,
+        assignee: Optional[str] = None,
+        search: Optional[str] = None,
+        minify: bool = False,
+        fetch_steps: bool = False,
+        offset: int = 0,
+        limit: int = 30,
+    ) -> tuple[
+        list[Union[TestRunTestCaseInfo, TestRunTestCaseMinifiedInfo]], int
+    ]:
+        project = await self._get_project_by_identifier(project_identifier)
+        test_run = await self._require_test_run(project.id, test_run_identifier)
+
+        # fetch_steps 优先于 minify;按 BS 行为禁用分页
+        if fetch_steps:
+            items = await self.tc_repo.get_all_for_run(
+                test_run.id, with_steps=True
+            )
+            total = len(items)
+            result = [
+                await self._to_test_run_test_case_info(i, fetch_steps=True)
+                for i in items
+            ]
+            return result, total
+
+        items, total = await self.tc_repo.get_list(
+            test_run_id=test_run.id,
+            status=status,
+            assignee=assignee,
+            search=search,
+            with_steps=False,
+            offset=offset,
+            limit=limit,
+        )
+
+        if minify:
+            return [self._to_minified_test_case(i) for i in items], total
+
+        result = [
+            await self._to_test_run_test_case_info(i) for i in items
+        ]
+        return result, total
+
+    async def add_test_cases(
+        self,
+        project_identifier: str,
+        test_run_identifier: str,
+        data: AddTestCasesRequest,
+    ) -> TestRunInfo:
+        project = await self._get_project_by_identifier(project_identifier)
+        test_run = await self._require_test_run(project.id, test_run_identifier)
+
+        resolved: list[TestCase] = []
+        for ident in data.test_cases:
+            tc = await self.test_case_repo.get_by_identifier(ident)
+            if tc and tc.project_id == project.id:
+                resolved.append(tc)
+
+        await self._materialize_test_run_test_cases(
+            test_run.id,
+            resolved,
+            global_configurations=data.configuration_ids,
+            configuration_map=None,
+            default_assignee=(
+                data.assignee
+                or test_run.test_case_assignee
+                or test_run.assignee
+            ),
+        )
+
+        await self.repo.update_counts(test_run.id)
+        await self.session.refresh(test_run)
+        return await self._to_info(test_run, project_identifier)
+
+    async def remove_test_cases(
+        self,
+        project_identifier: str,
+        test_run_identifier: str,
+        data: RemoveTestCasesRequest,
+    ) -> TestRunInfo:
+        project = await self._get_project_by_identifier(project_identifier)
+        test_run = await self._require_test_run(project.id, test_run_identifier)
+
+        test_case_ids: list[UUID] = []
+        for ident in data.test_cases:
+            tc = await self.test_case_repo.get_by_identifier(ident)
+            if tc and tc.project_id == project.id:
+                test_case_ids.append(tc.id)
+
+        if test_case_ids:
+            await self.tc_repo.remove_test_cases(
+                test_run.id,
+                test_case_ids,
+                data.configuration_ids,
+            )
+
+        await self.repo.update_counts(test_run.id)
+        await self.session.refresh(test_run)
+        return await self._to_info(test_run, project_identifier)
+
+    async def assign(
+        self,
+        project_identifier: str,
+        test_run_identifier: str,
+        data: TestRunAssignRequest,
+    ) -> TestRunInfo:
+        """POST /test-runs/{id}/assign"""
+        project = await self._get_project_by_identifier(project_identifier)
+        test_run = await self._require_test_run(project.id, test_run_identifier)
+
+        assignments: list[dict] = []
+        for item in data.assign_to:
+            tc = await self.test_case_repo.get_by_identifier(item.test_case_id)
+            if tc and tc.project_id == project.id:
+                assignments.append(
+                    {
+                        "test_case_id": tc.id,
+                        "configuration_id": item.configuration_id,
+                        "assignee": item.assignee,
+                    }
+                )
+
+        if assignments:
+            await self.tc_repo.update_assignees(test_run.id, assignments)
+
+        await self.session.refresh(test_run)
+        return await self._to_info(test_run, project_identifier)
+
+    # 兼容旧名
+    async def update_assignees(
+        self,
+        project_identifier: str,
+        test_run_identifier: str,
+        data: TestRunAssignRequest,
+    ) -> TestRunInfo:
+        return await self.assign(
+            project_identifier, test_run_identifier, data
+        )
+
+    # ============ 脚本作业管理 ============
+
+    async def get_script_jobs(
+        self,
+        project_identifier: str,
+        test_run_identifier: str,
+        script_type: Optional[ScriptType] = None,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> dict:
+        """获取测试运行的脚本作业列表"""
+        project = await self._get_project_by_identifier(project_identifier)
+        test_run = await self._require_test_run(project.id, test_run_identifier)
+
+        offset = (page - 1) * page_size
+        jobs, total = await self.script_job_repo.get_by_test_run(
+            test_run.id,
+            script_type=script_type,
+            offset=offset,
+            limit=page_size,
+        )
+
+        return {
+            "items": [self._to_script_job_info(j) for j in jobs],
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+        }
+
+    async def add_script_jobs(
+        self,
+        project_identifier: str,
+        test_run_identifier: str,
+        jobs_data: list[TestRunScriptJobCreate],
+    ) -> TestRunInfo:
+        """添加脚本作业到测试运行"""
+        project = await self._get_project_by_identifier(project_identifier)
+        test_run = await self._require_test_run(project.id, test_run_identifier)
+
+        # 获取当前最大执行顺序
+        existing_jobs, _ = await self.script_job_repo.get_by_test_run(test_run.id)
+        max_order = max((j.execution_order for j in existing_jobs), default=-1)
+
+        jobs: list[TestRunScriptJob] = []
+        for i, data in enumerate(jobs_data):
+            jobs.append(
+                TestRunScriptJob(
+                    test_run_id=test_run.id,
+                    script_type=data.script_type,
+                    script_id=UUID(data.script_id),
+                    script_identifier=data.script_identifier or "",
+                    script_name=data.script_name,
+                    execution_order=data.execution_order or (max_order + 1 + i),
+                    execution_mode=data.execution_mode
+                    or test_run.execution_mode
+                    or ExecutionMode.SEQUENTIAL,
+                    execution_config=data.execution_config,
+                    status=JobStatus.PENDING,
+                    max_retries=data.max_retries,
+                )
+            )
+
+        await self.script_job_repo.create_many(jobs)
+        await self.session.refresh(test_run)
+        return await self._to_info(test_run, project_identifier)
+
+    async def remove_script_job(
+        self,
+        project_identifier: str,
+        test_run_identifier: str,
+        job_id: str,
+    ) -> TestRunInfo:
+        """从测试运行移除脚本作业"""
+        project = await self._get_project_by_identifier(project_identifier)
+        test_run = await self._require_test_run(project.id, test_run_identifier)
+
+        job = await self.script_job_repo.get_by_id(UUID(job_id))
+        if not job or job.test_run_id != test_run.id:
+            raise NotFoundException(resource_type="脚本作业", resource_id=job_id)
+
+        await self.script_job_repo.delete(job)
+        await self.session.refresh(test_run)
+        return await self._to_info(test_run, project_identifier)
+
+    async def get_job_report_url(
+        self,
+        project_identifier: str,
+        test_run_identifier: str,
+        job_id: str,
+    ) -> dict:
+        """获取脚本作业报告的预签名 URL"""
+        project = await self._get_project_by_identifier(project_identifier)
+        test_run = await self._require_test_run(project.id, test_run_identifier)
+
+        job = await self.script_job_repo.get_by_id(UUID(job_id))
+        if not job or job.test_run_id != test_run.id:
+            raise NotFoundException(resource_type="脚本作业", resource_id=job_id)
+
+        if not job.report_path:
+            raise NotFoundException(
+                resource_type="报告", resource_id=job_id,
+                message="该作业暂无报告"
+            )
+
+        from app.config.minio_client import MinIOClient
+        url = MinIOClient.get_presigned_url(job.report_path, expires=timedelta(hours=1))
+        return {"url": url, "expires_in": 3600}
+
+    async def retry_job(
+        self,
+        project_identifier: str,
+        test_run_identifier: str,
+        job_id: str,
+    ) -> TestRunScriptJobInfo:
+        """重试单个脚本作业"""
+        project = await self._get_project_by_identifier(project_identifier)
+        test_run = await self._require_test_run(project.id, test_run_identifier)
+
+        job = await self.script_job_repo.get_by_id(UUID(job_id))
+        if not job or job.test_run_id != test_run.id:
+            raise NotFoundException(resource_type="脚本作业", resource_id=job_id)
+
+        # 只允许重试 failed / skipped / cancelled 状态的作业
+        if job.status not in (JobStatus.FAILED, JobStatus.SKIPPED, JobStatus.CANCELLED):
+            raise BadRequestException(
+                message=f"当前作业状态为 {job.status.value}，不允许重试"
+            )
+
+        # 重置状态为 pending
+        await self.script_job_repo.update(
+            job,
+            status=JobStatus.PENDING,
+            retry_count=job.retry_count + 1,
+            error_message=None,
+            result_summary=None,
+            report_path=None,
+            duration_ms=None,
+            started_at=None,
+            completed_at=None,
+        )
+        await self.session.commit()
+
+        return self._to_script_job_info(job)
+
+    async def get_job_logs(
+        self,
+        project_identifier: str,
+        test_run_identifier: str,
+        job_id: str,
+    ) -> dict:
+        """获取脚本作业的 stdout/stderr 日志"""
+        project = await self._get_project_by_identifier(project_identifier)
+        test_run = await self._require_test_run(project.id, test_run_identifier)
+
+        job = await self.script_job_repo.get_by_id(UUID(job_id))
+        if not job or job.test_run_id != test_run.id:
+            raise NotFoundException(resource_type="脚本作业", resource_id=job_id)
+
+        return {
+            "stdout": job.stdout or "",
+            "stderr": job.stderr or "",
+        }
+
+    async def batch_retry_jobs(
+        self,
+        project_identifier: str,
+        test_run_identifier: str,
+        job_ids: list[str],
+    ) -> list[TestRunScriptJobInfo]:
+        """批量重试脚本作业"""
+        project = await self._get_project_by_identifier(project_identifier)
+        test_run = await self._require_test_run(project.id, test_run_identifier)
+
+        retried: list[TestRunScriptJobInfo] = []
+        for job_id in job_ids:
+            job = await self.script_job_repo.get_by_id(UUID(job_id))
+            if not job or job.test_run_id != test_run.id:
+                continue
+            if job.status not in (JobStatus.FAILED, JobStatus.SKIPPED, JobStatus.CANCELLED):
+                continue
+            await self.script_job_repo.update_status(
+                job.id,
+                JobStatus.PENDING,
+                retry_count=job.retry_count + 1,
+                error_message=None,
+                result_summary=None,
+                report_path=None,
+                stdout=None,
+                stderr=None,
+                duration_ms=None,
+                started_at=None,
+                completed_at=None,
+            )
+            retried.append(self._to_script_job_info(job))
+
+        await self.session.commit()
+        return retried
+
+    async def get_script_history(
+        self,
+        project_identifier: str,
+        script_type: ScriptType,
+        script_id: str,
+        limit: int = 30,
+    ) -> dict:
+        """获取脚本执行历史趋势（成功率统计）"""
+        await self._get_project_by_identifier(project_identifier)
+
+        jobs = await self.script_job_repo.get_history_by_script(
+            script_type=script_type,
+            script_id=UUID(script_id),
+            limit=limit,
+        )
+
+        history = []
+        for job in jobs:
+            history.append({
+                "job_id": str(job.id),
+                "test_run_id": str(job.test_run_id),
+                "status": job.status.value,
+                "result_summary": job.result_summary,
+                "duration_ms": job.duration_ms,
+                "started_at": job.started_at.isoformat() if job.started_at else None,
+                "completed_at": job.completed_at.isoformat() if job.completed_at else None,
+            })
+
+        # 汇总统计
+        total = len(jobs)
+        passed = sum(1 for j in jobs if j.status == JobStatus.COMPLETED)
+        failed = sum(1 for j in jobs if j.status == JobStatus.FAILED)
+        skipped = sum(1 for j in jobs if j.status == JobStatus.SKIPPED)
+        cancelled = sum(1 for j in jobs if j.status == JobStatus.CANCELLED)
+        success_rate = round((passed / total) * 100, 1) if total > 0 else 0
+
+        return {
+            "script_type": script_type.value,
+            "script_id": script_id,
+            "total_runs": total,
+            "success_rate": success_rate,
+            "passed": passed,
+            "failed": failed,
+            "skipped": skipped,
+            "cancelled": cancelled,
+            "history": history,
+        }
+
+    async def get_script_benchmark(
+        self,
+        project_identifier: str,
+        script_type: ScriptType,
+        script_id: str,
+        limit: int = 30,
+    ) -> dict:
+        """获取脚本性能基准（耗时趋势）"""
+        await self._get_project_by_identifier(project_identifier)
+
+        jobs = await self.script_job_repo.get_history_by_script(
+            script_type=script_type,
+            script_id=UUID(script_id),
+            limit=limit,
+        )
+
+        runs = []
+        durations = []
+        for job in jobs:
+            if job.duration_ms is not None:
+                runs.append({
+                    "job_id": str(job.id),
+                    "status": job.status.value,
+                    "duration_ms": job.duration_ms,
+                    "date": job.completed_at.isoformat() if job.completed_at else (
+                        job.started_at.isoformat() if job.started_at else None
+                    ),
+                })
+                durations.append(job.duration_ms)
+
+        avg = round(sum(durations) / len(durations), 0) if durations else 0
+        min_d = min(durations) if durations else 0
+        max_d = max(durations) if durations else 0
+        median = sorted(durations)[len(durations) // 2] if durations else 0
+
+        return {
+            "script_type": script_type.value,
+            "script_id": script_id,
+            "total_runs": len(runs),
+            "avg_duration_ms": avg,
+            "min_duration_ms": min_d,
+            "max_duration_ms": max_d,
+            "median_duration_ms": median,
+            "runs": runs,
+        }
+
+    async def get_job_report_preview(
+        self,
+        project_identifier: str,
+        test_run_identifier: str,
+        job_id: str,
+    ) -> str:
+        """获取脚本作业 HTML 报告的内嵌预览内容（解压 ZIP 返回 index.html）"""
+        import zipfile
+        import tempfile
+
+        project = await self._get_project_by_identifier(project_identifier)
+        test_run = await self._require_test_run(project.id, test_run_identifier)
+
+        job = await self.script_job_repo.get_by_id(UUID(job_id))
+        if not job or job.test_run_id != test_run.id:
+            raise NotFoundException(resource_type="脚本作业", resource_id=job_id)
+
+        if not job.report_path:
+            raise NotFoundException(
+                resource_type="报告", resource_id=job_id, message="该作业暂无报告"
+            )
+
+        # 从 MinIO 下载 ZIP
+        zip_bytes = MinIOClient.download_file(job.report_path)
+
+        # 解压到临时目录
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir)
+            zip_file = tmp_path / "report.zip"
+            zip_file.write_bytes(zip_bytes)
+
+            with zipfile.ZipFile(zip_file, 'r') as zf:
+                zf.extractall(tmp_path)
+
+            # 查找 index.html
+            index_html = tmp_path / "index.html"
+            if not index_html.exists():
+                # 可能在子目录中
+                for subdir in tmp_path.iterdir():
+                    if subdir.is_dir():
+                        candidate = subdir / "index.html"
+                        if candidate.exists():
+                            index_html = candidate
+                            break
+
+            if not index_html.exists():
+                raise NotFoundException(
+                    resource_type="报告", resource_id=job_id, message="报告中未找到 index.html"
+                )
+
+            return index_html.read_text(encoding="utf-8")
+
+    async def get_job_report_resource(
+        self,
+        project_identifier: str,
+        test_run_identifier: str,
+        job_id: str,
+        resource_path: str,
+    ) -> tuple[bytes, str]:
+        """从 ZIP 报告中解压指定资源文件返回"""
+        import zipfile
+        import tempfile
+        import mimetypes
+
+        project = await self._get_project_by_identifier(project_identifier)
+        test_run = await self._require_test_run(project.id, test_run_identifier)
+
+        job = await self.script_job_repo.get_by_id(UUID(job_id))
+        if not job or job.test_run_id != test_run.id:
+            raise NotFoundException(resource_type="脚本作业", resource_id=job_id)
+
+        if not job.report_path:
+            raise NotFoundException(
+                resource_type="报告", resource_id=job_id, message="该作业暂无报告"
+            )
+
+        zip_bytes = MinIOClient.download_file(job.report_path)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir)
+            zip_file = tmp_path / "report.zip"
+            zip_file.write_bytes(zip_bytes)
+
+            with zipfile.ZipFile(zip_file, 'r') as zf:
+                # 查找匹配的资源文件（支持子目录）
+                resource_file = None
+                for name in zf.namelist():
+                    if name.endswith('/') :
+                        continue
+                    # 去除可能的顶级目录前缀
+                    clean_name = name.split('/', 1)[1] if '/' in name else name
+                    if clean_name == resource_path or name == resource_path:
+                        resource_file = zf.read(name)
+                        break
+
+                if resource_file is None:
+                    raise NotFoundException(
+                        resource_type="报告资源", resource_id=resource_path
+                    )
+
+                content_type = mimetypes.guess_type(resource_path)[0] or "application/octet-stream"
+                return resource_file, content_type
+
+    async def map_jobs_to_test_cases(
+        self,
+        project_identifier: str,
+        test_run_identifier: str,
+    ) -> TestRunInfo:
+        """将 script_job 的执行结果反向映射到 test_run_cases 的状态"""
+        project = await self._get_project_by_identifier(project_identifier)
+        test_run = await self._require_test_run(project.id, test_run_identifier)
+
+        # 获取所有脚本作业
+        jobs, _ = await self.script_job_repo.get_by_test_run(test_run.id)
+
+        # 汇总 job 结果
+        overall_failed = any(j.status == JobStatus.FAILED for j in jobs)
+        overall_passed = all(j.status == JobStatus.COMPLETED for j in jobs)
+
+        # 更新所有关联的 test_run_cases
+        cases = await self.tc_repo.get_all_for_run(test_run.id, with_steps=False)
+        for case in cases:
+            if overall_failed:
+                await self.tc_repo.update_status(case.id, TestResultStatus.FAILED)
+            elif overall_passed:
+                await self.tc_repo.update_status(case.id, TestResultStatus.PASSED)
+            else:
+                # 部分成功部分失败 → 根据具体情况判断
+                # 如果有 running/pending 的 job，设为 IN_PROGRESS
+                has_running = any(j.status == JobStatus.RUNNING for j in jobs)
+                if has_running:
+                    await self.tc_repo.update_status(case.id, TestResultStatus.IN_PROGRESS)
+                else:
+                    await self.tc_repo.update_status(case.id, TestResultStatus.SKIPPED)
+
+        # 更新 TestRun 统计
+        await self.repo.update_counts_from_jobs(test_run.id)
+        await self.session.refresh(test_run)
+        return await self._to_info(test_run, project_identifier)
+
+    # ============ 调度管理 ============
+
+    async def get_schedules(
+        self,
+        project_identifier: str,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> dict:
+        """获取项目的定时调度列表"""
+        project = await self._get_project_by_identifier(project_identifier)
+        offset = (page - 1) * page_size
+        schedules, total = await self.schedule_repo.get_by_project(
+            project.id, offset=offset, limit=page_size
+        )
+        return {
+            "items": [self._to_schedule_info(s) for s in schedules],
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+        }
+
+    async def get_schedule(
+        self,
+        project_identifier: str,
+        schedule_id: str,
+    ) -> TestRunScheduleInfo:
+        """获取定时调度详情"""
+        project = await self._get_project_by_identifier(project_identifier)
+        schedule = await self.schedule_repo.get_by_id(UUID(schedule_id))
+        if not schedule or schedule.project_id != project.id:
+            raise NotFoundException(resource_type="定时调度", resource_id=schedule_id)
+        return self._to_schedule_info(schedule)
+
+    async def create_schedule(
+        self,
+        project_identifier: str,
+        data: TestRunScheduleCreate,
+    ) -> TestRunScheduleInfo:
+        """创建定时调度"""
+        project = await self._get_project_by_identifier(project_identifier)
+
+        schedule = TestRunSchedule(
+            project_id=project.id,
+            name=data.name,
+            description=data.description,
+            test_run_template=data.test_run_template,
+            trigger_type=data.trigger_type,
+            trigger_config=data.trigger_config,
+            is_enabled=data.is_enabled,
+        )
+        schedule = await self.schedule_repo.create(schedule)
+        await self.session.commit()
+
+        # 同步到 APScheduler
+        from app.services.scheduler_service import get_scheduler_service
+        get_scheduler_service().add_schedule(schedule)
+
+        return self._to_schedule_info(schedule)
+
+    async def update_schedule(
+        self,
+        project_identifier: str,
+        schedule_id: str,
+        data: TestRunScheduleUpdate,
+    ) -> TestRunScheduleInfo:
+        """更新定时调度"""
+        project = await self._get_project_by_identifier(project_identifier)
+        schedule = await self.schedule_repo.get_by_id(UUID(schedule_id))
+        if not schedule or schedule.project_id != project.id:
+            raise NotFoundException(resource_type="定时调度", resource_id=schedule_id)
+
+        payload = data.model_dump(exclude_unset=True)
+        for key, value in payload.items():
+            if hasattr(schedule, key):
+                setattr(schedule, key, value)
+
+        schedule = await self.schedule_repo.update(schedule)
+        await self.session.commit()
+
+        # 同步到 APScheduler
+        from app.services.scheduler_service import get_scheduler_service
+        svc = get_scheduler_service()
+        if schedule.is_enabled:
+            svc.add_schedule(schedule)
+        else:
+            svc.pause_schedule(str(schedule.id))
+
+        return self._to_schedule_info(schedule)
+
+    async def delete_schedule(
+        self,
+        project_identifier: str,
+        schedule_id: str,
+    ) -> None:
+        """删除定时调度"""
+        project = await self._get_project_by_identifier(project_identifier)
+        schedule = await self.schedule_repo.get_by_id(UUID(schedule_id))
+        if not schedule or schedule.project_id != project.id:
+            raise NotFoundException(resource_type="定时调度", resource_id=schedule_id)
+        await self.schedule_repo.delete(schedule)
+        await self.session.commit()
+
+        # 从 APScheduler 移除
+        from app.services.scheduler_service import get_scheduler_service
+        get_scheduler_service().remove_schedule(schedule_id)
+
+    # ============ 测试运行执行 ============
+
+    async def execute_test_run(
+        self,
+        project_identifier: str,
+        test_run_identifier: str,
+    ) -> dict:
+        """
+        执行测试运行：使用统一执行引擎协调所有脚本作业的执行。
+        支持 script_jobs（新方式）和 test_case 关联（旧方式）两种模式。
+
+        采用 fire-and-forget 模式：立即更新状态为 IN_PROGRESS 并返回，
+        实际执行在后台任务中完成，前端通过轮询获取最新状态。
+        """
+        project = await self._get_project_by_identifier(project_identifier)
+        test_run = await self._require_test_run(project.id, test_run_identifier)
+
+        # 检查是否已在执行中
+        if test_run.run_state == TestRunState.IN_PROGRESS:
+            return {
+                "status": "in_progress",
+                "test_run_id": str(test_run.id),
+                "identifier": test_run.identifier,
+                "message": "测试运行已在执行中",
+            }
+
+        # 更新状态为进行中并立即提交，确保后台任务能看到状态变更
+        test_run.run_state = TestRunState.IN_PROGRESS
+        await self.repo.update(test_run)
+        await self.session.commit()
+
+        # 在后台执行测试，不阻塞 HTTP 响应
+        asyncio.create_task(
+            self._execute_test_run_background(
+                project_identifier=project_identifier,
+                test_run_identifier=test_run_identifier,
+            )
+        )
+
+        return {
+            "status": "in_progress",
+            "test_run_id": str(test_run.id),
+            "identifier": test_run.identifier,
+            "message": "测试运行已提交到后台执行",
+        }
+
+    async def _execute_test_run_background(
+        self,
+        project_identifier: str,
+        test_run_identifier: str,
+    ) -> None:
+        """
+        后台执行测试运行。
+
+        使用独立的数据库会话，避免 HTTP 请求结束后会话被关闭导致的问题。
+        """
+        async with async_session_factory() as session:
+            service = TestRunService(session, self.mongodb)
+            try:
+                project = await service._get_project_by_identifier(project_identifier)
+                test_run = await service._require_test_run(project.id, test_run_identifier)
+
+                # 检查是否有脚本作业
+                jobs, _ = await service.script_job_repo.get_by_test_run(test_run.id)
+
+                if jobs:
+                    # 新方式：使用统一执行引擎执行脚本作业
+                    execution_service = TestExecutionService(service.mongodb)
+                    await execution_service.execute_run(test_run.id)
+                else:
+                    # 旧方式：遍历 test_case 关联执行（兼容模式）
+                    await service._execute_legacy(test_run)
+            except Exception as e:
+                logger.exception("[TestRunService] 后台执行测试运行失败")
+                # 后台执行异常时，更新测试运行状态为失败
+                try:
+                    project = await service._get_project_by_identifier(project_identifier)
+                    test_run = await service._require_test_run(project.id, test_run_identifier)
+                    test_run.run_state = TestRunState.REJECTED
+                    await service.repo.update(test_run)
+                    await session.commit()
+                except Exception as inner_e:
+                    logger.error("[TestRunService] 更新失败状态也失败了: %s", inner_e)
+
+    async def _execute_legacy(self, test_run: TestRun) -> dict:
+        """旧模式执行：遍历 test_case 关联执行 API/Web 测试"""
+        from app.services.api_test_executor import APITestExecutor
+        from app.repositories.api_test_repo import APITestRunRepository
+
+        # 更新测试运行状态为进行中
+        test_run.run_state = TestRunState.IN_PROGRESS
+        await self.repo.update(test_run)
+        await self.session.commit()
+
+        # 获取所有关联的测试用例
+        cases = await self.tc_repo.get_all_for_run(test_run.id, with_steps=False)
+
+        executed_count = 0
+        passed_count = 0
+        failed_count = 0
+        skipped_count = 0
+
+        for case in cases:
+            # 加载测试用例的 api_tests 和 web_tests 关系
+            await self.session.refresh(case, ["test_case"])
+            await self.session.refresh(case.test_case, ["api_tests", "web_tests"])
+
+            case_status = TestResultStatus.PASSED
+            has_automated_tests = False
+            any_failed = False
+
+            # 执行关联的 API 测试
+            for api_test in case.test_case.api_tests:
+                has_automated_tests = True
+                try:
+                    executor = APITestExecutor(self.session, self.mongodb)
+                    run_id = await executor.execute_test(api_test.id)
+                    api_run = await self._wait_for_api_test_run(UUID(run_id))
+
+                    if api_run.status == "completed":
+                        if api_run.failed_tests > 0:
+                            any_failed = True
+                        elif api_run.passed_tests > 0:
+                            pass  # passed
+                        else:
+                            case_status = TestResultStatus.SKIPPED
+                            skipped_count += 1
+                    else:
+                        any_failed = True
+
+                    executed_count += 1
+                except Exception:
+                    any_failed = True
+                    executed_count += 1
+
+            # TODO: Web 测试执行（Phase 4 实现）
+            for _web_test in case.test_case.web_tests:
+                has_automated_tests = True
+
+            if has_automated_tests:
+                if any_failed:
+                    case_status = TestResultStatus.FAILED
+                    failed_count += 1
+                elif case_status != TestResultStatus.SKIPPED:
+                    passed_count += 1
+                else:
+                    skipped_count += 1
+
+                await self.tc_repo.update_status(case.id, case_status)
+            else:
+                case_status = TestResultStatus.SKIPPED
+                skipped_count += 1
+                await self.tc_repo.update_status(case.id, case_status)
+
+        # 更新 TestRun 计数
+        await self.repo.update_counts(test_run.id)
+
+        # 执行完成后更新状态
+        test_run = await self.repo.get_by_id(test_run.id)
+        if failed_count > 0:
+            test_run.run_state = TestRunState.REJECTED
+        else:
+            test_run.run_state = TestRunState.DONE
+        await self.repo.update(test_run)
+        await self.session.commit()
+
+        return {
+            "test_run_id": str(test_run.id),
+            "identifier": test_run.identifier,
+            "executed": executed_count,
+            "passed": passed_count,
+            "failed": failed_count,
+            "skipped": skipped_count,
+        }
+
+    async def _wait_for_api_test_run(
+        self,
+        run_id: UUID,
+        timeout: int = 300,
+        interval: float = 2.0,
+    ) -> APITestRun:
+        """轮询等待 API 测试运行完成"""
+        repo = APITestRunRepository(self.session)
+        for _ in range(int(timeout / interval)):
+            run = await repo.get_by_id(run_id)
+            if run and run.status in ("completed", "failed", "cancelled"):
+                return run
+            await asyncio.sleep(interval)
+        raise TimeoutError(f"API 测试运行 {run_id} 执行超时")

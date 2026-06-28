@@ -1,0 +1,2863 @@
+{
+  "nodes": [
+    {
+      "id": "8957",
+      "labels": [
+        "物资流转"
+      ],
+      "properties": {
+        "file_path": "物资流转（原物流管理）.pdf",
+        "entity_type": "concept",
+        "truncate": "",
+        "description": "物资流转是物流管理更改后的名称，对应物流编号改为流转编号等字段名称调整。<SEP>物资流转是一个管理概念，原称物流管理，涉及物品的移动和存储管理。",
+        "created_at": 1782370377,
+        "source_id": "chunk-c4aa042875f6a85468e02d7b0f395314<SEP>chunk-ed013f92a19fbd2d65ed1d7591245030",
+        "entity_id": "物资流转"
+      }
+    },
+    {
+      "id": "8994",
+      "labels": [
+        "CLOUD精智未来云-新增物资流转单及TD管（异常）清单界面 (web interface screenshot)"
+      ],
+      "properties": {
+        "file_path": "物资流转（原物流管理）.pdf",
+        "description": "Screenshot of a 'CLOUD 精智·未来云' (Smart Future Cloud) platform interface, showing a form to create a new material circulation order (with TD tube (abnormal) as the item) and a modal to select TD tubes (abnormal). Reflects updated terminology (物流→物资流转) and new item type rules.",
+        "created_at": 1782370312,
+        "entity_type": "web interface screenshot",
+        "source_id": "chunk-ed013f92a19fbd2d65ed1d7591245030",
+        "entity_id": "CLOUD精智未来云-新增物资流转单及TD管（异常）清单界面 (web interface screenshot)"
+      }
+    },
+    {
+      "id": "9014",
+      "labels": [
+        "新物资流转单"
+      ],
+      "properties": {
+        "file_path": "物资流转（原物流管理）.pdf",
+        "entity_type": "content",
+        "truncate": "",
+        "description": "新物资流转单是CLOUD精智·未来云系统中用于创建和管理物资流转订单的表单。",
+        "created_at": 1782370378,
+        "source_id": "chunk-ed013f92a19fbd2d65ed1d7591245030",
+        "entity_id": "新物资流转单"
+      }
+    },
+    {
+      "id": "6410",
+      "labels": [
+        "CLOUD精智·未来云"
+      ],
+      "properties": {
+        "file_path": "实验项目.pdf<SEP>研究关联采样点.pdf<SEP>设备管理.pdf<SEP>物资流转（原物流管理）.pdf",
+        "entity_type": "concept",
+        "truncate": "",
+        "created_at": 1782370377,
+        "description": "CLOUD精智·未来云是一个Web管理系统的名称，标识系统为基于云的智慧管理平台。<SEP>CLOUD精智·未来云是一个研究管理平台，用于管理研究项目、数据和设备配置。<SEP>CLOUD精智·未来云是一个基于云的研究管理平台，提供数据治理、研究管理、谱图导入、科研工具、文献库和代谢库等功能。<SEP>CLOUD精智·未来云是一个研究管理系统，提供研究管理、采样点绑定、数据治理等功能，界面包含导航栏、表单和表格。<SEP>CLOUD精智·未来云是一个云端管理后端平台，用于设备管理，包含设备详情和配件更换记录功能。<SEP>CLOUD精智·未来云是一个基于云的智能管理平台，提供物资流转(原物流管理)功能。",
+        "source_id": "chunk-bc0bde250f1c8360496a5ae408920980<SEP>chunk-3fd38316ab0dac3cb262cc41ee66174b<SEP>chunk-70a48b4102736d5f4ce8d84879807b3f<SEP>chunk-e25eb013002fd1b67a20e93a587bad91<SEP>chunk-a3756c6e1d95d4794ce69dde41409284<SEP>chunk-ed013f92a19fbd2d65ed1d7591245030",
+        "entity_id": "CLOUD精智·未来云"
+      }
+    },
+    {
+      "id": "830",
+      "labels": [
+        "物流管理"
+      ],
+      "properties": {
+        "file_path": "S43测试用例.pdf<SEP>s14测试用例.pdf<SEP>s16测试用例.pdf<SEP>s17测试用例.pdf<SEP>s23测试用例.pdf<SEP>s25测试用例.pdf<SEP>s26测试用例.pdf<SEP>s27测试用例.pdf<SEP>s29测试用例.pdf<SEP>s34测试用例.pdf<SEP>检测任务.pdf<SEP>检测任务可选设备.pdf<SEP>谱图导入.pdf<SEP>权限分配.pdf<SEP>物流清单.pdf<SEP>PID管理.pdf<SEP>标气管理.pdf<SEP>标气批次.pdf<SEP>地点管理.pdf<SEP>检测任务s52.pdf<SEP>角色管理.pdf<SEP>老化任务.pdf<SEP>设备管理.pdf<SEP>物资流转（原物流管理）.pdf<SEP>异常TD任务.pdf",
+        "entity_type": "concept",
+        "truncate": "",
+        "created_at": 1782371040,
+        "description": "物流管理是呼析云系统（亦称精智未来云管理后台）中的一个核心功能模块，用于管理样本及相关物资的物流流程，涵盖物流信息的记录、物流单的状态跟踪以及物资运输与签收的全流程管理。该模块需要具备相应的物流权限才能访问和使用，既可以是系统预设模块，也支持自定义配置。作为资产管理下的子模块，物流管理具体包括物流单的新建、签收、补充备注等操作，并涉及寄出地点与签收地点的管理、样本选择范围以及变更研究权限等测试用例。模块支持Web平台和小程序平台，提供跨端的物流流程管理能力，其子模块包括“物流管理-小程序”和“创建物流单”等，通过整合采样点与样本信息，实现样本寄出和签收的全流程跟踪，从而保障物资在运输过程中的可追溯性和管理效率。\n\n在管理后台中，物流管理模块专门用于管理物流单据的签收状态，包含全部、待签收、已签收、未提交等标签页，方便用户分类查看和处理。该模块同时负责管理物流记录，是系统中一个重要的功能模块。值得注意的是，此功能模块的原系统名称“物流管理”已改为“物资流转”，但当前仍沿用旧称进行描述和操作。<SEP>物流管理是物资流转的旧称，指对物流活动进行计划、执行和控制的过程。<SEP>物流管理是系统侧边栏中的一个菜单项，代表物资流转管理的核心功能模块。<SEP>物流管理是CLOU精智未来云管理后台中的一个功能模块。",
+        "source_id": "chunk-2c6e84b5bad5e4779f0704a7153cd155<SEP>chunk-fd7ec210fa5159d9581c9e89a78dc114<SEP>chunk-b2f34033d15b997bd208eb19a41a460a<SEP>chunk-bb93b2f88bdc92af899f21f668e0ab50<SEP>chunk-e415c8fe3fc12b16c3057e5fc9ec3a9c<SEP>chunk-ad7edd3628a44e67eb079f7e15108bbd<SEP>chunk-6db3ee750aef8f127faedf3621a7c5c0<SEP>chunk-4abc228dd0a85238abfd8addc34e74eb<SEP>chunk-7d7a61c58995feeb84f48700728f7994<SEP>chunk-692b455010f79e1754ffe957eb1b4743<SEP>chunk-53d2d84ba4b8a66fddc523a79876e197<SEP>chunk-92e6e3db074dcb3f773e65cd02f1d64e<SEP>chunk-e1a7e6682d118fd3b55bd49650662382<SEP>chunk-747de3c44d79b5d050b0e4538a90442a<SEP>chunk-c120c7253784f58def105061cf29312e<SEP>chunk-601966ea2263a797992556bd87282e39<SEP>chunk-fb152d63a007e2531b0c1f843e2757b2<SEP>chunk-0c662b5f29265f3c1c6ad4d1245265db<SEP>chunk-230bf3a1b6c213c7c39fa13151204d69<SEP>chunk-fe9f8917e70f005203e189e82c531c99<SEP>chunk-dd08c85e140e46a7ec510e789b35b2a3<SEP>chunk-9b2395baba9953b4a001c4c7432c7253<SEP>chunk-2e5710d727f36ba8ec8dab65ff9e3af2<SEP>chunk-e42a3f57c53bd0366445d2e282ab82b5<SEP>chunk-c4aa042875f6a85468e02d7b0f395314<SEP>chunk-063f6cbe8d37f8f5a6047a5bef44d3b5<SEP>chunk-48478c3f994bdb657be43333618d93aa",
+        "entity_id": "物流管理"
+      }
+    },
+    {
+      "id": "8892",
+      "labels": [
+        "CLOUD精智未来云管理后台-微型气相色谱仪设备详情及配件更换记录界面 (image)"
+      ],
+      "properties": {
+        "file_path": "设备管理.pdf",
+        "description": "Screenshot of a device management interface (CLOUD 精智·未来云) showing details for a micro gas chromatograph (CXBA-Alpha) and a modal to add component replacement records. Aligns with context about TD tube management and equipment maintenance in a hospital lab setting.",
+        "created_at": 1782366855,
+        "entity_type": "image",
+        "source_id": "chunk-a3756c6e1d95d4794ce69dde41409284",
+        "entity_id": "CLOUD精智未来云管理后台-微型气相色谱仪设备详情及配件更换记录界面 (image)"
+      }
+    },
+    {
+      "id": "8865",
+      "labels": [
+        "微型气相色谱仪(CXBA-Alpha)"
+      ],
+      "properties": {
+        "file_path": "设备管理.pdf",
+        "entity_type": "artifact",
+        "truncate": "",
+        "description": "一种小型化的气相色谱仪设备，型号为CXBA-Alpha。<SEP>微型气相色谱仪(CXBA-Alpha)是一种设备，序列号为BA290000087，状态为在用，位于川肿外科六楼，由四川省肿瘤医院使用。",
+        "created_at": 1782366902,
+        "source_id": "chunk-e42a3f57c53bd0366445d2e282ab82b5<SEP>chunk-a3756c6e1d95d4794ce69dde41409284",
+        "entity_id": "微型气相色谱仪(CXBA-Alpha)"
+      }
+    },
+    {
+      "id": "6521",
+      "labels": [
+        "Research Management Interface for Pulmonary Nodule Study (CLOUD 精智·未来云) (image)"
+      ],
+      "properties": {
+        "file_path": "研究关联采样点.pdf",
+        "description": "The image shows a research management form on the 'CLOUD 精智·未来云' platform, detailing a clinical study ('人体呼出气挥发性有机物分子鉴别肺结节良恶性的探索研究') affiliated with 佛山市第一人民医院. It includes form fields for study info, action buttons, and navigation, supporting research data governance for lung nodule diagnosis via exhaled breath analysis.",
+        "created_at": 1779963215,
+        "entity_type": "image",
+        "source_id": "chunk-e25eb013002fd1b67a20e93a587bad91",
+        "entity_id": "Research Management Interface for Pulmonary Nodule Study (CLOUD 精智·未来云) (image)"
+      }
+    },
+    {
+      "id": "1072",
+      "labels": [
+        "研究名称"
+      ],
+      "properties": {
+        "file_path": "s12测试用例.pdf<SEP>s13测试用例.pdf<SEP>s29测试用例.pdf<SEP>s32测试用例.pdf<SEP>XCloud_v1.2_小程序.pdf<SEP>谱图导入.pdf<SEP>研究关联采样点.pdf<SEP>XCloud_2.0管理后台.pdf",
+        "entity_type": "concept",
+        "truncate": "",
+        "description": "研究名称是研究项目的名称标识，用于区分和识别不同的研究项目。它可作为排序字段，也可作为搜索研究时的查询字段。在表单中，研究名称是表单名称中的研究项目名称部分；在选项列表中，研究名称作为可选的标识项出现。此外，研究名称常被用作筛选条件，帮助用户快速定位特定研究。在用户界面中，研究名称通常以卡片中央的粗体黑色文本形式呈现，直观地标识研究记录的名称。从内容关联角度看，研究名称指向与采样流程相关联的医学或调查研究，并在输入文本中作为上下文信息提及；同时，它也用于标明标本所属的研究项目。总之，研究名称贯穿于数据记录、搜索、筛选、显示和关联等多个环节，是研究项目在系统中的核心标识符。<SEP>研究名称是平台研究表单中的一个字段标签，用于输入研究项目的名称，当前显示为空值。<SEP>在新增研究时定义的研究项目名称。<SEP>研究名称是样本库新增排名表格中的第二列，显示研究的完整名称。",
+        "created_at": 1780022184,
+        "source_id": "chunk-dad058a665f715c868cb5ebb012ea907<SEP>chunk-87882fe61c6123d3bb9f005060cf9048<SEP>chunk-6e6152f5c43eb513dfe1a0f425a330d4<SEP>chunk-e1771468661d88df8215fa4a5cca135e<SEP>chunk-78bbe22117f604c4dfa3a41cb7c0792e<SEP>chunk-c7888f9a575297e8bf5e9e3c544d92bf<SEP>chunk-c120c7253784f58def105061cf29312e<SEP>chunk-92853832877a1d4eebebd6b988c03d90<SEP>chunk-be95f4854ffbc4547acc0531c303fc08",
+        "entity_id": "研究名称"
+      }
+    },
+    {
+      "id": "6506",
+      "labels": [
+        "数据治理"
+      ],
+      "properties": {
+        "file_path": "研究关联采样点.pdf<SEP>XCloud_2.0管理后台.pdf<SEP>XCloud_v1.2_Web.pdf",
+        "entity_type": "concept",
+        "truncate": "",
+        "created_at": 1780025278,
+        "description": "数据治理是多个系统平台中的一个核心功能模块或概念。在诸如研究管理系统、云呼气平台、CHROM精智未来平台以及Linus Studio系统等环境中，数据治理被用于管理和规范数据质量与标准，执行数据管理与控制相关操作。该模块通常出现在平台左侧导航栏中作为一个独立选项，用户可据此访问数据治理相关功能。此外，数据治理还表现为一个可被勾选的模块权限复选框，代表组织被授权使用该功能。综合来看，数据治理在不同系统中承担着类似的职责，即围绕数据的质量、标准、管理及控制提供统一支撑。<SEP>数据治理是左侧导航栏中的一个菜单项。<SEP>数据治理是Linus Studio侧边栏菜单中的一个功能模块，负责数据管理。<SEP>数据治理是Linus Studio系统的一个功能模块，位于侧边栏菜单中。<SEP>数据治理是Linus Studio的一个功能模块，包含研究管理和队列管理子项。<SEP>数据治理是左侧侧边栏中的一个导航菜单项，用于管理数据治理功能。",
+        "source_id": "chunk-3fd38316ab0dac3cb262cc41ee66174b<SEP>chunk-6330a4d3bf6145fe8641ed1d37d8408e<SEP>chunk-cf8213e510483360d2933624b0326731<SEP>chunk-110f84fd89402f7bca6e74b7955639c3<SEP>chunk-641d4a425cf8cdde299da5acd1f2cf0e<SEP>chunk-75d9d50112f120f44a8ca0cc3f1cba20<SEP>chunk-9b952a80d8daad97442300bd49623f0f<SEP>chunk-4c2beaaa64fdf5c20f469833bee9c71a<SEP>chunk-ed95db30f0b14b8d87233efbb6c1a52e<SEP>chunk-247a37aa4a1e88fe6cf69de1254e828f<SEP>chunk-bbbf90b08060b198817f0a010fc21bba",
+        "entity_id": "数据治理"
+      }
+    },
+    {
+      "id": "160",
+      "labels": [
+        "首页"
+      ],
+      "properties": {
+        "file_path": "S37测试用例.pdf<SEP>s20测试用例.pdf<SEP>商业化小程序.pdf<SEP>XMetrix_v2.4.pdf<SEP>XMetrix_v2.5.pdf<SEP>XCloud_v1.2_小程序.pdf<SEP>检测任务.pdf<SEP>谱图导入.pdf<SEP>权限分配.pdf<SEP>实验项目.pdf<SEP>物流清单.pdf<SEP>研究关联采样点.pdf<SEP>采样登记优化.pdf<SEP>XCloud_2.0管理后台.pdf<SEP>XCloud_v1.2_Web.pdf<SEP>PID管理.pdf<SEP>标气批次.pdf<SEP>地点管理.pdf<SEP>检测任务s52.pdf<SEP>角色管理.pdf<SEP>设备管理.pdf<SEP>实验项目s52.pdf<SEP>物资流转（原物流管理）.pdf<SEP>异常TD任务.pdf",
+        "entity_type": "concept",
+        "truncate": "",
+        "created_at": 1782371130,
+        "description": "首页是多个相关系统（包括“LOU口精智·未来云”、“CLOUD精智·未来云”、“XCloud管理后台”、“XCloud 2.0管理后端”、“Linus Studio”以及“精智未来云平台”）中的核心主界面。对于所有已登录用户，首页是默认的起始页面和系统入口，承担着导航枢纽的角色。在Web端或管理后台中，首页通常以左侧导航栏或侧边栏顶部的独立菜单项形式出现，图标为房屋形状，文字标签为“首页”，点击即可返回主界面，且该菜单项常被高亮显示。在微信小程序等移动端，首页位于底部导航栏的第一个位置，同样以蓝色房屋图标高亮显示，标签为“首页”。\n\n首页不仅提供系统概览信息（如数据仪表盘），还支持选择检测模式等核心操作，并能引导用户访问各个功能模块。在Linus Studio系统中，首页作为当前页面，展示资产管理相关的表格和过滤选项，同时也用于展示物联网卡管理界面。其他系统（如精智未来云平台）中，首页同样位于菜单顶部，作为一个导航部分或页面标签存在。\n\n无论是“LOU口精智·未来云”、“CLOUD精智·未来云”还是“XCloud”系列平台，首页都统一承担着系统主页面入口和主要导航的作用，为不同设备（如PC端与小程序）提供一致的起始体验。不同文档中虽对系统名称的表述略有差异，但均指向同一类型的系统主界面功能。<SEP>首页是CLOUD精智未来云管理后台导航栏中的一个功能模块。",
+        "source_id": "chunk-bf21980654d67319a6cf866659f4c06e<SEP>chunk-06b1eeeb9b201d991f4107bd4d9eb95d<SEP>chunk-16ff5c12ad7d01482cf463b2df5804bf<SEP>chunk-e1a7e6682d118fd3b55bd49650662382<SEP>chunk-c120c7253784f58def105061cf29312e<SEP>chunk-601966ea2263a797992556bd87282e39<SEP>chunk-20c459fad9c08d0c97d0fc465ececb0d<SEP>chunk-110f84fd89402f7bca6e74b7955639c3<SEP>chunk-fe9f8917e70f005203e189e82c531c99<SEP>chunk-6b6d59941a728e98e7c077a0a694ae6d<SEP>chunk-dd08c85e140e46a7ec510e789b35b2a3<SEP>chunk-9b2395baba9953b4a001c4c7432c7253<SEP>chunk-e42a3f57c53bd0366445d2e282ab82b5<SEP>chunk-26c65f6eddc40b3d8a0046c002cf294c<SEP>chunk-7fed9dde4ee6383fdb1981070ce2fe42<SEP>chunk-48c855d52c9a5e8513bb83a77a80dd5f",
+        "entity_id": "首页"
+      }
+    },
+    {
+      "id": "6499",
+      "labels": [
+        "佛山市第一人民医院"
+      ],
+      "properties": {
+        "file_path": "研究关联采样点.pdf",
+        "entity_type": "organization",
+        "truncate": "",
+        "description": "佛山市第一人民医院是人体呼出气挥发性有机物分子鉴别肺结节良恶性的探索研究项目的所属组织。<SEP>佛山市第一人民医院是一家医院，其标识以圆形Logo形式显示在平台界面的顶部信息区。",
+        "created_at": 1779963310,
+        "source_id": "chunk-3fd38316ab0dac3cb262cc41ee66174b<SEP>chunk-e25eb013002fd1b67a20e93a587bad91",
+        "entity_id": "佛山市第一人民医院"
+      }
+    },
+    {
+      "id": "960",
+      "labels": [
+        "研究管理"
+      ],
+      "properties": {
+        "file_path": "s11测试用例.pdf<SEP>s22测试用例.pdf<SEP>s26测试用例.pdf<SEP>s27测试用例.pdf<SEP>s29测试用例.pdf<SEP>s30测试用例.pdf<SEP>s32测试用例.pdf<SEP>XCloud_v1.2_小程序.pdf<SEP>研究关联采样点.pdf<SEP>XCloud_2.0管理后台.pdf<SEP>XCloud_v1.2_Web.pdf",
+        "entity_type": "concept",
+        "truncate": "",
+        "created_at": 1780025291,
+        "description": "研究管理是云呼气平台（又称Linus Studio系统）中的一个核心功能模块，旨在对科研项目及相关数据进行全面的管理与协调。该模块为研究项目提供全流程支持，涵盖项目创建、研究任务的分配与跟踪、实验安排的组织与协调、执行监控、数据采集与存储等环节。同时，研究管理集成科研工具、进度管理、质控记录和临床数据管理，并专门负责谱图数据的管理，通过整合临床数据和谱图数据，实现对科研过程中多种类型数据的统一管理，确保数据的完整性和可追溯性。\n\n研究管理还包含字段变更用例，以支持数据结构调整；其质控记录功能能够对研究过程中的质量指标进行记录与分析，推动科研项目的规范化运作。在功能定位上，研究管理连接研究项目、实验安排、科研工具、数据资源及质量控制，是一个综合性的管理平台。\n\n在用户界面中，研究管理以同名按钮或左侧导航栏选项的形式提供访问入口，导航栏中该选项常处于激活状态。此外，它也会出现在手机应用界面中。具体而言，研究管理在导航栏中有时作为独立菜单项，有时则位于“数据治理”子菜单下。无论是作为云呼气平台后台的一部分，还是作为Linus Studio系统的功能模块，研究管理都承担着组织和管理研究工作的核心角色。",
+        "source_id": "chunk-3db2fced39f60198ed351afb9b4b0902<SEP>chunk-08584584f481d5d939e49a8cfc37e2a0<SEP>chunk-4abc228dd0a85238abfd8addc34e74eb<SEP>chunk-de5451b1ed2c4025218262cc3487312a<SEP>chunk-7d7a61c58995feeb84f48700728f7994<SEP>chunk-53d2d84ba4b8a66fddc523a79876e197<SEP>chunk-92e6e3db074dcb3f773e65cd02f1d64e<SEP>chunk-0187389780978bb38e9b14e0fe20df8c<SEP>chunk-e58a92662b7be26f58448548ade2c841<SEP>chunk-178c65a3e81e250323604cd2f11bcaa5<SEP>chunk-3fd38316ab0dac3cb262cc41ee66174b<SEP>chunk-6330a4d3bf6145fe8641ed1d37d8408e<SEP>chunk-92853832877a1d4eebebd6b988c03d90<SEP>chunk-110f84fd89402f7bca6e74b7955639c3<SEP>chunk-641d4a425cf8cdde299da5acd1f2cf0e<SEP>chunk-75d9d50112f120f44a8ca0cc3f1cba20<SEP>chunk-9b952a80d8daad97442300bd49623f0f<SEP>chunk-4c2beaaa64fdf5c20f469833bee9c71a<SEP>chunk-ed95db30f0b14b8d87233efbb6c1a52e<SEP>chunk-247a37aa4a1e88fe6cf69de1254e828f",
+        "entity_id": "研究管理"
+      }
+    },
+    {
+      "id": "6520",
+      "labels": [
+        "Research Management Interface for '测试数据上传' (Renai Hospital, Microbiology) (web application interface (research management system))"
+      ],
+      "properties": {
+        "file_path": "研究关联采样点.pdf",
+        "description": "Screenshot of a 'CLOUD 精智·未来云' interface managing research '测试数据上传' (Renai Hospital, microbiology). It includes a form for research info and a section to bind sampling points (e.g., 广医肺功能室), supporting clinical research data/sampling management.",
+        "created_at": 1779963214,
+        "entity_type": "web application interface (research management system)",
+        "source_id": "chunk-70a48b4102736d5f4ce8d84879807b3f",
+        "entity_id": "Research Management Interface for '测试数据上传' (Renai Hospital, Microbiology) (web application interface (research management system))"
+      }
+    },
+    {
+      "id": "6511",
+      "labels": [
+        "代谢库"
+      ],
+      "properties": {
+        "file_path": "研究关联采样点.pdf",
+        "entity_type": "data",
+        "truncate": "",
+        "description": "代谢库是研究管理系统中用于存储和管理代谢数据的模块。<SEP>代谢库是平台左侧导航栏中的一个选项，用于管理代谢数据。<SEP>代谢库是CLOUD精智·未来云系统左侧导航栏中的一个功能模块，用于管理代谢物数据。",
+        "created_at": 1779963309,
+        "source_id": "chunk-3fd38316ab0dac3cb262cc41ee66174b<SEP>chunk-70a48b4102736d5f4ce8d84879807b3f<SEP>chunk-e25eb013002fd1b67a20e93a587bad91",
+        "entity_id": "代谢库"
+      }
+    },
+    {
+      "id": "6510",
+      "labels": [
+        "文献库"
+      ],
+      "properties": {
+        "file_path": "研究关联采样点.pdf",
+        "entity_type": "data",
+        "truncate": "",
+        "description": "文献库是研究管理系统中用于存储和管理文献资料的模块。<SEP>文献库是平台左侧导航栏中的一个选项，用于管理文献资料。<SEP>文献库是CLOUD精智·未来云系统左侧导航栏中的一个功能模块，用于管理文献资料。",
+        "created_at": 1779963309,
+        "source_id": "chunk-3fd38316ab0dac3cb262cc41ee66174b<SEP>chunk-70a48b4102736d5f4ce8d84879807b3f<SEP>chunk-e25eb013002fd1b67a20e93a587bad91",
+        "entity_id": "文献库"
+      }
+    },
+    {
+      "id": "2613",
+      "labels": [
+        "科研工具"
+      ],
+      "properties": {
+        "file_path": "s27测试用例.pdf<SEP>研究关联采样点.pdf",
+        "entity_type": "concept",
+        "truncate": "",
+        "created_at": 1779963309,
+        "description": "科研工具是研究管理下的功能，提供研究所需的工具支持。<SEP>科研工具是研究管理系统中提供的辅助科研功能模块。<SEP>科研工具是平台左侧导航栏中的一个选项，提供科研相关工具。<SEP>科研工具是CLOUD精智·未来云系统左侧导航栏中的一个功能模块，提供科研相关工具。",
+        "source_id": "chunk-7d7a61c58995feeb84f48700728f7994<SEP>chunk-3fd38316ab0dac3cb262cc41ee66174b<SEP>chunk-70a48b4102736d5f4ce8d84879807b3f<SEP>chunk-e25eb013002fd1b67a20e93a587bad91",
+        "entity_id": "科研工具"
+      }
+    },
+    {
+      "id": "1110",
+      "labels": [
+        "谱图导入"
+      ],
+      "properties": {
+        "file_path": "s12测试用例.pdf<SEP>s16测试用例.pdf<SEP>s19测试用例.pdf<SEP>s32测试用例.pdf<SEP>检测任务.pdf<SEP>检测任务可选设备.pdf<SEP>谱图导入.pdf<SEP>权限分配.pdf<SEP>物流清单.pdf<SEP>研究关联采样点.pdf<SEP>检测任务s52.pdf<SEP>老化任务.pdf<SEP>实验项目s52.pdf",
+        "entity_type": "method",
+        "truncate": "",
+        "description": "谱图导入是系统中的一个多功能模块，它在不同层面上体现为功能模块、任务类型、方法节点以及用户操作。从架构上看，谱图导入出现在系统左侧导航栏中，是CLOUD精智·未来云系统导航栏中的一个选项，同时也是任务中心下的子菜单项，以及检测任务中的一项功能。在具体实现中，谱图导入作为s16测试用例下的一个方法节点，代表具体的导入操作。该模块的核心作用是用于将外部谱图数据或谱图文件加载并导入系统，支持用户上传和管理谱图数据，是平台整体架构中专门用于谱图数据导入的组成部分。无论是作为任务中心的功能还是导航栏的入口，谱图导入都服务于检测样本的谱图数据导入需求，是系统中不可或缺的数据接入环节。",
+        "created_at": 1782368377,
+        "source_id": "chunk-300889d4aaad356f00f4749ee317a7c8<SEP>chunk-96183638fe0bad99dc9dd93987f96370<SEP>chunk-e58a92662b7be26f58448548ade2c841<SEP>chunk-e1a7e6682d118fd3b55bd49650662382<SEP>chunk-747de3c44d79b5d050b0e4538a90442a<SEP>chunk-c120c7253784f58def105061cf29312e<SEP>chunk-601966ea2263a797992556bd87282e39<SEP>chunk-fb152d63a007e2531b0c1f843e2757b2<SEP>chunk-dd08c85e140e46a7ec510e789b35b2a3<SEP>chunk-2e5710d727f36ba8ec8dab65ff9e3af2<SEP>chunk-1df499ac615e547e5e253c3beb1bb6d1",
+        "entity_id": "谱图导入"
+      }
+    },
+    {
+      "id": "6259",
+      "labels": [
+        "郑"
+      ],
+      "properties": {
+        "file_path": "检测任务.pdf<SEP>设备名称搜索.pdf<SEP>实验项目.pdf<SEP>研究关联采样点.pdf<SEP>XCloud_v1.2_Web.pdf<SEP>实验项目s52.pdf",
+        "entity_type": "person",
+        "truncate": "",
+        "description": "郑是“精智·未来云系统”（亦称为LOU口精智·未来云系统或CLOUD精智·未来云系统）中的一个注册用户。该系统具备管理后台界面，郑作为用户标识，其姓名以汉字“郑”的形式出现在用户账户图标上，通常显示为绿色圆形按钮或头像，位于界面右上角或菜单顶部。根据系统上下文，郑可能被赋予管理员或实验员角色，并可能拥有管理权限；同时，他也出现在管理后台界面中，可能是当前登录用户或与设备账号相关联的用户。总体而言，郑是该云平台中一个具有特定权限和标识的用户实体。<SEP>郑是使用Linus Studio系统的用户，具有账户设置和退出登录等权限。<SEP>郑是Linus Studio系统的一个用户，可以执行账户设置和退出登录操作。<SEP>郑是管理后台的一位用户，可能为操作员。",
+        "created_at": 1782368372,
+        "source_id": "chunk-e1a7e6682d118fd3b55bd49650662382<SEP>chunk-20c459fad9c08d0c97d0fc465ececb0d<SEP>chunk-0429211d298a75fab4ea458c198ba5e9<SEP>chunk-110f84fd89402f7bca6e74b7955639c3<SEP>chunk-75d9d50112f120f44a8ca0cc3f1cba20<SEP>chunk-1df499ac615e547e5e253c3beb1bb6d1",
+        "entity_id": "郑"
+      }
+    },
+    {
+      "id": "6523",
+      "labels": [
+        "绑定采样点"
+      ],
+      "properties": {
+        "file_path": "研究关联采样点.pdf",
+        "entity_type": "method",
+        "truncate": "",
+        "description": "绑定采样点是研究管理中的一项功能，用于将采样点与研究项目关联，以支持临床数据管理。",
+        "created_at": 1779963307,
+        "source_id": "chunk-70a48b4102736d5f4ce8d84879807b3f",
+        "entity_id": "绑定采样点"
+      }
+    },
+    {
+      "id": "6504",
+      "labels": [
+        "人体呼出气挥发性有机物分子鉴别肺结节良恶性的探索研究"
+      ],
+      "properties": {
+        "file_path": "研究关联采样点.pdf",
+        "entity_type": "event",
+        "truncate": "",
+        "description": "人体呼出气挥发性有机物分子鉴别肺结节良恶性的探索研究是一个研究项目名称，所属组织为佛山市第一人民医院，涉及肺结节鉴别。",
+        "created_at": 1779963136,
+        "source_id": "chunk-3fd38316ab0dac3cb262cc41ee66174b",
+        "entity_id": "人体呼出气挥发性有机物分子鉴别肺结节良恶性的探索研究"
+      }
+    },
+    {
+      "id": "6502",
+      "labels": [
+        "测试数据上传"
+      ],
+      "properties": {
+        "file_path": "研究关联采样点.pdf<SEP>采样登记优化.pdf",
+        "entity_type": "content",
+        "truncate": "",
+        "created_at": 1780017694,
+        "description": "测试数据上传是一个研究项目名称，用于测试数据上传功能，所属组织为仁爱医院，病种方向为微生物。<SEP>测试数据上传是当前研究项目的名称，所属组织为仁爱医院，病种方向为微生物，编码规则为MLD-GYFY#XXXXXX，预计收集样本100个。<SEP>测试数据上传是一个研究项目，用于采样记录的所属研究。<SEP>所属研究的内容，表示测试数据上传的研究项目。",
+        "source_id": "chunk-3fd38316ab0dac3cb262cc41ee66174b<SEP>chunk-e58db34a9f3e91a9b8f14bbbec786879<SEP>chunk-9579c6b76f7a074015e590dfc4d18d1d<SEP>chunk-70a48b4102736d5f4ce8d84879807b3f",
+        "entity_id": "测试数据上传"
+      }
+    },
+    {
+      "id": "6395",
+      "labels": [
+        "CLOUD 精智·未来云 管理后台 Header (Interface Header Image)"
+      ],
+      "properties": {
+        "file_path": "实验项目.pdf",
+        "description": "Header of the 'CLOUD 精智·未来云' (Jingzhi·Future Cloud) management system, featuring a logo, system name, and '管理后台' (Management Backend) label. It represents the administrative interface of a cloud-based platform, consistent with enterprise management (e.g., experiments, assets, projects) context.",
+        "created_at": 1779961394,
+        "entity_type": "Interface Header Image",
+        "source_id": "chunk-bc0bde250f1c8360496a5ae408920980",
+        "entity_id": "CLOUD 精智·未来云 管理后台 Header (Interface Header Image)"
+      }
+    },
+    {
+      "id": "5623",
+      "labels": [
+        "Logo"
+      ],
+      "properties": {
+        "file_path": "XMetrix_v2.2.pdf<SEP>实验项目.pdf",
+        "entity_type": "artifact",
+        "truncate": "",
+        "description": "左侧边栏顶部的品牌标识图像。<SEP>Logo是CLOUD精智·未来云系统的图形标识，包含蓝色抽象线条，具有云或科技主题风格。",
+        "created_at": 1779961602,
+        "source_id": "chunk-6ff20da78358f0da7438813f53c3b728<SEP>chunk-bc0bde250f1c8360496a5ae408920980",
+        "entity_id": "Logo"
+      }
+    },
+    {
+      "id": "1107",
+      "labels": [
+        "管理后台"
+      ],
+      "properties": {
+        "file_path": "s12测试用例.pdf<SEP>s19测试用例.pdf<SEP>s32测试用例.pdf<SEP>s34测试用例.pdf<SEP>S36测试用例.pdf<SEP>TD管管理.pdf<SEP>检测任务.pdf<SEP>检测任务可选设备.pdf<SEP>谱图导入.pdf<SEP>权限分配.pdf<SEP>实验项目.pdf<SEP>PID管理.pdf<SEP>标气管理.pdf<SEP>检测任务s52.pdf<SEP>角色管理.pdf<SEP>老化任务.pdf<SEP>设备管理.pdf<SEP>异常TD任务.pdf",
+        "entity_type": "concept",
+        "truncate": "",
+        "created_at": 1782371042,
+        "description": "管理后台是精智·未来云（亦称LOU口精智·未来云、CLOUD精智·未来云或CLOUD精智未来云）系统的后台管理界面，专供系统管理员操作使用。作为整个平台的核心管理入口，该界面集成了权限分配与系统配置功能，支持字典列表、通知中心、字典配置、检测项目设置、订单管理、标气批次管理等子模块的维护与数据管理。同时，管理后台还涵盖系统设置、用户管理、任务中心、资产管理、实验项目、项目管理等行政任务，确保后台各项业务有序运行。其名称通常以文字标题形式出现在精智·未来云管理平台中，明确标示后台管理部分。\n\n此外，该管理后台也被描述为呼析云平台的管理界面，包含系统管理、角色管理等模块，并提供菜单导航功能，用于配置和监控各项任务。平台的核心模块负责配置和监控各类操作，同时支持检测任务的管理。多个描述均指出管理后台是精智·未来云系统的后台管理系统，集成了多个管理模块，通过菜单导航实现功能访问。整体而言，管理后台作为平台的后台管理界面，是系统管理员进行日常运维与业务配置的核心工具。",
+        "source_id": "chunk-300889d4aaad356f00f4749ee317a7c8<SEP>chunk-96183638fe0bad99dc9dd93987f96370<SEP>chunk-e58a92662b7be26f58448548ade2c841<SEP>chunk-d6d523557052db74e45839e93e0e9798<SEP>chunk-ac2879d32fa6a2c40f73b13fb3540420<SEP>chunk-e1a7e6682d118fd3b55bd49650662382<SEP>chunk-747de3c44d79b5d050b0e4538a90442a<SEP>chunk-d855a997cc9843a5f05a566c2936a6b5<SEP>chunk-c120c7253784f58def105061cf29312e<SEP>chunk-601966ea2263a797992556bd87282e39<SEP>chunk-20c459fad9c08d0c97d0fc465ececb0d<SEP>chunk-0429211d298a75fab4ea458c198ba5e9<SEP>chunk-0c662b5f29265f3c1c6ad4d1245265db<SEP>chunk-cd9e8478e61a6763e8e3d1f4d5ba1af8<SEP>chunk-230bf3a1b6c213c7c39fa13151204d69<SEP>chunk-9b2395baba9953b4a001c4c7432c7253<SEP>chunk-38d4722d5f628d38f49e5e997294c803<SEP>chunk-2e5710d727f36ba8ec8dab65ff9e3af2<SEP>chunk-e42a3f57c53bd0366445d2e282ab82b5<SEP>chunk-48478c3f994bdb657be43333618d93aa<SEP>chunk-2f1ebe47b8d9924eff96e67cb79b08bd",
+        "entity_id": "管理后台"
+      }
+    },
+    {
+      "id": "8995",
+      "labels": [
+        "标气清单管理界面（物资流转系统） (image)"
+      ],
+      "properties": {
+        "file_path": "物资流转（原物流管理）.pdf",
+        "description": "Screenshot of a '标气清单' (Standard Gas List) modal in a material transfer (logistics) management system. It displays a candidate list of standard gases (with IDs, gas type, container, container ID) and an empty selected list, enabling batch selection/search. Aligns with system updates for batch gas/container ID management.",
+        "created_at": 1782370312,
+        "entity_type": "image",
+        "source_id": "chunk-6d7450ab61062d7339186adb0eeac79d",
+        "entity_id": "标气清单管理界面（物资流转系统） (image)"
+      }
+    },
+    {
+      "id": "9033",
+      "labels": [
+        "物资流转系统"
+      ],
+      "properties": {
+        "file_path": "物资流转（原物流管理）.pdf",
+        "entity_type": "concept",
+        "truncate": "",
+        "description": "物资流转系统是一个基于Web的管理系统，原为物流管理，用于物资转移和物流订单处理。",
+        "created_at": 1782370380,
+        "source_id": "chunk-6d7450ab61062d7339186adb0eeac79d",
+        "entity_id": "物资流转系统"
+      }
+    },
+    {
+      "id": "9037",
+      "labels": [
+        "物质流转系统"
+      ],
+      "properties": {
+        "file_path": "物资流转（原物流管理）.pdf",
+        "entity_type": "UNKNOWN",
+        "truncate": "",
+        "description": "物质流转系统的界面中包含了标气清单模态窗口，用于管理标准气体。",
+        "created_at": 1782370414,
+        "source_id": "chunk-6d7450ab61062d7339186adb0eeac79d",
+        "entity_id": "物质流转系统"
+      }
+    },
+    {
+      "id": "6602",
+      "labels": [
+        "精智未来云"
+      ],
+      "properties": {
+        "file_path": "XCloud_2.0管理后台.pdf<SEP>PID管理.pdf<SEP>角色管理.pdf<SEP>老化任务.pdf",
+        "entity_type": "organization",
+        "truncate": "",
+        "description": "精智未来云是精智未来提供的云平台。<SEP>精智未来云是精智未来公司提供的云服务产品名称。<SEP>精智未来云是图片右侧显示的黑色中文文本，位于蓝色云图标之后，下方对应英文XCLOUD，可能为云平台名称。<SEP>一个云平台，提供管理后台及多种功能模块，如资产管理、PID管理等。<SEP>精智未来云是一个智能未来云平台，提供资产管理等功能，管理后台界面品牌为CLOUD精智未来云管理后台。<SEP>精智未来云是呼析云平台相关的云服务平台品牌。<SEP>精智未来云是一个管理平台，提供老化任务、检测任务等管理功能。",
+        "created_at": 1782366351,
+        "source_id": "chunk-6330a4d3bf6145fe8641ed1d37d8408e<SEP>chunk-3a4203cf118350af4b010e97cb551f95<SEP>chunk-0c662b5f29265f3c1c6ad4d1245265db<SEP>chunk-9b2395baba9953b4a001c4c7432c7253<SEP>chunk-2e5710d727f36ba8ec8dab65ff9e3af2<SEP>chunk-7bd4d30f0bd3f0972cbaac394b489f59",
+        "entity_id": "精智未来云"
+      }
+    },
+    {
+      "id": "8709",
+      "labels": [
+        "Sampling Point (Location) Management Dashboard (image)"
+      ],
+      "properties": {
+        "file_path": "地点管理.pdf",
+        "description": "This image shows a web interface for managing sampling points (locations) with a table of entries (IDs, names, positions, status) and navigation. It supports location-based workflows (e.g., logistics, sampling) and aligns with context about location IDs, types, and user access (internal/external).",
+        "created_at": 1782354644,
+        "entity_type": "image",
+        "source_id": "chunk-77f41237ed37facdd7883fed04b9534f",
+        "entity_id": "Sampling Point (Location) Management Dashboard (image)"
+      }
+    },
+    {
+      "id": "6471",
+      "labels": [
+        "CLOUD 精智·未来云 物流管理界面截图 (image)"
+      ],
+      "properties": {
+        "file_path": "物流清单.pdf",
+        "description": "Screenshot of a logistics management module in a cloud-based enterprise system (CLOUD 精智·未来云). Displays a table of shipments with status (red/green dots), tracking numbers, locations, and senders, used to monitor logistics tasks, identify exceptions, and manage deliveries.",
+        "created_at": 1779962895,
+        "entity_type": "image",
+        "source_id": "chunk-8fccf8d4ed1718129b3f6bcfe1798b4c",
+        "entity_id": "CLOUD 精智·未来云 物流管理界面截图 (image)"
+      }
+    },
+    {
+      "id": "1383",
+      "labels": [
+        "签收成功"
+      ],
+      "properties": {
+        "file_path": "s14测试用例.pdf<SEP>物流清单.pdf<SEP>物资流转（原物流管理）.pdf",
+        "entity_type": "concept",
+        "truncate": "",
+        "created_at": 1782370376,
+        "description": "签收成功是指物流单中所有运输物品均已完成签收且无异常的一种物流状态。当满足此条件时，物流单的状态会从“待签收”变更为“已签收”，且该状态要求必填字段完整。这一过程在系统中被视作一个事件，即完成所有签收步骤后触发，最终使物流单状态更新为已签收。\n\n在物流系统的界面中，签收成功状态通常以绿色圆点标识，直观表示签收已成功完成。该状态出现在多个物流单操作中，是物流流程中表示物品已被收件方确认接收的关键节点。<SEP>签收成功表示物流状态已完成签收，用绿色圆点表示。",
+        "source_id": "chunk-4e945c9f07a671e06aee8ca691e7c2e0<SEP>chunk-666c50ace1109e21891c724670cd9d32<SEP>chunk-b2f34033d15b997bd208eb19a41a460a<SEP>chunk-bcd09be11e4cb8558024dc597bedd9ce<SEP>chunk-fb152d63a007e2531b0c1f843e2757b2<SEP>chunk-063f6cbe8d37f8f5a6047a5bef44d3b5<SEP>chunk-088e0ab2436e9439bb626c378cb62e06<SEP>chunk-7fed9dde4ee6383fdb1981070ce2fe42",
+        "entity_id": "签收成功"
+      }
+    },
+    {
+      "id": "1385",
+      "labels": [
+        "签收异常"
+      ],
+      "properties": {
+        "file_path": "s14测试用例.pdf<SEP>物流清单.pdf",
+        "entity_type": "concept",
+        "truncate": "",
+        "created_at": 1779963023,
+        "description": "签收异常是指物流单中部分或全部运输物品签收失败时的状态。<SEP>签收异常是物流单的一种签收状态，表示签收过程中出现异常。<SEP>签收过程中发现物品数量或状态异常的事件。<SEP>签收异常是一种物流状态，表示签收过程中出现问题。<SEP>签收异常是一种物流状态，以红色圆点标识，表示签收过程中出现异常。",
+        "source_id": "chunk-4e945c9f07a671e06aee8ca691e7c2e0<SEP>chunk-666c50ace1109e21891c724670cd9d32<SEP>chunk-b2f34033d15b997bd208eb19a41a460a<SEP>chunk-fb152d63a007e2531b0c1f843e2757b2<SEP>chunk-8fccf8d4ed1718129b3f6bcfe1798b4c",
+        "entity_id": "签收异常"
+      }
+    },
+    {
+      "id": "6475",
+      "labels": [
+        "CLOUD精智·未来云管理后台"
+      ],
+      "properties": {
+        "file_path": "物流清单.pdf<SEP>实验项目s52.pdf<SEP>物资流转（原物流管理）.pdf",
+        "entity_type": "organization",
+        "truncate": "",
+        "created_at": 1782370373,
+        "description": "CLOUD精智·未来云管理后台是一个云管理后台系统，提供物流管理等模块的界面和功能。<SEP>这是一个智能云管理后台的Web应用程序界面，用于实验项目样本管理。<SEP>CLOUD精智·未来云管理后台是一个企业管理系统，提供物流管理等后台功能。",
+        "source_id": "chunk-8fccf8d4ed1718129b3f6bcfe1798b4c<SEP>chunk-99c3f387444b53a23111e52d6b5e6006<SEP>chunk-7fed9dde4ee6383fdb1981070ce2fe42",
+        "entity_id": "CLOUD精智·未来云管理后台"
+      }
+    },
+    {
+      "id": "1349",
+      "labels": [
+        "未提交"
+      ],
+      "properties": {
+        "file_path": "s14测试用例.pdf<SEP>物流清单.pdf",
+        "entity_type": "concept",
+        "truncate": "",
+        "description": "未提交表示物流单或数据尚未提交保存的状态。<SEP>未提交是物流单的一种状态，表示物流单数据尚未提交。<SEP>未提交是物流管理中的一个状态筛选标签，表示尚未提交的物流单。<SEP>未提交是物流管理页面中的一个标签页，用于筛选未提交的物流记录。",
+        "created_at": 1779963023,
+        "source_id": "chunk-fd7ec210fa5159d9581c9e89a78dc114<SEP>chunk-b2f34033d15b997bd208eb19a41a460a<SEP>chunk-fb152d63a007e2531b0c1f843e2757b2<SEP>chunk-1df499ac615e547e5e253c3beb1bb6d1",
+        "entity_id": "未提交"
+      }
+    },
+    {
+      "id": "1393",
+      "labels": [
+        "已签收"
+      ],
+      "properties": {
+        "file_path": "s14测试用例.pdf<SEP>物流清单.pdf",
+        "entity_type": "concept",
+        "truncate": "",
+        "created_at": 1779963023,
+        "description": "已签收是物流单的一种状态，表示物品已完成签收。<SEP>已签收是物流单的一种签收状态，表示物流单已完成签收。<SEP>已签收是物流管理中的一个状态筛选标签，表示已成功签收的物流单。<SEP>已签收是物流管理页面中的一个标签页，用于筛选已签收的物流记录。",
+        "source_id": "chunk-4e945c9f07a671e06aee8ca691e7c2e0<SEP>chunk-b2f34033d15b997bd208eb19a41a460a<SEP>chunk-fb152d63a007e2531b0c1f843e2757b2<SEP>chunk-8fccf8d4ed1718129b3f6bcfe1798b4c",
+        "entity_id": "已签收"
+      }
+    },
+    {
+      "id": "1430",
+      "labels": [
+        "待签收"
+      ],
+      "properties": {
+        "file_path": "s14测试用例.pdf<SEP>物流清单.pdf<SEP>物资流转（原物流管理）.pdf",
+        "entity_type": "concept",
+        "truncate": "",
+        "description": "待签收是物流单的一种签收状态，表示物流单尚未签收。<SEP>待签收是物流管理中的一个状态筛选标签，表示尚未签收的物流单。<SEP>待签收是物流管理页面中的一个标签页，用于筛选待签收的物流记录。<SEP>表示物流单尚未被签收的状态。<SEP>待签收表示物流状态等待签收，用蓝色圆点表示。",
+        "created_at": 1782370376,
+        "source_id": "chunk-b2f34033d15b997bd208eb19a41a460a<SEP>chunk-fb152d63a007e2531b0c1f843e2757b2<SEP>chunk-063f6cbe8d37f8f5a6047a5bef44d3b5<SEP>chunk-7fed9dde4ee6383fdb1981070ce2fe42",
+        "entity_id": "待签收"
+      }
+    },
+    {
+      "id": "759",
+      "labels": [
+        "全部"
+      ],
+      "properties": {
+        "file_path": "S42测试用例.pdf<SEP>s14测试用例.pdf<SEP>s20测试用例.pdf<SEP>s26测试用例.pdf<SEP>s30测试用例.pdf<SEP>S35测试用例.pdf<SEP>XMetrix_v2.1.pdf<SEP>XMetrix_v2.3.pdf<SEP>XMetrix_v2.4.pdf<SEP>34.pdf<SEP>XMetrix_v2.5.pdf<SEP>20.pdf<SEP>XMetrix_v2.2.pdf<SEP>XCloud_v1.2_小程序.pdf<SEP>环境样本采集.pdf<SEP>物流清单.pdf<SEP>51测试用例.pdf<SEP>检测任务s52.pdf<SEP>质控任务列表.pdf",
+        "entity_type": "concept",
+        "truncate": "",
+        "created_at": 1782373255,
+        "description": "全部是系统界面中一个通用的筛选选项或状态标签，其核心功能是在页面筛选、列表数据筛选、任务中心、物流管理等模块中，用于表示不进行任何过滤或限制，直接显示当前范围内的所有数据类别、任务、样本、设备、记录或项目。具体而言，全部可以出现在下拉菜单（如客户筛选、采样点筛选）中作为默认选项，表示选择全部而不做具体指定；也可以作为选项卡（如任务列表页面、检测报告任务列表、物流管理页面）中的标签页，默认显示所有任务或所有物流记录；还可以作为状态标签（如任务状态、设备状态）中的一项，表示显示所有状态的任务、检测报告或设备。在不同的界面和上下文中，全部均承担着统一的作用：为用户提供一个便捷的入口，以快速查看或操作所有可用的数据项，无需逐一指定具体分类或状态。例如，在任务状态筛选选项卡中，“全部”是一个显示所有任务的选项卡；在采样点下拉菜单中，它是默认选项，表示显示所有记录而不加筛选；在设备分类标签中，它表示显示所有状态的设备，并且可能处于激活状态；在物流管理页面中，它作为一个标签页，默认显示所有物流记录。总之，全部作为系统内一个通用且统一的选择项，贯穿于多种数据展示和筛选场景，其含义始终一致。<SEP>全部是任务状态筛选选项，包含所有状态。<SEP>全部是检测任务列表中的一个筛选选项，显示所有任务。<SEP>全部是任务状态筛选选项，用于显示所有状态的任务。<SEP>质控任务列表筛选选项，显示所有状态的任务。<SEP>全部是质控任务列表中的任务状态筛选标签，表示显示所有状态的任务。<SEP>全部是质控任务列表下的一个筛选标签，显示所有任务状态。",
+        "source_id": "chunk-b8e6641d0d08007db3431ee49381c0ce<SEP>chunk-4e945c9f07a671e06aee8ca691e7c2e0<SEP>chunk-b2f34033d15b997bd208eb19a41a460a<SEP>chunk-6a0bdd94818406989167e9cf2801ec24<SEP>chunk-4abc228dd0a85238abfd8addc34e74eb<SEP>chunk-dd5486a83f744668de6e98b6b2da6679<SEP>chunk-2193e2c6a59452bd1b2ea6e9b1bec3c0<SEP>chunk-fb152d63a007e2531b0c1f843e2757b2<SEP>chunk-80abc7784927a909ee143f5bc1fdeb8d<SEP>chunk-dd08c85e140e46a7ec510e789b35b2a3<SEP>chunk-13d85ba7a93b18ed91d83ed1ff846f73<SEP>chunk-793b18d21d6272b6940548a28be8f404<SEP>chunk-e9797aa4116af470728467718b575aec<SEP>chunk-eaa584eaf118c02eb565103475d975c6",
+        "entity_id": "全部"
+      }
+    },
+    {
+      "id": "6151",
+      "labels": [
+        "精智·未来云"
+      ],
+      "properties": {
+        "file_path": "TD管管理.pdf<SEP>采样登记.pdf<SEP>检测任务可选设备.pdf<SEP>设备名称搜索.pdf<SEP>实验项目.pdf<SEP>物流清单.pdf<SEP>标气管理.pdf<SEP>TD管管理-s52.pdf<SEP>地点管理.pdf<SEP>检测任务s52.pdf",
+        "entity_type": "organization",
+        "truncate": "",
+        "created_at": 1782356495,
+        "description": "精智·未来云是精智未来公司（精智未来）提供的企业级云基础系统与云端数据分析平台。该平台的中文名称对应英文“CLOUD平台”，主要面向呼气代谢物分析研究领域，提供全面的后台管理功能。其管理后台界面支持任务中心、资产管理、实验项目管理、物流与采样管理等多个功能模块，同时涵盖云端数据分析与登记管理，用于统一管理实验项目、资产及其他后台任务。作为一套综合性的管理平台品牌，精智·未来云通过标识旁的中文文本进行系统标识，是精智未来公司旗下用于支撑后台操作与数据处理的云平台系统。<SEP>一个云平台，用于管理后台、资产管理等系统模块。<SEP>精智·未来云是一个云管理平台，提供TD管管理等功能模块。<SEP>精智·未来云是管理后台系统的名称或品牌。<SEP>精智·未来云是一个云平台，提供管理后台用于检测任务管理。",
+        "source_id": "chunk-d855a997cc9843a5f05a566c2936a6b5<SEP>chunk-73fb19bf0bb38af0fc1cd9b6bb748850<SEP>chunk-747de3c44d79b5d050b0e4538a90442a<SEP>chunk-e62fb0b9d1d59b9c810e06f96e36d790<SEP>chunk-0429211d298a75fab4ea458c198ba5e9<SEP>chunk-fb152d63a007e2531b0c1f843e2757b2<SEP>chunk-230bf3a1b6c213c7c39fa13151204d69<SEP>chunk-6b6d59941a728e98e7c077a0a694ae6d<SEP>chunk-2f1ebe47b8d9924eff96e67cb79b08bd<SEP>chunk-023dc60c049477d251b499973ad5548b<SEP>chunk-cd9e8478e61a6763e8e3d1f4d5ba1af8",
+        "entity_id": "精智·未来云"
+      }
+    },
+    {
+      "id": "2103",
+      "labels": [
+        "资产管理"
+      ],
+      "properties": {
+        "file_path": "s22测试用例.pdf<SEP>s26测试用例.pdf<SEP>s27测试用例.pdf<SEP>XMetrix_v2.3.pdf<SEP>检测任务可选设备.pdf<SEP>谱图导入.pdf<SEP>权限分配.pdf<SEP>实验项目.pdf<SEP>物流清单.pdf<SEP>XCloud_2.0管理后台.pdf<SEP>XCloud_v1.2_Web.pdf<SEP>PID管理.pdf<SEP>标气管理.pdf<SEP>标气批次.pdf<SEP>地点管理.pdf<SEP>检测任务s52.pdf<SEP>角色管理.pdf<SEP>老化任务.pdf<SEP>设备管理.pdf<SEP>实验项目s52.pdf<SEP>异常TD任务.pdf",
+        "entity_type": "concept",
+        "truncate": "",
+        "created_at": 1782371040,
+        "description": "资产管理是出现在多个系统平台中的一个核心功能模块，这些平台包括呼析云、精智·未来云（涉及LOU口精智·未来云）、XCloud 2.0管理后端、云呼气平台以及Linus Studio系统等。在管理后台或系统侧边栏的导航菜单中，该模块以菜单项形式呈现，通常带有下拉箭头，文本显示为蓝色，并可被高亮标识为当前选中部分。\n\n该模块承担资产全生命周期管理的职责，涵盖设备管理、设备版本管理、标气管理、TD管管理、耗材管理、PID管理、气体类型与组合列表配置、物联网卡管理等多个子模块。具体负责设备、标气、TD管、物联网卡等实体的注册、维护与追踪，通过设备版本管理子模块实现版本的精准控制，并支持气体类型与组合列表的配置与管理，确保资产信息的完整性与可追溯性。此外，该模块在图像内容分析的相关上下文中也被提及，与TD管管理模块的上下文有关。\n\n整体来看，资产管理面向企业内部或工业场景，旨在提升资产使用效率与数据准确性。<SEP>资产管理是管理后台中用于管理资产的模块。<SEP>资产管理是系统中用于管理资产信息的模块。<SEP>平台中管理设备资产的模块。<SEP>资产管理系统菜单项，包含子菜单(设备管理、TD管管理等)，用于管理资产。<SEP>资产管理是CLOU精智未来云管理后台中的一个功能模块。",
+        "source_id": "chunk-08584584f481d5d939e49a8cfc37e2a0<SEP>chunk-4abc228dd0a85238abfd8addc34e74eb<SEP>chunk-de5451b1ed2c4025218262cc3487312a<SEP>chunk-692b455010f79e1754ffe957eb1b4743<SEP>chunk-747de3c44d79b5d050b0e4538a90442a<SEP>chunk-c120c7253784f58def105061cf29312e<SEP>chunk-601966ea2263a797992556bd87282e39<SEP>chunk-20c459fad9c08d0c97d0fc465ececb0d<SEP>chunk-fb152d63a007e2531b0c1f843e2757b2<SEP>chunk-cf8213e510483360d2933624b0326731<SEP>chunk-110f84fd89402f7bca6e74b7955639c3<SEP>chunk-641d4a425cf8cdde299da5acd1f2cf0e<SEP>chunk-75d9d50112f120f44a8ca0cc3f1cba20<SEP>chunk-0c662b5f29265f3c1c6ad4d1245265db<SEP>chunk-cd9e8478e61a6763e8e3d1f4d5ba1af8<SEP>chunk-230bf3a1b6c213c7c39fa13151204d69<SEP>chunk-fe9f8917e70f005203e189e82c531c99<SEP>chunk-6b6d59941a728e98e7c077a0a694ae6d<SEP>chunk-dd08c85e140e46a7ec510e789b35b2a3<SEP>chunk-9b2395baba9953b4a001c4c7432c7253<SEP>chunk-2e5710d727f36ba8ec8dab65ff9e3af2<SEP>chunk-7bd4d30f0bd3f0972cbaac394b489f59<SEP>chunk-e42a3f57c53bd0366445d2e282ab82b5<SEP>chunk-48478c3f994bdb657be43333618d93aa",
+        "entity_id": "资产管理"
+      }
+    },
+    {
+      "id": "6258",
+      "labels": [
+        "LOU口精智·未来云"
+      ],
+      "properties": {
+        "file_path": "检测任务.pdf<SEP>权限分配.pdf<SEP>实验项目.pdf<SEP>物流清单.pdf",
+        "entity_type": "organization",
+        "truncate": "",
+        "description": "LOU口精智·未来云是一个综合性的管理后台系统与智能云平台，提供基于Web界面的多种管理功能。该系统主要面向实验室或项目管理场景，其核心功能涵盖检测任务管理、实验管理、实验项目管理、资产管理、设备管理和用户管理等多个模块。系统界面通常包含侧边栏和主内容区域，以实现清晰的后端操作体验。此外，LOU口精智·未来云也被描述为一个管理后端平台或云计算平台系统，其名称存在与“精智·未来云”相关的变体，但整体指向同一套管理功能体系。通过该平台，用户可高效完成实验室任务调度、项目进度跟踪以及资源资产的全生命周期管理。<SEP>LOU口精智·未来云是一个管理系统，提供新增物流单功能。",
+        "created_at": 1779963026,
+        "source_id": "chunk-e1a7e6682d118fd3b55bd49650662382<SEP>chunk-601966ea2263a797992556bd87282e39<SEP>chunk-20c459fad9c08d0c97d0fc465ececb0d<SEP>chunk-023dc60c049477d251b499973ad5548b<SEP>chunk-e033cbbd49cdc122691d5227eaf08b49<SEP>chunk-72813e47b5bd60d420b7a8c66f7130a0<SEP>chunk-600080a3d24ec0c747525d8c3c24a058<SEP>chunk-d6042bbb2f25922e7bd22bea1d8aa17b<SEP>chunk-8f32932bd6033baa1b026865de50e0ad<SEP>chunk-435d24dca0bed5eb7c4661f812b984f0",
+        "entity_id": "LOU口精智·未来云"
+      }
+    },
+    {
+      "id": "3459",
+      "labels": [
+        "XMetrix s34 Test Case Flowchart (s34测试用例) (image)"
+      ],
+      "properties": {
+        "file_path": "s34测试用例.pdf",
+        "description": "This image is a flowchart documenting XMetrix s34 test cases and system features (e.g., 检测任务, 物流管理, 小程序). It uses hierarchical branching to show relationships between modules, test actions (e.g., 导入分析结果), and custom configurations (e.g., 字典列表), aligning with a management backend’s functional/test structure.",
+        "created_at": 1779876915,
+        "entity_type": "image",
+        "source_id": "chunk-38d4722d5f628d38f49e5e997294c803",
+        "entity_id": "XMetrix s34 Test Case Flowchart (s34测试用例) (image)"
+      }
+    },
+    {
+      "id": "3462",
+      "labels": [
+        "XMetrix s34"
+      ],
+      "properties": {
+        "file_path": "s34测试用例.pdf",
+        "entity_type": "organization",
+        "truncate": "",
+        "description": "XMetrix s34是一个平台，包含测试用例和系统功能模块，用于管理检测任务、物流、小程序等。",
+        "created_at": 1779876945,
+        "source_id": "chunk-38d4722d5f628d38f49e5e997294c803",
+        "entity_id": "XMetrix s34"
+      }
+    },
+    {
+      "id": "2622",
+      "labels": [
+        "变更研究权限#1"
+      ],
+      "properties": {
+        "file_path": "s27测试用例.pdf",
+        "entity_type": "event",
+        "truncate": "",
+        "description": "变更研究权限#1是一个测试用例，涉及权限从有到无时清空物品清单。",
+        "created_at": 1779874470,
+        "source_id": "chunk-692b455010f79e1754ffe957eb1b4743",
+        "entity_id": "变更研究权限#1"
+      }
+    },
+    {
+      "id": "2621",
+      "labels": [
+        "样本选择范围#1"
+      ],
+      "properties": {
+        "file_path": "s27测试用例.pdf",
+        "entity_type": "event",
+        "truncate": "",
+        "description": "样本选择范围#1是一个测试用例，涉及TD管(样本)和TD管(环境)的权限验证。",
+        "created_at": 1779874470,
+        "source_id": "chunk-692b455010f79e1754ffe957eb1b4743",
+        "entity_id": "样本选择范围#1"
+      }
+    },
+    {
+      "id": "2618",
+      "labels": [
+        "寄出地点/签收地点#1"
+      ],
+      "properties": {
+        "file_path": "s27测试用例.pdf",
+        "entity_type": "event",
+        "truncate": "",
+        "description": "寄出地点/签收地点#1是一个测试用例，涉及可选地点的选择及权限验证。",
+        "created_at": 1779874469,
+        "source_id": "chunk-692b455010f79e1754ffe957eb1b4743",
+        "entity_id": "寄出地点/签收地点#1"
+      }
+    },
+    {
+      "id": "142",
+      "labels": [
+        "样本"
+      ],
+      "properties": {
+        "file_path": "S37测试用例.pdf<SEP>S38测试用例.pdf<SEP>S39测试用例.pdf<SEP>S41测试用例.pdf<SEP>S42测试用例.pdf<SEP>s14测试用例.pdf<SEP>s16测试用例.pdf<SEP>s19测试用例.pdf<SEP>s21测试用例.pdf<SEP>s25测试用例.pdf<SEP>s26测试用例.pdf<SEP>s27测试用例.pdf<SEP>s32测试用例.pdf<SEP>s34测试用例.pdf<SEP>S36测试用例.pdf<SEP>XMetrix_v2.2.pdf<SEP>实验项目.pdf<SEP>物流清单优化.pdf<SEP>定标记录.pdf<SEP>物资流转（原物流管理）.pdf",
+        "entity_type": "artifact",
+        "truncate": "",
+        "created_at": 1782370377,
+        "description": "样本是检测系统、实验项目及物流管理中的核心数据实体和实物对象，通常指待检测的物质样品或生物材料。样本通过TD10采集并以TD管形式管理，也可存放于顶空瓶中；其属性包括标本编码（条码号，格式为英文加数字，可包含下划线或连字符）、检测项目、样本类型、编号、类型、采样时间、报告时间、TD管号、气体来源、采样方式、寄出人、签收状态、浓度等。样本用于定标、常规检测以及作为质控对象，具备备用状态（已备用或未备用），也是计算风险系数的基础。\n\n样本在系统中呈现多种状态，依据流程分为解析中、检测中、待检测、待转运、运输中、待分配、分析中、已发布等，状态随物流操作变更。系统内支持对样本进行搜索、导出、谱图显示、上传谱图、结果详情切换、选择、排序、多选等操作，并有数量限制。添加清单时以底色表示状态（灰色为未添加，蓝色为已添加），并提示重复样本信息。样本包括环境样本和普通样本，如呼出气样本；其来源可来自不同设备或检测项目，受权限研究控制，在物流管理中选择范围需关联有权限的研究。作为运输物品，签收时需填写存放位置，且具有唯一样本编码。另外，样本可通过任务类型、质控后指标等多种条件进行筛选，是研究中存储于TD管内的物料或生物材料。<SEP>检测的样本类型，如呼气。<SEP>实验中待检测的对象，用户可在系统中多选，系统以数字显示已选数量。<SEP>样本是需要管理的生物或化学标本。<SEP>样本是应用定标操作时被选中的目标对象，应用定标后会将定标记录的RTV对应表应用到样本中并重新计算。<SEP>样本是物流管理系统中跟踪的物料之一，涉及实验室任务。",
+        "source_id": "chunk-bf21980654d67319a6cf866659f4c06e<SEP>chunk-27c59dcdfafb9c0a15b7a7b7c2556265<SEP>chunk-e6da75081ef9086fb4c053d66225410d<SEP>chunk-1f178322d0546ae1a3b26405a9605df5<SEP>chunk-58848ea998aa4fde313a7ce9f2938304<SEP>chunk-4a0ebaa8ba6f2ebe27d676efd6c2a657<SEP>chunk-dcb42dac9865ce55b8cdfe0001c9b01b<SEP>chunk-17fb019485b53d341e9b1af1d060e08a<SEP>chunk-fe910910c810e98985a3f75d5c55591a<SEP>chunk-af7ecce505cc0f05283ea99a8b584a53<SEP>chunk-b8e6641d0d08007db3431ee49381c0ce<SEP>chunk-4e945c9f07a671e06aee8ca691e7c2e0<SEP>chunk-666c50ace1109e21891c724670cd9d32<SEP>chunk-3b3b2b1c18e50a2fdf34af33ba40aa65<SEP>chunk-2c01d7368da5fc92474ddd99f63da1a1<SEP>chunk-96183638fe0bad99dc9dd93987f96370<SEP>chunk-8813bd8cc303e4ab61e6bddea1c4cead<SEP>chunk-12213945bf8e700b05501baf76a65236<SEP>chunk-6db3ee750aef8f127faedf3621a7c5c0<SEP>chunk-b3ab54c816fb2f928fa5ee967dbf58bf<SEP>chunk-4abc228dd0a85238abfd8addc34e74eb<SEP>chunk-2fc8fba7af5bfa57922c97b13e6e4334<SEP>chunk-7d7a61c58995feeb84f48700728f7994<SEP>chunk-692b455010f79e1754ffe957eb1b4743<SEP>chunk-e58a92662b7be26f58448548ade2c841<SEP>chunk-efb6ebfc0b0988bcdbbbda656729ed9f<SEP>chunk-1af68c7b4677a1f9adbc5e600296cf25<SEP>chunk-880e5b4b63b3acd3d1053062446a08e3<SEP>chunk-89f2a43a4609624578beec8729aa8e8c<SEP>chunk-919eb72d90cdf4b581afa32b30ab6c65<SEP>chunk-d33ca988ab888fc3f841b64a6f324b19<SEP>chunk-30df855274a892bb8a1806085b39529d<SEP>chunk-8d297d210ef5e52f44dc279e31f09f78<SEP>chunk-db1b1bded746d3fd893cd7a7e0ac327a<SEP>chunk-7fed9dde4ee6383fdb1981070ce2fe42",
+        "entity_id": "样本"
+      }
+    },
+    {
+      "id": "738",
+      "labels": [
+        "采样点"
+      ],
+      "properties": {
+        "file_path": "S42测试用例.pdf<SEP>s13测试用例.pdf<SEP>s14测试用例.pdf<SEP>s16测试用例.pdf<SEP>s19测试用例.pdf<SEP>s20测试用例.pdf<SEP>s21测试用例.pdf<SEP>s24测试用例.pdf<SEP>s26测试用例.pdf<SEP>s27测试用例.pdf<SEP>s28测试用例.pdf<SEP>s29测试用例.pdf<SEP>s30测试用例.pdf<SEP>s32测试用例.pdf<SEP>S33测试用例.pdf<SEP>s34测试用例.pdf<SEP>S35测试用例.pdf<SEP>S36测试用例.pdf<SEP>33.pdf<SEP>34.pdf<SEP>XMetrix_v2.2.pdf<SEP>XMetrix_v2.4.pdf<SEP>20.pdf<SEP>采样登记.pdf<SEP>环境样本采集.pdf<SEP>检测任务.pdf<SEP>实验项目.pdf<SEP>定标记录.pdf<SEP>TD24.pdf<SEP>地点管理.pdf<SEP>设备管理.pdf<SEP>实验项目s52.pdf<SEP>手动登记可填问卷.pdf<SEP>云平台辅助工具.pdf<SEP>质控任务列表.pdf",
+        "entity_type": "data",
+        "truncate": "",
+        "created_at": 1782373256,
+        "description": "采样点是系统中的一个核心数据实体，既代表样本采集的物理地点（例如具体标识“ST-2-20250414”或“4F”“LF”等），也可作为逻辑对象存在。在数据结构上，每个采样点包含采样点名称、采样点位置、备注以及采样点ID等多个字段属性，并关联一个唯一的二维码。该实体由精智未来提供，并与客户关联，作为客户下的位置数据，可用于设备配置中的多选选择。在物流管理中，采样点同时也是运输物品的来源地或目的地，用于寄出/签收地点的选择以及物流单的搜索。\n\n在功能应用层面，采样点广泛用于任务列表和环境追踪任务，作为标识样本采集具体地点的字段。在检测任务创建时，用户必须输入采样地点；在采样登记环节，采样点是必填字段（带*标记），用户可通过名称搜索，系统按个人热度排序结果，但仅允许选择处于启用状态的采样点。此外，采样点可作为寄出地点，并用于环境样本的采集地点格式校验。编辑样本时，采样点关联采集仪序列号可供选择。在样本管理界面，用户可按采样点进行过滤，快速定位特定位置的样本数据。采样点还作为报告单模板或报告列表中的字段出现，表示样本采集地点或标本采样的位置。在检测任务中，采样点是记录采样位置的概念，检测卡包含期望检测地点和实际预约检测点。采样点是一个字典字段，来自SAMPLING_SITE列表，作为单选下拉框必填项，用于指定采样位置。\n\n在科研管理方面，采样点是研究项目中的具体采样位置，一个研究可设置多个采样点，新增研究时必须绑定采样点，不能为空。用户可在采样记录中查看和编辑采样点，支持新增、编辑和删除操作。在地点管理界面，采样点是核心管理对象，表示具体的采样点实体。在设备管理中，采样点作为一个字段记录设备所在的采样地点。在质控任务列表中，采样点也是由用户创建任务时选择的字段。总体而言，采样点融合了地理定位、数据管理以及业务操作等多重功能，是连接样本采集、物流运输与科研管理的重要纽带。在用户交互界面中，采样点常以下拉菜单形式呈现，例如在报告任务列表中作为筛选条件，在创建任务表单和采样登记表单中均为下拉选择字段，用于选择具体采样地点；在环境采样地点标识中，可输入具体位置编号。作为筛选条件时，下拉菜单可显示“全部”或选中的特定采样点编号（如“1”）。<SEP>采样点是质控任务列表表格中的一个列，用于显示任务的采样点信息。<SEP>采样点是质控任务列表中的一个数据列，表示采样地点。",
+        "source_id": "chunk-b8e6641d0d08007db3431ee49381c0ce<SEP>chunk-ae4bf2d83feb510b33d7defba968c75d<SEP>chunk-fd7ec210fa5159d9581c9e89a78dc114<SEP>chunk-b2f34033d15b997bd208eb19a41a460a<SEP>chunk-bcd09be11e4cb8558024dc597bedd9ce<SEP>chunk-3b3b2b1c18e50a2fdf34af33ba40aa65<SEP>chunk-936a82968227eb455c3c20bdf195b9df<SEP>chunk-36dfe62d33aa08c6e2c54fa92d67f9e1<SEP>chunk-d5900916f1bfc5a54dd14b301fab07a1<SEP>chunk-96183638fe0bad99dc9dd93987f96370<SEP>chunk-c6417e4b8c60bd7579cc3ab30335b2a3<SEP>chunk-6a0bdd94818406989167e9cf2801ec24<SEP>chunk-12213945bf8e700b05501baf76a65236<SEP>chunk-25f1cb1e406256cd87fd263bebaf4db1<SEP>chunk-b3ab54c816fb2f928fa5ee967dbf58bf<SEP>chunk-26a6decf77438bd3bac48f9ed3f86be6<SEP>chunk-b012500077ed86a8d05fd45b1247c317<SEP>chunk-7d7a61c58995feeb84f48700728f7994<SEP>chunk-692b455010f79e1754ffe957eb1b4743<SEP>chunk-313e136ae906bd5efc0871114ed295c9<SEP>chunk-167b490573e7bdfc7325c0c6d6de533b<SEP>chunk-9724d30529fdde82fb9260f667f9f3c2<SEP>chunk-e1771468661d88df8215fa4a5cca135e<SEP>chunk-53d2d84ba4b8a66fddc523a79876e197<SEP>chunk-39af86e2499209c5cc0eefe0d692bec7<SEP>chunk-b77c45dcbe6460a6d0a3d6fead6afb51<SEP>chunk-0a27e42a77a10e864206efbd04aac40f<SEP>chunk-78bbe22117f604c4dfa3a41cb7c0792e<SEP>chunk-efb6ebfc0b0988bcdbbbda656729ed9f<SEP>chunk-880e5b4b63b3acd3d1053062446a08e3<SEP>chunk-c0936409aab015f13658e04cfbb2ff46<SEP>chunk-afb0653737a17c6416927976ac52db2d<SEP>chunk-89f2a43a4609624578beec8729aa8e8c<SEP>chunk-919eb72d90cdf4b581afa32b30ab6c65<SEP>chunk-d52e262d8f84c56a07e9d1fcfa1d4c46<SEP>chunk-bd5309f53f2c67cc8f934a0dfca814de<SEP>chunk-2193e2c6a59452bd1b2ea6e9b1bec3c0<SEP>chunk-d33ca988ab888fc3f841b64a6f324b19<SEP>chunk-ee3dca129cb80d9f7b03c0a7a30dde33<SEP>chunk-52cf1f2ce6ebdbdc896e5399d2ba4d13<SEP>chunk-699f96b4cb2bc9fd0d19a6fd94891583<SEP>chunk-7cb24e6b7932ae447ac0c29bff65322b<SEP>chunk-130ee32c763283f2bbaafc9c74e995dd<SEP>chunk-d493913f3802b2e18c8eefd1ca9f8381<SEP>chunk-4c4de4cd372a8a4b19870222eacee4fa<SEP>chunk-16ff5c12ad7d01482cf463b2df5804bf<SEP>chunk-73fb19bf0bb38af0fc1cd9b6bb748850<SEP>chunk-e48afb317d199e4e4c4c788428bc1e17<SEP>chunk-e1a7e6682d118fd3b55bd49650662382<SEP>chunk-20c459fad9c08d0c97d0fc465ececb0d<SEP>chunk-a83879cfab8ab7794bad130a12814610<SEP>chunk-1f18ee948450e27cdd532616ff4fd359<SEP>chunk-6b6d59941a728e98e7c077a0a694ae6d<SEP>chunk-e42a3f57c53bd0366445d2e282ab82b5<SEP>chunk-ac1b274ac9578d951043f70aef136031<SEP>chunk-016189da602d69e9308ade4fe6c9f947<SEP>chunk-13d85ba7a93b18ed91d83ed1ff846f73<SEP>chunk-ee7dc34ad07b23576097daa2392a9fe4<SEP>chunk-793b18d21d6272b6940548a28be8f404<SEP>chunk-e9797aa4116af470728467718b575aec<SEP>chunk-eaa584eaf118c02eb565103475d975c6",
+        "entity_id": "采样点"
+      }
+    },
+    {
+      "id": "804",
+      "labels": [
+        "小程序"
+      ],
+      "properties": {
+        "file_path": "S42测试用例.pdf<SEP>s11测试用例.pdf<SEP>s12测试用例.pdf<SEP>s14测试用例.pdf<SEP>s19测试用例.pdf<SEP>s23测试用例.pdf<SEP>s24测试用例.pdf<SEP>s27测试用例.pdf<SEP>s29测试用例.pdf<SEP>s34测试用例.pdf<SEP>定标记录.pdf",
+        "entity_type": "artifact",
+        "truncate": "",
+        "description": "小程序是一个综合性的移动端平台，在系统中扮演多重角色。它首先是一个可正常使用的应用程序，支持用户登录和操作，但禁用账号虽然能登录却无法访问web管理平台。作为系统内的一个功能模块，小程序提供了移动端操作界面，是物流系统的移动端入口，用户可通过它查看功能入口并操作物流单，具体承担物流单管理功能。此外，小程序还负责设备关联采样点所在采样点的功能模块，以及用于扫码登记、扫描身份证和外部人员登录的软件应用。它能够用于新增物品标气、签收标气物品等自定义操作。同时，小程序是微信内的应用平台，包含物流管理相关的测试用例；也是用户端平台，用于接收任务通知和显示提示信息。它常指代呼析云等移动端应用平台，供用户进行操作和查询。多个任务通过小程序提交，因此小程序也是任务提交的重要来源。总体而言，小程序作为系统的移动端平台，集成了物流管理、扫码登记、物品标气签收、任务通知等多种功能的操作界面，支撑不同业务场景下的移动端操作。",
+        "created_at": 1780050351,
+        "source_id": "chunk-713cc4d5874b2e8382535b5cb04f1d44<SEP>chunk-3db2fced39f60198ed351afb9b4b0902<SEP>chunk-300889d4aaad356f00f4749ee317a7c8<SEP>chunk-64127cbd8c43ee459300e98d21be5055<SEP>chunk-bcd09be11e4cb8558024dc597bedd9ce<SEP>chunk-36dfe62d33aa08c6e2c54fa92d67f9e1<SEP>chunk-96183638fe0bad99dc9dd93987f96370<SEP>chunk-ad7edd3628a44e67eb079f7e15108bbd<SEP>chunk-8b784b76bd2e76fe01e7158deac2e90a<SEP>chunk-25f1cb1e406256cd87fd263bebaf4db1<SEP>chunk-2daa345b401e8ad5329fa25aa5170937<SEP>chunk-692b455010f79e1754ffe957eb1b4743<SEP>chunk-be65904aa22ae8bdfeb240fc12b2fed1<SEP>chunk-92e6e3db074dcb3f773e65cd02f1d64e<SEP>chunk-86a40a9572b07a2132d3d33d189fe532",
+        "entity_id": "小程序"
+      }
+    },
+    {
+      "id": "1454",
+      "labels": [
+        "Web"
+      ],
+      "properties": {
+        "file_path": "s14测试用例.pdf<SEP>s17测试用例.pdf<SEP>s23测试用例.pdf",
+        "entity_type": "artifact",
+        "truncate": "",
+        "created_at": 1779870125,
+        "description": "Web是物流系统的PC端入口，用于查看功能入口和操作物流单。<SEP>Web是提供物流单管理功能的网页端平台。<SEP>Web指PC端后台管理系统，用于管理采样相关配置和操作。<SEP>Web是系统的后端管理平台，提供物流管理等功能的操作界面。",
+        "source_id": "chunk-64127cbd8c43ee459300e98d21be5055<SEP>chunk-bcd09be11e4cb8558024dc597bedd9ce<SEP>chunk-e415c8fe3fc12b16c3057e5fc9ec3a9c<SEP>chunk-ad7edd3628a44e67eb079f7e15108bbd",
+        "entity_id": "Web"
+      }
+    },
+    {
+      "id": "2193",
+      "labels": [
+        "物流管理-小程序-新增物流单包含作废环境样本#1"
+      ],
+      "properties": {
+        "file_path": "s23测试用例.pdf",
+        "entity_type": "event",
+        "truncate": "",
+        "description": "测试用例，验证小程序平台物流单包含作废环境样本时保存或提交失败的提示。",
+        "created_at": 1779870129,
+        "source_id": "chunk-ad7edd3628a44e67eb079f7e15108bbd",
+        "entity_id": "物流管理-小程序-新增物流单包含作废环境样本#1"
+      }
+    },
+    {
+      "id": "2192",
+      "labels": [
+        "物流管理-小程序-新增物品#1"
+      ],
+      "properties": {
+        "file_path": "s23测试用例.pdf",
+        "entity_type": "event",
+        "truncate": "",
+        "description": "测试用例，验证在小程序平台物流管理中选择苏玛罐(空)和清单的操作。",
+        "created_at": 1779870129,
+        "source_id": "chunk-ad7edd3628a44e67eb079f7e15108bbd",
+        "entity_id": "物流管理-小程序-新增物品#1"
+      }
+    },
+    {
+      "id": "2191",
+      "labels": [
+        "物流管理-Web-新增物流单包含作废环境样本#1"
+      ],
+      "properties": {
+        "file_path": "s23测试用例.pdf",
+        "entity_type": "event",
+        "truncate": "",
+        "description": "测试用例，验证Web平台物流单包含作废环境样本时保存或提交失败的提示。",
+        "created_at": 1779870129,
+        "source_id": "chunk-ad7edd3628a44e67eb079f7e15108bbd",
+        "entity_id": "物流管理-Web-新增物流单包含作废环境样本#1"
+      }
+    },
+    {
+      "id": "2190",
+      "labels": [
+        "物流管理-Web-新增物品#1"
+      ],
+      "properties": {
+        "file_path": "s23测试用例.pdf",
+        "entity_type": "event",
+        "truncate": "",
+        "description": "测试用例，验证在Web平台物流管理中选择苏玛罐(空)和清单的操作。",
+        "created_at": 1779870129,
+        "source_id": "chunk-ad7edd3628a44e67eb079f7e15108bbd",
+        "entity_id": "物流管理-Web-新增物品#1"
+      }
+    },
+    {
+      "id": "1348",
+      "labels": [
+        "物流管理-小程序"
+      ],
+      "properties": {
+        "file_path": "s14测试用例.pdf",
+        "entity_type": "artifact",
+        "truncate": "",
+        "description": "物流管理-小程序是物流管理的子模块，用于执行物流相关操作，如创建物流单、查看运输物品等。",
+        "created_at": 1779865577,
+        "source_id": "chunk-fd7ec210fa5159d9581c9e89a78dc114",
+        "entity_id": "物流管理-小程序"
+      }
+    },
+    {
+      "id": "838",
+      "labels": [
+        "物流权限"
+      ],
+      "properties": {
+        "file_path": "S43测试用例.pdf",
+        "entity_type": "concept",
+        "truncate": "",
+        "description": "物流权限是用户访问物流管理功能的权限控制。",
+        "created_at": 1779863774,
+        "source_id": "chunk-2c6e84b5bad5e4779f0704a7153cd155",
+        "entity_id": "物流权限"
+      }
+    },
+    {
+      "id": "837",
+      "labels": [
+        "呼析云小程序"
+      ],
+      "properties": {
+        "file_path": "S43测试用例.pdf<SEP>s29测试用例.pdf",
+        "entity_type": "organization",
+        "truncate": "",
+        "description": "呼析云小程序是提供物流管理等功能的微信小程序。<SEP>呼析云小程序是面向用户的移动端应用，用户可通过它查询检测报告任务。",
+        "created_at": 1779875349,
+        "source_id": "chunk-2c6e84b5bad5e4779f0704a7153cd155<SEP>chunk-92e6e3db074dcb3f773e65cd02f1d64e",
+        "entity_id": "呼析云小程序"
+      }
+    },
+    {
+      "id": "750",
+      "labels": [
+        "权限"
+      ],
+      "properties": {
+        "file_path": "S42测试用例.pdf<SEP>s12测试用例.pdf<SEP>s16测试用例.pdf<SEP>s19测试用例.pdf<SEP>s27测试用例.pdf<SEP>XMetrix_v2.2.pdf<SEP>XMetrix_v2.4.pdf<SEP>质控任务列表.pdf",
+        "entity_type": "concept",
+        "truncate": "",
+        "created_at": 1782372868,
+        "description": "权限是系统中的一个重要概念，用于控制用户对各类功能和数据的访问与操作能力。它决定了用户能否查看特定模块或执行特定操作。例如，权限控制用户对检测报告任务的访问和操作级别，也控制用户能否看到谱图导入菜单。对于设备实时状态，admin账户拥有查看权限，而非admin用户则没有。此外，权限影响用户对研究或功能的访问，进而影响展示内容，如仅展示特定的研究A。\n\n权限按照不同的级别进行划分，包括访问权限、操作权限和管理权限这三种级别。这些级别用于控制用户对环境采样记录的编辑能力，也用于控制用户对实验项目和样本的操作。具体到样本编辑，拥有管理权限的用户可以编辑，而非管理权限的用户则不可编辑。权限类型还包括数据录入、数据访问和数据维护，这些权限可以分配给不同的系统成员，并可根据需要进行变更。\n\n总体而言，权限是系统用户权限管理的核心，通过不同粒度和级别的设置，确保用户只能在其授权范围内访问和操作相应的系统功能与数据。<SEP>权限是控制用户操作和访问的功能，包括管理权限、访问权限等。<SEP>权限控制用户对系统模块和功能的访问，包括查看、管理、编辑等权限。<SEP>权限是系统中控制用户访问功能的机制。<SEP>质控任务列表需要单独设置模块权限。",
+        "source_id": "chunk-b8e6641d0d08007db3431ee49381c0ce<SEP>chunk-713cc4d5874b2e8382535b5cb04f1d44<SEP>chunk-2c6e84b5bad5e4779f0704a7153cd155<SEP>chunk-dad058a665f715c868cb5ebb012ea907<SEP>chunk-300889d4aaad356f00f4749ee317a7c8<SEP>chunk-9dc39b5843a166dfedf77c62f46437b6<SEP>chunk-3b3b2b1c18e50a2fdf34af33ba40aa65<SEP>chunk-936a82968227eb455c3c20bdf195b9df<SEP>chunk-2c01d7368da5fc92474ddd99f63da1a1<SEP>chunk-96183638fe0bad99dc9dd93987f96370<SEP>chunk-7d7a61c58995feeb84f48700728f7994<SEP>chunk-4c4de4cd372a8a4b19870222eacee4fa<SEP>chunk-16ff5c12ad7d01482cf463b2df5804bf<SEP>chunk-13d85ba7a93b18ed91d83ed1ff846f73",
+        "entity_id": "权限"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "20609",
+      "type": "DIRECTED",
+      "source": "8994",
+      "target": "9014",
+      "properties": {
+        "file_path": "物资流转（原物流管理）.pdf",
+        "truncate": "",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "description": "Entity 新物资流转单 belongs to CLOUD精智未来云-新增物资流转单及TD管（异常）清单界面 (web interface screenshot)",
+        "created_at": 1782370400,
+        "source_id": "chunk-ed013f92a19fbd2d65ed1d7591245030"
+      }
+    },
+    {
+      "id": "20606",
+      "type": "DIRECTED",
+      "source": "8994",
+      "target": "830",
+      "properties": {
+        "file_path": "物资流转（原物流管理）.pdf",
+        "truncate": "",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "description": "Entity 物流管理 belongs to CLOUD精智未来云-新增物资流转单及TD管（异常）清单界面 (web interface screenshot)",
+        "created_at": 1782370400,
+        "source_id": "chunk-ed013f92a19fbd2d65ed1d7591245030"
+      }
+    },
+    {
+      "id": "20603",
+      "type": "DIRECTED",
+      "source": "8994",
+      "target": "8957",
+      "properties": {
+        "file_path": "物资流转（原物流管理）.pdf",
+        "truncate": "",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "description": "Entity 物资流转 belongs to CLOUD精智未来云-新增物资流转单及TD管（异常）清单界面 (web interface screenshot)",
+        "created_at": 1782370399,
+        "source_id": "chunk-ed013f92a19fbd2d65ed1d7591245030"
+      }
+    },
+    {
+      "id": "20601",
+      "type": "DIRECTED",
+      "source": "9014",
+      "target": "8957",
+      "properties": {
+        "file_path": "物资流转（原物流管理）.pdf",
+        "truncate": "",
+        "keywords": "管理表格,订单创建",
+        "weight": 1.0,
+        "description": "新物资流转单是物资流转管理中的表单，用于创建和管理物资流转订单。",
+        "created_at": 1782370399,
+        "source_id": "chunk-ed013f92a19fbd2d65ed1d7591245030"
+      }
+    },
+    {
+      "id": "20600",
+      "type": "DIRECTED",
+      "source": "6410",
+      "target": "8994",
+      "properties": {
+        "file_path": "物资流转（原物流管理）.pdf",
+        "truncate": "",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "description": "Entity CLOUD精智·未来云 belongs to CLOUD精智未来云-新增物资流转单及TD管（异常）清单界面 (web interface screenshot)",
+        "created_at": 1782370399,
+        "source_id": "chunk-ed013f92a19fbd2d65ed1d7591245030"
+      }
+    },
+    {
+      "id": "20598",
+      "type": "DIRECTED",
+      "source": "6410",
+      "target": "9014",
+      "properties": {
+        "file_path": "物资流转（原物流管理）.pdf",
+        "truncate": "",
+        "keywords": "用户界面,系统内表单",
+        "weight": 1.0,
+        "description": "新物资流转单是CLOUD精智·未来云系统界面中的一部分，用于输入物资流转信息。",
+        "created_at": 1782370398,
+        "source_id": "chunk-ed013f92a19fbd2d65ed1d7591245030"
+      }
+    },
+    {
+      "id": "20596",
+      "type": "DIRECTED",
+      "source": "6410",
+      "target": "8957",
+      "properties": {
+        "file_path": "物资流转（原物流管理）.pdf",
+        "truncate": "",
+        "keywords": "功能模块,管理系统",
+        "weight": 1.0,
+        "description": "CLOUD精智·未来云提供物资流转管理功能，作为其核心模块之一。",
+        "created_at": 1782370398,
+        "source_id": "chunk-ed013f92a19fbd2d65ed1d7591245030"
+      }
+    },
+    {
+      "id": "20317",
+      "type": "DIRECTED",
+      "source": "6410",
+      "target": "8892",
+      "properties": {
+        "file_path": "设备管理.pdf",
+        "keywords": "belongs_to,contained_in,part_of",
+        "truncate": "",
+        "weight": 10.0,
+        "description": "Entity CLOUD精智·未来云 belongs to CLOUD精智未来云管理后台-微型气相色谱仪设备详情及配件更换记录界面 (image)",
+        "created_at": 1782366908,
+        "source_id": "chunk-a3756c6e1d95d4794ce69dde41409284"
+      }
+    },
+    {
+      "id": "20305",
+      "type": "DIRECTED",
+      "source": "6410",
+      "target": "8865",
+      "properties": {
+        "file_path": "设备管理.pdf",
+        "keywords": "平台,管理",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "CLOUD精智·未来云平台管理微型气相色谱仪(CXBA-Alpha)的设备详情和配件更换记录。",
+        "created_at": 1782366906,
+        "source_id": "chunk-a3756c6e1d95d4794ce69dde41409284"
+      }
+    },
+    {
+      "id": "14000",
+      "type": "DIRECTED",
+      "source": "6410",
+      "target": "6521",
+      "properties": {
+        "file_path": "研究关联采样点.pdf",
+        "keywords": "belongs_to,contained_in,part_of",
+        "truncate": "",
+        "weight": 10.0,
+        "description": "Entity CLOUD精智·未来云 belongs to Research Management Interface for Pulmonary Nodule Study (CLOUD 精智·未来云) (image)",
+        "created_at": 1779963333,
+        "source_id": "chunk-e25eb013002fd1b67a20e93a587bad91"
+      }
+    },
+    {
+      "id": "13992",
+      "type": "DIRECTED",
+      "source": "6410",
+      "target": "1072",
+      "properties": {
+        "file_path": "研究关联采样点.pdf",
+        "keywords": "包含关系,表单字段",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "CLOUD精智·未来云平台的研究管理界面中包含研究名称字段，用于填写研究项目的名称。",
+        "created_at": 1779963331,
+        "source_id": "chunk-e25eb013002fd1b67a20e93a587bad91"
+      }
+    },
+    {
+      "id": "13989",
+      "type": "DIRECTED",
+      "source": "6410",
+      "target": "6506",
+      "properties": {
+        "file_path": "研究关联采样点.pdf",
+        "keywords": "包含关系,平台导航",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "CLOUD精智·未来云平台的左侧导航栏中包含数据治理选项。",
+        "created_at": 1779963331,
+        "source_id": "chunk-e25eb013002fd1b67a20e93a587bad91"
+      }
+    },
+    {
+      "id": "13987",
+      "type": "DIRECTED",
+      "source": "6410",
+      "target": "160",
+      "properties": {
+        "file_path": "研究关联采样点.pdf",
+        "keywords": "包含关系,平台导航",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "CLOUD精智·未来云平台的左侧导航栏中包含首页选项。",
+        "created_at": 1779963330,
+        "source_id": "chunk-e25eb013002fd1b67a20e93a587bad91"
+      }
+    },
+    {
+      "id": "13985",
+      "type": "DIRECTED",
+      "source": "6410",
+      "target": "6499",
+      "properties": {
+        "file_path": "研究关联采样点.pdf",
+        "keywords": "医院标识,平台显示",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "CLOUD精智·未来云平台界面顶部显示了佛山市第一人民医院的圆形Logo。",
+        "created_at": 1779963330,
+        "source_id": "chunk-e25eb013002fd1b67a20e93a587bad91"
+      }
+    },
+    {
+      "id": "13984",
+      "type": "DIRECTED",
+      "source": "6410",
+      "target": "960",
+      "properties": {
+        "file_path": "研究关联采样点.pdf",
+        "keywords": "平台导航,激活状态",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "CLOUD精智·未来云平台的导航栏中包含研究管理选项，且该选项当前处于激活状态。",
+        "created_at": 1779963329,
+        "source_id": "chunk-e25eb013002fd1b67a20e93a587bad91"
+      }
+    },
+    {
+      "id": "13967",
+      "type": "DIRECTED",
+      "source": "6410",
+      "target": "6520",
+      "properties": {
+        "file_path": "研究关联采样点.pdf",
+        "keywords": "belongs_to,contained_in,part_of",
+        "truncate": "",
+        "weight": 10.0,
+        "description": "Entity CLOUD精智·未来云 belongs to Research Management Interface for '测试数据上传' (Renai Hospital, Microbiology) (web application interface (research management system))",
+        "created_at": 1779963322,
+        "source_id": "chunk-70a48b4102736d5f4ce8d84879807b3f"
+      }
+    },
+    {
+      "id": "13960",
+      "type": "DIRECTED",
+      "source": "6410",
+      "target": "6511",
+      "properties": {
+        "file_path": "研究关联采样点.pdf",
+        "truncate": "",
+        "keywords": "功能模块,包含关系,平台导航,系统导航",
+        "weight": 2.0,
+        "description": "CLOUD精智·未来云平台的左侧导航栏中包含代谢库选项。<SEP>代谢库是CLOUD精智·未来云系统左侧导航栏中的一个功能模块。",
+        "created_at": 1779963319,
+        "source_id": "chunk-70a48b4102736d5f4ce8d84879807b3f<SEP>chunk-e25eb013002fd1b67a20e93a587bad91"
+      }
+    },
+    {
+      "id": "13958",
+      "type": "DIRECTED",
+      "source": "6410",
+      "target": "6510",
+      "properties": {
+        "file_path": "研究关联采样点.pdf",
+        "truncate": "",
+        "keywords": "功能模块,包含关系,平台导航,系统导航",
+        "weight": 2.0,
+        "description": "CLOUD精智·未来云平台的左侧导航栏中包含文献库选项。<SEP>文献库是CLOUD精智·未来云系统左侧导航栏中的一个功能模块。",
+        "created_at": 1779963319,
+        "source_id": "chunk-70a48b4102736d5f4ce8d84879807b3f<SEP>chunk-e25eb013002fd1b67a20e93a587bad91"
+      }
+    },
+    {
+      "id": "13955",
+      "type": "DIRECTED",
+      "source": "6410",
+      "target": "2613",
+      "properties": {
+        "file_path": "研究关联采样点.pdf",
+        "truncate": "",
+        "keywords": "功能模块,包含关系,平台导航,系统导航",
+        "weight": 2.0,
+        "description": "CLOUD精智·未来云平台的左侧导航栏中包含科研工具选项。<SEP>科研工具是CLOUD精智·未来云系统左侧导航栏中的一个功能模块。",
+        "created_at": 1779963318,
+        "source_id": "chunk-70a48b4102736d5f4ce8d84879807b3f<SEP>chunk-e25eb013002fd1b67a20e93a587bad91"
+      }
+    },
+    {
+      "id": "13954",
+      "type": "DIRECTED",
+      "source": "6410",
+      "target": "1110",
+      "properties": {
+        "file_path": "研究关联采样点.pdf",
+        "truncate": "",
+        "keywords": "功能模块,包含关系,平台导航,系统导航",
+        "weight": 2.0,
+        "description": "CLOUD精智·未来云平台的左侧导航栏中包含谱图导入选项。<SEP>谱图导入是CLOUD精智·未来云系统左侧导航栏中的一个功能模块。",
+        "created_at": 1779963318,
+        "source_id": "chunk-70a48b4102736d5f4ce8d84879807b3f<SEP>chunk-e25eb013002fd1b67a20e93a587bad91"
+      }
+    },
+    {
+      "id": "13952",
+      "type": "DIRECTED",
+      "source": "6410",
+      "target": "6259",
+      "properties": {
+        "file_path": "研究关联采样点.pdf",
+        "keywords": "用户管理,系统使用",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "用户郑是CLOUD精智·未来云系统的用户，其头像显示在系统界面中。",
+        "created_at": 1779963317,
+        "source_id": "chunk-70a48b4102736d5f4ce8d84879807b3f"
+      }
+    },
+    {
+      "id": "13949",
+      "type": "DIRECTED",
+      "source": "6410",
+      "target": "6523",
+      "properties": {
+        "file_path": "研究关联采样点.pdf",
+        "keywords": "功能模块,操作",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "CLOUD精智·未来云系统提供“绑定采样点”功能，用于关联采样点与研究。",
+        "created_at": 1779963316,
+        "source_id": "chunk-70a48b4102736d5f4ce8d84879807b3f"
+      }
+    },
+    {
+      "id": "13939",
+      "type": "DIRECTED",
+      "source": "6410",
+      "target": "6504",
+      "properties": {
+        "file_path": "研究关联采样点.pdf",
+        "keywords": "平台承载",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "人体呼出气挥发性有机物分子鉴别肺结节良恶性的探索研究项目在CLOUD精智·未来云平台上管理。",
+        "created_at": 1779963147,
+        "source_id": "chunk-3fd38316ab0dac3cb262cc41ee66174b"
+      }
+    },
+    {
+      "id": "13937",
+      "type": "DIRECTED",
+      "source": "6410",
+      "target": "6502",
+      "properties": {
+        "file_path": "研究关联采样点.pdf",
+        "keywords": "平台承载,研究管理,系统管理",
+        "truncate": "",
+        "weight": 2.0,
+        "description": "测试数据上传研究项目在CLOUD精智·未来云平台上管理。<SEP>CLOUD精智·未来云系统管理研究项目“测试数据上传”，提供数据治理和采样点绑定等功能。",
+        "created_at": 1779963316,
+        "source_id": "chunk-3fd38316ab0dac3cb262cc41ee66174b<SEP>chunk-70a48b4102736d5f4ce8d84879807b3f"
+      }
+    },
+    {
+      "id": "13432",
+      "type": "DIRECTED",
+      "source": "6410",
+      "target": "5623",
+      "properties": {
+        "file_path": "实验项目.pdf",
+        "keywords": "品牌元素,视觉标识",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "Logo是CLOUD精智·未来云系统的视觉标识，出现在系统界面的头部。",
+        "created_at": 1779961649,
+        "source_id": "chunk-bc0bde250f1c8360496a5ae408920980"
+      }
+    },
+    {
+      "id": "13431",
+      "type": "DIRECTED",
+      "source": "6410",
+      "target": "1107",
+      "properties": {
+        "file_path": "实验项目.pdf",
+        "truncate": "",
+        "keywords": "管理界面,系统组成部分",
+        "weight": 1.0,
+        "description": "CLOUD精智·未来云系统包含管理后台作为其管理界面。",
+        "created_at": 1779961649,
+        "source_id": "chunk-bc0bde250f1c8360496a5ae408920980"
+      }
+    },
+    {
+      "id": "20686",
+      "type": "DIRECTED",
+      "source": "830",
+      "target": "9033",
+      "properties": {
+        "file_path": "物资流转（原物流管理）.pdf",
+        "truncate": "",
+        "keywords": "功能模块,菜单项",
+        "weight": 1.0,
+        "description": "物资流转系统的侧边栏包含物流管理菜单项，是核心功能模块。",
+        "created_at": 1782370417,
+        "source_id": "chunk-6d7450ab61062d7339186adb0eeac79d"
+      }
+    },
+    {
+      "id": "20674",
+      "type": "DIRECTED",
+      "source": "830",
+      "target": "9037",
+      "properties": {
+        "file_path": "物资流转（原物流管理）.pdf",
+        "truncate": "",
+        "keywords": "功能模块,菜单项",
+        "weight": 1.0,
+        "description": "物质流转系统的侧边栏包含物流管理菜单项，是核心功能模块。",
+        "created_at": 1782370415,
+        "source_id": "chunk-6d7450ab61062d7339186adb0eeac79d"
+      }
+    },
+    {
+      "id": "20484",
+      "type": "DIRECTED",
+      "source": "830",
+      "target": "8957",
+      "properties": {
+        "file_path": "物资流转（原物流管理）.pdf",
+        "truncate": "",
+        "keywords": "历史名称,名称变更,命名变更,系统更新",
+        "weight": 2.0,
+        "description": "物流管理改为物资流转，相应字段名称同步更改。<SEP>物资流转原称为物流管理，两者指向同一管理领域。",
+        "created_at": 1782370398,
+        "source_id": "chunk-c4aa042875f6a85468e02d7b0f395314<SEP>chunk-ed013f92a19fbd2d65ed1d7591245030"
+      }
+    },
+    {
+      "id": "20239",
+      "type": "DIRECTED",
+      "source": "830",
+      "target": "6602",
+      "properties": {
+        "file_path": "老化任务.pdf",
+        "keywords": "所属,模块",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "物流管理是精智未来云系统中的一个管理模块。",
+        "created_at": 1782366365,
+        "source_id": "chunk-2e5710d727f36ba8ec8dab65ff9e3af2"
+      }
+    },
+    {
+      "id": "19532",
+      "type": "DIRECTED",
+      "source": "830",
+      "target": "1107",
+      "properties": {
+        "file_path": "PID管理.pdf<SEP>角色管理.pdf<SEP>异常TD任务.pdf",
+        "keywords": "包含,模块归属,菜单模块",
+        "truncate": "",
+        "weight": 3.0,
+        "created_at": 1782371048,
+        "description": "管理后台包含物流管理模块。<SEP>管理后台包含物流管理模块。<SEP>物流管理是管理后台中的一个功能模块。",
+        "source_id": "chunk-0c662b5f29265f3c1c6ad4d1245265db<SEP>chunk-9b2395baba9953b4a001c4c7432c7253<SEP>chunk-48478c3f994bdb657be43333618d93aa"
+      }
+    },
+    {
+      "id": "13781",
+      "type": "DIRECTED",
+      "source": "830",
+      "target": "1383",
+      "properties": {
+        "file_path": "物流清单.pdf",
+        "keywords": "包含,状态",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "物流管理模块中定义了签收成功状态，用于标识签收成功的物流记录。",
+        "created_at": 1779963035,
+        "source_id": "chunk-8fccf8d4ed1718129b3f6bcfe1798b4c"
+      }
+    },
+    {
+      "id": "13778",
+      "type": "DIRECTED",
+      "source": "830",
+      "target": "1385",
+      "properties": {
+        "file_path": "物流清单.pdf",
+        "keywords": "包含,状态",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "物流管理模块中定义了签收异常状态，用于标识签收异常的物流记录。",
+        "created_at": 1779963034,
+        "source_id": "chunk-8fccf8d4ed1718129b3f6bcfe1798b4c"
+      }
+    },
+    {
+      "id": "13716",
+      "type": "DIRECTED",
+      "source": "830",
+      "target": "6151",
+      "properties": {
+        "file_path": "物流清单.pdf",
+        "keywords": "包含关系,系统模块",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "精智·未来云系统包含物流管理功能模块。",
+        "created_at": 1779962816,
+        "source_id": "chunk-fb152d63a007e2531b0c1f843e2757b2"
+      }
+    },
+    {
+      "id": "13199",
+      "type": "DIRECTED",
+      "source": "830",
+      "target": "2103",
+      "properties": {
+        "file_path": "检测任务可选设备.pdf",
+        "keywords": "包含,子模块",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "资产管理包含物流管理子模块，管理物资流转信息。",
+        "created_at": 1779948984,
+        "source_id": "chunk-747de3c44d79b5d050b0e4538a90442a"
+      }
+    },
+    {
+      "id": "3242",
+      "type": "DIRECTED",
+      "source": "830",
+      "target": "738",
+      "properties": {
+        "file_path": "s27测试用例.pdf",
+        "keywords": "关联地点,寄送地址",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "物流管理中的寄出/签收地点从有权限研究的采样点中选择。",
+        "created_at": 1779874485,
+        "source_id": "chunk-7d7a61c58995feeb84f48700728f7994"
+      }
+    },
+    {
+      "id": "2712",
+      "type": "DIRECTED",
+      "source": "830",
+      "target": "2193",
+      "properties": {
+        "file_path": "s23测试用例.pdf",
+        "keywords": "包含,测试用例",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "物流管理模块包含小程序平台新增物流单包含作废环境样本的测试用例。",
+        "created_at": 1779870146,
+        "source_id": "chunk-ad7edd3628a44e67eb079f7e15108bbd"
+      }
+    },
+    {
+      "id": "2708",
+      "type": "DIRECTED",
+      "source": "830",
+      "target": "2192",
+      "properties": {
+        "file_path": "s23测试用例.pdf",
+        "keywords": "包含,测试用例",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "物流管理模块包含小程序平台新增物品的测试用例。",
+        "created_at": 1779870145,
+        "source_id": "chunk-ad7edd3628a44e67eb079f7e15108bbd"
+      }
+    },
+    {
+      "id": "2705",
+      "type": "DIRECTED",
+      "source": "830",
+      "target": "2191",
+      "properties": {
+        "file_path": "s23测试用例.pdf",
+        "keywords": "包含,测试用例",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "物流管理模块包含Web平台新增物流单包含作废环境样本的测试用例。",
+        "created_at": 1779870144,
+        "source_id": "chunk-ad7edd3628a44e67eb079f7e15108bbd"
+      }
+    },
+    {
+      "id": "2703",
+      "type": "DIRECTED",
+      "source": "830",
+      "target": "2190",
+      "properties": {
+        "file_path": "s23测试用例.pdf",
+        "keywords": "包含,测试用例",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "物流管理模块包含Web平台新增物品的测试用例。",
+        "created_at": 1779870144,
+        "source_id": "chunk-ad7edd3628a44e67eb079f7e15108bbd"
+      }
+    },
+    {
+      "id": "1551",
+      "type": "DIRECTED",
+      "source": "830",
+      "target": "1348",
+      "properties": {
+        "file_path": "s14测试用例.pdf",
+        "keywords": "包含关系,模块划分",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "物流管理包含物流管理-小程序子模块。",
+        "created_at": 1779865594,
+        "source_id": "chunk-fd7ec210fa5159d9581c9e89a78dc114"
+      }
+    },
+    {
+      "id": "20319",
+      "type": "DIRECTED",
+      "source": "8892",
+      "target": "8865",
+      "properties": {
+        "file_path": "设备管理.pdf",
+        "keywords": "belongs_to,contained_in,part_of",
+        "truncate": "",
+        "weight": 10.0,
+        "description": "Entity 微型气相色谱仪(CXBA-Alpha) belongs to CLOUD精智未来云管理后台-微型气相色谱仪设备详情及配件更换记录界面 (image)",
+        "created_at": 1782366909,
+        "source_id": "chunk-a3756c6e1d95d4794ce69dde41409284"
+      }
+    },
+    {
+      "id": "14010",
+      "type": "DIRECTED",
+      "source": "6521",
+      "target": "1072",
+      "properties": {
+        "file_path": "研究关联采样点.pdf",
+        "keywords": "belongs_to,contained_in,part_of",
+        "truncate": "",
+        "weight": 10.0,
+        "description": "Entity 研究名称 belongs to Research Management Interface for Pulmonary Nodule Study (CLOUD 精智·未来云) (image)",
+        "created_at": 1779963335,
+        "source_id": "chunk-e25eb013002fd1b67a20e93a587bad91"
+      }
+    },
+    {
+      "id": "14008",
+      "type": "DIRECTED",
+      "source": "6521",
+      "target": "6511",
+      "properties": {
+        "file_path": "研究关联采样点.pdf",
+        "keywords": "belongs_to,contained_in,part_of",
+        "truncate": "",
+        "weight": 10.0,
+        "description": "Entity 代谢库 belongs to Research Management Interface for Pulmonary Nodule Study (CLOUD 精智·未来云) (image)",
+        "created_at": 1779963334,
+        "source_id": "chunk-e25eb013002fd1b67a20e93a587bad91"
+      }
+    },
+    {
+      "id": "14006",
+      "type": "DIRECTED",
+      "source": "6521",
+      "target": "6510",
+      "properties": {
+        "file_path": "研究关联采样点.pdf",
+        "keywords": "belongs_to,contained_in,part_of",
+        "truncate": "",
+        "weight": 10.0,
+        "description": "Entity 文献库 belongs to Research Management Interface for Pulmonary Nodule Study (CLOUD 精智·未来云) (image)",
+        "created_at": 1779963334,
+        "source_id": "chunk-e25eb013002fd1b67a20e93a587bad91"
+      }
+    },
+    {
+      "id": "14004",
+      "type": "DIRECTED",
+      "source": "6521",
+      "target": "2613",
+      "properties": {
+        "file_path": "研究关联采样点.pdf",
+        "keywords": "belongs_to,contained_in,part_of",
+        "truncate": "",
+        "weight": 10.0,
+        "description": "Entity 科研工具 belongs to Research Management Interface for Pulmonary Nodule Study (CLOUD 精智·未来云) (image)",
+        "created_at": 1779963333,
+        "source_id": "chunk-e25eb013002fd1b67a20e93a587bad91"
+      }
+    },
+    {
+      "id": "14002",
+      "type": "DIRECTED",
+      "source": "6521",
+      "target": "1110",
+      "properties": {
+        "file_path": "研究关联采样点.pdf",
+        "keywords": "belongs_to,contained_in,part_of",
+        "truncate": "",
+        "weight": 10.0,
+        "description": "Entity 谱图导入 belongs to Research Management Interface for Pulmonary Nodule Study (CLOUD 精智·未来云) (image)",
+        "created_at": 1779963333,
+        "source_id": "chunk-e25eb013002fd1b67a20e93a587bad91"
+      }
+    },
+    {
+      "id": "13998",
+      "type": "DIRECTED",
+      "source": "6521",
+      "target": "960",
+      "properties": {
+        "file_path": "研究关联采样点.pdf",
+        "keywords": "belongs_to,contained_in,part_of",
+        "truncate": "",
+        "weight": 10.0,
+        "description": "Entity 研究管理 belongs to Research Management Interface for Pulmonary Nodule Study (CLOUD 精智·未来云) (image)",
+        "created_at": 1779963332,
+        "source_id": "chunk-e25eb013002fd1b67a20e93a587bad91"
+      }
+    },
+    {
+      "id": "13996",
+      "type": "DIRECTED",
+      "source": "6521",
+      "target": "6506",
+      "properties": {
+        "file_path": "研究关联采样点.pdf",
+        "keywords": "belongs_to,contained_in,part_of",
+        "truncate": "",
+        "weight": 10.0,
+        "description": "Entity 数据治理 belongs to Research Management Interface for Pulmonary Nodule Study (CLOUD 精智·未来云) (image)",
+        "created_at": 1779963332,
+        "source_id": "chunk-e25eb013002fd1b67a20e93a587bad91"
+      }
+    },
+    {
+      "id": "13994",
+      "type": "DIRECTED",
+      "source": "6521",
+      "target": "160",
+      "properties": {
+        "file_path": "研究关联采样点.pdf",
+        "keywords": "belongs_to,contained_in,part_of",
+        "truncate": "",
+        "weight": 10.0,
+        "description": "Entity 首页 belongs to Research Management Interface for Pulmonary Nodule Study (CLOUD 精智·未来云) (image)",
+        "created_at": 1779963331,
+        "source_id": "chunk-e25eb013002fd1b67a20e93a587bad91"
+      }
+    },
+    {
+      "id": "13991",
+      "type": "DIRECTED",
+      "source": "6521",
+      "target": "6499",
+      "properties": {
+        "file_path": "研究关联采样点.pdf",
+        "keywords": "belongs_to,contained_in,part_of",
+        "truncate": "",
+        "weight": 10.0,
+        "description": "Entity 佛山市第一人民医院 belongs to Research Management Interface for Pulmonary Nodule Study (CLOUD 精智·未来云) (image)",
+        "created_at": 1779963331,
+        "source_id": "chunk-e25eb013002fd1b67a20e93a587bad91"
+      }
+    },
+    {
+      "id": "15662",
+      "type": "DIRECTED",
+      "source": "6506",
+      "target": "2103",
+      "properties": {
+        "file_path": "XCloud_v1.2_Web.pdf",
+        "keywords": "并列功能,系统模块",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "数据治理和资产管理都是Linus Studio系统中的主要功能模块。",
+        "created_at": 1780025402,
+        "source_id": "chunk-ed95db30f0b14b8d87233efbb6c1a52e"
+      }
+    },
+    {
+      "id": "15513",
+      "type": "DIRECTED",
+      "source": "6506",
+      "target": "960",
+      "properties": {
+        "file_path": "XCloud_v1.2_Web.pdf",
+        "keywords": "包含,子菜单",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "数据治理下包含研究管理子菜单。",
+        "created_at": 1780025358,
+        "source_id": "chunk-9b952a80d8daad97442300bd49623f0f"
+      }
+    },
+    {
+      "id": "14218",
+      "type": "DIRECTED",
+      "source": "6506",
+      "target": "6602",
+      "properties": {
+        "file_path": "XCloud_2.0管理后台.pdf",
+        "keywords": "包含,模块",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "精智未来云包含数据治理模块。",
+        "created_at": 1780021300,
+        "source_id": "chunk-6330a4d3bf6145fe8641ed1d37d8408e"
+      }
+    },
+    {
+      "id": "13932",
+      "type": "DIRECTED",
+      "source": "6506",
+      "target": "6502",
+      "properties": {
+        "file_path": "研究关联采样点.pdf",
+        "keywords": "功能关联",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "测试数据上传研究项目使用了数据治理功能模块。",
+        "created_at": 1779963145,
+        "source_id": "chunk-3fd38316ab0dac3cb262cc41ee66174b"
+      }
+    },
+    {
+      "id": "14221",
+      "type": "DIRECTED",
+      "source": "960",
+      "target": "6602",
+      "properties": {
+        "file_path": "XCloud_2.0管理后台.pdf",
+        "keywords": "包含,模块",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "精智未来云包含研究管理模块。",
+        "created_at": 1780021301,
+        "source_id": "chunk-6330a4d3bf6145fe8641ed1d37d8408e"
+      }
+    },
+    {
+      "id": "3254",
+      "type": "DIRECTED",
+      "source": "960",
+      "target": "2613",
+      "properties": {
+        "file_path": "s27测试用例.pdf",
+        "keywords": "功能项,所属模块",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "科研工具是研究管理下的功能项。",
+        "created_at": 1779874487,
+        "source_id": "chunk-7d7a61c58995feeb84f48700728f7994"
+      }
+    },
+    {
+      "id": "13995",
+      "type": "DIRECTED",
+      "source": "6520",
+      "target": "6511",
+      "properties": {
+        "file_path": "研究关联采样点.pdf",
+        "keywords": "belongs_to,contained_in,part_of",
+        "truncate": "",
+        "weight": 10.0,
+        "description": "Entity 代谢库 belongs to Research Management Interface for '测试数据上传' (Renai Hospital, Microbiology) (web application interface (research management system))",
+        "created_at": 1779963332,
+        "source_id": "chunk-70a48b4102736d5f4ce8d84879807b3f"
+      }
+    },
+    {
+      "id": "13993",
+      "type": "DIRECTED",
+      "source": "6520",
+      "target": "6510",
+      "properties": {
+        "file_path": "研究关联采样点.pdf",
+        "keywords": "belongs_to,contained_in,part_of",
+        "truncate": "",
+        "weight": 10.0,
+        "description": "Entity 文献库 belongs to Research Management Interface for '测试数据上传' (Renai Hospital, Microbiology) (web application interface (research management system))",
+        "created_at": 1779963331,
+        "source_id": "chunk-70a48b4102736d5f4ce8d84879807b3f"
+      }
+    },
+    {
+      "id": "13990",
+      "type": "DIRECTED",
+      "source": "6520",
+      "target": "2613",
+      "properties": {
+        "file_path": "研究关联采样点.pdf",
+        "keywords": "belongs_to,contained_in,part_of",
+        "truncate": "",
+        "weight": 10.0,
+        "description": "Entity 科研工具 belongs to Research Management Interface for '测试数据上传' (Renai Hospital, Microbiology) (web application interface (research management system))",
+        "created_at": 1779963331,
+        "source_id": "chunk-70a48b4102736d5f4ce8d84879807b3f"
+      }
+    },
+    {
+      "id": "13988",
+      "type": "DIRECTED",
+      "source": "6520",
+      "target": "1110",
+      "properties": {
+        "file_path": "研究关联采样点.pdf",
+        "keywords": "belongs_to,contained_in,part_of",
+        "truncate": "",
+        "weight": 10.0,
+        "description": "Entity 谱图导入 belongs to Research Management Interface for '测试数据上传' (Renai Hospital, Microbiology) (web application interface (research management system))",
+        "created_at": 1779963330,
+        "source_id": "chunk-70a48b4102736d5f4ce8d84879807b3f"
+      }
+    },
+    {
+      "id": "13986",
+      "type": "DIRECTED",
+      "source": "6520",
+      "target": "6259",
+      "properties": {
+        "file_path": "研究关联采样点.pdf",
+        "keywords": "belongs_to,contained_in,part_of",
+        "truncate": "",
+        "weight": 10.0,
+        "description": "Entity 郑 belongs to Research Management Interface for '测试数据上传' (Renai Hospital, Microbiology) (web application interface (research management system))",
+        "created_at": 1779963330,
+        "source_id": "chunk-70a48b4102736d5f4ce8d84879807b3f"
+      }
+    },
+    {
+      "id": "13972",
+      "type": "DIRECTED",
+      "source": "6520",
+      "target": "6523",
+      "properties": {
+        "file_path": "研究关联采样点.pdf",
+        "keywords": "belongs_to,contained_in,part_of",
+        "truncate": "",
+        "weight": 10.0,
+        "description": "Entity 绑定采样点 belongs to Research Management Interface for '测试数据上传' (Renai Hospital, Microbiology) (web application interface (research management system))",
+        "created_at": 1779963325,
+        "source_id": "chunk-70a48b4102736d5f4ce8d84879807b3f"
+      }
+    },
+    {
+      "id": "13966",
+      "type": "DIRECTED",
+      "source": "6520",
+      "target": "6502",
+      "properties": {
+        "file_path": "研究关联采样点.pdf",
+        "keywords": "belongs_to,contained_in,part_of",
+        "truncate": "",
+        "weight": 10.0,
+        "description": "Entity 测试数据上传 belongs to Research Management Interface for '测试数据上传' (Renai Hospital, Microbiology) (web application interface (research management system))",
+        "created_at": 1779963321,
+        "source_id": "chunk-70a48b4102736d5f4ce8d84879807b3f"
+      }
+    },
+    {
+      "id": "13927",
+      "type": "DIRECTED",
+      "source": "6504",
+      "target": "6499",
+      "properties": {
+        "file_path": "研究关联采样点.pdf",
+        "keywords": "所属关系",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "人体呼出气挥发性有机物分子鉴别肺结节良恶性的探索研究项目归属于佛山市第一人民医院。",
+        "created_at": 1779963143,
+        "source_id": "chunk-3fd38316ab0dac3cb262cc41ee66174b"
+      }
+    },
+    {
+      "id": "13933",
+      "type": "DIRECTED",
+      "source": "6502",
+      "target": "960",
+      "properties": {
+        "file_path": "研究关联采样点.pdf",
+        "keywords": "功能关联",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "测试数据上传研究项目包含在研究管理模块中。",
+        "created_at": 1779963145,
+        "source_id": "chunk-3fd38316ab0dac3cb262cc41ee66174b"
+      }
+    },
+    {
+      "id": "13439",
+      "type": "DIRECTED",
+      "source": "6395",
+      "target": "5623",
+      "properties": {
+        "file_path": "实验项目.pdf",
+        "keywords": "belongs_to,contained_in,part_of",
+        "truncate": "",
+        "weight": 10.0,
+        "description": "Entity Logo belongs to CLOUD 精智·未来云 管理后台 Header (Interface Header Image)",
+        "created_at": 1779961651,
+        "source_id": "chunk-bc0bde250f1c8360496a5ae408920980"
+      }
+    },
+    {
+      "id": "13437",
+      "type": "DIRECTED",
+      "source": "6395",
+      "target": "1107",
+      "properties": {
+        "file_path": "实验项目.pdf",
+        "keywords": "belongs_to,contained_in,part_of",
+        "truncate": "",
+        "weight": 10.0,
+        "description": "Entity 管理后台 belongs to CLOUD 精智·未来云 管理后台 Header (Interface Header Image)",
+        "created_at": 1779961651,
+        "source_id": "chunk-bc0bde250f1c8360496a5ae408920980"
+      }
+    },
+    {
+      "id": "13435",
+      "type": "DIRECTED",
+      "source": "6395",
+      "target": "6410",
+      "properties": {
+        "file_path": "实验项目.pdf",
+        "keywords": "belongs_to,contained_in,part_of",
+        "truncate": "",
+        "weight": 10.0,
+        "description": "Entity CLOUD精智·未来云 belongs to CLOUD 精智·未来云 管理后台 Header (Interface Header Image)",
+        "created_at": 1779961650,
+        "source_id": "chunk-bc0bde250f1c8360496a5ae408920980"
+      }
+    },
+    {
+      "id": "20195",
+      "type": "DIRECTED",
+      "source": "1107",
+      "target": "160",
+      "properties": {
+        "file_path": "角色管理.pdf<SEP>设备管理.pdf",
+        "keywords": "主页面,包含,包含关系,导航",
+        "truncate": "",
+        "weight": 2.0,
+        "description": "管理后台包含首页作为默认主页面。<SEP>管理后台包含首页模块。",
+        "created_at": 1782366803,
+        "source_id": "chunk-9b2395baba9953b4a001c4c7432c7253<SEP>chunk-e42a3f57c53bd0366445d2e282ab82b5"
+      }
+    },
+    {
+      "id": "12808",
+      "type": "DIRECTED",
+      "source": "1107",
+      "target": "6151",
+      "properties": {
+        "file_path": "TD管管理.pdf<SEP>检测任务可选设备.pdf<SEP>实验项目.pdf<SEP>检测任务s52.pdf",
+        "keywords": "包含,平台,平台组件,拥有,界面,管理,系统管理,系统组成部分",
+        "truncate": "",
+        "weight": 6.0,
+        "description": "精智·未来云拥有一个管理后台界面。<SEP>精智·未来云包含管理后台，提供系统配置和权限控制功能。<SEP>精智·未来云提供管理后台系统，支持样本和实验管理。<SEP>管理后台是精智·未来云平台的后端管理界面。<SEP>管理后台是精智·未来云管理平台中的一个功能区域。<SEP>精智·未来云提供管理后台作为其后台管理界面。",
+        "created_at": 1782356503,
+        "source_id": "chunk-d855a997cc9843a5f05a566c2936a6b5<SEP>chunk-747de3c44d79b5d050b0e4538a90442a<SEP>chunk-0429211d298a75fab4ea458c198ba5e9<SEP>chunk-023dc60c049477d251b499973ad5548b<SEP>chunk-cd9e8478e61a6763e8e3d1f4d5ba1af8<SEP>chunk-2f1ebe47b8d9924eff96e67cb79b08bd"
+      }
+    },
+    {
+      "id": "13387",
+      "type": "DIRECTED",
+      "source": "1107",
+      "target": "6259",
+      "properties": {
+        "file_path": "实验项目.pdf",
+        "keywords": "使用,操作,用户关系",
+        "truncate": "",
+        "weight": 2.0,
+        "description": "郑正在使用管理后台系统。<SEP>郑是管理后台的用户，通过该界面进行系统管理操作。",
+        "created_at": 1779961704,
+        "source_id": "chunk-20c459fad9c08d0c97d0fc465ececb0d<SEP>chunk-cd9e8478e61a6763e8e3d1f4d5ba1af8"
+      }
+    },
+    {
+      "id": "13618",
+      "type": "DIRECTED",
+      "source": "1107",
+      "target": "2103",
+      "properties": {
+        "file_path": "实验项目.pdf<SEP>PID管理.pdf<SEP>角色管理.pdf<SEP>设备管理.pdf<SEP>异常TD任务.pdf",
+        "keywords": "功能模块,包含,包含关系,对象,模块归属,管理功能,菜单模块",
+        "truncate": "",
+        "weight": 5.0,
+        "description": "管理后台用于管理资产。<SEP>管理后台包含资产管理模块。<SEP>管理后台包含资产管理模块。<SEP>管理后台包含资产管理模块。<SEP>资产管理是管理后台中的一个功能模块。",
+        "created_at": 1782371048,
+        "source_id": "chunk-cd9e8478e61a6763e8e3d1f4d5ba1af8<SEP>chunk-0c662b5f29265f3c1c6ad4d1245265db<SEP>chunk-9b2395baba9953b4a001c4c7432c7253<SEP>chunk-e42a3f57c53bd0366445d2e282ab82b5<SEP>chunk-48478c3f994bdb657be43333618d93aa"
+      }
+    },
+    {
+      "id": "19511",
+      "type": "DIRECTED",
+      "source": "1107",
+      "target": "6602",
+      "properties": {
+        "file_path": "PID管理.pdf<SEP>老化任务.pdf",
+        "keywords": "包含关系,平台包含,系统组成",
+        "truncate": "",
+        "weight": 2.0,
+        "description": "精智未来云平台包含管理后台作为其核心管理系统。<SEP>精智未来云平台包含管理后台模块。",
+        "created_at": 1782366360,
+        "source_id": "chunk-0c662b5f29265f3c1c6ad4d1245265db<SEP>chunk-2e5710d727f36ba8ec8dab65ff9e3af2"
+      }
+    },
+    {
+      "id": "20699",
+      "type": "DIRECTED",
+      "source": "8995",
+      "target": "9033",
+      "properties": {
+        "file_path": "物资流转（原物流管理）.pdf",
+        "truncate": "",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "description": "Entity 物资流转系统 belongs to 标气清单管理界面（物资流转系统） (image)",
+        "created_at": 1782370421,
+        "source_id": "chunk-6d7450ab61062d7339186adb0eeac79d"
+      }
+    },
+    {
+      "id": "20696",
+      "type": "DIRECTED",
+      "source": "8995",
+      "target": "830",
+      "properties": {
+        "file_path": "物资流转（原物流管理）.pdf",
+        "truncate": "",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "description": "Entity 物流管理 belongs to 标气清单管理界面（物资流转系统） (image)",
+        "created_at": 1782370419,
+        "source_id": "chunk-6d7450ab61062d7339186adb0eeac79d"
+      }
+    },
+    {
+      "id": "19535",
+      "type": "DIRECTED",
+      "source": "6602",
+      "target": "2103",
+      "properties": {
+        "file_path": "PID管理.pdf<SEP>老化任务.pdf",
+        "keywords": "包含,所属,模块,管理",
+        "truncate": "",
+        "weight": 2.0,
+        "description": "精智未来云平台包含资产管理模块，资产管理是平台的功能菜单。<SEP>资产管理是精智未来云系统中的一个管理模块。",
+        "created_at": 1782366364,
+        "source_id": "chunk-7bd4d30f0bd3f0972cbaac394b489f59<SEP>chunk-2e5710d727f36ba8ec8dab65ff9e3af2"
+      }
+    },
+    {
+      "id": "19868",
+      "type": "DIRECTED",
+      "source": "8709",
+      "target": "738",
+      "properties": {
+        "file_path": "地点管理.pdf",
+        "keywords": "belongs_to,contained_in,part_of",
+        "truncate": "",
+        "weight": 10.0,
+        "description": "Entity 采样点 belongs to Sampling Point (Location) Management Dashboard (image)",
+        "created_at": 1782354728,
+        "source_id": "chunk-77f41237ed37facdd7883fed04b9534f"
+      }
+    },
+    {
+      "id": "19852",
+      "type": "DIRECTED",
+      "source": "8709",
+      "target": "830",
+      "properties": {
+        "file_path": "地点管理.pdf",
+        "keywords": "belongs_to,contained_in,part_of",
+        "truncate": "",
+        "weight": 10.0,
+        "description": "Entity 物流管理 belongs to Sampling Point (Location) Management Dashboard (image)",
+        "created_at": 1782354721,
+        "source_id": "chunk-77f41237ed37facdd7883fed04b9534f"
+      }
+    },
+    {
+      "id": "19851",
+      "type": "DIRECTED",
+      "source": "8709",
+      "target": "2103",
+      "properties": {
+        "file_path": "地点管理.pdf",
+        "keywords": "belongs_to,contained_in,part_of",
+        "truncate": "",
+        "weight": 10.0,
+        "description": "Entity 资产管理 belongs to Sampling Point (Location) Management Dashboard (image)",
+        "created_at": 1782354721,
+        "source_id": "chunk-77f41237ed37facdd7883fed04b9534f"
+      }
+    },
+    {
+      "id": "19843",
+      "type": "DIRECTED",
+      "source": "8709",
+      "target": "160",
+      "properties": {
+        "file_path": "地点管理.pdf",
+        "keywords": "belongs_to,contained_in,part_of",
+        "truncate": "",
+        "weight": 10.0,
+        "description": "Entity 首页 belongs to Sampling Point (Location) Management Dashboard (image)",
+        "created_at": 1782354719,
+        "source_id": "chunk-77f41237ed37facdd7883fed04b9534f"
+      }
+    },
+    {
+      "id": "13816",
+      "type": "DIRECTED",
+      "source": "6471",
+      "target": "1110",
+      "properties": {
+        "file_path": "物流清单.pdf",
+        "keywords": "belongs_to,contained_in,part_of",
+        "truncate": "",
+        "weight": 10.0,
+        "description": "Entity 谱图导入 belongs to CLOUD 精智·未来云 物流管理界面截图 (image)",
+        "created_at": 1779963047,
+        "source_id": "chunk-8fccf8d4ed1718129b3f6bcfe1798b4c"
+      }
+    },
+    {
+      "id": "13810",
+      "type": "DIRECTED",
+      "source": "6471",
+      "target": "2103",
+      "properties": {
+        "file_path": "物流清单.pdf",
+        "keywords": "belongs_to,contained_in,part_of",
+        "truncate": "",
+        "weight": 10.0,
+        "description": "Entity 资产管理 belongs to CLOUD 精智·未来云 物流管理界面截图 (image)",
+        "created_at": 1779963045,
+        "source_id": "chunk-8fccf8d4ed1718129b3f6bcfe1798b4c"
+      }
+    },
+    {
+      "id": "13808",
+      "type": "DIRECTED",
+      "source": "6471",
+      "target": "160",
+      "properties": {
+        "file_path": "物流清单.pdf",
+        "keywords": "belongs_to,contained_in,part_of",
+        "truncate": "",
+        "weight": 10.0,
+        "description": "Entity 首页 belongs to CLOUD 精智·未来云 物流管理界面截图 (image)",
+        "created_at": 1779963044,
+        "source_id": "chunk-8fccf8d4ed1718129b3f6bcfe1798b4c"
+      }
+    },
+    {
+      "id": "13798",
+      "type": "DIRECTED",
+      "source": "6471",
+      "target": "1383",
+      "properties": {
+        "file_path": "物流清单.pdf",
+        "keywords": "belongs_to,contained_in,part_of",
+        "truncate": "",
+        "weight": 10.0,
+        "description": "Entity 签收成功 belongs to CLOUD 精智·未来云 物流管理界面截图 (image)",
+        "created_at": 1779963041,
+        "source_id": "chunk-8fccf8d4ed1718129b3f6bcfe1798b4c"
+      }
+    },
+    {
+      "id": "13797",
+      "type": "DIRECTED",
+      "source": "6471",
+      "target": "1385",
+      "properties": {
+        "file_path": "物流清单.pdf",
+        "keywords": "belongs_to,contained_in,part_of",
+        "truncate": "",
+        "weight": 10.0,
+        "description": "Entity 签收异常 belongs to CLOUD 精智·未来云 物流管理界面截图 (image)",
+        "created_at": 1779963040,
+        "source_id": "chunk-8fccf8d4ed1718129b3f6bcfe1798b4c"
+      }
+    },
+    {
+      "id": "13796",
+      "type": "DIRECTED",
+      "source": "6471",
+      "target": "1349",
+      "properties": {
+        "file_path": "物流清单.pdf",
+        "keywords": "belongs_to,contained_in,part_of",
+        "truncate": "",
+        "weight": 10.0,
+        "description": "Entity 未提交 belongs to CLOUD 精智·未来云 物流管理界面截图 (image)",
+        "created_at": 1779963040,
+        "source_id": "chunk-8fccf8d4ed1718129b3f6bcfe1798b4c"
+      }
+    },
+    {
+      "id": "13795",
+      "type": "DIRECTED",
+      "source": "6471",
+      "target": "1393",
+      "properties": {
+        "file_path": "物流清单.pdf",
+        "keywords": "belongs_to,contained_in,part_of",
+        "truncate": "",
+        "weight": 10.0,
+        "description": "Entity 已签收 belongs to CLOUD 精智·未来云 物流管理界面截图 (image)",
+        "created_at": 1779963040,
+        "source_id": "chunk-8fccf8d4ed1718129b3f6bcfe1798b4c"
+      }
+    },
+    {
+      "id": "13794",
+      "type": "DIRECTED",
+      "source": "6471",
+      "target": "1430",
+      "properties": {
+        "file_path": "物流清单.pdf",
+        "keywords": "belongs_to,contained_in,part_of",
+        "truncate": "",
+        "weight": 10.0,
+        "description": "Entity 待签收 belongs to CLOUD 精智·未来云 物流管理界面截图 (image)",
+        "created_at": 1779963039,
+        "source_id": "chunk-8fccf8d4ed1718129b3f6bcfe1798b4c"
+      }
+    },
+    {
+      "id": "13793",
+      "type": "DIRECTED",
+      "source": "6471",
+      "target": "759",
+      "properties": {
+        "file_path": "物流清单.pdf",
+        "keywords": "belongs_to,contained_in,part_of",
+        "truncate": "",
+        "weight": 10.0,
+        "description": "Entity 全部 belongs to CLOUD 精智·未来云 物流管理界面截图 (image)",
+        "created_at": 1779963039,
+        "source_id": "chunk-8fccf8d4ed1718129b3f6bcfe1798b4c"
+      }
+    },
+    {
+      "id": "13792",
+      "type": "DIRECTED",
+      "source": "6471",
+      "target": "830",
+      "properties": {
+        "file_path": "物流清单.pdf",
+        "keywords": "belongs_to,contained_in,part_of",
+        "truncate": "",
+        "weight": 10.0,
+        "description": "Entity 物流管理 belongs to CLOUD 精智·未来云 物流管理界面截图 (image)",
+        "created_at": 1779963039,
+        "source_id": "chunk-8fccf8d4ed1718129b3f6bcfe1798b4c"
+      }
+    },
+    {
+      "id": "13790",
+      "type": "DIRECTED",
+      "source": "6471",
+      "target": "6475",
+      "properties": {
+        "file_path": "物流清单.pdf",
+        "keywords": "belongs_to,contained_in,part_of",
+        "truncate": "",
+        "weight": 10.0,
+        "description": "Entity CLOUD精智·未来云管理后台 belongs to CLOUD 精智·未来云 物流管理界面截图 (image)",
+        "created_at": 1779963038,
+        "source_id": "chunk-8fccf8d4ed1718129b3f6bcfe1798b4c"
+      }
+    },
+    {
+      "id": "13783",
+      "type": "DIRECTED",
+      "source": "6475",
+      "target": "2103",
+      "properties": {
+        "file_path": "物流清单.pdf",
+        "keywords": "包含,导航",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "CLOUD精智·未来云管理后台包含资产管理作为导航菜单项。",
+        "created_at": 1779963036,
+        "source_id": "chunk-8fccf8d4ed1718129b3f6bcfe1798b4c"
+      }
+    },
+    {
+      "id": "13780",
+      "type": "DIRECTED",
+      "source": "6475",
+      "target": "160",
+      "properties": {
+        "file_path": "物流清单.pdf",
+        "keywords": "包含,导航",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "CLOUD精智·未来云管理后台包含首页作为导航菜单项。",
+        "created_at": 1779963035,
+        "source_id": "chunk-8fccf8d4ed1718129b3f6bcfe1798b4c"
+      }
+    },
+    {
+      "id": "13767",
+      "type": "DIRECTED",
+      "source": "6475",
+      "target": "830",
+      "properties": {
+        "file_path": "物流清单.pdf",
+        "keywords": "包含,模块",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "CLOUD精智·未来云管理后台包含物流管理模块，提供物流单据管理功能。",
+        "created_at": 1779963032,
+        "source_id": "chunk-8fccf8d4ed1718129b3f6bcfe1798b4c"
+      }
+    },
+    {
+      "id": "13753",
+      "type": "DIRECTED",
+      "source": "1349",
+      "target": "830",
+      "properties": {
+        "file_path": "物流清单.pdf",
+        "keywords": "包含,标签,标签页,状态筛选",
+        "truncate": "",
+        "weight": 2.0,
+        "description": "物流管理功能模块中可使用“未提交”筛选标签查看未提交的物流单。<SEP>物流管理模块包含“未提交”标签页，用于筛选未提交记录。",
+        "created_at": 1779963034,
+        "source_id": "chunk-fb152d63a007e2531b0c1f843e2757b2<SEP>chunk-8fccf8d4ed1718129b3f6bcfe1798b4c"
+      }
+    },
+    {
+      "id": "13751",
+      "type": "DIRECTED",
+      "source": "1393",
+      "target": "830",
+      "properties": {
+        "file_path": "物流清单.pdf",
+        "keywords": "包含,标签,标签页,状态筛选",
+        "truncate": "",
+        "weight": 2.0,
+        "description": "物流管理功能模块中可使用“已签收”筛选标签查看已签收的物流单。<SEP>物流管理模块包含“已签收”标签页，用于筛选已签收记录。",
+        "created_at": 1779963033,
+        "source_id": "chunk-fb152d63a007e2531b0c1f843e2757b2<SEP>chunk-8fccf8d4ed1718129b3f6bcfe1798b4c"
+      }
+    },
+    {
+      "id": "13749",
+      "type": "DIRECTED",
+      "source": "1430",
+      "target": "830",
+      "properties": {
+        "file_path": "物流清单.pdf",
+        "keywords": "包含,标签,标签页,状态筛选",
+        "truncate": "",
+        "weight": 2.0,
+        "description": "物流管理功能模块中可使用“待签收”筛选标签查看未签收的物流单。<SEP>物流管理模块包含“待签收”标签页，用于筛选待签收记录。",
+        "created_at": 1779963033,
+        "source_id": "chunk-fb152d63a007e2531b0c1f843e2757b2<SEP>chunk-8fccf8d4ed1718129b3f6bcfe1798b4c"
+      }
+    },
+    {
+      "id": "13747",
+      "type": "DIRECTED",
+      "source": "759",
+      "target": "830",
+      "properties": {
+        "file_path": "物流清单.pdf",
+        "keywords": "包含,标签,标签页,状态筛选",
+        "truncate": "",
+        "weight": 2.0,
+        "description": "物流管理功能模块中可使用“全部”筛选标签查看所有物流单。<SEP>物流管理模块包含“全部”标签页，用于查看所有物流记录。",
+        "created_at": 1779963032,
+        "source_id": "chunk-fb152d63a007e2531b0c1f843e2757b2<SEP>chunk-8fccf8d4ed1718129b3f6bcfe1798b4c"
+      }
+    },
+    {
+      "id": "13064",
+      "type": "DIRECTED",
+      "source": "759",
+      "target": "738",
+      "properties": {
+        "file_path": "环境样本采集.pdf",
+        "keywords": "选项关系,默认值",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "采样点下拉菜单的当前选项为“全部”。",
+        "created_at": 1779948440,
+        "source_id": "chunk-3e8c09b7071ebfd6cede252f96074738"
+      }
+    },
+    {
+      "id": "13742",
+      "type": "DIRECTED",
+      "source": "6151",
+      "target": "1110",
+      "properties": {
+        "file_path": "物流清单.pdf",
+        "keywords": "包含关系,系统功能",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "精智·未来云系统包含谱图导入功能模块。",
+        "created_at": 1779962821,
+        "source_id": "chunk-fb152d63a007e2531b0c1f843e2757b2"
+      }
+    },
+    {
+      "id": "13623",
+      "type": "DIRECTED",
+      "source": "6151",
+      "target": "6259",
+      "properties": {
+        "file_path": "实验项目.pdf",
+        "keywords": "平台使用,用户关系",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "郑是精智·未来云平台的用户。",
+        "created_at": 1779961704,
+        "source_id": "chunk-cd9e8478e61a6763e8e3d1f4d5ba1af8"
+      }
+    },
+    {
+      "id": "13192",
+      "type": "DIRECTED",
+      "source": "6151",
+      "target": "2103",
+      "properties": {
+        "file_path": "检测任务可选设备.pdf<SEP>实验项目.pdf<SEP>物流清单.pdf",
+        "keywords": "功能划分,包含,包含关系,平台功能,管理,系统模块,资源管理",
+        "truncate": "",
+        "weight": 4.0,
+        "created_at": 1779962818,
+        "description": "精智·未来云包含资产管理模块，管理设备、标气等资源。<SEP>精智·未来云平台用于资产管理。<SEP>精智·未来云管理平台提供资产管理功能模块。<SEP>精智·未来云系统包含资产管理功能模块。",
+        "source_id": "chunk-747de3c44d79b5d050b0e4538a90442a<SEP>chunk-fb152d63a007e2531b0c1f843e2757b2"
+      }
+    },
+    {
+      "id": "15657",
+      "type": "DIRECTED",
+      "source": "2103",
+      "target": "160",
+      "properties": {
+        "file_path": "XCloud_v1.2_Web.pdf",
+        "keywords": "关联,展示",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "首页是资产管理模块的呈现页面，显示其数据和功能。",
+        "created_at": 1780025401,
+        "source_id": "chunk-ed95db30f0b14b8d87233efbb6c1a52e"
+      }
+    },
+    {
+      "id": "13428",
+      "type": "DIRECTED",
+      "source": "6258",
+      "target": "6151",
+      "properties": {
+        "file_path": "实验项目.pdf",
+        "keywords": "名称关联",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "LOU口精智·未来云是精智·未来云管理平台的相关名称或变体。",
+        "created_at": 1779961648,
+        "source_id": "chunk-023dc60c049477d251b499973ad5548b"
+      }
+    },
+    {
+      "id": "13245",
+      "type": "DIRECTED",
+      "source": "6258",
+      "target": "2103",
+      "properties": {
+        "file_path": "权限分配.pdf<SEP>实验项目.pdf",
+        "keywords": "包含,包含关系,包含模块,导航,导航菜单,系统模块,系统组成部分,组成部分",
+        "truncate": "",
+        "weight": 5.0,
+        "description": "LOU口精智·未来云平台包含资产管理模块。<SEP>LOU口精智·未来云系统的导航栏中包含资产管理菜单项，且当前处于选中状态。<SEP>LOU口精智·未来云的管理后端包含资产管理模块。<SEP>资产管理是LOU口精智·未来云管理后端的导航菜单项之一，包含下拉子菜单。<SEP>资产管理是LOU口精智·未来云系统导航菜单中的一个条目。",
+        "created_at": 1779961681,
+        "source_id": "chunk-601966ea2263a797992556bd87282e39<SEP>chunk-e033cbbd49cdc122691d5227eaf08b49<SEP>chunk-72813e47b5bd60d420b7a8c66f7130a0<SEP>chunk-600080a3d24ec0c747525d8c3c24a058<SEP>chunk-8f32932bd6033baa1b026865de50e0ad"
+      }
+    },
+    {
+      "id": "13242",
+      "type": "DIRECTED",
+      "source": "6258",
+      "target": "1110",
+      "properties": {
+        "file_path": "权限分配.pdf",
+        "keywords": "包含模块",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "LOU口精智·未来云平台包含谱图导入模块。",
+        "created_at": 1779950632,
+        "source_id": "chunk-601966ea2263a797992556bd87282e39"
+      }
+    },
+    {
+      "id": "13089",
+      "type": "DIRECTED",
+      "source": "6258",
+      "target": "830",
+      "properties": {
+        "file_path": "检测任务.pdf<SEP>权限分配.pdf",
+        "keywords": "包含关系,包含模块,模块组成",
+        "truncate": "",
+        "weight": 2.0,
+        "description": "LOU口精智·未来云系统包含物流管理模块。<SEP>LOU口精智·未来云平台包含物流管理模块。",
+        "created_at": 1779950634,
+        "source_id": "chunk-e1a7e6682d118fd3b55bd49650662382<SEP>chunk-601966ea2263a797992556bd87282e39"
+      }
+    },
+    {
+      "id": "13074",
+      "type": "DIRECTED",
+      "source": "6258",
+      "target": "160",
+      "properties": {
+        "file_path": "检测任务.pdf<SEP>实验项目.pdf",
+        "keywords": "包含,包含关系,导航,导航菜单,系统组成部分,页面组成",
+        "truncate": "",
+        "weight": 4.0,
+        "description": "LOU口精智·未来云系统包含首页作为系统主入口。<SEP>LOU口精智·未来云系统的导航栏中包含首页菜单项。<SEP>首页是LOU口精智·未来云管理后端的导航菜单项之一，属于系统界面的一部分。<SEP>首页是LOU口精智·未来云系统导航菜单中的一个条目。",
+        "created_at": 1779961681,
+        "source_id": "chunk-e1a7e6682d118fd3b55bd49650662382<SEP>chunk-e033cbbd49cdc122691d5227eaf08b49<SEP>chunk-72813e47b5bd60d420b7a8c66f7130a0<SEP>chunk-8f32932bd6033baa1b026865de50e0ad"
+      }
+    },
+    {
+      "id": "13072",
+      "type": "DIRECTED",
+      "source": "6258",
+      "target": "1107",
+      "properties": {
+        "file_path": "检测任务.pdf<SEP>实验项目.pdf",
+        "keywords": "包含关系,归属,模块组成",
+        "truncate": "",
+        "weight": 2.0,
+        "description": "LOU口精智·未来云系统包含管理后台模块，用于系统管理。<SEP>管理后台是LOU口精智·未来云系统的一部分。",
+        "created_at": 1779961144,
+        "source_id": "chunk-e1a7e6682d118fd3b55bd49650662382<SEP>chunk-20c459fad9c08d0c97d0fc465ececb0d"
+      }
+    },
+    {
+      "id": "4360",
+      "type": "DIRECTED",
+      "source": "3459",
+      "target": "1107",
+      "properties": {
+        "file_path": "s34测试用例.pdf",
+        "keywords": "belongs_to,contained_in,part_of",
+        "truncate": "",
+        "weight": 10.0,
+        "description": "Entity 管理后台 belongs to XMetrix s34 Test Case Flowchart (s34测试用例) (image)",
+        "created_at": 1779876951,
+        "source_id": "chunk-38d4722d5f628d38f49e5e997294c803"
+      }
+    },
+    {
+      "id": "4359",
+      "type": "DIRECTED",
+      "source": "3459",
+      "target": "804",
+      "properties": {
+        "file_path": "s34测试用例.pdf",
+        "keywords": "belongs_to,contained_in,part_of",
+        "truncate": "",
+        "weight": 10.0,
+        "description": "Entity 小程序 belongs to XMetrix s34 Test Case Flowchart (s34测试用例) (image)",
+        "created_at": 1779876951,
+        "source_id": "chunk-38d4722d5f628d38f49e5e997294c803"
+      }
+    },
+    {
+      "id": "4356",
+      "type": "DIRECTED",
+      "source": "3459",
+      "target": "830",
+      "properties": {
+        "file_path": "s34测试用例.pdf",
+        "keywords": "belongs_to,contained_in,part_of",
+        "truncate": "",
+        "weight": 10.0,
+        "description": "Entity 物流管理 belongs to XMetrix s34 Test Case Flowchart (s34测试用例) (image)",
+        "created_at": 1779876950,
+        "source_id": "chunk-38d4722d5f628d38f49e5e997294c803"
+      }
+    },
+    {
+      "id": "4365",
+      "type": "DIRECTED",
+      "source": "3462",
+      "target": "3459",
+      "properties": {
+        "file_path": "s34测试用例.pdf",
+        "keywords": "belongs_to,contained_in,part_of",
+        "truncate": "",
+        "weight": 10.0,
+        "description": "Entity XMetrix s34 belongs to XMetrix s34 Test Case Flowchart (s34测试用例) (image)",
+        "created_at": 1779876953,
+        "source_id": "chunk-38d4722d5f628d38f49e5e997294c803"
+      }
+    },
+    {
+      "id": "4353",
+      "type": "DIRECTED",
+      "source": "3462",
+      "target": "1107",
+      "properties": {
+        "file_path": "s34测试用例.pdf",
+        "keywords": "功能归属",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "管理后台属于XMetrix s34平台。",
+        "created_at": 1779876949,
+        "source_id": "chunk-38d4722d5f628d38f49e5e997294c803"
+      }
+    },
+    {
+      "id": "4351",
+      "type": "DIRECTED",
+      "source": "3462",
+      "target": "804",
+      "properties": {
+        "file_path": "s34测试用例.pdf",
+        "keywords": "功能归属",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "小程序属于XMetrix s34平台。",
+        "created_at": 1779876949,
+        "source_id": "chunk-38d4722d5f628d38f49e5e997294c803"
+      }
+    },
+    {
+      "id": "4349",
+      "type": "DIRECTED",
+      "source": "3462",
+      "target": "830",
+      "properties": {
+        "file_path": "s34测试用例.pdf",
+        "keywords": "功能归属",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "物流管理属于XMetrix s34平台。",
+        "created_at": 1779876948,
+        "source_id": "chunk-38d4722d5f628d38f49e5e997294c803"
+      }
+    },
+    {
+      "id": "3272",
+      "type": "DIRECTED",
+      "source": "2622",
+      "target": "804",
+      "properties": {
+        "file_path": "s27测试用例.pdf",
+        "keywords": "包含,测试用例",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "小程序平台下包含变更研究权限#1测试用例。",
+        "created_at": 1779874489,
+        "source_id": "chunk-692b455010f79e1754ffe957eb1b4743"
+      }
+    },
+    {
+      "id": "3264",
+      "type": "DIRECTED",
+      "source": "2622",
+      "target": "830",
+      "properties": {
+        "file_path": "s27测试用例.pdf",
+        "keywords": "包含,测试用例",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "物流管理模块下包含变更研究权限#1测试用例。",
+        "created_at": 1779874488,
+        "source_id": "chunk-692b455010f79e1754ffe957eb1b4743"
+      }
+    },
+    {
+      "id": "3262",
+      "type": "DIRECTED",
+      "source": "2621",
+      "target": "830",
+      "properties": {
+        "file_path": "s27测试用例.pdf",
+        "keywords": "包含,测试用例",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "物流管理模块下包含样本选择范围#1测试用例。",
+        "created_at": 1779874488,
+        "source_id": "chunk-692b455010f79e1754ffe957eb1b4743"
+      }
+    },
+    {
+      "id": "3265",
+      "type": "DIRECTED",
+      "source": "2618",
+      "target": "804",
+      "properties": {
+        "file_path": "s27测试用例.pdf",
+        "keywords": "包含,测试用例",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "小程序平台下包含寄出地点/签收地点#1测试用例。",
+        "created_at": 1779874488,
+        "source_id": "chunk-692b455010f79e1754ffe957eb1b4743"
+      }
+    },
+    {
+      "id": "3260",
+      "type": "DIRECTED",
+      "source": "2618",
+      "target": "830",
+      "properties": {
+        "file_path": "s27测试用例.pdf",
+        "keywords": "包含,测试用例",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "物流管理模块下包含寄出地点/签收地点#1这个测试用例。",
+        "created_at": 1779874487,
+        "source_id": "chunk-692b455010f79e1754ffe957eb1b4743"
+      }
+    },
+    {
+      "id": "1889",
+      "type": "DIRECTED",
+      "source": "142",
+      "target": "738",
+      "properties": {
+        "file_path": "s16测试用例.pdf<SEP>s21测试用例.pdf<SEP>s32测试用例.pdf",
+        "keywords": "字段关联,空间关联,采样,采集地点,采集属性",
+        "truncate": "",
+        "created_at": 1779876357,
+        "weight": 3.0,
+        "description": "样本在采样点采集。<SEP>样本在采样点采集，采样点用于筛选样本。<SEP>样本与采样点相关联。",
+        "source_id": "chunk-3b3b2b1c18e50a2fdf34af33ba40aa65<SEP>chunk-12213945bf8e700b05501baf76a65236<SEP>chunk-efb6ebfc0b0988bcdbbbda656729ed9f"
+      }
+    },
+    {
+      "id": "3244",
+      "type": "DIRECTED",
+      "source": "142",
+      "target": "830",
+      "properties": {
+        "file_path": "s27测试用例.pdf",
+        "keywords": "管理对象,运输范围",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "物流管理管理样本的寄送，样本选择范围限于有权限研究的样本。",
+        "created_at": 1779874485,
+        "source_id": "chunk-7d7a61c58995feeb84f48700728f7994"
+      }
+    },
+    {
+      "id": "3270",
+      "type": "DIRECTED",
+      "source": "804",
+      "target": "2621",
+      "properties": {
+        "file_path": "s27测试用例.pdf",
+        "keywords": "包含,测试用例",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "小程序平台下包含样本选择范围#1测试用例。",
+        "created_at": 1779874489,
+        "source_id": "chunk-692b455010f79e1754ffe957eb1b4743"
+      }
+    },
+    {
+      "id": "2723",
+      "type": "DIRECTED",
+      "source": "804",
+      "target": "830",
+      "properties": {
+        "file_path": "s23测试用例.pdf",
+        "keywords": "使用,平台",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "物流管理模块在小程序平台上提供操作界面和功能。",
+        "created_at": 1779870147,
+        "source_id": "chunk-ad7edd3628a44e67eb079f7e15108bbd"
+      }
+    },
+    {
+      "id": "2720",
+      "type": "DIRECTED",
+      "source": "1454",
+      "target": "830",
+      "properties": {
+        "file_path": "s23测试用例.pdf",
+        "keywords": "使用,平台",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "物流管理模块在Web平台上提供操作界面和功能。",
+        "created_at": 1779870147,
+        "source_id": "chunk-ad7edd3628a44e67eb079f7e15108bbd"
+      }
+    },
+    {
+      "id": "1030",
+      "type": "DIRECTED",
+      "source": "838",
+      "target": "830",
+      "properties": {
+        "file_path": "S43测试用例.pdf",
+        "keywords": "依赖,访问控制",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "物流管理功能需要用户具有物流权限才能正常访问。",
+        "created_at": 1779863783,
+        "source_id": "chunk-2c6e84b5bad5e4779f0704a7153cd155"
+      }
+    },
+    {
+      "id": "1024",
+      "type": "DIRECTED",
+      "source": "837",
+      "target": "830",
+      "properties": {
+        "file_path": "S43测试用例.pdf",
+        "keywords": "包含,模块",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "呼析云小程序中包含了物流管理功能模块。",
+        "created_at": 1779863782,
+        "source_id": "chunk-2c6e84b5bad5e4779f0704a7153cd155"
+      }
+    },
+    {
+      "id": "6717",
+      "type": "DIRECTED",
+      "source": "750",
+      "target": "160",
+      "properties": {
+        "file_path": "XMetrix_v2.4.pdf",
+        "keywords": "界面,访问控制",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "首页可以被所有权限的用户访问，以提升用户体验。",
+        "created_at": 1779936786,
+        "source_id": "chunk-16ff5c12ad7d01482cf463b2df5804bf"
+      }
+    },
+    {
+      "id": "2198",
+      "type": "DIRECTED",
+      "source": "750",
+      "target": "1107",
+      "properties": {
+        "file_path": "s19测试用例.pdf",
+        "keywords": "权限分配",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "管理后台用于设置管理权限、操作权限和访问权限，控制对实验项目的操作。",
+        "created_at": 1779867253,
+        "source_id": "chunk-96183638fe0bad99dc9dd93987f96370"
+      }
+    },
+    {
+      "id": "1283",
+      "type": "DIRECTED",
+      "source": "750",
+      "target": "1110",
+      "properties": {
+        "file_path": "s12测试用例.pdf",
+        "keywords": "功能依赖权限",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "谱图导入功能需要用户具有相应权限才能操作。",
+        "created_at": 1779864722,
+        "source_id": "chunk-300889d4aaad356f00f4749ee317a7c8"
+      }
+    },
+    {
+      "id": "1008",
+      "type": "DIRECTED",
+      "source": "750",
+      "target": "830",
+      "properties": {
+        "file_path": "S43测试用例.pdf",
+        "keywords": "依赖",
+        "truncate": "",
+        "weight": 1.0,
+        "description": "物流管理功能需要用户具有物流权限才能显示入口。",
+        "created_at": 1779863781,
+        "source_id": "chunk-2c6e84b5bad5e4779f0704a7153cd155"
+      }
+    }
+  ],
+  "is_truncated": false
+}

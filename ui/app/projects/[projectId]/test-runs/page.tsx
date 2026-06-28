@@ -1,0 +1,1236 @@
+"use client";
+
+import * as React from "react";
+import { useParams, useRouter } from "next/navigation";
+import {
+  Plus,
+  Search,
+  PlayCircle,
+  Play,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
+  Eye,
+  Loader2,
+  AlertCircle,
+  Lock,
+  RefreshCw,
+  CalendarClock,
+  Zap,
+  Bot,
+  FileCode,
+  Layers,
+  Globe,
+  Filter,
+  CheckSquare,
+  Square,
+  Code,
+} from "lucide-react";
+import { MainLayout } from "@/components/layout";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import {
+  Pagination,
+} from "@/components/ui/pagination";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  listTestRuns,
+  createTestRun,
+  closeTestRun,
+  deleteTestRun,
+  patchTestRun,
+  executeTestRun,
+  type TestRunListInfo,
+  type TestRunState,
+  type TestRunCreate,
+  type ExecutionMode,
+  type TriggerType,
+  type ScriptSelection,
+  type ScriptType,
+} from "@/lib/api";
+import { ApiError } from "@/lib/api/client";
+import { listAPITests } from "@/lib/api/api-tests";
+import type { APITest } from "@/lib/api/api-tests";
+import { listWebTests } from "@/lib/api/web-tests";
+import type { WebTest } from "@/lib/api/web-tests";
+import { listScenarios } from "@/lib/api/scenarios";
+import type { Scenario } from "@/types/scenario";
+// NOTE  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2YzNKaVRBPT06NjI0YTJkOWQ=
+
+const PAGE_SIZE = 20;
+
+const RUN_STATE_OPTIONS: { value: TestRunState; label: string }[] = [
+  { value: "new_run", label: "新建" },
+  { value: "in_progress", label: "进行中" },
+  { value: "under_review", label: "评审中" },
+  { value: "rejected", label: "已拒绝" },
+  { value: "approved", label: "已批准" },
+  { value: "done", label: "已完成" },
+  { value: "closed", label: "已关闭" },
+];
+// eslint-disable  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2YzNKaVRBPT06NjI0YTJkOWQ=
+
+const RUN_STATE_BADGE: Record<
+  TestRunState,
+  { label: string; variant: "default" | "secondary" | "destructive" | "outline" }
+> = {
+  new_run: { label: "新建", variant: "secondary" },
+  in_progress: { label: "进行中", variant: "default" },
+  under_review: { label: "评审中", variant: "outline" },
+  rejected: { label: "已拒绝", variant: "destructive" },
+  approved: { label: "已批准", variant: "default" },
+  done: { label: "已完成", variant: "default" },
+  closed: { label: "已关闭", variant: "secondary" },
+};
+// eslint-disable  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2YzNKaVRBPT06NjI0YTJkOWQ=
+
+const EXECUTION_MODE_BADGE: Record<ExecutionMode, { label: string; icon: React.ReactNode }> = {
+  sequential: { label: "顺序", icon: <Clock className="mr-1 h-3 w-3" /> },
+  parallel: { label: "并行", icon: <Zap className="mr-1 h-3 w-3" /> },
+};
+
+const TRIGGER_TYPE_BADGE: Record<TriggerType, { label: string; icon: React.ReactNode; variant: "default" | "secondary" | "outline" | "destructive" }> = {
+  manual: { label: "手动", icon: <Play className="mr-1 h-3 w-3" />, variant: "secondary" },
+  scheduled: { label: "定时", icon: <CalendarClock className="mr-1 h-3 w-3" />, variant: "outline" },
+  api: { label: "API", icon: <Bot className="mr-1 h-3 w-3" />, variant: "default" },
+};
+
+function progressDoneRatio(run: TestRunListInfo): number {
+  const total = run.test_cases_count;
+  if (!total) return 0;
+  const p = run.overall_progress;
+  const finished = p.passed + p.failed + p.blocked + p.skipped + p.retest;
+  return Math.round((finished / total) * 100);
+}
+// WATERMARK  My80OmFIVnBZMlhsdEpUbXRiZm92b2s2YzNKaVRBPT06NjI0YTJkOWQ=
+
+export default function TestRunsPage() {
+  const params = useParams();
+  const router = useRouter();
+  const projectId = params.projectId as string;
+
+  const [items, setItems] = React.useState<TestRunListInfo[]>([]);
+  const [total, setTotal] = React.useState(0);
+  const [page, setPage] = React.useState(1);
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+
+  const [searchQuery, setSearchQuery] = React.useState("");
+  const [searchInput, setSearchInput] = React.useState("");
+  const [runStateFilter, setRunStateFilter] = React.useState<TestRunState | "all">("all");
+  const [includeClosed, setIncludeClosed] = React.useState(false);
+
+  const [createOpen, setCreateOpen] = React.useState(false);
+  const [createForm, setCreateForm] = React.useState<TestRunCreate>({
+    name: "",
+    description: "",
+    run_state: "new_run",
+    execution_mode: "sequential",
+    max_concurrency: 5,
+    scripts: [],
+  });
+  const [creating, setCreating] = React.useState(false);
+
+  // 脚本选择器状态
+  const [scriptTab, setScriptTab] = React.useState<ScriptType | "all">("all");
+  const [apiTests, setApiTests] = React.useState<APITest[]>([]);
+  const [scenarios, setScenarios] = React.useState<Scenario[]>([]);
+  const [webTests, setWebTests] = React.useState<WebTest[]>([]);
+  const [scriptSearch, setScriptSearch] = React.useState("");
+  const [scriptsLoading, setScriptsLoading] = React.useState(false);
+
+  const [editingRun, setEditingRun] = React.useState<TestRunListInfo | null>(null);
+  const [editForm, setEditForm] = React.useState<{ name: string; run_state: TestRunState }>({
+    name: "",
+    run_state: "new_run",
+  });
+  const [editSaving, setEditSaving] = React.useState(false);
+
+  const [deletingRun, setDeletingRun] = React.useState<TestRunListInfo | null>(null);
+  const [deleting, setDeleting] = React.useState(false);
+
+  const [closingRun, setClosingRun] = React.useState<TestRunListInfo | null>(null);
+  const [closing, setClosing] = React.useState(false);
+
+  const [executingRun, setExecutingRun] = React.useState<TestRunListInfo | null>(null);
+  const [executing, setExecuting] = React.useState(false);
+
+  const loadList = React.useCallback(async () => {
+    if (!projectId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await listTestRuns(projectId, {
+        p: page,
+        page_size: PAGE_SIZE,
+        search: searchQuery || undefined,
+        run_state: runStateFilter === "all" ? undefined : runStateFilter,
+        include_closed: includeClosed,
+      });
+      setItems(response.data);
+      setTotal(response.info.total);
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : "加载测试运行失败";
+      setError(msg);
+      setItems([]);
+      setTotal(0);
+    } finally {
+      setLoading(false);
+    }
+  }, [projectId, page, searchQuery, runStateFilter, includeClosed]);
+
+  React.useEffect(() => {
+    loadList();
+  }, [loadList]);
+
+  React.useEffect(() => {
+    const t = setTimeout(() => {
+      setSearchQuery(searchInput.trim());
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  function resetCreateForm() {
+    setCreateForm({
+      name: "",
+      description: "",
+      run_state: "new_run",
+      execution_mode: "sequential",
+      max_concurrency: 5,
+      scripts: [],
+    });
+    setScriptSearch("");
+    setScriptTab("all");
+  }
+
+  // 加载所有脚本列表（并行加载三种类型）
+  const loadScripts = React.useCallback(async () => {
+    if (!projectId || !createOpen) return;
+    setScriptsLoading(true);
+    try {
+      const [apiRes, scenarioRes, webRes] = await Promise.allSettled([
+        listAPITests(projectId, { page: 1, page_size: 300 }),
+        listScenarios(projectId, { page: 1, page_size: 300 }),
+        listWebTests(projectId, { page: 1, page_size: 300 }),
+      ]);
+
+      if (apiRes.status === "fulfilled") {
+        setApiTests(apiRes.value.items || []);
+      } else {
+        // eslint-disable-next-line no-console
+        console.error("[TestRun] listAPITests failed:", apiRes.reason);
+      }
+      if (scenarioRes.status === "fulfilled") {
+        setScenarios(scenarioRes.value.items || []);
+      } else {
+        // eslint-disable-next-line no-console
+        console.error("[TestRun] listScenarios failed:", scenarioRes.reason);
+      }
+      if (webRes.status === "fulfilled") {
+        setWebTests(webRes.value.items || []);
+      } else {
+        // eslint-disable-next-line no-console
+        console.error("[TestRun] listWebTests failed:", webRes.reason);
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("[TestRun] loadScripts unexpected error:", err);
+    } finally {
+      setScriptsLoading(false);
+    }
+  }, [projectId, createOpen]);
+
+  React.useEffect(() => {
+    loadScripts();
+  }, [loadScripts]);
+
+  async function handleCreate() {
+    if (!createForm.name.trim()) return;
+    setCreating(true);
+    try {
+      await createTestRun(projectId, {
+        ...createForm,
+        name: createForm.name.trim(),
+        description: createForm.description?.trim() || undefined,
+      });
+      setCreateOpen(false);
+      resetCreateForm();
+      setPage(1);
+      await loadList();
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : "创建测试运行失败";
+      setError(msg);
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  function openEdit(run: TestRunListInfo) {
+    setEditingRun(run);
+    setEditForm({ name: run.name, run_state: run.run_state });
+  }
+
+  async function handleEditSave() {
+    if (!editingRun) return;
+    setEditSaving(true);
+    try {
+      await patchTestRun(projectId, editingRun.identifier, {
+        name: editForm.name.trim() || undefined,
+        run_state: editForm.run_state,
+      });
+      setEditingRun(null);
+      await loadList();
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : "更新测试运行失败";
+      setError(msg);
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
+  async function handleClose() {
+    if (!closingRun) return;
+    setClosing(true);
+    try {
+      await closeTestRun(projectId, closingRun.identifier, { active_state: "closed" });
+      setClosingRun(null);
+      await loadList();
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : "关闭测试运行失败";
+      setError(msg);
+    } finally {
+      setClosing(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!deletingRun) return;
+    setDeleting(true);
+    try {
+      await deleteTestRun(projectId, deletingRun.identifier);
+      setDeletingRun(null);
+      await loadList();
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : "删除测试运行失败";
+      setError(msg);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  async function handleExecute() {
+    if (!executingRun) return;
+    setExecuting(true);
+    try {
+      await executeTestRun(projectId, executingRun.identifier);
+      setExecutingRun(null);
+      await loadList();
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : "执行测试运行失败";
+      setError(msg);
+    } finally {
+      setExecuting(false);
+    }
+  }
+
+  // ========== 脚本选择器辅助逻辑 ==========
+
+  interface UnifiedScript {
+    id: string;
+    type: ScriptType;
+    identifier: string;
+    name: string;
+    description?: string;
+    typeLabel: string;
+    typeIcon: React.ReactNode;
+    meta: { label: string; value: string }[];
+    createdAt: string;
+  }
+
+  const allScriptItems = React.useMemo<UnifiedScript[]>(() => {
+    const items: UnifiedScript[] = [];
+
+    apiTests.forEach((t) => {
+      items.push({
+        id: t.id,
+        type: "api_test",
+        identifier: t.identifier,
+        name: t.name,
+        description: t.description ?? undefined,
+        typeLabel: "API 测试",
+        typeIcon: <Code className="h-3.5 w-3.5" />,
+        meta: [
+          { label: "端点", value: String(t.total_endpoints ?? 0) },
+          { label: "场景", value: String(t.total_scenarios ?? 0) },
+          { label: "格式", value: t.script_format || "playwright" },
+        ],
+        createdAt: t.created_at,
+      });
+    });
+
+    scenarios.forEach((s) => {
+      items.push({
+        id: s.id,
+        type: "scenario",
+        identifier: s.identifier,
+        name: s.name,
+        description: s.description ?? undefined,
+        typeLabel: "场景测试",
+        typeIcon: <Layers className="h-3.5 w-3.5" />,
+        meta: [
+          { label: "步骤", value: String(s.total_steps ?? 0) },
+          ...(s.last_run_status ? [{ label: "上次", value: s.last_run_status }] : []),
+        ],
+        createdAt: s.created_at,
+      });
+    });
+
+    webTests.forEach((t) => {
+      items.push({
+        id: t.id,
+        type: "web_test",
+        identifier: t.identifier,
+        name: t.name,
+        description: t.description ?? undefined,
+        typeLabel: "Web 测试",
+        typeIcon: <Globe className="h-3.5 w-3.5" />,
+        meta: [
+          { label: "页面", value: String(t.total_pages ?? 0) },
+          { label: "流程", value: String(t.total_flows ?? 0) },
+          { label: "格式", value: t.script_format || "playwright" },
+        ],
+        createdAt: t.created_at,
+      });
+    });
+
+    return items;
+  }, [apiTests, scenarios, webTests]);
+
+  const filteredScripts = React.useMemo(() => {
+    let result = allScriptItems;
+
+    if (scriptTab !== "all") {
+      result = result.filter((s) => s.type === scriptTab);
+    }
+
+    if (scriptSearch.trim()) {
+      const q = scriptSearch.trim().toLowerCase();
+      result = result.filter(
+        (s) =>
+          s.name.toLowerCase().includes(q) ||
+          s.identifier.toLowerCase().includes(q)
+      );
+    }
+
+    return result;
+  }, [allScriptItems, scriptTab, scriptSearch]);
+
+  const isScriptSelected = (type: ScriptType, id: string) => {
+    return (
+      createForm.scripts?.some(
+        (s) => s.script_type === type && s.script_id === id
+      ) ?? false
+    );
+  };
+
+  const toggleScriptSelection = (script: UnifiedScript) => {
+    const scripts = createForm.scripts ?? [];
+    const exists = scripts.some(
+      (s) => s.script_type === script.type && s.script_id === script.id
+    );
+
+    if (exists) {
+      setCreateForm({
+        ...createForm,
+        scripts: scripts.filter(
+          (s) => !(s.script_type === script.type && s.script_id === script.id)
+        ),
+      });
+    } else {
+      setCreateForm({
+        ...createForm,
+        scripts: [
+          ...scripts,
+          {
+            script_type: script.type,
+            script_id: script.id,
+            script_identifier: script.identifier,
+            script_name: script.name,
+          },
+        ],
+      });
+    }
+  };
+
+  const formatScriptDate = (dateStr: string) => {
+    try {
+      return new Date(dateStr).toLocaleDateString("zh-CN");
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const selectedCountByType = React.useMemo(() => {
+    const counts: Record<string, number> = {};
+    createForm.scripts?.forEach((s) => {
+      counts[s.script_type] = (counts[s.script_type] || 0) + 1;
+    });
+    return counts;
+  }, [createForm.scripts]);
+
+  return (
+    <MainLayout title="测试运行">
+      <div className="space-y-6">
+        {/* 工具栏 */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="搜索名称或标识符..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                className="w-64 pl-9"
+              />
+            </div>
+            <Select
+              value={runStateFilter}
+              onValueChange={(v) => {
+                setRunStateFilter(v as TestRunState | "all");
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="运行状态" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">全部状态</SelectItem>
+                {RUN_STATE_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox
+                checked={includeClosed}
+                onCheckedChange={(checked) => {
+                  setIncludeClosed(checked === true);
+                  setPage(1);
+                }}
+              />
+              <span>包含已关闭</span>
+            </label>
+            <Button variant="ghost" size="icon" onClick={loadList} disabled={loading} title="刷新">
+              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            </Button>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => router.push(`/projects/${projectId}/test-runs/schedules`)}>
+              <CalendarClock className="mr-2 h-4 w-4" />
+              调度管理
+            </Button>
+            <Button onClick={() => setCreateOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              新建测试运行
+            </Button>
+          </div>
+        </div>
+
+        {error && (
+          <div className="flex items-center gap-2 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <AlertCircle className="h-4 w-4" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {/* 列表 */}
+        <div className="rounded-lg border bg-card">
+          {loading ? (
+            <div className="flex h-64 items-center justify-center">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : items.length === 0 ? (
+            <div className="flex h-64 flex-col items-center justify-center gap-2">
+              <PlayCircle className="h-12 w-12 text-muted-foreground/50" />
+              <p className="text-muted-foreground">
+                {searchQuery || runStateFilter !== "all"
+                  ? "没有找到匹配的测试运行"
+                  : "暂无测试运行"}
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y">
+              {items.map((run) => {
+                const p = run.overall_progress;
+                const progress = progressDoneRatio(run);
+                const closed = run.active_state === "closed";
+                const stateInfo = RUN_STATE_BADGE[run.run_state];
+                const execMode = run.execution_mode ? EXECUTION_MODE_BADGE[run.execution_mode] : null;
+                const trigger = run.trigger_type ? TRIGGER_TYPE_BADGE[run.trigger_type] : null;
+                return (
+                  <div
+                    key={run.id}
+                    className="flex items-center justify-between p-4 hover:bg-muted/50"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <PlayCircle className="h-5 w-5 text-primary" />
+                        <h3 className="font-medium truncate">{run.name}</h3>
+                        <Badge variant="outline" className="font-mono text-xs">
+                          {run.identifier}
+                        </Badge>
+                        <Badge variant={stateInfo.variant}>{stateInfo.label}</Badge>
+                        {execMode && (
+                          <Badge variant="outline" className="text-xs">
+                            {execMode.icon}
+                            {execMode.label}
+                          </Badge>
+                        )}
+                        {trigger && (
+                          <Badge variant={trigger.variant} className="text-xs">
+                            {trigger.icon}
+                            {trigger.label}
+                          </Badge>
+                        )}
+                        {closed && (
+                          <Badge variant="secondary">
+                            <Lock className="mr-1 h-3 w-3" />
+                            已关闭
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-2">
+                        <div className="flex flex-wrap items-center gap-4 text-sm">
+                          <span className="flex items-center gap-1 text-green-600">
+                            <CheckCircle2 className="h-4 w-4" />
+                            {p.passed} 通过
+                          </span>
+                          <span className="flex items-center gap-1 text-red-600">
+                            <XCircle className="h-4 w-4" />
+                            {p.failed} 失败
+                          </span>
+                          <span className="flex items-center gap-1 text-amber-600">
+                            <Clock className="h-4 w-4" />
+                            {p.in_progress} 进行中
+                          </span>
+                          <span className="text-muted-foreground">
+                            {p.untested} 未测 / {p.retest} 重测 / {p.blocked} 阻塞 / {p.skipped} 跳过
+                          </span>
+                          <span className="text-muted-foreground">共 {run.test_cases_count}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Progress value={progress} className="w-32" />
+                          <span className="text-sm text-muted-foreground">{progress}%</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="ml-4 flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => router.push(`/projects/${projectId}/test-runs/${run.identifier}`)}
+                      >
+                        <Eye className="mr-2 h-4 w-4" />
+                        查看
+                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => setExecutingRun(run)}
+                            disabled={closed || run.run_state === "in_progress"}
+                          >
+                            <Play className="mr-2 h-4 w-4" />
+                            执行
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => openEdit(run)} disabled={closed}>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            编辑
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => setClosingRun(run)}
+                            disabled={closed}
+                          >
+                            <Lock className="mr-2 h-4 w-4" />
+                            关闭
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-destructive"
+                            onClick={() => setDeletingRun(run)}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            删除
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* 分页 */}
+        {total > 0 && (
+          <Pagination
+            page={page}
+            pageSize={PAGE_SIZE}
+            total={total}
+            onPageChange={setPage}
+            showPageSizeSelector={false}
+          />
+        )}
+      </div>
+
+      {/* 创建对话框 */}
+      <Dialog
+        open={createOpen}
+        onOpenChange={(open) => {
+          setCreateOpen(open);
+          if (!open) resetCreateForm();
+        }}
+      >
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>新建测试运行</DialogTitle>
+            <DialogDescription>
+              创建一个新的测试运行并选择需要执行的脚本。
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">名称 *</Label>
+              <Input
+                id="name"
+                value={createForm.name}
+                onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
+                placeholder="请输入测试运行名称"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">描述</Label>
+              <Textarea
+                id="description"
+                value={createForm.description ?? ""}
+                onChange={(e) =>
+                  setCreateForm({ ...createForm, description: e.target.value })
+                }
+                placeholder="请输入描述（可选）"
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="run_state">运行状态</Label>
+              <Select
+                value={createForm.run_state ?? "new_run"}
+                onValueChange={(v) =>
+                  setCreateForm({ ...createForm, run_state: v as TestRunState })
+                }
+              >
+                <SelectTrigger id="run_state">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {RUN_STATE_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="assignee">负责人邮箱</Label>
+              <Input
+                id="assignee"
+                value={createForm.assignee ?? ""}
+                onChange={(e) =>
+                  setCreateForm({ ...createForm, assignee: e.target.value || undefined })
+                }
+                placeholder="user@example.com（可选）"
+              />
+            </div>
+
+            {/* 执行模式 */}
+            <div className="space-y-2">
+              <Label htmlFor="exec_mode">执行模式</Label>
+              <Select
+                value={createForm.execution_mode ?? "sequential"}
+                onValueChange={(v) =>
+                  setCreateForm({ ...createForm, execution_mode: v as ExecutionMode })
+                }
+              >
+                <SelectTrigger id="exec_mode">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sequential">顺序执行</SelectItem>
+                  <SelectItem value="parallel">并行执行</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {createForm.execution_mode === "parallel" && (
+              <div className="space-y-2">
+                <Label htmlFor="max_concurrency">最大并发数</Label>
+                <Input
+                  id="max_concurrency"
+                  type="number"
+                  min={1}
+                  max={20}
+                  value={createForm.max_concurrency ?? 5}
+                  onChange={(e) =>
+                    setCreateForm({
+                      ...createForm,
+                      max_concurrency: parseInt(e.target.value) || 5,
+                    })
+                  }
+                />
+              </div>
+            )}
+
+            {/* 脚本选择 —— 企业级 */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-base font-medium">选择执行脚本</Label>
+                <div className="flex items-center gap-3 text-sm">
+                  {selectedCountByType["api_test"] ? (
+                    <span className="flex items-center gap-1 text-blue-600">
+                      <Code className="h-3.5 w-3.5" />
+                      API {selectedCountByType["api_test"]}
+                    </span>
+                  ) : null}
+                  {selectedCountByType["scenario"] ? (
+                    <span className="flex items-center gap-1 text-amber-600">
+                      <Layers className="h-3.5 w-3.5" />
+                      场景 {selectedCountByType["scenario"]}
+                    </span>
+                  ) : null}
+                  {selectedCountByType["web_test"] ? (
+                    <span className="flex items-center gap-1 text-green-600">
+                      <Globe className="h-3.5 w-3.5" />
+                      Web {selectedCountByType["web_test"]}
+                    </span>
+                  ) : null}
+                  {!createForm.scripts?.length ? (
+                    <span className="text-muted-foreground">未选择脚本</span>
+                  ) : (
+                    <span className="font-medium">
+                      共 {createForm.scripts.length} 个
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* 工具栏 */}
+              <div className="flex flex-wrap items-center gap-2">
+                <Tabs
+                  value={scriptTab}
+                  onValueChange={(v) => setScriptTab(v as ScriptType | "all")}
+                >
+                  <TabsList>
+                    <TabsTrigger value="all">
+                      全部
+                      {allScriptItems.length > 0 && (
+                        <span className="ml-1 text-xs text-muted-foreground">
+                          ({allScriptItems.length})
+                        </span>
+                      )}
+                    </TabsTrigger>
+                    <TabsTrigger value="api_test">
+                      <Code className="mr-1 h-3.5 w-3.5" />
+                      API
+                    </TabsTrigger>
+                    <TabsTrigger value="scenario">
+                      <Layers className="mr-1 h-3.5 w-3.5" />
+                      场景
+                    </TabsTrigger>
+                    <TabsTrigger value="web_test">
+                      <Globe className="mr-1 h-3.5 w-3.5" />
+                      Web
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+                <div className="relative flex-1 min-w-[180px]">
+                  <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="搜索标识符或名称..."
+                    value={scriptSearch}
+                    onChange={(e) => setScriptSearch(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const visible = filteredScripts;
+                    const newSelections = visible
+                      .filter(
+                        (item) => !isScriptSelected(item.type, item.id)
+                      )
+                      .map((item) => ({
+                        script_type: item.type,
+                        script_id: item.id,
+                        script_identifier: item.identifier,
+                        script_name: item.name,
+                      }));
+                    setCreateForm({
+                      ...createForm,
+                      scripts: [
+                        ...(createForm.scripts ?? []),
+                        ...newSelections,
+                      ],
+                    });
+                  }}
+                >
+                  <CheckSquare className="mr-1 h-3.5 w-3.5" />
+                  全选
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const visibleIds = new Set(
+                      filteredScripts.map((i) => i.id)
+                    );
+                    setCreateForm({
+                      ...createForm,
+                      scripts: (createForm.scripts ?? []).filter(
+                        (s) => !visibleIds.has(s.script_id)
+                      ),
+                    });
+                  }}
+                >
+                  <Square className="mr-1 h-3.5 w-3.5" />
+                  取消全选
+                </Button>
+              </div>
+
+              {/* 脚本表格 */}
+              <Card>
+                <CardContent className="p-0">
+                  <ScrollArea className="h-[340px]">
+                    {/* 表头 */}
+                    <div className="sticky top-0 z-10 grid grid-cols-[44px_1.2fr_0.8fr_1fr_90px_80px] gap-2 border-b bg-muted/60 px-3 py-2 text-xs font-medium text-muted-foreground backdrop-blur-sm">
+                      <div>选择</div>
+                      <div>标识符 / 名称</div>
+                      <div>类型</div>
+                      <div>元数据</div>
+                      <div>创建时间</div>
+                      <div>状态</div>
+                    </div>
+
+                    {scriptsLoading ? (
+                      <div className="flex h-40 items-center justify-center gap-2 text-sm text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        加载脚本中...
+                      </div>
+                    ) : filteredScripts.length === 0 ? (
+                      <div className="flex h-40 flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
+                        <Filter className="h-8 w-8 opacity-40" />
+                        <span>
+                          {allScriptItems.length === 0
+                            ? "暂无可用脚本，请先创建 API 测试、场景或 Web 测试"
+                            : "没有匹配当前筛选条件的脚本"}
+                        </span>
+                      </div>
+                    ) : (
+                      filteredScripts.map((item) => {
+                        const selected = isScriptSelected(
+                          item.type,
+                          item.id
+                        );
+                        return (
+                          <div
+                            key={`${item.type}-${item.id}`}
+                            className="grid grid-cols-[44px_1.2fr_0.8fr_1fr_90px_80px] gap-2 border-b px-3 py-2.5 text-sm items-center transition-colors hover:bg-muted/40 last:border-b-0"
+                          >
+                            <Checkbox
+                              checked={selected}
+                              onCheckedChange={() =>
+                                toggleScriptSelection(item)
+                              }
+                            />
+                            <div className="min-w-0">
+                              <div className="truncate font-medium">
+                                {item.name}
+                              </div>
+                              <div className="truncate text-xs text-muted-foreground font-mono">
+                                {item.identifier}
+                              </div>
+                              {item.description && (
+                                <div className="truncate text-xs text-muted-foreground mt-0.5">
+                                  {item.description}
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-muted-foreground">
+                                {item.typeIcon}
+                              </span>
+                              <Badge
+                                variant="outline"
+                                className="text-xs font-normal"
+                              >
+                                {item.typeLabel}
+                              </Badge>
+                            </div>
+                            <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+                              {item.meta.map((m) => (
+                                <span key={m.label}>
+                                  <span className="text-muted-foreground/60">
+                                    {m.label}
+                                  </span>{" "}
+                                  {m.value}
+                                </span>
+                              ))}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {formatScriptDate(item.createdAt)}
+                            </div>
+                            <div>
+                              {selected ? (
+                                <Badge className="bg-primary/10 text-primary hover:bg-primary/20 text-xs font-normal gap-1">
+                                  <CheckCircle2 className="h-3 w-3" />
+                                  已选
+                                </Badge>
+                              ) : (
+                                <span className="text-xs text-muted-foreground/50">
+                                  -
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </ScrollArea>
+                </CardContent>
+              </Card>
+
+              {/* 已选脚本摘要 */}
+              {createForm.scripts && createForm.scripts.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {createForm.scripts.map((s, idx) => (
+                    <Badge
+                      key={idx}
+                      variant="secondary"
+                      className="text-xs gap-1 pr-1"
+                    >
+                      {s.script_name || s.script_identifier || s.script_id}
+                      <button
+                        className="ml-0.5 rounded-full hover:bg-destructive/20 hover:text-destructive transition-colors"
+                        onClick={() => {
+                          setCreateForm({
+                            ...createForm,
+                            scripts: (createForm.scripts ?? []).filter(
+                              (_, i) => i !== idx
+                            ),
+                          });
+                        }}
+                      >
+                        <XCircle className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setCreateOpen(false)}
+              disabled={creating}
+            >
+              取消
+            </Button>
+            <Button
+              onClick={handleCreate}
+              disabled={creating || !createForm.name.trim()}
+            >
+              {creating && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              创建
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 编辑对话框 */}
+      <Dialog open={editingRun !== null} onOpenChange={(open) => !open && setEditingRun(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>编辑测试运行</DialogTitle>
+            <DialogDescription>
+              {editingRun ? `修改 ${editingRun.identifier} 的基础信息` : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-name">名称</Label>
+              <Input
+                id="edit-name"
+                value={editForm.name}
+                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-state">运行状态</Label>
+              <Select
+                value={editForm.run_state}
+                onValueChange={(v) => setEditForm({ ...editForm, run_state: v as TestRunState })}
+              >
+                <SelectTrigger id="edit-state">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {RUN_STATE_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setEditingRun(null)}
+              disabled={editSaving}
+            >
+              取消
+            </Button>
+            <Button onClick={handleEditSave} disabled={editSaving || !editForm.name.trim()}>
+              {editSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              保存
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 执行确认 */}
+      <AlertDialog open={executingRun !== null} onOpenChange={(open) => !open && setExecutingRun(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>执行测试运行?</AlertDialogTitle>
+            <AlertDialogDescription>
+              确认执行 {executingRun?.identifier} ({executingRun?.name})？
+              这将遍历所有关联的测试用例并执行其自动化脚本，可能需要较长时间。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={executing}>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={handleExecute} disabled={executing}>
+              {executing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              执行
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* 关闭确认 */}
+      <AlertDialog open={closingRun !== null} onOpenChange={(open) => !open && setClosingRun(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>关闭测试运行?</AlertDialogTitle>
+            <AlertDialogDescription>
+              确认关闭 {closingRun?.identifier}？关闭后将无法再修改其内容。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={closing}>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={handleClose} disabled={closing}>
+              {closing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              关闭
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* 删除确认 */}
+      <AlertDialog
+        open={deletingRun !== null}
+        onOpenChange={(open) => !open && setDeletingRun(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>删除测试运行?</AlertDialogTitle>
+            <AlertDialogDescription>
+              确认删除 {deletingRun?.identifier} ({deletingRun?.name})？此操作不可恢复。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>取消</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </MainLayout>
+  );
+}

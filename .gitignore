@@ -1,0 +1,42 @@
+# Environment & secrets
+.env
+.env.local
+.env.*.local
+
+# Python virtual environment
+.venv/
+venv/
+ENV/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Node / frontend
+node_modules/
+dist/
+build/
+.vercel
+ui/.next/
+
+# Claude Code local files
+.claude/
+._hist*.json
+._threads.json
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

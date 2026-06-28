@@ -1,0 +1,2257 @@
+{
+  "status": "success",
+  "message": "Query processed successfully",
+  "data": {
+    "entities": [
+      {
+        "entity_name": "地点ID",
+        "entity_type": "data",
+        "description": "地点ID是地点管理中的标识字段，用于唯一区分每个地点。<SEP>表格列字段，用于标识地点的唯一ID，前缀为SPO加数字。",
+        "source_id": "chunk-6b6d59941a728e98e7c077a0a694ae6d<SEP>chunk-77f41237ed37facdd7883fed04b9534f",
+        "file_path": "地点管理.pdf",
+        "created_at": 1782354710
+      },
+      {
+        "entity_name": "用例:变更TD管列表展示位置#1",
+        "entity_type": "event",
+        "description": "测试用例，验证TD管列表与统计展示位置变更。",
+        "source_id": "chunk-928ed73f7d7cf62923d69f6f0b891515",
+        "file_path": "S31测试用例.pdf",
+        "created_at": 1779875981
+      },
+      {
+        "entity_name": "地点位置",
+        "entity_type": "data",
+        "description": "地点位置是地点管理中的字段，用于记录地点的位置信息。<SEP>表格列字段，用于记录地点的详细地址或位置信息。",
+        "source_id": "chunk-6b6d59941a728e98e7c077a0a694ae6d<SEP>chunk-77f41237ed37facdd7883fed04b9534f",
+        "file_path": "地点管理.pdf",
+        "created_at": 1782354710
+      },
+      {
+        "entity_name": "自定义:TD管管理",
+        "entity_type": "concept",
+        "description": "自定义:TD管管理是自定义:XCloud下的子模块，涉及TD管的管理和测试。<SEP>自定义:TD管管理是一个功能模块，包含新增、校验数据、数据预览、查看、编辑子模块。<SEP>一种自定义标签，用于TD管管理模块。",
+        "source_id": "chunk-d758cde2dccb09c9add1548c7afdc993<SEP>chunk-528dfbccb40ac50452cdbfbcec76be91<SEP>chunk-928ed73f7d7cf62923d69f6f0b891515",
+        "file_path": "S41测试用例.pdf<SEP>s13测试用例.pdf<SEP>S31测试用例.pdf",
+        "created_at": 1779875980
+      },
+      {
+        "entity_name": "归属方字段",
+        "entity_type": "concept",
+        "description": "左面板指令中为新增TD管添加的字段，用于指定归属方。",
+        "source_id": "chunk-6a2ff776c502afb11af8ca8ef1fc3657",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353620
+      },
+      {
+        "entity_name": "s13测试用例",
+        "entity_type": "content",
+        "description": "s13测试用例是一个测试用例套件，用于组织TD管和采样点管理相关的测试场景，包含四个主要功能模块。",
+        "source_id": "chunk-528dfbccb40ac50452cdbfbcec76be91",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865344
+      },
+      {
+        "entity_name": "当前地点",
+        "entity_type": "concept",
+        "description": "当前地点是系统核验的要素，在上传时进行校验。",
+        "source_id": "chunk-9348e364f3ce581b1904ae256496a838",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353447
+      },
+      {
+        "entity_name": "用例:增加操作者字段#1",
+        "entity_type": "event",
+        "description": "测试用例，验证新增TD管等操作中展示操作者姓名。",
+        "source_id": "chunk-928ed73f7d7cf62923d69f6f0b891515",
+        "file_path": "S31测试用例.pdf",
+        "created_at": 1779875980
+      },
+      {
+        "entity_name": "地点名称",
+        "entity_type": "data",
+        "description": "地点名称是地点管理中的描述字段，用于标注地点的具体名称。<SEP>表格列字段，用于记录地点的名称，如医院名称或测试文本。",
+        "source_id": "chunk-6b6d59941a728e98e7c077a0a694ae6d<SEP>chunk-77f41237ed37facdd7883fed04b9534f",
+        "file_path": "地点管理.pdf",
+        "created_at": 1782354710
+      },
+      {
+        "entity_name": "TD管",
+        "entity_type": "artifact",
+        "description": "TD管，正式名称为热脱附管（Thermal Desorption Tube），是一种多功能气体采样容器，通常以试管或管状设备形式呈现，属于热脱附分析的核心耗材。其核心功能包括采集、存储、吸附和释放样本，尤其适用于环境采样中挥发性有机物（VOCs）的采集与富集，并能承担样本运输职责。此外，TD管可用于配气，可单独使用或与苏玛罐组合，常见于呼出气样本的收集场景，同时也可作为存放标准气体（标气）的管状存储容器。在呼吸分析样本采集过程中，TD管被用作样本容器，检测报告任务列表的筛选条件中包含“TD管号”字段。作为一种可更换的管道部件，当TD管被更换后，对应的测试记录中不再包含采样时间。\n\n在管理层面，TD管作为系统中的被管理资产，是TD管管理系统的核心对象，拥有唯一编号（称为TD管号或钢号），并包含生产厂商、采购时间、备注、标本编码、批次等属性字段。系统支持对TD管进行新增、删除、变更及作废操作，信息可编辑，状态可变更，允许重复管号但仍可正常新增。TD管具有多种工作状态，包括空闲、采样中、已吸附、解析中、待清洁、已使用、待领用、老化、检测、报废等，完整覆盖样本从采集、分析到清洁、报废的流程。根据使用场景，TD管分为样本、环境、空三种类型，可进行异常签收；发生漏气时系统会在对应槽位显示标记以便及时处理。在统计方面，TD管作为采样工具被纳入统计图表，并在TD管管理和TD管统计模块中统一管理，同时其编号也作为数据字段用于项目排序。\n\n在实际使用中，TD管可在TD管模式下分组使用，关联采样点和采集仪序列号。采样登记时需输入TD管号，且常与标本编码匹配用于质控数据填充。在检测任务中，TD管绑定样本并累计使用次数，同时涉及老化任务、使用记录等操作。其编号可作为筛选条件精确匹配检测批次中的检测任务，相关检测项目称为TD管检测项目。在物流和任务分配中，TD管作为样本容器流转，在采样和任务分配时被选择，并在TD管清单中统一管理。此外，在Linus Studio系统中，TD管也作为一个选项卡出现，代表设备或样本的管理记录。<SEP>是一种用于气体分析的设备配件，可在设备中绑定或移除，并记录其使用情况。<SEP>热脱附管，在程序指南中涉及添加、移除、日志记录，在表单中作为下拉选择项。<SEP>TD管是用于气体采样的管状设备，具有唯一编号，采样后作为样本载体。<SEP>TD管是一种实验室采样管，在物流系统中作为容器，具有TD管号用于标识。<SEP>TD管是候选列表中显示的一种容器类型，用于装载标准气体。<SEP>TD管是物流管理系统中跟踪的物料之一，通常用于实验室样品采集。",
+        "source_id": "chunk-27c59dcdfafb9c0a15b7a7b7c2556265<SEP>chunk-e6da75081ef9086fb4c053d66225410d<SEP>chunk-1f178322d0546ae1a3b26405a9605df5<SEP>chunk-4a0ebaa8ba6f2ebe27d676efd6c2a657<SEP>chunk-9ac3543964f6578ff22a5d63fab1f482<SEP>chunk-4f50aa87e0ee4778d3ba75cfda3f3db7<SEP>chunk-fe910910c810e98985a3f75d5c55591a<SEP>chunk-608d8b00ae661453836d5b8f7f6475e8<SEP>chunk-9841933cd514da80792231df2319ddf7<SEP>chunk-713cc4d5874b2e8382535b5cb04f1d44<SEP>chunk-3db2fced39f60198ed351afb9b4b0902<SEP>chunk-ae4bf2d83feb510b33d7defba968c75d<SEP>chunk-0d95f4eb4d9aad02bdb58e54d147f927<SEP>chunk-666c50ace1109e21891c724670cd9d32<SEP>chunk-3b3b2b1c18e50a2fdf34af33ba40aa65<SEP>chunk-bb93b2f88bdc92af899f21f668e0ab50<SEP>chunk-e415c8fe3fc12b16c3057e5fc9ec3a9c<SEP>chunk-2c01d7368da5fc92474ddd99f63da1a1<SEP>chunk-36dfe62d33aa08c6e2c54fa92d67f9e1<SEP>chunk-d5900916f1bfc5a54dd14b301fab07a1<SEP>chunk-96183638fe0bad99dc9dd93987f96370<SEP>chunk-08584584f481d5d939e49a8cfc37e2a0<SEP>chunk-ad7edd3628a44e67eb079f7e15108bbd<SEP>chunk-2daa345b401e8ad5329fa25aa5170937<SEP>chunk-0114eaf1591780ecaa1b31cac0cb8618<SEP>chunk-b73fa84f2e62cd8ee612d0bf57ed0648<SEP>chunk-6db3ee750aef8f127faedf3621a7c5c0<SEP>chunk-b3ab54c816fb2f928fa5ee967dbf58bf<SEP>chunk-4abc228dd0a85238abfd8addc34e74eb<SEP>chunk-26a6decf77438bd3bac48f9ed3f86be6<SEP>chunk-b012500077ed86a8d05fd45b1247c317<SEP>chunk-2fc8fba7af5bfa57922c97b13e6e4334<SEP>chunk-de5451b1ed2c4025218262cc3487312a<SEP>chunk-7d7a61c58995feeb84f48700728f7994<SEP>chunk-14bee55c8769ffa847a6e21fdfc888d7<SEP>chunk-313e136ae906bd5efc0871114ed295c9<SEP>chunk-32cfe9c230757a58bf202973c03bc901<SEP>chunk-928ed73f7d7cf62923d69f6f0b891515<SEP>chunk-fc4eb9a96dc69fd533da68772ec7db9e<SEP>chunk-880e5b4b63b3acd3d1053062446a08e3<SEP>chunk-d52e262d8f84c56a07e9d1fcfa1d4c46<SEP>chunk-ac2879d32fa6a2c40f73b13fb3540420<SEP>chunk-cbb67cd8f9b8131bf16184690e43b844<SEP>chunk-16ff5c12ad7d01482cf463b2df5804bf<SEP>chunk-178c65a3e81e250323604cd2f11bcaa5<SEP>chunk-73fb19bf0bb38af0fc1cd9b6bb748850<SEP>chunk-e48afb317d199e4e4c4c788428bc1e17<SEP>chunk-747de3c44d79b5d050b0e4538a90442a<SEP>chunk-c120c7253784f58def105061cf29312e<SEP>chunk-8d297d210ef5e52f44dc279e31f09f78<SEP>chunk-e58db34a9f3e91a9b8f14bbbec786879<SEP>chunk-6330a4d3bf6145fe8641ed1d37d8408e<SEP>chunk-110f84fd89402f7bca6e74b7955639c3<SEP>chunk-75d9d50112f120f44a8ca0cc3f1cba20<SEP>chunk-2ce08d210ffd0c6b46a04789f77908c5<SEP>chunk-230bf3a1b6c213c7c39fa13151204d69<SEP>chunk-9348e364f3ce581b1904ae256496a838<SEP>chunk-e42a3f57c53bd0366445d2e282ab82b5<SEP>chunk-1df499ac615e547e5e253c3beb1bb6d1<SEP>chunk-088e0ab2436e9439bb626c378cb62e06<SEP>chunk-7fed9dde4ee6383fdb1981070ce2fe42<SEP>chunk-6d7450ab61062d7339186adb0eeac79d",
+        "file_path": "S37测试用例.pdf<SEP>S38测试用例.pdf<SEP>S39测试用例.pdf<SEP>S40测试用例.pdf<SEP>S41测试用例.pdf<SEP>S42测试用例.pdf<SEP>s11测试用例.pdf<SEP>s13测试用例.pdf<SEP>s14测试用例.pdf<SEP>s16测试用例.pdf<SEP>s17测试用例.pdf<SEP>s19测试用例.pdf<SEP>s22测试用例.pdf<SEP>s23测试用例.pdf<SEP>s24测试用例.pdf<SEP>s25测试用例.pdf<SEP>s26测试用例.pdf<SEP>s27测试用例.pdf<SEP>s28测试用例.pdf<SEP>s30测试用例.pdf<SEP>S31测试用例.pdf<SEP>s32测试用例.pdf<SEP>s34测试用例.pdf<SEP>S36测试用例.pdf<SEP>XMetrix_v2.2.pdf<SEP>XMetrix_v2.4.pdf<SEP>XCloud_v1.2_小程序.pdf<SEP>TD管管理.pdf<SEP>采样登记.pdf<SEP>环境样本采集.pdf<SEP>检测任务可选设备.pdf<SEP>谱图导入.pdf<SEP>实验项目.pdf<SEP>物流清单优化.pdf<SEP>采样登记优化.pdf<SEP>XCloud_2.0管理后台.pdf<SEP>XCloud_v1.2_Web.pdf<SEP>PROII_历史列表.pdf<SEP>标气管理.pdf<SEP>TD管管理-s52.pdf<SEP>检测报告任务列表.pdf<SEP>设备管理.pdf<SEP>实验项目s52.pdf<SEP>物资流转（原物流管理）.pdf",
+        "created_at": 1782370377
+      },
+      {
+        "entity_name": "所在地点",
+        "entity_type": "data",
+        "description": "标气使用记录中的所在地点字段。<SEP>设备或TD管所处的物理位置。",
+        "source_id": "chunk-82f6c62693aee5d1c5d071b22f5f55aa<SEP>chunk-e42a3f57c53bd0366445d2e282ab82b5",
+        "file_path": "s24测试用例.pdf<SEP>设备管理.pdf",
+        "created_at": 1782366791
+      },
+      {
+        "entity_name": "用例:新增/删除TD管#1",
+        "entity_type": "content",
+        "description": "测试用例，针对TD管的新增与删除操作。",
+        "source_id": "chunk-313e136ae906bd5efc0871114ed295c9",
+        "file_path": "s28测试用例.pdf",
+        "created_at": 1779874907
+      },
+      {
+        "entity_name": "地点",
+        "entity_type": "data",
+        "description": "样本采集地点的字段。<SEP>地点是检测任务中可供选择的地点位置，用于确定采样或检测地点。",
+        "source_id": "chunk-e58a92662b7be26f58448548ade2c841<SEP>chunk-78bbe22117f604c4dfa3a41cb7c0792e",
+        "file_path": "s32测试用例.pdf",
+        "created_at": 1779876296
+      },
+      {
+        "entity_name": "TD管管理模块",
+        "entity_type": "artifact",
+        "description": "TD管管理模块是Linus Studio中的一个功能模块，用于管理TD管的状态、钢号、老化次数等信息，包含表格、搜索栏、新增按钮和分页控件。",
+        "source_id": "chunk-bbbf90b08060b198817f0a010fc21bba",
+        "file_path": "XCloud_v1.2_Web.pdf",
+        "created_at": 1780025293
+      },
+      {
+        "entity_name": "当前所在地点字段",
+        "entity_type": "data",
+        "description": "新增的字段，用于记录设备或样本的当前位置。",
+        "source_id": "chunk-1ec8a6cbd2dcfd8a4214e8379626158d",
+        "file_path": "s21测试用例.pdf",
+        "created_at": 1779868576
+      },
+      {
+        "entity_name": "查看详情按钮",
+        "entity_type": "artifact",
+        "description": "查看详情按钮是TD管管理模块表格中操作列下的按钮，用于查看TD管的详细信息。",
+        "source_id": "chunk-bbbf90b08060b198817f0a010fc21bba",
+        "file_path": "XCloud_v1.2_Web.pdf",
+        "created_at": 1780025293
+      },
+      {
+        "entity_name": "归属方",
+        "entity_type": "concept",
+        "description": "归属方是用于指定所属单位的属性，在文本中多次提及。",
+        "source_id": "chunk-9348e364f3ce581b1904ae256496a838",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353447
+      },
+      {
+        "entity_name": "S39测试用例",
+        "entity_type": "concept",
+        "description": "S39测试用例是一个测试用例集合，用于组织和管理系统功能的测试，包括自定义实体XMetrix和XUser。<SEP>S39测试用例是一套用于系统功能验证的结构化测试用例集合，以层次化流程图形式组织。",
+        "source_id": "chunk-7f25e100e203125a6c2e099ea972e12a<SEP>chunk-5a609e07c645f8b77b1570d40db7e420",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862644
+      },
+      {
+        "entity_name": "地点管理",
+        "entity_type": "concept",
+        "description": "地点管理是系统的功能模块，用于管理地点信息。<SEP>地点管理是采样点管理中的一个子模块，涉及地点ID、地点名称和地点类型等字段。<SEP>采样点管理下的子标签，具体管理地点(采样点)。",
+        "source_id": "chunk-9348e364f3ce581b1904ae256496a838<SEP>chunk-6b6d59941a728e98e7c077a0a694ae6d<SEP>chunk-77f41237ed37facdd7883fed04b9534f",
+        "file_path": "TD管管理-s52.pdf<SEP>地点管理.pdf",
+        "created_at": 1782354710
+      },
+      {
+        "entity_name": "自定义TD管模式优化",
+        "entity_type": "concept",
+        "description": "自定义TD管模式优化是S39测试用例的一个顶层类别，包含与TD管配置和样本添加相关的测试场景。",
+        "source_id": "chunk-5a609e07c645f8b77b1570d40db7e420",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862653
+      },
+      {
+        "entity_name": "当前所在地点",
+        "entity_type": "data",
+        "description": "标气当前所在的位置，用于筛选。<SEP>当前所在地点是TD管的一个字段，记录TD管当前所处位置。",
+        "source_id": "chunk-82f6c62693aee5d1c5d071b22f5f55aa<SEP>chunk-928ed73f7d7cf62923d69f6f0b891515",
+        "file_path": "s24测试用例.pdf<SEP>S31测试用例.pdf",
+        "created_at": 1779875982
+      },
+      {
+        "entity_name": "列表导出",
+        "entity_type": "method",
+        "description": "是系统中的一个功能，用于导出TD管列表数据。",
+        "source_id": "chunk-9348e364f3ce581b1904ae256496a838",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353448
+      },
+      {
+        "entity_name": "寄出地点/签收地点#1",
+        "entity_type": "event",
+        "description": "寄出地点/签收地点#1是一个测试用例，涉及可选地点的选择及权限验证。",
+        "source_id": "chunk-692b455010f79e1754ffe957eb1b4743",
+        "file_path": "s27测试用例.pdf",
+        "created_at": 1779874469
+      },
+      {
+        "entity_name": "TD管列表",
+        "entity_type": "content",
+        "description": "TD管列表是老化批次关联的TD管数据列表，可空。<SEP>TD管列表是用户输入的一组TD管号，用于批量老化操作。<SEP>TD管列表是主内容区域的一个选项卡，用于展示所有TD管的状态、编号、使用次数和老化次数。",
+        "source_id": "chunk-14bee55c8769ffa847a6e21fdfc888d7<SEP>chunk-9724d30529fdde82fb9260f667f9f3c2<SEP>chunk-8588466962b40b1c04f5a8c3a5c40960",
+        "file_path": "s28测试用例.pdf<SEP>TD管管理-s52.pdf",
+        "created_at": 1782353621
+      },
+      {
+        "entity_name": "所有地点",
+        "entity_type": "concept",
+        "description": "所有地点是系统中所有地点的集合，用于权限控制，内部人员可选，实验项目和设备管理也涵盖。",
+        "source_id": "chunk-6b6d59941a728e98e7c077a0a694ae6d",
+        "file_path": "地点管理.pdf",
+        "created_at": 1782354597
+      },
+      {
+        "entity_name": "新增",
+        "entity_type": "artifact",
+        "description": "新增是一种在系统中执行的操作或按钮，主要用于添加新的条目、任务或数据。具体而言，它可以在TD管列表中增加一行输入，用于创建新的TD管或使用记录；也可以作为设备台账页面上的按钮，用于添加新设备；此外，它还作为平台中的通用按钮，用于添加新条目。在字典管理权限的上下文中，新增是一个未选中的权限项。需要注意的是，新增操作在某些场景下存在限制，例如不允许对现有的RT对照表执行该操作。总体而言，新增的核心功能是向系统中引入新的元素或记录，但其具体应用范围和权限因上下文而异。<SEP>新增是一个按钮控件，用于添加新的标气记录。",
+        "source_id": "chunk-b2f34033d15b997bd208eb19a41a460a<SEP>chunk-14bee55c8769ffa847a6e21fdfc888d7<SEP>chunk-dd5486a83f744668de6e98b6b2da6679<SEP>chunk-442ba79a7c931acb0c2dc22835f6f0b1<SEP>chunk-601966ea2263a797992556bd87282e39<SEP>chunk-110f84fd89402f7bca6e74b7955639c3<SEP>chunk-fe9f8917e70f005203e189e82c531c99",
+        "file_path": "s14测试用例.pdf<SEP>s28测试用例.pdf<SEP>s30测试用例.pdf<SEP>XMetrix_v2.2.pdf<SEP>权限分配.pdf<SEP>XCloud_v1.2_Web.pdf<SEP>风险计算_用户管理.pdf<SEP>标气批次.pdf",
+        "created_at": 1782354125
+      },
+      {
+        "entity_name": "当前所在地点字段添加操作",
+        "entity_type": "method",
+        "description": "在新增/编辑/列表字段中添加当前所在地点字段的变更。",
+        "source_id": "chunk-1ec8a6cbd2dcfd8a4214e8379626158d",
+        "file_path": "s21测试用例.pdf",
+        "created_at": 1779868580
+      },
+      {
+        "entity_name": "用例:编辑TD管-当前所在地点#1",
+        "entity_type": "content",
+        "description": "用例:编辑TD管-当前所在地点#1是一个测试用例，包含步骤(编辑TD管-当前所在地点，点击提交)和预期结果(正常提交)。",
+        "source_id": "chunk-d758cde2dccb09c9add1548c7afdc993",
+        "file_path": "S41测试用例.pdf",
+        "created_at": 1779863299
+      },
+      {
+        "entity_name": "寄送地点字段",
+        "entity_type": "data",
+        "description": "寄送地点字段是手动选择寄送地点模态中的必填下拉选择框，用于指定交付地点。",
+        "source_id": "chunk-d814d2084b65f0a722c021e6e15bd49e",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353618
+      },
+      {
+        "entity_name": "新增按钮",
+        "entity_type": "artifact",
+        "description": "新增按钮是一个在多个系统界面中出现的交互控件，主要用于执行各类数据新增操作。其外观在不同页面中略有差异：在绝大多数页面（如检测项目列表、检测卡列表、阈值设置表格、客户列表、VOC列表、角色管理界面、首页、物联网卡记录页面、TD管记录页面等）中，该按钮以绿色呈现；但在关联采样点列表区域中，该按钮显示为蓝色并带有“+新增”文字标识。尽管颜色存在局部变化，其核心功能是一致的——在对应的数据列表或表格中新增一条记录。\n\n具体而言，新增按钮的功能随所在上下文而不同：在检测项目列表页面，它用于添加新的检测项目；在检测卡列表上方，它用于创建新检测卡；在阈值设置表格中，它用于添加新的风险等级行或阈值行；在客户列表页面，它用于创建新客户；在VOC列表页面，它用于添加新的VOC条目；在角色管理界面中，它用于添加新的系统角色；在首页上，它用于添加新的资产记录；此外，该按钮还可用于添加新的物联网卡记录、添加新的TD管记录，以及在关联采样点列表区域中添加新的采样点。所有描述均指向同一类型的交互控件，其统一作用是在对应数据集合中新增一条空白记录或条目，触发后续的编辑或保存操作。<SEP>界面右上角的绿色新增按钮，用于添加新的地点。<SEP>新增按钮是检测项目列表表格上的操作按钮，用于添加新的检测项目。",
+        "source_id": "chunk-78bbe22117f604c4dfa3a41cb7c0792e<SEP>chunk-ae1900530ec8911c41de1494a7ba191a<SEP>chunk-e2069afe10eaa42ddb6215155f9f4650<SEP>chunk-07abf266a2d9ba6a4b5e7b57e8bc9c12<SEP>chunk-2cd149afc5a41bc0776fe7db054725d1<SEP>chunk-5b6ba21adca3a0954467db9b1fec13ac<SEP>chunk-fe48a276b612ab90d6c6893677027ec8<SEP>chunk-a5a6d8f366859b57cb9bae2b65ab5ee4<SEP>chunk-1c27af6d31ba775ac9402dfb22640a07<SEP>chunk-c52786205ae1d7c9a89ec3503f782b67<SEP>chunk-b7070437d9240cd6d4a60b8684953bad<SEP>chunk-d27762f044c57ef77aedce40dae5f856<SEP>chunk-2b08e4db3688b615f2a888306461b8a1<SEP>chunk-8eda94313fe736b50786f0a5b1293e90<SEP>chunk-9b952a80d8daad97442300bd49623f0f<SEP>chunk-ed95db30f0b14b8d87233efbb6c1a52e<SEP>chunk-bbbf90b08060b198817f0a010fc21bba<SEP>chunk-77f41237ed37facdd7883fed04b9534f<SEP>chunk-9126d768e01884f501f0c584498ab22e",
+        "file_path": "s32测试用例.pdf<SEP>XMetrix_v2.1.pdf<SEP>XMetrix_v2.4.pdf<SEP>34.pdf<SEP>20.pdf<SEP>XCloud_2.0管理后台.pdf<SEP>XCloud_v1.2_Web.pdf<SEP>地点管理.pdf<SEP>检测项目列表.pdf",
+        "created_at": 1782357386
+      },
+      {
+        "entity_name": "采样点位置",
+        "entity_type": "data",
+        "description": "采样点位置是采样点的一个字段，用于描述采样点的地理位置，字符数限制为50字符。<SEP>采样点位置是采样点管理中的字段，用于记录采样点的地理位置。<SEP>地点位置的子标签，表示采样点的具体位置。",
+        "source_id": "chunk-ae4bf2d83feb510b33d7defba968c75d<SEP>chunk-6b6d59941a728e98e7c077a0a694ae6d<SEP>chunk-77f41237ed37facdd7883fed04b9534f",
+        "file_path": "s13测试用例.pdf<SEP>地点管理.pdf",
+        "created_at": 1782354710
+      },
+      {
+        "entity_name": "自定义:TD管管理/自定义:新增",
+        "entity_type": "concept",
+        "description": "自定义:TD管管理下的子模块，包含下载模版、上传文件、清空待导入数据、表单内重复、校验数据下一步等测试用例。",
+        "source_id": "chunk-528dfbccb40ac50452cdbfbcec76be91",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865345
+      },
+      {
+        "entity_name": "地点类型",
+        "entity_type": "data",
+        "description": "地点类型定义地点的分类，包括采样点、检测实验室和内部部门。<SEP>表格列字段，用于分类地点的类型，如医院等。",
+        "source_id": "chunk-6b6d59941a728e98e7c077a0a694ae6d<SEP>chunk-77f41237ed37facdd7883fed04b9534f",
+        "file_path": "地点管理.pdf",
+        "created_at": 1782354710
+      },
+      {
+        "entity_name": "自定义:TD管管理/自定义:新增/用例:清空待导入数据#1",
+        "entity_type": "concept",
+        "description": "测试用例，用于验证清空已上传数据功能，有步骤和预期结果。",
+        "source_id": "chunk-528dfbccb40ac50452cdbfbcec76be91",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865347
+      },
+      {
+        "entity_name": "所在采样点",
+        "entity_type": "location",
+        "description": "设备或工单关联的采样点位置。<SEP>所在采样点是设备台账中的字段，根据设备最后一次安装工单关联的采样点展示对应值，某些设备类型不展示。<SEP>所在采样点是表单中必填字段，用于选择或输入采样点。<SEP>所在采样点是设备安装工单中指定的采样点位置。",
+        "source_id": "chunk-1ec8a6cbd2dcfd8a4214e8379626158d<SEP>chunk-7d7a61c58995feeb84f48700728f7994<SEP>chunk-6b6d59941a728e98e7c077a0a694ae6d",
+        "file_path": "s21测试用例.pdf<SEP>s27测试用例.pdf<SEP>设备关联采样点.pdf<SEP>地点管理.pdf",
+        "created_at": 1782354596
+      },
+      {
+        "entity_name": "用例:提示TD管数应为10#1",
+        "entity_type": "content",
+        "description": "用例:提示TD管数应为10#1是一个测试用例，包含关于TD管数提示的步骤和预期结果(正常提示)。",
+        "source_id": "chunk-d758cde2dccb09c9add1548c7afdc993",
+        "file_path": "S41测试用例.pdf",
+        "created_at": 1779863299
+      },
+      {
+        "entity_name": "所在地点列",
+        "entity_type": "content",
+        "description": "表格列，记录所在地点，如精智未来、荔湾医院花地湾院区。",
+        "source_id": "chunk-2499f26f1c9e0fd9cb26e6a854427d70",
+        "file_path": "TD管管理.pdf",
+        "created_at": 1779946163
+      },
+      {
+        "entity_name": "自定义:TD管管理/自定义:新增/用例:表单内TD管重复#1",
+        "entity_type": "concept",
+        "description": "测试用例，用于验证表单内TD管重复校验，无详细步骤预期。",
+        "source_id": "chunk-528dfbccb40ac50452cdbfbcec76be91",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865347
+      },
+      {
+        "entity_name": "预约地点",
+        "entity_type": "data",
+        "description": "预约地点是预约成功通知所需的一个字段，表示预约的地点。",
+        "source_id": "chunk-2adeebc2ce35765a3c18d60805317fd7",
+        "file_path": "34.pdf",
+        "created_at": 1779937386
+      },
+      {
+        "entity_name": "回车",
+        "entity_type": "method",
+        "description": "回车是键盘按键操作，用于触发新增行或提交输入。",
+        "source_id": "chunk-14bee55c8769ffa847a6e21fdfc888d7",
+        "file_path": "s28测试用例.pdf",
+        "created_at": 1779874904
+      },
+      {
+        "entity_name": "可选地点",
+        "entity_type": "method",
+        "description": "可选地点是测试步骤中的操作，用于选择地点。",
+        "source_id": "chunk-692b455010f79e1754ffe957eb1b4743",
+        "file_path": "s27测试用例.pdf",
+        "created_at": 1779874469
+      },
+      {
+        "entity_name": "用例:基本信息添加新字段#1",
+        "entity_type": "event",
+        "description": "测试用例，验证在基本信息中添加使用次数、老化次数、最近老化信息、当前所在地点等字段。",
+        "source_id": "chunk-928ed73f7d7cf62923d69f6f0b891515",
+        "file_path": "S31测试用例.pdf",
+        "created_at": 1779875980
+      },
+      {
+        "entity_name": "地址字段",
+        "entity_type": "data",
+        "description": "地址字段是一个必填的文本区域，提示“请输入采样点地址”，用于输入采样点的地址。<SEP>一个必填文本区域，标签为“*地址”，占位符为“请输入采样点地址”，用于输入采样点地址。",
+        "source_id": "chunk-b89aea3cbd153c18be63a26fc19122ec<SEP>chunk-1a8be06bf5a1fc8c01051c897a7c9393",
+        "file_path": "20.pdf",
+        "created_at": 1779939770
+      },
+      {
+        "entity_name": "取消按钮",
+        "entity_type": "artifact",
+        "description": "取消按钮是用户界面中常见的一种交互控件，其核心功能是为用户提供安全退出途径，用于取消当前操作、关闭对话框、终止流程，且不执行任何数据提交、编辑保存或流程继续的操作。点击该按钮后，系统通常会关闭所在的弹窗、对话框、模态框、小窗或页面，用户停留在当前页面或返回上一级界面。该控件在所有场景中均扮演标准安全出口的角色，帮助防止误操作或中途放弃任务。具体应用场景包括：在新增检测卡对话框、导出激活码对话框、编辑VOC对话框、extra_param表单、重复性测试窗口、队列进样模块、下发定量表弹窗、二次确认提示框等界面中，用于放弃添加、编辑、导出、下发或确认操作；此外也出现在添加TD管表单底部，以及主窗口底部用于取消选中的行或任务操作，还包括样本接收操作中的取消功能。\n\n在视觉样式上，取消按钮通常呈现为次要操作按钮。多数描述指出其为灰色调按钮（如浅灰色或灰色背景），文字颜色多为白色或黑色，标签为“取消”。部分实现中按钮背景为黑色且文字为白色，或为浅灰色背景配黑色文字。然而，也有描述将其称为“蓝色轮廓按钮”、“白底蓝字”或“白色按钮蓝色文字”，甚至有一条描述称其为“模态对话框中的一个蓝色按钮”，以及“白色背景蓝色边框的按钮”用于取消样本接收操作。这些与灰色主流的描述存在冲突，可能属于特定界面设计中的个别变体或描述错误，不能代表普遍情况。此外，还有描述提到“背景为白色”、“白色按钮”以及“主面板中的交互按钮”。总体而言，多数实现中取消按钮采用灰色调来标识其次要操作地位，但存在多种色彩变体。\n\n在位置布局上，取消按钮常见于对话框、表单或模态框的底部（如右下角或左侧），也出现在界面底部黑色面板中、表单右上角、批量搜索对话框、新增算法对话框、算法详情页面、小窗以及extra_param对话框中。部分描述还指出其位于主面板中，或作为窗口中的蓝色轮廓按钮。尽管视觉样式存在变体，取消按钮在所有场景中均提供不执行变更的退出功能。",
+        "source_id": "chunk-0d95f4eb4d9aad02bdb58e54d147f927<SEP>chunk-39af86e2499209c5cc0eefe0d692bec7<SEP>chunk-32cfe9c230757a58bf202973c03bc901<SEP>chunk-78bbe22117f604c4dfa3a41cb7c0792e<SEP>chunk-93ce99b5185d46376d066859c0c22163<SEP>chunk-30a11dbe5b215c6c05d9c79f0e57ff57<SEP>chunk-7d5b50b36d2042a42c8d05fb250388bf<SEP>chunk-85b4fc8c4b949d5443976e49eb12a1b3<SEP>chunk-eff1460ebf518cd286a7d60366813fcf<SEP>chunk-fe9f8917e70f005203e189e82c531c99<SEP>chunk-05a91abed3bcfb12e1e8c6c1b13dac9a<SEP>chunk-99c3f387444b53a23111e52d6b5e6006<SEP>chunk-4d50a079f854b1a3a8503c339089f7a5<SEP>chunk-9aa524cd4c2d9e1172c59818b33ebaa1<SEP>chunk-2dd53a701949036765ebed9cdfb472a7",
+        "file_path": "s14测试用例.pdf<SEP>s30测试用例.pdf<SEP>s32测试用例.pdf<SEP>33.pdf<SEP>20.pdf<SEP>XMetrix_v2.1.pdf<SEP>XMetrix_v2.3.pdf<SEP>XMetrix_v2.4.pdf<SEP>34.pdf<SEP>XMetrix_v2.2.pdf<SEP>XCloud_v1.2_小程序.pdf<SEP>物流清单.pdf<SEP>XCloud_2.0管理后台.pdf<SEP>XCloud_v1.2_Web.pdf<SEP>定标记录.pdf<SEP>风险计算_任务列表.pdf<SEP>风险计算_系统配置.pdf<SEP>风险计算_用户管理.pdf<SEP>PROII_MFC配气模板选择.pdf<SEP>PROII_生产调试—单模块测试.pdf<SEP>51测试用例.pdf<SEP>TD管管理-s52.pdf<SEP>标气批次.pdf<SEP>检测报告任务列表.pdf<SEP>实验项目s52.pdf<SEP>物资流转（原物流管理）.pdf<SEP>质控任务列表.pdf",
+        "created_at": 1782373252
+      },
+      {
+        "entity_name": "签收地点",
+        "entity_type": "concept",
+        "description": "签收地点是物品实际签收的位置，可以手动输入。<SEP>签收发生的具体地点，可手动输入。<SEP>签收发生的地点，可手动输入。<SEP>签收地点字段。<SEP>签收地点是样本被签收的地点。<SEP>签收地点是手动选择寄送地点弹窗中的一个字段，用于选择接收地址。",
+        "source_id": "chunk-0d95f4eb4d9aad02bdb58e54d147f927<SEP>chunk-4e945c9f07a671e06aee8ca691e7c2e0<SEP>chunk-666c50ace1109e21891c724670cd9d32<SEP>chunk-e1771468661d88df8215fa4a5cca135e<SEP>chunk-efb6ebfc0b0988bcdbbbda656729ed9f<SEP>chunk-99c3f387444b53a23111e52d6b5e6006",
+        "file_path": "s14测试用例.pdf<SEP>s29测试用例.pdf<SEP>s32测试用例.pdf<SEP>实验项目s52.pdf",
+        "created_at": 1782368487
+      },
+      {
+        "entity_name": "添加TD管表单",
+        "entity_type": "content",
+        "description": "一个模态窗口表单，包含4步向导(上传文件、校验数据、预览数据、数据导入)，用于新增TD管入库。<SEP>添加TD管表单是用于新建TD管记录的界面表单，包含上传文件、校验数据、预览数据和数据导入四个步骤。",
+        "source_id": "chunk-d814d2084b65f0a722c021e6e15bd49e<SEP>chunk-6a2ff776c502afb11af8ca8ef1fc3657",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353617
+      },
+      {
+        "entity_name": "当前位置字段",
+        "entity_type": "concept",
+        "description": "左面板指令中为新增TD管添加的字段，用于指定当前位置。",
+        "source_id": "chunk-6a2ff776c502afb11af8ca8ef1fc3657",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353619
+      },
+      {
+        "entity_name": "TD管管理",
+        "entity_type": "concept",
+        "description": "TD管管理是SP+系统中的一个功能模块，同时也是呼析云左侧边栏导航菜单中归属于资产管理下的子模块，并在精智未来云管理后台（亦称CLOUD精智未来管理后台或精智·未来云平台）中作为独立模块运行。该模块专门用于管理TD管的相关功能，涵盖导入、校验、预览、查看、编辑等操作，并支持使用记录、库存管理、分配和回收等用例。作为一个基于Web的管理系统，TD管管理旨在集中管理TD管的信息，包括其库存状态、分配流程、回收处理以及物流跟踪，从而实现对TD管全生命周期的有效管控。此外，该模块通过列表形式展示TD管及其使用记录，便于用户进行全面的查看与操作。<SEP>平台中专门用于管理TD管使用的模块。<SEP>TD管管理是系统的功能模块，用于管理TD管的编号、状态、老化信息。<SEP>TD管管理是资产管理下的一个子菜单项，用于管理TD管，在左侧导航栏中显示。",
+        "source_id": "chunk-5a956e38fde5b20399e4f71b1cd1177c<SEP>chunk-ae4bf2d83feb510b33d7defba968c75d<SEP>chunk-08584584f481d5d939e49a8cfc37e2a0<SEP>chunk-6db3ee750aef8f127faedf3621a7c5c0<SEP>chunk-e1a7e6682d118fd3b55bd49650662382<SEP>chunk-747de3c44d79b5d050b0e4538a90442a<SEP>chunk-c120c7253784f58def105061cf29312e<SEP>chunk-0c662b5f29265f3c1c6ad4d1245265db<SEP>chunk-230bf3a1b6c213c7c39fa13151204d69<SEP>chunk-fe9f8917e70f005203e189e82c531c99<SEP>chunk-e42a3f57c53bd0366445d2e282ab82b5<SEP>chunk-1df499ac615e547e5e253c3beb1bb6d1<SEP>chunk-26c65f6eddc40b3d8a0046c002cf294c",
+        "file_path": "S41测试用例.pdf<SEP>s13测试用例.pdf<SEP>s22测试用例.pdf<SEP>s25测试用例.pdf<SEP>XMetrix_v2.3.pdf<SEP>检测任务.pdf<SEP>检测任务可选设备.pdf<SEP>谱图导入.pdf<SEP>PID管理.pdf<SEP>标气管理.pdf<SEP>TD管管理-s52.pdf<SEP>标气批次.pdf<SEP>设备管理.pdf<SEP>实验项目s52.pdf",
+        "created_at": 1782368485
+      },
+      {
+        "entity_name": "寄送地点",
+        "entity_type": "concept",
+        "description": "寄送地点是物流单中需要手动选择的地点字段，表示物品的寄出地。<SEP>寄送地点是物流单中需要手动选择的发货地点。<SEP>寄送地点是手动选择寄送地点弹窗中的一个字段，用于选择发送地址。<SEP>寄送地点是系统更新后代替寄件地点的新术语。<SEP>下拉菜单字段，用于选择样本的寄送地点，默认值为“1”。",
+        "source_id": "chunk-b0796330cda0340c4ad2143ff2d4f9e3<SEP>chunk-1df499ac615e547e5e253c3beb1bb6d1<SEP>chunk-99c3f387444b53a23111e52d6b5e6006<SEP>chunk-7fed9dde4ee6383fdb1981070ce2fe42<SEP>chunk-9aa524cd4c2d9e1172c59818b33ebaa1",
+        "file_path": "检测报告任务列表.pdf<SEP>实验项目s52.pdf<SEP>物资流转（原物流管理）.pdf<SEP>质控任务列表.pdf",
+        "created_at": 1782373243
+      },
+      {
+        "entity_name": "查看",
+        "entity_type": "concept",
+        "description": "查看是TD管管理中的一个操作，用于展示已导入的TD管数据列表。<SEP>查看是一个用例，用于浏览任务详细信息。<SEP>查看是一个链接，用于查看问题记录的详细信息。<SEP>查看是字典管理权限中的一个未选中权限项。",
+        "source_id": "chunk-ae4bf2d83feb510b33d7defba968c75d<SEP>chunk-6a0bdd94818406989167e9cf2801ec24<SEP>chunk-bb8fd6dba85e60f38fe787432fb73d72<SEP>chunk-cb02f7e1a96d990201b84f50ddf7d7f6",
+        "file_path": "s13测试用例.pdf<SEP>s20测试用例.pdf<SEP>XCloud_v1.2_Web.pdf<SEP>风险计算_用户管理.pdf",
+        "created_at": 1780538624
+      },
+      {
+        "entity_name": "寄出地点字段",
+        "entity_type": "concept",
+        "description": "寄出地点字段是必填字段，提供地点选择下拉框。",
+        "source_id": "chunk-435d24dca0bed5eb7c4661f812b984f0",
+        "file_path": "物流清单.pdf",
+        "created_at": 1779963027
+      },
+      {
+        "entity_name": "50根TD管添加与提交",
+        "entity_type": "concept",
+        "description": "50根TD管添加与提交是一个测试用例标题，描述添加50根TD管并提交的边界情况测试。",
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097460
+      },
+      {
+        "entity_name": "寄出地点",
+        "entity_type": "location",
+        "description": "寄出地点是寄件信息中的字段，通过搜索采样点名称选择，只可选择启用状态的采样点。<SEP>寄出地点是物流单的寄件地址，通过选择采样点输入。<SEP>寄出地点字段，与签收地点有相同选择限制。<SEP>寄出地点是物流单中记录的发货地点，与寄件地点类似，但在排序中提及。<SEP>寄出地点是样本寄出的地点。",
+        "source_id": "chunk-fd7ec210fa5159d9581c9e89a78dc114<SEP>chunk-b2f34033d15b997bd208eb19a41a460a<SEP>chunk-e1771468661d88df8215fa4a5cca135e<SEP>chunk-4bc2988a9eb91ebea67175707d3422c8<SEP>chunk-efb6ebfc0b0988bcdbbbda656729ed9f",
+        "file_path": "s14测试用例.pdf<SEP>s29测试用例.pdf<SEP>S31测试用例.pdf<SEP>s32测试用例.pdf",
+        "created_at": 1779876317
+      },
+      {
+        "entity_name": "TC-FUTURE-ENV-TD-007",
+        "entity_type": "event",
+        "description": "TC-FUTURE-ENV-TD-007是一个测试用例，标题为50根TD管添加与提交，验证系统处理大量TD管提交的性能。<SEP>测试用例，验证添加50根TD管并提交的功能，关联REQ-001边界情况",
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc<SEP>chunk-f146093ecca4ac54a79e424f6f562696",
+        "file_path": "S51测试用例.xlsx<SEP>51测试用例.pdf",
+        "created_at": 1782099994
+      },
+      {
+        "entity_name": "采样点*",
+        "entity_type": "data",
+        "description": "采样点*是云平台中必填的字段，用于指定采样的位置。",
+        "source_id": "chunk-335a983baf13e8f52ea74cb6bacdcf01",
+        "file_path": "云平台辅助工具.pdf",
+        "created_at": 1782372210
+      },
+      {
+        "entity_name": "表单界面",
+        "entity_type": "artifact",
+        "description": "表单界面是实验管理系统中的一个UI组件，用于展示和编辑样本详情，包含多个字段和按钮。<SEP>表单界面是系统的一部分，包含可编辑文本字段、复选框和表格。<SEP>表单界面是一个基于Web的输入表单，用于设备或标本管理，包含多个输入字段和按钮。<SEP>表单界面是Linus Studio提供的用于管理TD管数据的Web界面，包含表单字段、按钮和提示信息。<SEP>一个黑暗主题的表单界面，包含两个必填问题(吸烟史和接触二手烟)以及取消和保存按钮，属于医疗检测任务管理系统。",
+        "source_id": "chunk-353a5fdec3c686ff447267fc9e29dc1a<SEP>chunk-86e06cb0008651a9eba4655c243edf0b<SEP>chunk-30eef9ee1ead839577dbaf1bff7c3d87<SEP>chunk-d30798462ac99affe52c068dfeee2277<SEP>chunk-de9d3b343dca7327e1e3513b9f06a6d7",
+        "file_path": "实验项目.pdf<SEP>XCloud_2.0管理后台.pdf<SEP>XCloud_v1.2_Web.pdf<SEP>风险计算_任务列表.pdf",
+        "created_at": 1780536975
+      },
+      {
+        "entity_name": "实际签收地点",
+        "entity_type": "location",
+        "description": "实际签收地点是物流单上的一个字段，标识实际签收的位置。",
+        "source_id": "chunk-9724d30529fdde82fb9260f667f9f3c2",
+        "file_path": "s28测试用例.pdf",
+        "created_at": 1779874918
+      },
+      {
+        "entity_name": "自定义:TD管管理/自定义:新增/用例:校验数据下一步#1",
+        "entity_type": "concept",
+        "description": "测试用例，用于验证校验数据后下一步操作，无详细步骤预期。",
+        "source_id": "chunk-528dfbccb40ac50452cdbfbcec76be91",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865347
+      },
+      {
+        "entity_name": "检测点",
+        "entity_type": "location",
+        "description": "检测点是用户期望或实际预约的检测地点。",
+        "source_id": "chunk-afb0653737a17c6416927976ac52db2d",
+        "file_path": "s34测试用例.pdf",
+        "created_at": 1779876833
+      },
+      {
+        "entity_name": "提示TD管数应为10#1",
+        "entity_type": "concept",
+        "description": "提示TD管数应为10#1是一个测试用例，验证TD管列表提示应添加10根TD管，以及新增不足或超过10根时的提示。<SEP>提示TD管数应为10#1是一个测试用例，提示TD管数应为10。",
+        "source_id": "chunk-5a956e38fde5b20399e4f71b1cd1177c<SEP>chunk-4e3aedcc9097f0d1a6d69397be8f7195",
+        "file_path": "S41测试用例.pdf",
+        "created_at": 1779863297
+      },
+      {
+        "entity_name": "采样点地址",
+        "entity_type": "concept",
+        "description": "采样点地址是采样点列表中的必填字段，可自动填入或手动输入。<SEP>采样点地址是表单中的一个可选字段，用于输入采样点的地理位置地址，支持多行文本。",
+        "source_id": "chunk-bbc556a405fe174733fa2d60daf5b4dc<SEP>chunk-ab4d21572072ee436c8bb7f7c21ff60e",
+        "file_path": "s15测试用例.pdf<SEP>20.pdf",
+        "created_at": 1779939800
+      }
+    ],
+    "relationships": [
+      {
+        "src_id": "张三",
+        "tgt_id": "期望检测地点",
+        "description": "张三在预约时选择了期望检测地点。",
+        "keywords": "选择,预约",
+        "weight": 1.0,
+        "source_id": "chunk-938ef22b635d8d3fbfc60393c82a4da1",
+        "file_path": "商业化小程序.pdf",
+        "created_at": 1779877557
+      },
+      {
+        "src_id": "用例:变更TD管列表展示位置#1",
+        "tgt_id": "自定义:TD管管理",
+        "description": "该测试用例验证TD管列表与统计展示位置变更。",
+        "keywords": "测试验证,界面变更",
+        "weight": 1.0,
+        "source_id": "chunk-928ed73f7d7cf62923d69f6f0b891515",
+        "file_path": "S31测试用例.pdf",
+        "created_at": 1779875990
+      },
+      {
+        "src_id": "期望检测地点",
+        "tgt_id": "精智未来",
+        "description": "精智未来是期望检测地点中的另一个可选机构。",
+        "keywords": "地点选项,检测机构",
+        "weight": 1.0,
+        "source_id": "chunk-3d724c31249fcdb7bb4a6e21d90320c4",
+        "file_path": "34.pdf",
+        "created_at": 1779937717
+      },
+      {
+        "src_id": "s13测试用例",
+        "tgt_id": "自定义:TD管管理",
+        "description": "s13测试用例包含自定义:TD管管理模块。",
+        "keywords": "包含,模块",
+        "weight": 1.0,
+        "source_id": "chunk-528dfbccb40ac50452cdbfbcec76be91",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865352
+      },
+      {
+        "src_id": "寄件地点列",
+        "tgt_id": "精智未来",
+        "description": "精智未来是寄件地点列中的一个具体地点。",
+        "keywords": "寄件地点,数据实例",
+        "weight": 1.0,
+        "source_id": "chunk-7fed9dde4ee6383fdb1981070ce2fe42",
+        "file_path": "物资流转（原物流管理）.pdf",
+        "created_at": 1782370385
+      },
+      {
+        "src_id": "用例:增加操作者字段#1",
+        "tgt_id": "自定义:TD管管理",
+        "description": "该测试用例验证在TD管相关操作中展示操作者姓名。",
+        "keywords": "字段增加,测试验证",
+        "weight": 1.0,
+        "source_id": "chunk-928ed73f7d7cf62923d69f6f0b891515",
+        "file_path": "S31测试用例.pdf",
+        "created_at": 1779875989
+      },
+      {
+        "src_id": "TD管",
+        "tgt_id": "所在地点",
+        "description": "TD管的所在地点在操作中保持不变。",
+        "keywords": "位置信息,绑定关系",
+        "weight": 1.0,
+        "source_id": "chunk-e42a3f57c53bd0366445d2e282ab82b5",
+        "file_path": "设备管理.pdf",
+        "created_at": 1782366809
+      },
+      {
+        "src_id": "TD管",
+        "tgt_id": "用例:新增/删除TD管#1",
+        "description": "该用例测试TD管的新增与删除操作。",
+        "keywords": "测试操作",
+        "weight": 1.0,
+        "source_id": "chunk-313e136ae906bd5efc0871114ed295c9",
+        "file_path": "s28测试用例.pdf",
+        "created_at": 1779874923
+      },
+      {
+        "src_id": "TD管",
+        "tgt_id": "归属方",
+        "description": "TD管具有归属方属性，用于指定所属单位。",
+        "keywords": "属性关联",
+        "weight": 1.0,
+        "source_id": "chunk-9348e364f3ce581b1904ae256496a838",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353449
+      },
+      {
+        "src_id": "TD管管理模块",
+        "tgt_id": "查看详情按钮",
+        "description": "TD管管理模块的表格操作列中包含查看详情按钮。",
+        "keywords": "功能,包含",
+        "weight": 1.0,
+        "source_id": "chunk-bbbf90b08060b198817f0a010fc21bba",
+        "file_path": "XCloud_v1.2_Web.pdf",
+        "created_at": 1780025460
+      },
+      {
+        "src_id": "所在地点列",
+        "tgt_id": "精智未来",
+        "description": "所在地点列中包含精智未来作为一个地点值。",
+        "keywords": "包含,地点",
+        "weight": 1.0,
+        "source_id": "chunk-2499f26f1c9e0fd9cb26e6a854427d70",
+        "file_path": "TD管管理.pdf",
+        "created_at": 1779946174
+      },
+      {
+        "src_id": "S39测试用例",
+        "tgt_id": "自定义TD管模式优化",
+        "description": "S39测试用例包含自定义TD管模式优化作为顶层类别。",
+        "keywords": "包含,组织",
+        "weight": 1.0,
+        "source_id": "chunk-5a609e07c645f8b77b1570d40db7e420",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862667
+      },
+      {
+        "src_id": "METRIX精智·呼析云",
+        "tgt_id": "采样点地址",
+        "description": "采样点地址是METRIX精智·呼析云系统中采样点管理表单的一个可选字段。",
+        "keywords": "系统组件,表单字段",
+        "weight": 1.0,
+        "source_id": "chunk-ab4d21572072ee436c8bb7f7c21ff60e",
+        "file_path": "20.pdf",
+        "created_at": 1779940037
+      },
+      {
+        "src_id": "TD管",
+        "tgt_id": "列表导出",
+        "description": "列表导出功能用于导出TD管列表数据。",
+        "keywords": "列表,导出",
+        "weight": 1.0,
+        "source_id": "chunk-9348e364f3ce581b1904ae256496a838",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353450
+      },
+      {
+        "src_id": "期望检测地点",
+        "tgt_id": "检测卡",
+        "description": "检测卡的预约信息包含期望检测地点。",
+        "keywords": "关联,预约",
+        "weight": 1.0,
+        "source_id": "chunk-938ef22b635d8d3fbfc60393c82a4da1",
+        "file_path": "商业化小程序.pdf",
+        "created_at": 1779877556
+      },
+      {
+        "src_id": "TD管列表",
+        "tgt_id": "新增",
+        "description": "用户点击新增，在TD管列表下方新增一行输入。",
+        "keywords": "增加行",
+        "weight": 1.0,
+        "source_id": "chunk-14bee55c8769ffa847a6e21fdfc888d7",
+        "file_path": "s28测试用例.pdf",
+        "created_at": 1779874920
+      },
+      {
+        "src_id": "检测卡",
+        "tgt_id": "检测点",
+        "description": "检测卡有期望或实际预约的检测点。",
+        "keywords": "预约",
+        "weight": 1.0,
+        "source_id": "chunk-afb0653737a17c6416927976ac52db2d",
+        "file_path": "s34测试用例.pdf",
+        "created_at": 1779876856
+      },
+      {
+        "src_id": "用例:编辑TD管-当前所在地点#1",
+        "tgt_id": "自定义:TD管管理",
+        "description": "自定义:TD管管理模块包含测试用例“用例:编辑TD管-当前所在地点#1”。",
+        "keywords": "包含,测试用例归属",
+        "weight": 1.0,
+        "source_id": "chunk-d758cde2dccb09c9add1548c7afdc993",
+        "file_path": "S41测试用例.pdf",
+        "created_at": 1779863306
+      },
+      {
+        "src_id": "样本",
+        "tgt_id": "签收地点",
+        "description": "样本与签收地点相关联。",
+        "keywords": "字段关联,空间关联",
+        "weight": 1.0,
+        "source_id": "chunk-efb6ebfc0b0988bcdbbbda656729ed9f",
+        "file_path": "s32测试用例.pdf",
+        "created_at": 1779876360
+      },
+      {
+        "src_id": "TD管管理模块",
+        "tgt_id": "新增按钮",
+        "description": "TD管管理模块提供新增按钮用于添加新TD管。",
+        "keywords": "包含功能",
+        "weight": 1.0,
+        "source_id": "chunk-bbbf90b08060b198817f0a010fc21bba",
+        "file_path": "XCloud_v1.2_Web.pdf",
+        "created_at": 1780025459
+      },
+      {
+        "src_id": "寄出地点",
+        "tgt_id": "样本",
+        "description": "样本与寄出地点相关联。",
+        "keywords": "字段关联,空间关联",
+        "weight": 1.0,
+        "source_id": "chunk-efb6ebfc0b0988bcdbbbda656729ed9f",
+        "file_path": "s32测试用例.pdf",
+        "created_at": 1779876358
+      },
+      {
+        "src_id": "自定义:TD管管理/自定义:新增",
+        "tgt_id": "自定义:TD管管理/自定义:新增/用例:清空待导入数据#1",
+        "description": "自定义:新增子模块(TD管管理)包含用例:清空待导入数据#1。",
+        "keywords": "包含,测试用例",
+        "weight": 1.0,
+        "source_id": "chunk-528dfbccb40ac50452cdbfbcec76be91",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865352
+      },
+      {
+        "src_id": "寄送地点",
+        "tgt_id": "物流单",
+        "description": "物流单包含寄送地点字段，需手动选择。",
+        "keywords": "包含,寄送信息",
+        "weight": 1.0,
+        "source_id": "chunk-1df499ac615e547e5e253c3beb1bb6d1",
+        "file_path": "实验项目s52.pdf",
+        "created_at": 1782368384
+      },
+      {
+        "src_id": "用例:提示TD管数应为10#1",
+        "tgt_id": "自定义:TD管管理",
+        "description": "自定义:TD管管理模块包含测试用例“用例:提示TD管数应为10#1”。",
+        "keywords": "包含,测试用例归属",
+        "weight": 1.0,
+        "source_id": "chunk-d758cde2dccb09c9add1548c7afdc993",
+        "file_path": "S41测试用例.pdf",
+        "created_at": 1779863306
+      },
+      {
+        "src_id": "收件地点",
+        "tgt_id": "样本",
+        "description": "样本具有收件地点，可据此筛选样本。",
+        "keywords": "物流属性",
+        "weight": 1.0,
+        "source_id": "chunk-12213945bf8e700b05501baf76a65236",
+        "file_path": "s21测试用例.pdf",
+        "created_at": 1779868610
+      },
+      {
+        "src_id": "自定义:TD管管理/自定义:新增",
+        "tgt_id": "自定义:TD管管理/自定义:新增/用例:表单内TD管重复#1",
+        "description": "自定义:新增子模块(TD管管理)包含用例:表单内TD管重复#1。",
+        "keywords": "包含,测试用例",
+        "weight": 1.0,
+        "source_id": "chunk-528dfbccb40ac50452cdbfbcec76be91",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865353
+      },
+      {
+        "src_id": "寄件地点",
+        "tgt_id": "样本",
+        "description": "样本具有寄件地点，可据此筛选样本。",
+        "keywords": "物流属性",
+        "weight": 1.0,
+        "source_id": "chunk-12213945bf8e700b05501baf76a65236",
+        "file_path": "s21测试用例.pdf",
+        "created_at": 1779868610
+      },
+      {
+        "src_id": "回车",
+        "tgt_id": "新增",
+        "description": "在TD管最后一行按回车键可触发新增一行。",
+        "keywords": "触发操作",
+        "weight": 1.0,
+        "source_id": "chunk-14bee55c8769ffa847a6e21fdfc888d7",
+        "file_path": "s28测试用例.pdf",
+        "created_at": 1779874924
+      },
+      {
+        "src_id": "寄出地点",
+        "tgt_id": "采样点",
+        "description": "寄出地点通过搜索采样点名称选择对应采样点。<SEP>寄出地点通过选择采样点来输入。",
+        "keywords": "搜索匹配,数据源,选择关系,选择关联",
+        "weight": 2.0,
+        "source_id": "chunk-fd7ec210fa5159d9581c9e89a78dc114<SEP>chunk-b2f34033d15b997bd208eb19a41a460a",
+        "file_path": "s14测试用例.pdf",
+        "created_at": 1779865599
+      },
+      {
+        "src_id": "TD管",
+        "tgt_id": "用例:基本信息添加新字段#1",
+        "description": "该测试用例验证TD管的基本信息字段，包括使用次数、老化次数、最近老化批次、最近老化时间、当前所在地点。",
+        "keywords": "字段配置,测试验证",
+        "weight": 1.0,
+        "source_id": "chunk-928ed73f7d7cf62923d69f6f0b891515",
+        "file_path": "S31测试用例.pdf",
+        "created_at": 1779875991
+      },
+      {
+        "src_id": "地点类型",
+        "tgt_id": "采样点",
+        "description": "地点类型包括采样点这一类别。",
+        "keywords": "分类,定义",
+        "weight": 1.0,
+        "source_id": "chunk-6b6d59941a728e98e7c077a0a694ae6d",
+        "file_path": "地点管理.pdf",
+        "created_at": 1782354599
+      },
+      {
+        "src_id": "取消按钮",
+        "tgt_id": "添加TD管表单",
+        "description": "添加TD管表单底部包含取消按钮。",
+        "keywords": "包含关系,界面按钮",
+        "weight": 1.0,
+        "source_id": "chunk-6a2ff776c502afb11af8ca8ef1fc3657",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353641
+      },
+      {
+        "src_id": "实际签收地点",
+        "tgt_id": "物流单",
+        "description": "物流单包含实际签收地点字段，标识实际签收位置。",
+        "keywords": "字段包含,属性",
+        "weight": 1.0,
+        "source_id": "chunk-9724d30529fdde82fb9260f667f9f3c2",
+        "file_path": "s28测试用例.pdf",
+        "created_at": 1779874930
+      },
+      {
+        "src_id": "TD管管理",
+        "tgt_id": "查看",
+        "description": "TD管管理模块中，通过查看操作展示已导入的TD管数据列表。",
+        "keywords": "功能操作,数据查看",
+        "weight": 1.0,
+        "source_id": "chunk-ae4bf2d83feb510b33d7defba968c75d",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865191
+      },
+      {
+        "src_id": "寄件地点",
+        "tgt_id": "物流单",
+        "description": "物流单包含寄件地点字段，可用于筛选。",
+        "keywords": "包含,属性",
+        "weight": 1.0,
+        "source_id": "chunk-4bc2988a9eb91ebea67175707d3422c8",
+        "file_path": "S31测试用例.pdf",
+        "created_at": 1779875994
+      },
+      {
+        "src_id": "50根TD管添加与提交",
+        "tgt_id": "TC-FUTURE-ENV-TD-007",
+        "description": "TC-FUTURE-ENV-TD-007的标题是50根TD管添加与提交，描述大量管添加的边界测试。",
+        "keywords": "标题关联,用例标识",
+        "weight": 1.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097474
+      },
+      {
+        "src_id": "期望签收地点",
+        "tgt_id": "物流单",
+        "description": "物流单包含期望签收地点字段，用于筛选和排序。",
+        "keywords": "字段包含,属性",
+        "weight": 1.0,
+        "source_id": "chunk-9724d30529fdde82fb9260f667f9f3c2",
+        "file_path": "s28测试用例.pdf",
+        "created_at": 1779874931
+      },
+      {
+        "src_id": "TD管",
+        "tgt_id": "表单界面",
+        "description": "表单界面用于管理TD管的数据录入和验证。",
+        "keywords": "数据,管理",
+        "weight": 1.0,
+        "source_id": "chunk-30eef9ee1ead839577dbaf1bff7c3d87",
+        "file_path": "XCloud_v1.2_Web.pdf",
+        "created_at": 1780025332
+      },
+      {
+        "src_id": "地点管理",
+        "tgt_id": "状态",
+        "description": "地点管理表格使用状态开关控制地点的启用状态。",
+        "keywords": "启用控制,数据字段",
+        "weight": 1.0,
+        "source_id": "chunk-77f41237ed37facdd7883fed04b9534f",
+        "file_path": "地点管理.pdf",
+        "created_at": 1782354720
+      },
+      {
+        "src_id": "自定义:TD管管理/自定义:新增",
+        "tgt_id": "自定义:TD管管理/自定义:新增/用例:校验数据下一步#1",
+        "description": "自定义:新增子模块(TD管管理)包含用例:校验数据下一步#1。",
+        "keywords": "包含,测试用例",
+        "weight": 1.0,
+        "source_id": "chunk-528dfbccb40ac50452cdbfbcec76be91",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865354
+      },
+      {
+        "src_id": "SPO000025",
+        "tgt_id": "状态",
+        "description": "SPO000025采样点的状态为启用(激活)。",
+        "keywords": "状态管理",
+        "weight": 1.0,
+        "source_id": "chunk-77f41237ed37facdd7883fed04b9534f",
+        "file_path": "地点管理.pdf",
+        "created_at": 1782354718
+      },
+      {
+        "src_id": "提示TD管数应为10#1",
+        "tgt_id": "老化批次",
+        "description": "该测试用例属于老化批次模块，验证TD管列表提示应添加10根TD管以及数量限制提示。",
+        "keywords": "功能测试,归属关系",
+        "weight": 1.0,
+        "source_id": "chunk-5a956e38fde5b20399e4f71b1cd1177c",
+        "file_path": "S41测试用例.pdf",
+        "created_at": 1779863166
+      },
+      {
+        "src_id": "SPO000023",
+        "tgt_id": "状态",
+        "description": "SPO000023采样点的状态为启用。",
+        "keywords": "状态管理",
+        "weight": 1.0,
+        "source_id": "chunk-77f41237ed37facdd7883fed04b9534f",
+        "file_path": "地点管理.pdf",
+        "created_at": 1782354719
+      },
+      {
+        "src_id": "Web表单",
+        "tgt_id": "添加TD管记录操作",
+        "description": "用户通过Web表单进行添加TD管记录的操作。",
+        "keywords": "数据录入,界面交互",
+        "weight": 1.0,
+        "source_id": "chunk-0f360477b9f6249ea1648d3329ee8eb9",
+        "file_path": "XCloud_v1.2_Web.pdf",
+        "created_at": 1780025503
+      },
+      {
+        "src_id": "SPO000008",
+        "tgt_id": "状态",
+        "description": "SPO000008采样点的状态为启用。",
+        "keywords": "状态管理",
+        "weight": 1.0,
+        "source_id": "chunk-77f41237ed37facdd7883fed04b9534f",
+        "file_path": "地点管理.pdf",
+        "created_at": 1782354719
+      },
+      {
+        "src_id": "TD管管理",
+        "tgt_id": "编辑TD管-当前所在地点#1",
+        "description": "该测试用例属于TD管管理模块，验证编辑TD管当前所在地点并提交的功能。",
+        "keywords": "功能测试,归属关系",
+        "weight": 1.0,
+        "source_id": "chunk-5a956e38fde5b20399e4f71b1cd1177c",
+        "file_path": "S41测试用例.pdf",
+        "created_at": 1779863166
+      },
+      {
+        "src_id": "地点管理",
+        "tgt_id": "采样点管理",
+        "description": "采样点管理模块包含地点管理子模块。<SEP>采样点管理菜单下包含地点管理子标签。",
+        "keywords": "包含,包含关系,子菜单,模块关系",
+        "weight": 2.0,
+        "source_id": "chunk-6b6d59941a728e98e7c077a0a694ae6d<SEP>chunk-77f41237ed37facdd7883fed04b9534f",
+        "file_path": "地点管理.pdf",
+        "created_at": 1782354715
+      },
+      {
+        "src_id": "导入类型下拉框",
+        "tgt_id": "添加TD管表单",
+        "description": "添加TD管表单中包含导入类型下拉框。",
+        "keywords": "包含关系,界面元素",
+        "weight": 1.0,
+        "source_id": "chunk-6a2ff776c502afb11af8ca8ef1fc3657",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353642
+      },
+      {
+        "src_id": "寄出地点",
+        "tgt_id": "搜索",
+        "description": "搜索可依据寄出地点(寄件地址)进行查询，返回对应数据。",
+        "keywords": "关键字,搜索条件",
+        "weight": 1.0,
+        "source_id": "chunk-b2f34033d15b997bd208eb19a41a460a",
+        "file_path": "s14测试用例.pdf",
+        "created_at": 1779865614
+      },
+      {
+        "src_id": "校验数据步骤",
+        "tgt_id": "添加TD管表单",
+        "description": "添加TD管表单的4步向导中包括校验数据步骤。",
+        "keywords": "包含关系,向导步骤",
+        "weight": 1.0,
+        "source_id": "chunk-6a2ff776c502afb11af8ca8ef1fc3657",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353638
+      },
+      {
+        "src_id": "采样点列表",
+        "tgt_id": "采样点地址",
+        "description": "采样点列表中的表单包含采样点地址作为必填字段。",
+        "keywords": "包含字段,必填",
+        "weight": 1.0,
+        "source_id": "chunk-bbc556a405fe174733fa2d60daf5b4dc",
+        "file_path": "s15测试用例.pdf",
+        "created_at": 1779866022
+      },
+      {
+        "src_id": "用例:基本信息添加新字段#1",
+        "tgt_id": "自定义:TD管管理",
+        "description": "该测试用例验证在基本信息中添加使用次数、老化次数等字段。",
+        "keywords": "字段增加,测试验证",
+        "weight": 1.0,
+        "source_id": "chunk-928ed73f7d7cf62923d69f6f0b891515",
+        "file_path": "S31测试用例.pdf",
+        "created_at": 1779875990
+      },
+      {
+        "src_id": "寄送地点",
+        "tgt_id": "物流管理（原）页面 - 精智未来云管理后台 (image)",
+        "description": "Entity 寄送地点 belongs to 物流管理（原）页面 - 精智未来云管理后台 (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-7fed9dde4ee6383fdb1981070ce2fe42",
+        "file_path": "物资流转（原物流管理）.pdf",
+        "created_at": 1782370400
+      },
+      {
+        "src_id": "TD管管理",
+        "tgt_id": "数据预览",
+        "description": "TD管管理模块中包含数据预览功能，用于在提交前查看待导入的数据。",
+        "keywords": "功能模块,数据核对",
+        "weight": 1.0,
+        "source_id": "chunk-ae4bf2d83feb510b33d7defba968c75d",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865190
+      },
+      {
+        "src_id": "Sampling Point (Location) Management Dashboard (image)",
+        "tgt_id": "地点管理",
+        "description": "Entity 地点管理 belongs to Sampling Point (Location) Management Dashboard (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-77f41237ed37facdd7883fed04b9534f",
+        "file_path": "地点管理.pdf",
+        "created_at": 1782354723
+      },
+      {
+        "src_id": "自定义:TD管管理/自定义:新增",
+        "tgt_id": "自定义:TD管管理/自定义:新增/用例:下载模版#1",
+        "description": "自定义:新增子模块(TD管管理)包含用例:下载模版#1。",
+        "keywords": "包含,测试用例",
+        "weight": 1.0,
+        "source_id": "chunk-528dfbccb40ac50452cdbfbcec76be91",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865351
+      },
+      {
+        "src_id": "寄件地点列",
+        "tgt_id": "物流管理（原）页面 - 精智未来云管理后台 (image)",
+        "description": "Entity 寄件地点列 belongs to 物流管理（原）页面 - 精智未来云管理后台 (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-7fed9dde4ee6383fdb1981070ce2fe42",
+        "file_path": "物资流转（原物流管理）.pdf",
+        "created_at": 1782370392
+      },
+      {
+        "src_id": "TD管管理",
+        "tgt_id": "添加TD管表单",
+        "description": "TD管管理模块提供添加TD管表单作为创建TD管记录的界面入口。",
+        "keywords": "功能模块,界面元素",
+        "weight": 1.0,
+        "source_id": "chunk-d814d2084b65f0a722c021e6e15bd49e",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353631
+      },
+      {
+        "src_id": "实验项目",
+        "tgt_id": "所有地点",
+        "description": "实验项目的采样点涵盖所有地点，即项目均可用。",
+        "keywords": "关联,包含",
+        "weight": 1.0,
+        "source_id": "chunk-6b6d59941a728e98e7c077a0a694ae6d",
+        "file_path": "地点管理.pdf",
+        "created_at": 1782354602
+      },
+      {
+        "src_id": "时间格式提示",
+        "tgt_id": "添加TD管表单",
+        "description": "添加TD管表单中包含红色文字的时间格式提示。",
+        "keywords": "包含关系,界面元素",
+        "weight": 1.0,
+        "source_id": "chunk-6a2ff776c502afb11af8ca8ef1fc3657",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353642
+      },
+      {
+        "src_id": "寄出地点字段",
+        "tgt_id": "新增物流单",
+        "description": "新增物流单包含寄出地点字段。",
+        "keywords": "包含,字段",
+        "weight": 1.0,
+        "source_id": "chunk-435d24dca0bed5eb7c4661f812b984f0",
+        "file_path": "物流清单.pdf",
+        "created_at": 1779963050
+      },
+      {
+        "src_id": "下一步按钮",
+        "tgt_id": "添加TD管表单",
+        "description": "添加TD管表单底部包含下一步按钮。",
+        "keywords": "包含关系,界面按钮",
+        "weight": 1.0,
+        "source_id": "chunk-6a2ff776c502afb11af8ca8ef1fc3657",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353641
+      },
+      {
+        "src_id": "所在地点",
+        "tgt_id": "标气",
+        "description": "标气的使用记录中会记录所在地点。",
+        "keywords": "使用记录,属性",
+        "weight": 1.0,
+        "source_id": "chunk-82f6c62693aee5d1c5d071b22f5f55aa",
+        "file_path": "s24测试用例.pdf",
+        "created_at": 1779870461
+      },
+      {
+        "src_id": "校验数据",
+        "tgt_id": "添加TD管表单",
+        "description": "添加TD管表单包含校验数据作为其四个步骤中的第二步。",
+        "keywords": "流程环节,表单步骤",
+        "weight": 1.0,
+        "source_id": "chunk-d814d2084b65f0a722c021e6e15bd49e",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353630
+      },
+      {
+        "src_id": "地点",
+        "tgt_id": "新增按钮",
+        "description": "选择地点后点击新增按钮可正常新增检测任务。",
+        "keywords": "新增操作",
+        "weight": 1.0,
+        "source_id": "chunk-78bbe22117f604c4dfa3a41cb7c0792e",
+        "file_path": "s32测试用例.pdf",
+        "created_at": 1779876355
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-004",
+        "tgt_id": "系统",
+        "description": "该测试用例验证系统对多TD管的提交成功与编码分配。",
+        "keywords": "提交,编码分配",
+        "weight": 1.0,
+        "source_id": "chunk-7d5b50b36d2042a42c8d05fb250388bf",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100078
+      },
+      {
+        "src_id": "当前所在地点",
+        "tgt_id": "标气",
+        "description": "标气可通过当前所在地点字段进行筛选。",
+        "keywords": "属性,筛选",
+        "weight": 1.0,
+        "source_id": "chunk-82f6c62693aee5d1c5d071b22f5f55aa",
+        "file_path": "s24测试用例.pdf",
+        "created_at": 1779870459
+      },
+      {
+        "src_id": "按TD管号排序#1",
+        "tgt_id": "排序",
+        "description": "排序功能包含按'TD管号'排序#1测试用例，验证TD管号字段排序。",
+        "keywords": "包含,测试用例",
+        "weight": 1.0,
+        "source_id": "chunk-6a0bdd94818406989167e9cf2801ec24",
+        "file_path": "s20测试用例.pdf",
+        "created_at": 1779867825
+      },
+      {
+        "src_id": "样本存放点",
+        "tgt_id": "气体来源",
+        "description": "当气体来源不等于标气时，样本存放点字段为必填且需从存放点字典中选择。",
+        "keywords": "业务规则,条件必填",
+        "weight": 1.0,
+        "source_id": "chunk-1af68c7b4677a1f9adbc5e600296cf25",
+        "file_path": "s32测试用例.pdf",
+        "created_at": 1779876368
+      },
+      {
+        "src_id": "TD管检测",
+        "tgt_id": "用例:基本信息添加新字段#1",
+        "description": "该测试用例验证使用次数累计方式中包括TD管检测。",
+        "keywords": "字段配置,测试验证",
+        "weight": 1.0,
+        "source_id": "chunk-928ed73f7d7cf62923d69f6f0b891515",
+        "file_path": "S31测试用例.pdf",
+        "created_at": 1779875992
+      },
+      {
+        "src_id": "寄出地点/签收地点#1",
+        "tgt_id": "物流管理",
+        "description": "物流管理模块下包含寄出地点/签收地点#1这个测试用例。",
+        "keywords": "包含,测试用例",
+        "weight": 1.0,
+        "source_id": "chunk-692b455010f79e1754ffe957eb1b4743",
+        "file_path": "s27测试用例.pdf",
+        "created_at": 1779874487
+      },
+      {
+        "src_id": "下载模板按钮",
+        "tgt_id": "添加TD管表单",
+        "description": "添加TD管表单包含下载模板按钮。",
+        "keywords": "包含关系,界面按钮",
+        "weight": 1.0,
+        "source_id": "chunk-6a2ff776c502afb11af8ca8ef1fc3657",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353640
+      },
+      {
+        "src_id": "Sampling Point (Location) Management Dashboard (image)",
+        "tgt_id": "地点类型",
+        "description": "Entity 地点类型 belongs to Sampling Point (Location) Management Dashboard (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-77f41237ed37facdd7883fed04b9534f",
+        "file_path": "地点管理.pdf",
+        "created_at": 1782354725
+      },
+      {
+        "src_id": "方法:输入TD管号搜索",
+        "tgt_id": "用例:检测任务清单界面优化#1",
+        "description": "界面优化用例包含了按TD管号搜索的方法。",
+        "keywords": "优化内容,包含",
+        "weight": 1.0,
+        "source_id": "chunk-53d2d84ba4b8a66fddc523a79876e197",
+        "file_path": "s29测试用例.pdf",
+        "created_at": 1779875359
+      },
+      {
+        "src_id": "Experimental Project Sample Management (亚太国际, EXP-RD_004) - Submission Workflow Screenshot (image)",
+        "tgt_id": "寄送地点",
+        "description": "Entity 寄送地点 belongs to Experimental Project Sample Management (亚太国际, EXP-RD_004) - Submission Workflow Screenshot (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-99c3f387444b53a23111e52d6b5e6006",
+        "file_path": "实验项目s52.pdf",
+        "created_at": 1782368521
+      },
+      {
+        "src_id": "REQ-001",
+        "tgt_id": "TC-FUTURE-ENV-TD-007",
+        "description": "TC-FUTURE-ENV-TD-007关联需求REQ-001，用于覆盖TD管添加功能的边界情况。<SEP>TC-FUTURE-ENV-TD-007作为边界测试验证了REQ-001在50根TD管情况下的功能",
+        "keywords": "关联需求,边界测试,边界覆盖",
+        "weight": 2.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc<SEP>chunk-f146093ecca4ac54a79e424f6f562696",
+        "file_path": "S51测试用例.xlsx<SEP>51测试用例.pdf",
+        "created_at": 1782100068
+      },
+      {
+        "src_id": "SPO000025",
+        "tgt_id": "Sampling Point (Location) Management Dashboard (image)",
+        "description": "Entity SPO000025 belongs to Sampling Point (Location) Management Dashboard (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-77f41237ed37facdd7883fed04b9534f",
+        "file_path": "地点管理.pdf",
+        "created_at": 1782354728
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-003",
+        "tgt_id": "环境登记-TD管管理",
+        "description": "TC-FUTURE-ENV-TD-003归属于环境登记-TD管管理模块，用于验证必填项校验。",
+        "keywords": "功能测试,归属关系",
+        "weight": 1.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097471
+      },
+      {
+        "src_id": "Medical Form Field Configuration Table (Patient Data Entry) (image)",
+        "tgt_id": "期望检测地点",
+        "description": "Entity 期望检测地点 belongs to Medical Form Field Configuration Table (Patient Data Entry) (image)<SEP>Entity 期望检测地点 belongs to Medical Form Field Configuration Table (Patient Data Entry) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 20.0,
+        "source_id": "chunk-217fdbf09f9d19e5f4997467ada7438c",
+        "file_path": "34.pdf",
+        "created_at": 1779937675
+      },
+      {
+        "src_id": "添加TD管表单",
+        "tgt_id": "预览数据步骤",
+        "description": "添加TD管表单的4步向导中包括预览数据步骤。",
+        "keywords": "包含关系,向导步骤",
+        "weight": 1.0,
+        "source_id": "chunk-6a2ff776c502afb11af8ca8ef1fc3657",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353638
+      },
+      {
+        "src_id": "Sampling Point (Location) Management Dashboard (image)",
+        "tgt_id": "采样点位置",
+        "description": "Entity 采样点位置 belongs to Sampling Point (Location) Management Dashboard (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-77f41237ed37facdd7883fed04b9534f",
+        "file_path": "地点管理.pdf",
+        "created_at": 1782354726
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-001",
+        "tgt_id": "添加TD管按钮",
+        "description": "TC-FUTURE-ENV-TD-001通过点击添加TD管按钮来验证多TD管添加入口功能。<SEP>测试用例中多次点击添加TD管按钮。",
+        "keywords": "交互对象,功能验证,操作,点击",
+        "weight": 2.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc<SEP>chunk-7d5b50b36d2042a42c8d05fb250388bf",
+        "file_path": "S51测试用例.xlsx<SEP>51测试用例.pdf",
+        "created_at": 1782100077
+      },
+      {
+        "src_id": "SPO000023",
+        "tgt_id": "Sampling Point (Location) Management Dashboard (image)",
+        "description": "Entity SPO000023 belongs to Sampling Point (Location) Management Dashboard (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-77f41237ed37facdd7883fed04b9534f",
+        "file_path": "地点管理.pdf",
+        "created_at": 1782354729
+      },
+      {
+        "src_id": "自定义:TD管管理/自定义:新增",
+        "tgt_id": "自定义:TD管管理/自定义:新增/用例:上传文件#1",
+        "description": "自定义:新增子模块(TD管管理)包含用例:上传文件#1。",
+        "keywords": "包含,测试用例",
+        "weight": 1.0,
+        "source_id": "chunk-528dfbccb40ac50452cdbfbcec76be91",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865352
+      },
+      {
+        "src_id": "SPO000008",
+        "tgt_id": "Sampling Point (Location) Management Dashboard (image)",
+        "description": "Entity SPO000008 belongs to Sampling Point (Location) Management Dashboard (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-77f41237ed37facdd7883fed04b9534f",
+        "file_path": "地点管理.pdf",
+        "created_at": 1782354729
+      },
+      {
+        "src_id": "创建流转单按钮",
+        "tgt_id": "添加TD管表单",
+        "description": "添加TD管表单下方包含创建流转单按钮，用于触发物料转移单创建操作。",
+        "keywords": "动作触发,界面元素",
+        "weight": 1.0,
+        "source_id": "chunk-d814d2084b65f0a722c021e6e15bd49e",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353632
+      },
+      {
+        "src_id": "新增入库",
+        "tgt_id": "添加TD管表单",
+        "description": "添加TD管表单的导入类型默认为新增入库。",
+        "keywords": "包含关系,导入类型",
+        "weight": 1.0,
+        "source_id": "chunk-6a2ff776c502afb11af8ca8ef1fc3657",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353639
+      },
+      {
+        "src_id": "Sampling Point (Location) Management Dashboard (image)",
+        "tgt_id": "地点ID",
+        "description": "Entity 地点ID belongs to Sampling Point (Location) Management Dashboard (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-77f41237ed37facdd7883fed04b9534f",
+        "file_path": "地点管理.pdf",
+        "created_at": 1782354724
+      },
+      {
+        "src_id": "上传文件按钮",
+        "tgt_id": "添加TD管表单",
+        "description": "添加TD管表单包含上传文件按钮。",
+        "keywords": "包含关系,界面按钮",
+        "weight": 1.0,
+        "source_id": "chunk-6a2ff776c502afb11af8ca8ef1fc3657",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353640
+      },
+      {
+        "src_id": "Sampling Point (Location) Management Dashboard (image)",
+        "tgt_id": "地点位置",
+        "description": "Entity 地点位置 belongs to Sampling Point (Location) Management Dashboard (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-77f41237ed37facdd7883fed04b9534f",
+        "file_path": "地点管理.pdf",
+        "created_at": 1782354726
+      },
+      {
+        "src_id": "自定义:TD管管理/自定义:新增/用例:下载模版#1",
+        "tgt_id": "预期:正常下载模版，模版字段为TD管号、生产产商、采购时间、备注",
+        "description": "用例:下载模版#1包含预期:正常下载模版。",
+        "keywords": "包含,预期",
+        "weight": 1.0,
+        "source_id": "chunk-528dfbccb40ac50452cdbfbcec76be91",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865354
+      },
+      {
+        "src_id": "Sampling Point (Location) Management Dashboard (image)",
+        "tgt_id": "地点名称",
+        "description": "Entity 地点名称 belongs to Sampling Point (Location) Management Dashboard (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-77f41237ed37facdd7883fed04b9534f",
+        "file_path": "地点管理.pdf",
+        "created_at": 1782354724
+      },
+      {
+        "src_id": "数据导入",
+        "tgt_id": "添加TD管表单",
+        "description": "添加TD管表单包含数据导入作为其四个步骤中的第四步。",
+        "keywords": "流程环节,表单步骤",
+        "weight": 1.0,
+        "source_id": "chunk-d814d2084b65f0a722c021e6e15bd49e",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353630
+      },
+      {
+        "src_id": "TD管管理系统添加表单界面（CLOUD 精智未来） (image)",
+        "tgt_id": "默认位置设置",
+        "description": "Entity 默认位置设置 belongs to TD管管理系统添加表单界面（CLOUD 精智未来） (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-6a2ff776c502afb11af8ca8ef1fc3657",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353650
+      },
+      {
+        "src_id": "批量操作按钮",
+        "tgt_id": "表单导出#1",
+        "description": "表单导出#1中增加批量操作按钮，切换清空数据。",
+        "keywords": "UI布局,切换",
+        "weight": 1.0,
+        "source_id": "chunk-b8e6641d0d08007db3431ee49381c0ce",
+        "file_path": "S42测试用例.pdf",
+        "created_at": 1779863601
+      },
+      {
+        "src_id": "TD管管理系统添加表单界面（CLOUD 精智未来） (image)",
+        "tgt_id": "归属方字段",
+        "description": "Entity 归属方字段 belongs to TD管管理系统添加表单界面（CLOUD 精智未来） (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-6a2ff776c502afb11af8ca8ef1fc3657",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353649
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-001",
+        "tgt_id": "TD管输入框",
+        "description": "点击按钮后新增TD管输入框，累计显示6组。",
+        "keywords": "新增,显示",
+        "weight": 1.0,
+        "source_id": "chunk-7d5b50b36d2042a42c8d05fb250388bf",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100077
+      },
+      {
+        "src_id": "Experimental Project Sample Management (亚太国际, EXP-RD_004) - Submission Workflow Screenshot (image)",
+        "tgt_id": "签收地点",
+        "description": "Entity 签收地点 belongs to Experimental Project Sample Management (亚太国际, EXP-RD_004) - Submission Workflow Screenshot (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-99c3f387444b53a23111e52d6b5e6006",
+        "file_path": "实验项目s52.pdf",
+        "created_at": 1782368522
+      },
+      {
+        "src_id": "TD管管理系统-数据导入及流转单创建界面 (image)",
+        "tgt_id": "添加TD管表单",
+        "description": "Entity 添加TD管表单 belongs to TD管管理系统-数据导入及流转单创建界面 (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-d814d2084b65f0a722c021e6e15bd49e",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353633
+      },
+      {
+        "src_id": "TD管管理系统添加表单界面（CLOUD 精智未来） (image)",
+        "tgt_id": "当前位置字段",
+        "description": "Entity 当前位置字段 belongs to TD管管理系统添加表单界面（CLOUD 精智未来） (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-6a2ff776c502afb11af8ca8ef1fc3657",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353649
+      },
+      {
+        "src_id": "小程序",
+        "tgt_id": "小程序-新增多个TD管#1",
+        "description": "小程序模块包含新增多个TD管测试用例。",
+        "keywords": "包含,测试",
+        "weight": 1.0,
+        "source_id": "chunk-8b784b76bd2e76fe01e7158deac2e90a",
+        "file_path": "s23测试用例.pdf",
+        "created_at": 1779870153
+      },
+      {
+        "src_id": "所在采样点",
+        "tgt_id": "色谱仪",
+        "description": "色谱仪最后一次安装工单关联多个采样点时，所在采样点字段展示对应值。",
+        "keywords": "关联字段,设备类型",
+        "weight": 1.0,
+        "source_id": "chunk-7d7a61c58995feeb84f48700728f7994",
+        "file_path": "s27测试用例.pdf",
+        "created_at": 1779874483
+      },
+      {
+        "src_id": "数据导入步骤",
+        "tgt_id": "添加TD管表单",
+        "description": "添加TD管表单的4步向导中包括数据导入步骤。",
+        "keywords": "包含关系,向导步骤",
+        "weight": 1.0,
+        "source_id": "chunk-6a2ff776c502afb11af8ca8ef1fc3657",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353639
+      },
+      {
+        "src_id": "Medical Sampling Registration Form (Mobile App Interface) (image)",
+        "tgt_id": "所属组织字段",
+        "description": "Entity 所属组织字段 belongs to Medical Sampling Registration Form (Mobile App Interface) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-6da1caab67d273e181b53308d149de71",
+        "file_path": "采样登记优化.pdf",
+        "created_at": 1780017744
+      },
+      {
+        "src_id": "自定义:TD管管理/自定义:新增/用例:清空待导入数据#1",
+        "tgt_id": "预期:成功清空已上传的数据，下一步按钮置灰不可点击",
+        "description": "用例:清空待导入数据#1包含预期:成功清空数据。",
+        "keywords": "包含,预期",
+        "weight": 1.0,
+        "source_id": "chunk-528dfbccb40ac50452cdbfbcec76be91",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865354
+      },
+      {
+        "src_id": "采样登记表",
+        "tgt_id": "采用点编码",
+        "description": "采样登记表包含采用点编码字段，用于新增时填写。",
+        "keywords": "包含,字段",
+        "weight": 1.0,
+        "source_id": "chunk-dcecfd8727d6aedcfb965c9fb6ff3672",
+        "file_path": "s32测试用例.pdf",
+        "created_at": 1779876347
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-001",
+        "tgt_id": "环境登记-TD管管理",
+        "description": "TC-FUTURE-ENV-TD-001归属于环境登记-TD管管理模块，用于验证多TD管添加入口。",
+        "keywords": "功能测试,归属关系",
+        "weight": 1.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097470
+      },
+      {
+        "src_id": "TD管管理_使用记录数据表 (TD Tube Management - Usage Records Data Table) (image)",
+        "tgt_id": "所在地点列",
+        "description": "Entity 所在地点列 belongs to TD管管理_使用记录数据表 (TD Tube Management - Usage Records Data Table) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-2499f26f1c9e0fd9cb26e6a854427d70",
+        "file_path": "TD管管理.pdf",
+        "created_at": 1779946179
+      },
+      {
+        "src_id": "添加TD管记录操作",
+        "tgt_id": "确定按钮",
+        "description": "用户通过点击确定按钮来触发添加TD管记录的操作。",
+        "keywords": "提交动作,操作触发",
+        "weight": 1.0,
+        "source_id": "chunk-0f360477b9f6249ea1648d3329ee8eb9",
+        "file_path": "XCloud_v1.2_Web.pdf",
+        "created_at": 1780025505
+      },
+      {
+        "src_id": "所在采样点",
+        "tgt_id": "设备安装",
+        "description": "设备安装界面包含必填字段“所在采样点”。",
+        "keywords": "包含,字段",
+        "weight": 1.0,
+        "source_id": "chunk-cbe1f8269da9a4311332c58ccd2fade9",
+        "file_path": "设备关联采样点.pdf",
+        "created_at": 1779960096
+      },
+      {
+        "src_id": "SP+系统",
+        "tgt_id": "TD管管理",
+        "description": "SP+系统包含TD管管理模块，用于管理TD管数据的导入、校验、预览、查看和编辑。",
+        "keywords": "包含关系,系统模块",
+        "weight": 1.0,
+        "source_id": "chunk-ae4bf2d83feb510b33d7defba968c75d",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865187
+      },
+      {
+        "src_id": "所在采样点",
+        "tgt_id": "设备台账",
+        "description": "设备台账包含所在采样点字段，该字段根据设备安装工单关联的采样点展示。",
+        "keywords": "包含,字段",
+        "weight": 1.0,
+        "source_id": "chunk-7d7a61c58995feeb84f48700728f7994",
+        "file_path": "s27测试用例.pdf",
+        "created_at": 1779874482
+      },
+      {
+        "src_id": "新增样本TD管数量统计",
+        "tgt_id": "新增统计图表场景",
+        "description": "新增统计图表场景包含新增样本TD管数量统计测试点。",
+        "keywords": "包含",
+        "weight": 1.0,
+        "source_id": "chunk-3db2fced39f60198ed351afb9b4b0902",
+        "file_path": "s11测试用例.pdf",
+        "created_at": 1779864371
+      },
+      {
+        "src_id": "发现异常地点",
+        "tgt_id": "异常TD任务",
+        "description": "发现异常地点是异常TD任务的一个字段。",
+        "keywords": "字段归属",
+        "weight": 1.0,
+        "source_id": "chunk-48478c3f994bdb657be43333618d93aa",
+        "file_path": "异常TD任务.pdf",
+        "created_at": 1782371043
+      },
+      {
+        "src_id": "TD配置文件导入",
+        "tgt_id": "添加测试任务弹出窗口",
+        "description": "弹出窗口包含TD配置文件导入按钮。",
+        "keywords": "包含控件",
+        "weight": 1.0,
+        "source_id": "chunk-88ddfee9f5826ff6cdd3e5264d9be2d5",
+        "file_path": "PROII_生产调试—单模块测试.pdf",
+        "created_at": 1780973377
+      },
+      {
+        "src_id": "寄出地点字段",
+        "tgt_id": "新增物流单表单 (New Logistics Order Form) (image)",
+        "description": "Entity 寄出地点字段 belongs to 新增物流单表单 (New Logistics Order Form) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-435d24dca0bed5eb7c4661f812b984f0",
+        "file_path": "物流清单.pdf",
+        "created_at": 1779963056
+      },
+      {
+        "src_id": "TD管状态变化列",
+        "tgt_id": "使用记录选项卡",
+        "description": "使用记录选项卡中的表格包含TD管状态变化列。",
+        "keywords": "包含,表格列",
+        "weight": 1.0,
+        "source_id": "chunk-2499f26f1c9e0fd9cb26e6a854427d70",
+        "file_path": "TD管管理.pdf",
+        "created_at": 1779946173
+      },
+      {
+        "src_id": "寄出地点/签收地点#1",
+        "tgt_id": "小程序",
+        "description": "小程序平台下包含寄出地点/签收地点#1测试用例。",
+        "keywords": "包含,测试用例",
+        "weight": 1.0,
+        "source_id": "chunk-692b455010f79e1754ffe957eb1b4743",
+        "file_path": "s27测试用例.pdf",
+        "created_at": 1779874488
+      },
+      {
+        "src_id": "待签收的物资源转单",
+        "tgt_id": "添加TD管表单",
+        "description": "新增TD管时，添加TD管表单可同时创建待签收的物资源转单。",
+        "keywords": "关联创建,物料流转",
+        "weight": 1.0,
+        "source_id": "chunk-d814d2084b65f0a722c021e6e15bd49e",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353633
+      },
+      {
+        "src_id": "地点/地标图标",
+        "tgt_id": "工具栏",
+        "description": "工具栏包含地点/地标图标，位于语言/翻译图标右侧。",
+        "keywords": "包含关系,界面结构",
+        "weight": 1.0,
+        "source_id": "chunk-7f1a32e0da2cf5b01dd246bcc7e1369e",
+        "file_path": "20.pdf",
+        "created_at": 1779939827
+      },
+      {
+        "src_id": "亚太国际体检中心",
+        "tgt_id": "期望检测地点",
+        "description": "亚太国际体检中心是期望检测地点中的一个可选机构。",
+        "keywords": "地点选项,检测机构",
+        "weight": 1.0,
+        "source_id": "chunk-3d724c31249fcdb7bb4a6e21d90320c4",
+        "file_path": "34.pdf",
+        "created_at": 1779937715
+      },
+      {
+        "src_id": "期望预约检测点",
+        "tgt_id": "筛选操作",
+        "description": "筛选操作可按期望预约检测点进行匹配。",
+        "keywords": "筛选条件",
+        "weight": 1.0,
+        "source_id": "chunk-afb0653737a17c6416927976ac52db2d",
+        "file_path": "s34测试用例.pdf",
+        "created_at": 1779876861
+      },
+      {
+        "src_id": "Device Installation Form (设备安装) with Sampling Point Association (image)",
+        "tgt_id": "所在采样点",
+        "description": "Entity 所在采样点 belongs to Device Installation Form (设备安装) with Sampling Point Association (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-cbe1f8269da9a4311332c58ccd2fade9",
+        "file_path": "设备关联采样点.pdf",
+        "created_at": 1779960102
+      },
+      {
+        "src_id": "地点管理",
+        "tgt_id": "采样点名称",
+        "description": "地点管理表格使用采样点名称子字段记录采样点名称。",
+        "keywords": "名称,数据字段",
+        "weight": 1.0,
+        "source_id": "chunk-77f41237ed37facdd7883fed04b9534f",
+        "file_path": "地点管理.pdf",
+        "created_at": 1782354717
+      },
+      {
+        "src_id": "发现异常地点",
+        "tgt_id": "异常TD任务管理后台新建任务界面 (image)",
+        "description": "Entity 发现异常地点 belongs to 异常TD任务管理后台新建任务界面 (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-48c855d52c9a5e8513bb83a77a80dd5f",
+        "file_path": "异常TD任务.pdf",
+        "created_at": 1782371164
+      },
+      {
+        "src_id": "所在采样点",
+        "tgt_id": "采集仪",
+        "description": "采集仪最后一次安装工单关联多个采样点时，所在采样点字段展示对应值。",
+        "keywords": "关联字段,设备类型",
+        "weight": 1.0,
+        "source_id": "chunk-7d7a61c58995feeb84f48700728f7994",
+        "file_path": "s27测试用例.pdf",
+        "created_at": 1779874483
+      },
+      {
+        "src_id": "Arco Pro",
+        "tgt_id": "地点/地标图标",
+        "description": "地点/地标图标是Arco Pro界面工具栏中的一个按钮，用于地点或地标操作。",
+        "keywords": "包含关系,界面元素",
+        "weight": 1.0,
+        "source_id": "chunk-7f1a32e0da2cf5b01dd246bcc7e1369e",
+        "file_path": "20.pdf",
+        "created_at": 1779939825
+      },
+      {
+        "src_id": "患者信息录入表格",
+        "tgt_id": "期望检测地点",
+        "description": "患者信息录入表格包含期望检测地点字段，定义了其控件和数据源。",
+        "keywords": "包含,字段定义",
+        "weight": 1.0,
+        "source_id": "chunk-217fdbf09f9d19e5f4997467ada7438c",
+        "file_path": "34.pdf",
+        "created_at": 1779937671
+      },
+      {
+        "src_id": "IP地址",
+        "tgt_id": "关联设备",
+        "description": "关联设备功能中包含IP地址字段。",
+        "keywords": "包含,字段",
+        "weight": 1.0,
+        "source_id": "chunk-84fb67f843ffee0e4d7a6c79e2e45b3d",
+        "file_path": "风险计算_系统配置.pdf",
+        "created_at": 1780537622
+      },
+      {
+        "src_id": "实际预约检测点",
+        "tgt_id": "筛选操作",
+        "description": "筛选操作可按实际预约检测点进行匹配。",
+        "keywords": "筛选条件",
+        "weight": 1.0,
+        "source_id": "chunk-afb0653737a17c6416927976ac52db2d",
+        "file_path": "s34测试用例.pdf",
+        "created_at": 1779876861
+      },
+      {
+        "src_id": "Sample Reception UI in METRIX 精智·呼析云 2.16.0 (image)",
+        "tgt_id": "寄送地点",
+        "description": "Entity 寄送地点 belongs to Sample Reception UI in METRIX 精智·呼析云 2.16.0 (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-9aa524cd4c2d9e1172c59818b33ebaa1",
+        "file_path": "质控任务列表.pdf",
+        "created_at": 1782373290
+      },
+      {
+        "src_id": "期望检测地点",
+        "tgt_id": "资料记录",
+        "description": "资料记录作为界面标题，与期望检测地点共同组成应用的数据记录与检测地点功能。",
+        "keywords": "功能关联,界面布局",
+        "weight": 1.0,
+        "source_id": "chunk-3d724c31249fcdb7bb4a6e21d90320c4",
+        "file_path": "34.pdf",
+        "created_at": 1779937718
+      },
+      {
+        "src_id": "任*源",
+        "tgt_id": "期望检测地点",
+        "description": "任*源作为用户，其期望检测地点在界面中列出。",
+        "keywords": "个人信息,检测偏好",
+        "weight": 1.0,
+        "source_id": "chunk-3d724c31249fcdb7bb4a6e21d90320c4",
+        "file_path": "34.pdf",
+        "created_at": 1779937715
+      },
+      {
+        "src_id": "OPTIONAL_SAMPLING_SITE",
+        "tgt_id": "期望检测地点",
+        "description": "期望检测地点字段的数据源为字典列表中的OPTIONAL_SAMPLING_SITE字典中的采样点名称/地址。",
+        "keywords": "字典引用,数据源",
+        "weight": 1.0,
+        "source_id": "chunk-217fdbf09f9d19e5f4997467ada7438c",
+        "file_path": "34.pdf",
+        "created_at": 1779937671
+      },
+      {
+        "src_id": "Mobile App Health Record Screenshot (Expected Testing Locations) (image)",
+        "tgt_id": "期望检测地点",
+        "description": "Entity 期望检测地点 belongs to Mobile App Health Record Screenshot (Expected Testing Locations) (image)<SEP>Entity 期望检测地点 belongs to Mobile App Health Record Screenshot (Expected Testing Locations) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 20.0,
+        "source_id": "chunk-3d724c31249fcdb7bb4a6e21d90320c4",
+        "file_path": "34.pdf",
+        "created_at": 1779937720
+      },
+      {
+        "src_id": "设备关联采样点",
+        "tgt_id": "设备安装",
+        "description": "设备安装界面所在的页面路径为“设备关联采样点”，表明该表单用于执行设备与采样点的关联操作。",
+        "keywords": "功能关联,整体页面",
+        "weight": 1.0,
+        "source_id": "chunk-cbe1f8269da9a4311332c58ccd2fade9",
+        "file_path": "设备关联采样点.pdf",
+        "created_at": 1779960099
+      },
+      {
+        "src_id": "寄送地点",
+        "tgt_id": "样本接收界面",
+        "description": "寄送地点字段是样本接收界面的必填输入项。",
+        "keywords": "表单字段",
+        "weight": 1.0,
+        "source_id": "chunk-9aa524cd4c2d9e1172c59818b33ebaa1",
+        "file_path": "质控任务列表.pdf",
+        "created_at": 1782373285
+      },
+      {
+        "src_id": "期望预约检测点",
+        "tgt_id": "表单值",
+        "description": "期望预约检测点字段的取值为“表单值”。",
+        "keywords": "取值,默认值",
+        "weight": 1.0,
+        "source_id": "chunk-f27ed62a0b421ca629b87bfb059562f9",
+        "file_path": "34.pdf",
+        "created_at": 1779937690
+      },
+      {
+        "src_id": "BayzeProll 关联设备 (Associated Devices) Configuration Interface (image)",
+        "tgt_id": "IP地址",
+        "description": "Entity IP地址 belongs to BayzeProll 关联设备 (Associated Devices) Configuration Interface (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-6b8fe2adc0e15aaa571f8edcf76868bb",
+        "file_path": "风险计算_系统配置.pdf",
+        "created_at": 1780537902
+      },
+      {
+        "src_id": "所在采样点",
+        "tgt_id": "故障",
+        "description": "设备处于故障状态时，展示所在采样点字段。",
+        "keywords": "字段展示,状态允许",
+        "weight": 1.0,
+        "source_id": "chunk-7d7a61c58995feeb84f48700728f7994",
+        "file_path": "s27测试用例.pdf",
+        "created_at": 1779874486
+      },
+      {
+        "src_id": "TD管管理系统-数据导入及流转单创建界面 (image)",
+        "tgt_id": "寄送地点字段",
+        "description": "Entity 寄送地点字段 belongs to TD管管理系统-数据导入及流转单创建界面 (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-d814d2084b65f0a722c021e6e15bd49e",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353636
+      },
+      {
+        "src_id": "Breath Test Appointment Information Form (Mini - Program) (image)",
+        "tgt_id": "期望检测地点字段",
+        "description": "Entity 期望检测地点字段 belongs to Breath Test Appointment Information Form (Mini - Program) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-1cb76c9390ce8c3edadc00093520d10c",
+        "file_path": "商业化小程序.pdf",
+        "created_at": 1779877808
+      },
+      {
+        "src_id": "匹配字段",
+        "tgt_id": "姓名字段",
+        "description": "匹配字段中包含姓名字段。",
+        "keywords": "字段类型",
+        "weight": 1.0,
+        "source_id": "chunk-3e830a70da5fb5097649650f92c6c906",
+        "file_path": "s11测试用例.pdf",
+        "created_at": 1779864377
+      },
+      {
+        "src_id": "Medical Form Table (Chinese, Lung - Related Appointment/Review) (image)",
+        "tgt_id": "期望预约检测点",
+        "description": "Entity 期望预约检测点 belongs to Medical Form Table (Chinese, Lung - Related Appointment/Review) (image)<SEP>Entity 期望预约检测点 belongs to Medical Form Table (Chinese, Lung - Related Appointment/Review) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 20.0,
+        "source_id": "chunk-f27ed62a0b421ca629b87bfb059562f9",
+        "file_path": "34.pdf",
+        "created_at": 1779937693
+      },
+      {
+        "src_id": "Edit Sampling Point Form Dialog (image)",
+        "tgt_id": "地址字段",
+        "description": "Entity 地址字段 belongs to Edit Sampling Point Form Dialog (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-1a8be06bf5a1fc8c01051c897a7c9393",
+        "file_path": "20.pdf",
+        "created_at": 1779939884
+      },
+      {
+        "src_id": "Sample Reception UI in METRIX 精智·呼析云 2.16.0 (image)",
+        "tgt_id": "接收地点",
+        "description": "Entity 接收地点 belongs to Sample Reception UI in METRIX 精智·呼析云 2.16.0 (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-9aa524cd4c2d9e1172c59818b33ebaa1",
+        "file_path": "质控任务列表.pdf",
+        "created_at": 1782373290
+      },
+      {
+        "src_id": "地点管理",
+        "tgt_id": "地点类型",
+        "description": "地点管理包含地点类型字段。<SEP>地点管理表格使用地点类型字段分类地点。",
+        "keywords": "分类,包含,字段,数据字段",
+        "weight": 2.0,
+        "source_id": "chunk-6b6d59941a728e98e7c077a0a694ae6d<SEP>chunk-77f41237ed37facdd7883fed04b9534f",
+        "file_path": "地点管理.pdf",
+        "created_at": 1782354718
+      },
+      {
+        "src_id": "地点管理",
+        "tgt_id": "采样点ID",
+        "description": "地点管理表格使用采样点ID子字段标识采样点。",
+        "keywords": "数据字段,标识",
+        "weight": 1.0,
+        "source_id": "chunk-77f41237ed37facdd7883fed04b9534f",
+        "file_path": "地点管理.pdf",
+        "created_at": 1782354716
+      },
+      {
+        "src_id": "地址字段",
+        "tgt_id": "编辑采样点对话框",
+        "description": "编辑采样点对话框包含地址字段作为必填输入组件。",
+        "keywords": "包含,组成部分",
+        "weight": 1.0,
+        "source_id": "chunk-1a8be06bf5a1fc8c01051c897a7c9393",
+        "file_path": "20.pdf",
+        "created_at": 1779939879
+      },
+      {
+        "src_id": "云平台",
+        "tgt_id": "采样点*",
+        "description": "云平台包含采样点*字段，用于记录采样点信息。",
+        "keywords": "包含,字段",
+        "weight": 1.0,
+        "source_id": "chunk-335a983baf13e8f52ea74cb6bacdcf01",
+        "file_path": "云平台辅助工具.pdf",
+        "created_at": 1782372220
+      },
+      {
+        "src_id": "匹配字段",
+        "tgt_id": "门诊/住院ID",
+        "description": "匹配字段中包含门诊/住院ID字段。",
+        "keywords": "字段类型",
+        "weight": 1.0,
+        "source_id": "chunk-3e830a70da5fb5097649650f92c6c906",
+        "file_path": "s11测试用例.pdf",
+        "created_at": 1779864378
+      },
+      {
+        "src_id": "实际预约检测点",
+        "tgt_id": "审核",
+        "description": "审核时需要选择实际预约检测点。",
+        "keywords": "包含,选择",
+        "weight": 1.0,
+        "source_id": "chunk-d6d523557052db74e45839e93e0e9798",
+        "file_path": "s34测试用例.pdf",
+        "created_at": 1779876888
+      },
+      {
+        "src_id": "Device Installation Form (设备安装) with Sampling Point Association (image)",
+        "tgt_id": "设备关联采样点",
+        "description": "Entity 设备关联采样点 belongs to Device Installation Form (设备安装) with Sampling Point Association (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-cbe1f8269da9a4311332c58ccd2fade9",
+        "file_path": "设备关联采样点.pdf",
+        "created_at": 1779960105
+      },
+      {
+        "src_id": "当前所在地点",
+        "tgt_id": "用例:基本信息添加新字段#1",
+        "description": "该测试用例验证当前所在地点字段取当前值。",
+        "keywords": "字段定义,测试验证",
+        "weight": 1.0,
+        "source_id": "chunk-928ed73f7d7cf62923d69f6f0b891515",
+        "file_path": "S31测试用例.pdf",
+        "created_at": 1779875995
+      },
+      {
+        "src_id": "寄送地点",
+        "tgt_id": "快速创建物流单",
+        "description": "快速创建物流单功能需要填写寄送地点字段，以指定寄出地。",
+        "keywords": "功能涉及,字段设置",
+        "weight": 1.0,
+        "source_id": "chunk-b0796330cda0340c4ad2143ff2d4f9e3",
+        "file_path": "检测报告任务列表.pdf",
+        "created_at": 1782356113
+      },
+      {
+        "src_id": "原型参考",
+        "tgt_id": "期望检测地点",
+        "description": "期望检测地点字段的控件定义为原型参考。",
+        "keywords": "使用,控件类型",
+        "weight": 1.0,
+        "source_id": "chunk-217fdbf09f9d19e5f4997467ada7438c",
+        "file_path": "34.pdf",
+        "created_at": 1779937672
+      },
+      {
+        "src_id": "CLOUD精智未来",
+        "tgt_id": "默认位置设置",
+        "description": "CLOUD精智未来系统的左面板指令中设定了默认位置为精智未来(广州)采购仓储部。",
+        "keywords": "系统功能,默认配置",
+        "weight": 1.0,
+        "source_id": "chunk-6a2ff776c502afb11af8ca8ef1fc3657",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353640
+      },
+      {
+        "src_id": "Sampling Point Management Form (Medical/Detection System) (image)",
+        "tgt_id": "采样点地址",
+        "description": "Entity 采样点地址 belongs to Sampling Point Management Form (Medical/Detection System) (image)<SEP>Entity 采样点地址 belongs to Sampling Point Management Form (Medical/Detection System) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 20.0,
+        "source_id": "chunk-ab4d21572072ee436c8bb7f7c21ff60e",
+        "file_path": "20.pdf",
+        "created_at": 1779940039
+      },
+      {
+        "src_id": "Arco Pro UI Toolbar Icons (image)",
+        "tgt_id": "地点/地标图标",
+        "description": "Entity 地点/地标图标 belongs to Arco Pro UI Toolbar Icons (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-7f1a32e0da2cf5b01dd246bcc7e1369e",
+        "file_path": "20.pdf",
+        "created_at": 1779939828
+      },
+      {
+        "src_id": "CLOUD精智未来",
+        "tgt_id": "归属方字段",
+        "description": "CLOUD精智未来系统的左面板指令中包含归属方字段的添加功能。",
+        "keywords": "字段管理,系统功能",
+        "weight": 1.0,
+        "source_id": "chunk-6a2ff776c502afb11af8ca8ef1fc3657",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353640
+      },
+      {
+        "src_id": "地点管理",
+        "tgt_id": "当前地点",
+        "description": "当前地点是地点管理模块中的要素之一。",
+        "keywords": "功能归属",
+        "weight": 1.0,
+        "source_id": "chunk-9348e364f3ce581b1904ae256496a838",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353449
+      },
+      {
+        "src_id": "地点管理",
+        "tgt_id": "采样点位置",
+        "description": "地点管理表格使用采样点位置子字段记录采样点地址。",
+        "keywords": "地址,数据字段",
+        "weight": 1.0,
+        "source_id": "chunk-77f41237ed37facdd7883fed04b9534f",
+        "file_path": "地点管理.pdf",
+        "created_at": 1782354719
+      },
+      {
+        "src_id": "安装工单",
+        "tgt_id": "所在采样点",
+        "description": "安装工单关联到所在采样点。",
+        "keywords": "位置,关联",
+        "weight": 1.0,
+        "source_id": "chunk-6b6d59941a728e98e7c077a0a694ae6d",
+        "file_path": "地点管理.pdf",
+        "created_at": 1782354601
+      },
+      {
+        "src_id": "CLOUD精智未来",
+        "tgt_id": "当前位置字段",
+        "description": "CLOUD精智未来系统的左面板指令中包含当前位置字段的添加功能。",
+        "keywords": "字段管理,系统功能",
+        "weight": 1.0,
+        "source_id": "chunk-6a2ff776c502afb11af8ca8ef1fc3657",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353639
+      },
+      {
+        "src_id": "图像表格",
+        "tgt_id": "期望预约检测点",
+        "description": "图像表格中包含了期望预约检测点字段。",
+        "keywords": "包含,字段",
+        "weight": 1.0,
+        "source_id": "chunk-f27ed62a0b421ca629b87bfb059562f9",
+        "file_path": "34.pdf",
+        "created_at": 1779937688
+      },
+      {
+        "src_id": "接收地点",
+        "tgt_id": "样本接收界面",
+        "description": "接收地点字段是样本接收界面的必填输入项。",
+        "keywords": "表单字段",
+        "weight": 1.0,
+        "source_id": "chunk-9aa524cd4c2d9e1172c59818b33ebaa1",
+        "file_path": "质控任务列表.pdf",
+        "created_at": 1782373286
+      },
+      {
+        "src_id": "寄件地点列",
+        "tgt_id": "物流记录表",
+        "description": "寄件地点列是物流记录表中的一列，显示寄件地点。",
+        "keywords": "数据字段,表格列",
+        "weight": 1.0,
+        "source_id": "chunk-7fed9dde4ee6383fdb1981070ce2fe42",
+        "file_path": "物资流转（原物流管理）.pdf",
+        "created_at": 1782370384
+      },
+      {
+        "src_id": "地点ID",
+        "tgt_id": "地点管理",
+        "description": "地点管理包含地点ID字段。<SEP>地点管理表格使用地点ID字段唯一标识每个地点。",
+        "keywords": "包含,字段,数据字段,标识",
+        "weight": 2.0,
+        "source_id": "chunk-6b6d59941a728e98e7c077a0a694ae6d<SEP>chunk-77f41237ed37facdd7883fed04b9534f",
+        "file_path": "地点管理.pdf",
+        "created_at": 1782354716
+      },
+      {
+        "src_id": "地点名称",
+        "tgt_id": "地点管理",
+        "description": "地点管理包含地点名称字段。<SEP>地点管理表格使用地点名称字段记录地点名称。",
+        "keywords": "包含,名称,字段,数据字段",
+        "weight": 2.0,
+        "source_id": "chunk-6b6d59941a728e98e7c077a0a694ae6d<SEP>chunk-77f41237ed37facdd7883fed04b9534f",
+        "file_path": "地点管理.pdf",
+        "created_at": 1782354717
+      }
+    ],
+    "chunks": [
+      {
+        "reference_id": "1",
+        "content": "SP+6位顺序位\n\ns13测试用例\n\n自定义:TD管管理\n\n自定义:新增\n\n用例:下载模版 #1\n\n步骤:点击下载模版\n\n预期:正常下载模版，模版字段为TD管号、生产\n\n产商、采购时间、备注\n\n用例:上传文件#1\n\n步骤:点击上传文件，选择文件上传\n\n预期:成功解析文件数据，共x条数据，\n\n可点击下一步操作\n\n用例:清空待导入数据 #1\n\n步骤:点击清空数据\n\n预期:成功清空已上传的数据，\n\n下一步按钮置灰不可点击\n\n自定义:校验数据\n\n用例:表单内TD管重复#1\n\n步骤:上传文件数据有多条TD管一样的数据\n\n预期:上传失败，提示表单中包含重复数据XX\n\n条，序号为：xx、xx\n\n用例:表单与数据库完全重复#1\n\n步骤:文件导入多条与数据库完全重复的数据\n\n预期:弹窗展示已跳过的完全重复数据\n\n用例:表单与数据库部分重复（TD管号重复，其\n\n他不同）#1\n\n步骤:生产厂商不同，其他相同\n\n预期:该数据展示在待确认重复列表上\n\n步骤:采购时间相同，其他不同\n\n预期:该数据展示在待确认重复列表上\n\n步骤:备注相同，其他不同\n\n预期:该数据展示在待确认重复列表上\n\n用例:TD管号格式错误#1\n\n步骤:TD管号为5位的数字\n\n预期:上传数据时就提示该TD管号格式不正确\n\n用例:生产产商不存在#1\n\n步骤:生产厂商不是来自供应商字典\n\n预期:提示厂商错误，可点击修改选择厂商\n\n用例:采购时间格式错误#1\n\n步骤:采购日期为随机数字\n\n预期:提示采购时间错误，可点击修改选择时间\n\n用例:备注字符数超限#1\n\n步骤:备注字符数超过50字符\n\n预期:提示备注错误，可点击修改\n\n用例:校验数据下一步 #1\n\n步骤:未完成全部格式错误校验，点击下一步\n\n预期:无法进入下一步，提示请修改格式错误的字\n\n段\n\n用例:校验数据页面翻页 #1\n\n步骤:点击下一页\n\n预期:正常切换到下一页\n\n用例:预览数据页面翻页 #1\n\n步骤:点击下一页\n\n预期:正常切换到下一页\n\n用例:TD管号为空 #1\n\n步骤:上传数据包含多条TD管号为空的数据\n\n预期:上传数据时就提示TD管为空，包含几条为\n\n空数据\n\n用例:必填项 #1\n\n步骤:上传多条有正确TD管号，生产厂商、采购\n\n时间、备注为空的数据\n\n预期:正常上传\n\n自定义:数据预览\n\n用例:预览数据提交#1\n\n步骤:校验数据提交后，预览数据正常查看，且仅\n\n包含来源为待上传的数据，点击下一步\n\n预期:跳转上传成功页面，成功上传数据\n\n自定义:查看\n\n用例:数据展示#1\n\n步骤:新增导入完TD管数据\n\n预期:列表正常展示导入的数据\n\n用例:翻页 #1\n\n步骤:点击下一页\n\n预期:正常切换到下一页\n\n步骤:点击指定页数\n\n预期:正常切换到指定页数\n\n步骤:切换每页条数\n\n预期:正常切换\n\n自定义:编辑\n\n用例:编辑TD管基本信息#1\n\n步骤:更改生产厂商、采购时间、备注，点击保存\n\n预期:成功编辑TD管信息\n\n用例:编辑备注信息 #1\n\n步骤:备注输入超过50字符\n\n预期:超过部分自动截断\n\n自定义:采样点管理\n\n自定义:新增\n\n用例:新增采样点#1\n\n步骤:点击新增，\n\n输入采样点名称、采样点位置、备注，\n\n点击确定\n\n预期:成功新增该采样点，且自动生成采样点ID：\n\n步骤:输入重复的采样点名称，点击确定\n\n预期:提示名称已存在\n\n步骤:输入采样点名称超过10字符\n\n预期:超出部分自动截断\n\n步骤:输入采样点备注超过50字符\n\n预期:超出部分自动截断\n\n步骤:输入采样点位置超过50字符\n\n预期:超出部分自动截断\n\n步骤:不输入采样点名称，输入采样点位置和备\n\n注，点击确定\n\n预期:提示采样点名称不能为空\n\n自定义:编辑\n\n用例:编辑信息 #1\n\n步骤:点击编辑，\n\n输入采样点名称、采样点位置、备注，\n\n关闭状态，\n\n点击确定\n\n预期:成功编辑该采样点信息\n\n步骤:修改采样点名称\n\n预期:提示'如已打印研究二维码，请及时更新物\n\n料'\n\n自定义:查看\n\n用例:数据展示#1\n\n步骤:新增完采样点信息\n\n预期:列表正常展示新增的采样点信息\n\n用例:翻页 #1\n\n步骤:点击下一页\n\n预期:正常切换到下一页\n\n步骤:点击指定页数\n\n预期:正常切换到指定页数\n\n步骤:切换每页条数\n\n预期:正常",
+        "file_path": "s13测试用例.pdf",
+        "chunk_id": "chunk-ae4bf2d83feb510b33d7defba968c75d"
+      },
+      {
+        "reference_id": "2",
+        "content": "谱图导入增加批注\n\n用例:添加批注#1\n\n步骤:输入备注，点击提交\n\n预期:成功提交添加\n\n自定义:权限管理\n\n自定义:苏玛罐管理\n\n用例:管理权限#1\n\n步骤:设置管理权限\n\n预期:有所有权限，可新增、编辑\n\n用例:访问权限#1\n\n步骤:设置访问权限\n\n预期:仅可查看\n\n用例:无权限 #1\n\n步骤:没有设置权限\n\n预期:无法查看\n\n自定义:气体类型\n\n用例:管理权限#1\n\n步骤:设置管理权限\n\n预期:有所有权限，可新增、编辑\n\n用例:访问权限#1\n\n步骤:设置访问权限\n\n预期:仅可查看\n\n用例:无权限 #1\n\n步骤:没有设置权限\n\n预期:无法查看\n\n自定义:采样流速记录\n\n自定义:web\n\n用例:新增采样流速#1\n\n步骤:输入采样流速提交\n\n预期:正常提交新增\n\n用例:编辑采样流速（历史记录）#1\n\n步骤:编辑输入采样流速\n\n预期:正常编辑修改\n\n用例:为空校验 #1\n\n步骤:新增/编辑未输入采样流速\n\n预期:正常提交，可以为空\n\n用例:特殊字符校验#1\n\n步骤:4字符/中英文/符号\n\n预期:超过3字符自动截断，其他特殊字符无法输\n\n入\n\n用例:谱图数据字段配置#1\n\n步骤:配置采样流速字段\n\n预期:正常查看\n\n用例:看板统计#1\n\n步骤:数据来源为谱图数据，筛选/配置字段添加\n\n采样流速\n\n预期:正常添加\n\n用例:历史记录#1\n\n步骤:变更采样流速字段\n\n预期:历史记录同步变更\n\n自定义:小程序\n\n用例:新增采样流速#1\n\n步骤:输入采样流速提交\n\n预期:正常提交新增\n\n用例:编辑采样流速（历史记录）#1\n\n步骤:编辑输入采样流速\n\n预期:正常编辑修改\n\n用例:为空校验 #1\n\n步骤:新增/编辑未输入采样流速\n\n预期:提示不能为空\n\n用例:特殊字符校验#1\n\n步骤:4字符/中英文/符号\n\n预期:超过3字符自动截断，其他特殊字符无法输\n\n入\n\n用例:新增多个TD管 #1\n\n步骤:点击添加TD管\n\n预期:正常添加\n\n用例:删除TD管#1\n\n步骤:点击添加TD管\n\n预期:正常添加\n\n自定义:xcloud s23测试用例\n\n自定义:xmetrix\n\n自定义:任务管理\n\n自定义:后台管理\n\n自定义:受试者填写任务\n\n自定义:质控任务\n\n自定义:检测报告任务\n\n自定义:气体组合列表\n\n用例:表头字段显示变更#1\n\n自定义:排序\n\n用例:查询#1\n\n用例:查询#1\n\n用例:筛选#1\n\n用例:页数切换#1\n\n步骤:填写信息\n\n用例:客户#1\n\n用例:条码号#1\n\n用例:任务来源 #1\n\n用例:状态#1\n\n用例:姓名 #1\n\n用例:性别#1\n\n用例:年龄#1\n\n用例:备注#1\n\n用例:创建时间#1\n\n用例:多个条件组合排序#1\n\n预期:变更为'操作'（三个状态都同步变更）\n\n步骤:按升序排序\n\n预期:列表数据按升序排序\n\n步骤:按降序排序\n\n步骤:点击表头升序\n\n步骤:排序按钮点击降序\n\n步骤:按升序排序\n\n步骤:按降序排序\n\n步骤:点击表头升序\n\n步骤:排序按钮点击降序\n\n步骤:按升序排序\n\n步骤:按降序排序\n\n步骤:点击表头升序\n\n步骤:排序按钮点击降序\n\n预期:列表数据按降序排序\n\n预期:排序按钮下也同步展示该字段升序\n\n预期:表头字段也展示降序\n\n预期:列表数据按升序排序\n\n预期:列表数据按降序排序\n\n预期:排序按钮下也同步展示该字段升序\n\n预期:表头字段也展示降序\n\n预期:列表数据按升序排序\n\n预期:列表数据按降序排序\n\n预期:排序按钮下也同步展示该字段升序\n\n预期:表头字段也展示降序\n\n步骤:按升序排序\n\n预期:列表数据按升序排序\n\n步骤:按降序排序\n\n步骤:点击表头升序\n\n步骤:排序按钮点击降序\n\n步骤:按升序排序\n\n步骤:按降序排序\n\n步骤:点击表头升序\n\n步骤:排序按钮点击降序\n\n步骤:按升序排序\n\n步骤:按降序排序\n\n步骤:点击表头升序\n\n步骤:排序按钮点击降序\n\n步骤:按升序排序\n\n步骤:按降序排序\n\n步骤:点击表头升序\n\n步骤:排序按钮点击降序\n\n步骤:按升序排序\n\n步骤:按降序排序\n\n步骤:点击表头升序\n\n步骤:排序按钮点击降序\n\n步骤:按升序排序\n\n步骤:按降序排序\n\n步骤:点击表",
+        "file_path": "s23测试用例.pdf",
+        "chunk_id": "chunk-8b784b76bd2e76fe01e7158deac2e90a"
+      },
+      {
+        "reference_id": "3",
+        "content": "J.单管济有地点默沃为：床来（广州）\n\n增“归民方“须加生点作为归属方，允许备 改，项共亡的点答率 在地点”，用来记家TD情入本而的研的他置\n\n新片D答时，单中地如个司“当前际\n\nTRN\n\n5.新增T管时。\n\n购含销部（地点D：8F000004)\n\n上传时核验当前所在地点是否正理，否则线 示精式讲误\n\n，可手动选择是否同时签知待\n\n上片文\n\nb. 快演国号：\n\n8.客这方式：白带\n\n.远单图片：空\n\nd.丧进人：操作用户\n\nPit\n\n用+\n\nht\n\n.零避时间：提交时间\n\nU物品：T（空}\n\n0.丧造地点：手动造择\n\nh.清单：所有新TD管\n\n(点管理)\n\n用+\n\nPt\n\n9\n\n方\n\n.标气起输时，穿定的TD管事买时服为在位\n\n.TD管状点考知：已集出、，千动更\n\nk途加州片：空\n\n盖理贴蛋票，并在使用记录中体理\n\n1.运输全件：紫温\n\n1.数量-所选1D管效\n\n用+\n\nA.符选、统计、列表等柜关展示应宣同多更\n\n7A2号\n\n2#ta unonx\n\nD管\n\n十\n\n上行文作\n\nPJV>显3蛋\n\n124\n\n高等TD糖可同时创比符签校的物齐实较单\n\n手动这挥有递地点\n\n有活地点美点2次\n\n1087\n\nrut\n\nT5\n\nB\n\n4\n\n上月十\n\n86 anon3 X\n\n世月29\n\n二*1A\n\nA1+\n\nM.vt.\n\nT\n\n归属方\n\nX CLCUO 4S S\n\n人\n\n2\n\n1\n\n1\n\nC\n\nRLRR\n\n195\n\n**\n\n*\n\n占ut\n\n增列衰导出\"功能，导出TD管列表内齐，\n\n2.嫩属方\n\n不彬染件",
+        "file_path": "TD管管理-s52.pdf",
+        "chunk_id": "chunk-9348e364f3ce581b1904ae256496a838"
+      },
+      {
+        "reference_id": "4",
+        "content": "1.增加发现异常地点字段，可选所有地点\n\n2.所属客户：非必填，可选XMetrix中的客户\n\n3.所属项目：非必填，可选XMetrix中的检测项目、科 研项目、实验项目\n\n4.新增、列表、筛选均需添加\n\n%.CLOU精智未来云\n\n管理后台\n\n颜\n\n任务中心\n\n异常TD任务\n\n数据大屏\n\n实验项目\n\n待处理\n\n已完成\n\n已作废\n\n发现异常地点\n\n所属客户\n\n所属项目\n\n十 创建异常任务\n\n筛选\n\n控排序\n\nC刷新\n\nTD管号\n\n异常原因\n\n发现异常时间\n\n任务生成时间\n\n创建人\n\n操作\n\n通知中心\n\n330586\n\n采样寄回检查\n\n2026/06/04 09:57:55\n\n2026/06/04 09:57:54\n\n陈华\n\n完成\n\n作废\n\n日任务中心\n\n348696\n\n采样寄回检查\n\n2026/06/04 09:57:55\n\n2026/06/04 09:57:54\n\n陈烨\n\n完成\n\n作废\n\n检洱批次\n\n检测任务\n\n348064\n\n采样寄回检查\n\n2026/06/04 09.57:55\n\n2026/06/04 09:57:54\n\n陈烨\n\n完成\n\n作度\n\n请图导入\n\n347948\n\n采样寄回检查\n\n新建异常任务\n\n26/06/04 09:57:54\n\n陈华\n\n完成\n\n作废\n\n老化批次\n\n347586\n\n采样寄回检查\n\n26/06/04 09:57:54\n\n陈烨\n\n完成\n\n作废\n\nTD管号*\n\n老化任务\n\n347420\n\n采样寄回检查\n\n26/06/04 09:57:54\n\n陈华\n\n完成\n\n作废\n\n异常TD任务\n\n347329\n\n采样寄回检查\n\n26/06/04 09:57:54\n\n陈烨\n\n完成\n\n作废\n\n异常原因*\n\n目资产管理\n\n341926\n\n采样寄回检查\n\n26/06/04 09:57:54\n\n陈烨\n\n完成\n\n作废\n\n物流管理\n\n341910\n\n采样寄回检查\n\n26/06/04 09:5754\n\n陈烨\n\n完成\n\n作废\n\n：\n\n字典管理\n\n334138\n\n采样寄回检查\n\n0/100\n\n26/06/04 09:57:54\n\n陈华\n\n完成\n\n作废\n\n组织管理\n\n发现异常时间*\n\n334136\n\n采样寄回检查\n\n请选择日期\n\n品\n\n26/06/04 09:57:54\n\n陈烨\n\n完成\n\n作废\n\n采样点管理\n\n333663\n\n采样寄回检查\n\n发现异常地点*\n\n26/06/04 09:57:54\n\n陈烨\n\n完成\n\n作废\n\n系统管理\n\n333129\n\n采样寄回检查\n\n1\n\n取消\n\n确定\n\n26/06/04 09:5754\n\n陈烨\n\n完成\n\n作废\n\n332217\n\n采样寄回检查\n\n26/06/04 09:57:54\n\n陈烨\n\n完成\n\n作废\n\n331297\n\n采样寄回检查\n\n所属客户\n\n26/06/04 09:57:54\n\n陈华\n\n完成\n\n作废\n\n1\n\n127603\n\n采样寄回检查\n\n所属项目\n\n26/06/04 09:57:54\n\n陈烨\n\n完成\n\n作度\n\n330551\n\n采样寄回检查\n\n1\n\n26/06/04 09:57:54\n\n陈烨\n\n完成\n\n作废\n\n330271\n\n采样寄回检查\n\n26/06/04 09.57.54\n\n陈烨\n\n完成\n\n作废\n\n329337\n\n采样寄回检查\n\n2026/06/04 09.57:55\n\n2026/06/04 09:57:54\n\n陈*\n\n完成\n\n作废\n\n328885\n\n采样寄回检查\n\n2026/06/04 09:57:55\n\n2026/06/04 09:57:54\n\n陈华\n\n完成\n\n作废\n\n共29条\n\n20条/页",
+        "file_path": "异常TD任务.pdf",
+        "chunk_id": "chunk-48478c3f994bdb657be43333618d93aa"
+      }
+    ],
+    "references": [
+      {
+        "reference_id": "1",
+        "file_path": "s13测试用例.pdf"
+      },
+      {
+        "reference_id": "2",
+        "file_path": "s23测试用例.pdf"
+      },
+      {
+        "reference_id": "3",
+        "file_path": "TD管管理-s52.pdf"
+      },
+      {
+        "reference_id": "4",
+        "file_path": "异常TD任务.pdf"
+      }
+    ]
+  },
+  "metadata": {
+    "query_mode": "mix",
+    "keywords": {
+      "high_level": [
+        "S31测试用例",
+        "TD管",
+        "列表展示",
+        "位置变更",
+        "新增表单",
+        "导出功能"
+      ],
+      "low_level": [
+        "地点字段",
+        "归属方"
+      ]
+    },
+    "processing_info": {
+      "total_entities_found": 137,
+      "total_relations_found": 228,
+      "entities_after_truncation": 61,
+      "relations_after_truncation": 169,
+      "merged_chunks_count": 166,
+      "final_chunks_count": 4
+    }
+  }
+}

@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="aBotGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6EE7F9"/>
+      <stop offset="100%" stop-color="#4F7BFF"/>
+    </linearGradient>
+    <linearGradient id="aBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1B2640"/>
+      <stop offset="100%" stop-color="#0F1729"/>
+    </linearGradient>
+  </defs>
+
+  <!-- 圆形背景 -->
+  <circle cx="32" cy="32" r="32" fill="url(#aBg)"/>
+
+  <!-- 天线 -->
+  <line x1="32" y1="12" x2="32" y2="18" stroke="url(#aBotGrad)" stroke-width="2.5" stroke-linecap="round"/>
+  <circle cx="32" cy="11" r="2.4" fill="url(#aBotGrad)"/>
+
+  <!-- 机器人头部 -->
+  <rect x="16" y="18" width="32" height="26" rx="9" fill="none" stroke="url(#aBotGrad)" stroke-width="3"/>
+
+  <!-- 眼睛 -->
+  <circle cx="25" cy="29" r="3.2" fill="url(#aBotGrad)"/>
+  <circle cx="39" cy="29" r="3.2" fill="url(#aBotGrad)"/>
+
+  <!-- 微笑嘴 -->
+  <path d="M25 36 Q32 41 39 36" fill="none" stroke="url(#aBotGrad)" stroke-width="2.6" stroke-linecap="round"/>
+
+  <!-- 侧耳 -->
+  <rect x="12.5" y="27" width="3" height="8" rx="1.5" fill="url(#aBotGrad)"/>
+  <rect x="48.5" y="27" width="3" height="8" rx="1.5" fill="url(#aBotGrad)"/>
+
+  <!-- 肩部 -->
+  <path d="M20 50 Q32 44 44 50" fill="none" stroke="url(#aBotGrad)" stroke-width="3" stroke-linecap="round"/>
+</svg>

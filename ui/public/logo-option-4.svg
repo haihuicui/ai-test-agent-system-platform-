@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="o4g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6EE7F9"/>
+      <stop offset="100%" stop-color="#4F7BFF"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="#0F1729"/>
+  <!-- 盾牌 -->
+  <path d="M32 12 L48 18 V32 C48 42 41 49 32 53 C23 49 16 42 16 32 V18 Z"
+        fill="none" stroke="url(#o4g)" stroke-width="3" stroke-linejoin="round"/>
+  <!-- 盾内对勾 -->
+  <path d="M25 31 l5 6 l9 -12" fill="none" stroke="#19C37D" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

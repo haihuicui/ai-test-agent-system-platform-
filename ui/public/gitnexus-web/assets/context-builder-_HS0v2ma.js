@@ -1,0 +1,15 @@
+async function e(e,t){try{let n=[{type:`files`,query:`MATCH (n:File) RETURN COUNT(n) AS count`},{type:`functions`,query:`MATCH (n:Function) RETURN COUNT(n) AS count`},{type:`classes`,query:`MATCH (n:Class) RETURN COUNT(n) AS count`},{type:`interfaces`,query:`MATCH (n:Interface) RETURN COUNT(n) AS count`},{type:`methods`,query:`MATCH (n:Method) RETURN COUNT(n) AS count`}],r={};for(let{type:t,query:i}of n)try{let n=(await e(i))[0];r[t]=Array.isArray(n)?n[0]??0:n?.count??0}catch{r[t]=0}return{projectName:t,fileCount:r.files,functionCount:r.functions,classCount:r.classes,interfaceCount:r.interfaces,methodCount:r.methods}}catch(e){return console.error(`Failed to get codebase stats:`,e),{projectName:t,fileCount:0,functionCount:0,classCount:0,interfaceCount:0,methodCount:0}}}async function t(e,t=8){try{return(await e(`
+      MATCH (n)-[r:CodeRelation]-(m)
+      WHERE n.name IS NOT NULL
+      WITH n, COUNT(r) AS connections
+      ORDER BY connections DESC
+      LIMIT ${t}
+      RETURN n.name AS name, LABEL(n) AS type, n.filePath AS filePath, connections
+    `)).map(e=>Array.isArray(e)?{name:e[0],type:e[1],filePath:e[2],connections:e[3]}:{name:e.name,type:e.type,filePath:e.filePath,connections:e.connections}).filter(e=>e.name&&e.type)}catch(e){return console.error(`Failed to get hotspots:`,e),[]}}async function n(e,t=10){try{let n=(await e(`MATCH (f:File) RETURN f.filePath AS path ORDER BY path`)).map(e=>Array.isArray(e)?e[0]:e.path).filter(Boolean);return n.length===0?``:r(n,t)}catch(e){return console.error(`Failed to get folder tree:`,e),``}}function r(e,t){let n={isFile:!1,children:new Map,fileCount:0};for(let t of e){let e=t.replace(/\\/g,`/`).split(`/`).filter(Boolean),r=n;for(let t=0;t<e.length;t++){let i=e[t],a=t===e.length-1;if(r.children.has(i)||r.children.set(i,{isFile:a,children:new Map,fileCount:0}),r=r.children.get(i),a){let r=n;for(let n=0;n<t;n++)r=r.children.get(e[n]),r.fileCount++}}}let r=[];function i(e,n,a){let o=[...e.children.entries()];o.sort(([e,t],[n,r])=>t.isFile===r.isFile?!t.isFile&&!r.isFile?r.fileCount-t.fileCount:e.localeCompare(n):t.isFile?1:-1);for(let[e,s]of o)if(s.isFile)r.push(`${n}${e}`);else{s.children.size;let o=s.fileCount;a>=t?r.push(`${n}${e}/ (${o} files)`):(r.push(`${n}${e}/`),i(s,n+`  `,a+1))}}return i(n,``,0),r.join(`
+`)}async function i(r,i){let[a,o,s]=await Promise.all([e(r,i),t(r),n(r)]);return{stats:a,hotspots:o,folderTree:s}}function a(e){let{stats:t,hotspots:n,folderTree:r}=e,i=[];i.push(`### 📊 CODEBASE: ${t.projectName}`);let a=[`Files: ${t.fileCount}`,`Functions: ${t.functionCount}`,t.classCount>0?`Classes: ${t.classCount}`:null,t.interfaceCount>0?`Interfaces: ${t.interfaceCount}`:null].filter(Boolean);return i.push(a.join(` | `)),i.push(``),n.length>0&&(i.push(`**Hotspots** (most connected):`),n.slice(0,5).forEach(e=>{i.push(`- \`${e.name}\` (${e.type}) — ${e.connections} edges`)}),i.push(``)),r&&(i.push(`### 📁 STRUCTURE`),i.push("```"),i.push(t.projectName+`/`),i.push(r),i.push("```")),i.join(`
+`)}function o(e,t){return`${e}
+
+---
+
+## 📦 CURRENT CODEBASE
+${a(t)}`}export{i as buildCodebaseContext,o as buildDynamicSystemPrompt};

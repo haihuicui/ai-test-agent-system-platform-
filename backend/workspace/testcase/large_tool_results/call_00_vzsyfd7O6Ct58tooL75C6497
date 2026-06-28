@@ -1,0 +1,2251 @@
+{
+  "status": "success",
+  "message": "Query processed successfully",
+  "data": {
+    "entities": [
+      {
+        "entity_name": "TD管管理-s52",
+        "entity_type": "other",
+        "description": "TD管管理的一个特定版本或项目标识，出现在图像路径中。",
+        "source_id": "chunk-066b35f3a73c278c775291bc969058c1",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353621
+      },
+      {
+        "entity_name": "成功新增",
+        "entity_type": "concept",
+        "description": "在导出报告#1或其他操作中出现的预期结果状态，表示新增操作成功。<SEP>成功新增是新增#1用例的预期结果，表示操作成功完成。",
+        "source_id": "chunk-bb54cae7ce9b59a8d8e10f798a372ee6<SEP>chunk-b1fbb373a870e3c74ceeb96fd684ecfb",
+        "file_path": "S42测试用例.pdf<SEP>s27测试用例.pdf",
+        "created_at": 1779874626
+      },
+      {
+        "entity_name": "TD管管理",
+        "entity_type": "concept",
+        "description": "TD管管理是SP+系统中的一个功能模块，同时也是呼析云左侧边栏导航菜单中归属于资产管理下的子模块，并在精智未来云管理后台（亦称CLOUD精智未来管理后台或精智·未来云平台）中作为独立模块运行。该模块专门用于管理TD管的相关功能，涵盖导入、校验、预览、查看、编辑等操作，并支持使用记录、库存管理、分配和回收等用例。作为一个基于Web的管理系统，TD管管理旨在集中管理TD管的信息，包括其库存状态、分配流程、回收处理以及物流跟踪，从而实现对TD管全生命周期的有效管控。此外，该模块通过列表形式展示TD管及其使用记录，便于用户进行全面的查看与操作。<SEP>平台中专门用于管理TD管使用的模块。<SEP>TD管管理是系统的功能模块，用于管理TD管的编号、状态、老化信息。<SEP>TD管管理是资产管理下的一个子菜单项，用于管理TD管，在左侧导航栏中显示。",
+        "source_id": "chunk-5a956e38fde5b20399e4f71b1cd1177c<SEP>chunk-ae4bf2d83feb510b33d7defba968c75d<SEP>chunk-08584584f481d5d939e49a8cfc37e2a0<SEP>chunk-6db3ee750aef8f127faedf3621a7c5c0<SEP>chunk-e1a7e6682d118fd3b55bd49650662382<SEP>chunk-747de3c44d79b5d050b0e4538a90442a<SEP>chunk-c120c7253784f58def105061cf29312e<SEP>chunk-0c662b5f29265f3c1c6ad4d1245265db<SEP>chunk-230bf3a1b6c213c7c39fa13151204d69<SEP>chunk-fe9f8917e70f005203e189e82c531c99<SEP>chunk-e42a3f57c53bd0366445d2e282ab82b5<SEP>chunk-1df499ac615e547e5e253c3beb1bb6d1<SEP>chunk-26c65f6eddc40b3d8a0046c002cf294c",
+        "file_path": "S41测试用例.pdf<SEP>s13测试用例.pdf<SEP>s22测试用例.pdf<SEP>s25测试用例.pdf<SEP>XMetrix_v2.3.pdf<SEP>检测任务.pdf<SEP>检测任务可选设备.pdf<SEP>谱图导入.pdf<SEP>PID管理.pdf<SEP>标气管理.pdf<SEP>TD管管理-s52.pdf<SEP>标气批次.pdf<SEP>设备管理.pdf<SEP>实验项目s52.pdf",
+        "created_at": 1782368485
+      },
+      {
+        "entity_name": "选择变更时间、硬件版本、软件版本步骤",
+        "entity_type": "concept",
+        "description": "选择变更时间、硬件版本、软件版本步骤是新增#1用例中的操作步骤。",
+        "source_id": "chunk-b1fbb373a870e3c74ceeb96fd684ecfb",
+        "file_path": "s27测试用例.pdf",
+        "created_at": 1779874626
+      },
+      {
+        "entity_name": "编辑TD管",
+        "entity_type": "method",
+        "description": "修改TD管信息的操作。",
+        "source_id": "chunk-b012500077ed86a8d05fd45b1247c317",
+        "file_path": "s26测试用例.pdf",
+        "created_at": 1779874168
+      },
+      {
+        "entity_name": "版本变更记录",
+        "entity_type": "concept",
+        "description": "版本变更记录是设备管理下的子功能，记录色谱仪和采集仪的硬件和软件版本变更信息。<SEP>版本变更记录是设备版本管理下的测试用例，涉及变更记录的添加和验证。",
+        "source_id": "chunk-7d7a61c58995feeb84f48700728f7994<SEP>chunk-b1fbb373a870e3c74ceeb96fd684ecfb",
+        "file_path": "s27测试用例.pdf",
+        "created_at": 1779874626
+      },
+      {
+        "entity_name": "批量输入TD管号功能",
+        "entity_type": "UNKNOWN",
+        "description": "批量输入TD管号功能实现批量输入操作。",
+        "source_id": "chunk-2e5710d727f36ba8ec8dab65ff9e3af2",
+        "file_path": "老化任务.pdf",
+        "created_at": 1782366362
+      },
+      {
+        "entity_name": "设备管理",
+        "entity_type": "concept",
+        "description": "设备管理是系统中一个综合性的功能模块，用于集中管理各类设备的相关信息。该模块出现在多个平台和系统中，包括XCloud平台（及其v1.2版本的小程序）、精智未来小程序、精智未来云管理后台、云呼气平台、Linus Studio系统等。在系统架构中，设备管理通常作为资产管理模块下的子模块、子菜单项或子功能存在，同时也常作为应用侧边栏或导航栏中的导航菜单项。\n\n设备管理的核心职责是支持设备的全生命周期操作，涵盖多种设备类型，如检测设备、采集仪、实验设备以及环境采样设备等。其主要功能包括新增设备、管理权限、查看设置详情、维护质控记录以及管理设备关联的字段。此外，该模块还具备版本变更记录和设备台账等子功能，用于跟踪设备的版本变化和建立完整的设备档案。针对实验设备，设备管理还支持打开谱图功能，以便直接查看与分析设备数据。\n\n设备管理模块也涉及设备检查、验收和日志记录等流程，并与设备资产管理、监控和配置等概念密切相关。在权限层面，设备管理可以作为一个模块权限复选框存在，若未被勾选则表示该组织未启用该功能。总体而言，设备管理为系统内的设备信息维护、权限分配、功能集成以及全流程管理提供了统一平台。<SEP>设备管理是系统中的一个功能模块，包含安装工单和所在采样点信息。<SEP>资产管理下的子模块，用于管理具体设备的信息和状态。<SEP>设备管理是系统的功能模块，用于管理实验室设备相关信息。<SEP>设备管理是资产管理下的一个子菜单项，用于管理实验设备，在左侧导航栏中显示。",
+        "source_id": "chunk-b4ee8a2d92df64c72f8c1d1435f6287c<SEP>chunk-300889d4aaad356f00f4749ee317a7c8<SEP>chunk-08584584f481d5d939e49a8cfc37e2a0<SEP>chunk-ad7edd3628a44e67eb079f7e15108bbd<SEP>chunk-0114eaf1591780ecaa1b31cac0cb8618<SEP>chunk-4abc228dd0a85238abfd8addc34e74eb<SEP>chunk-7d7a61c58995feeb84f48700728f7994<SEP>chunk-167b490573e7bdfc7325c0c6d6de533b<SEP>chunk-92e6e3db074dcb3f773e65cd02f1d64e<SEP>chunk-0187389780978bb38e9b14e0fe20df8c<SEP>chunk-ff5e6581adea4bb5faae67d12b0a3f45<SEP>chunk-e1a7e6682d118fd3b55bd49650662382<SEP>chunk-747de3c44d79b5d050b0e4538a90442a<SEP>chunk-c120c7253784f58def105061cf29312e<SEP>chunk-cf8213e510483360d2933624b0326731<SEP>chunk-110f84fd89402f7bca6e74b7955639c3<SEP>chunk-641d4a425cf8cdde299da5acd1f2cf0e<SEP>chunk-75d9d50112f120f44a8ca0cc3f1cba20<SEP>chunk-0c662b5f29265f3c1c6ad4d1245265db<SEP>chunk-230bf3a1b6c213c7c39fa13151204d69<SEP>chunk-6b6d59941a728e98e7c077a0a694ae6d<SEP>chunk-e42a3f57c53bd0366445d2e282ab82b5<SEP>chunk-1df499ac615e547e5e253c3beb1bb6d1<SEP>chunk-26c65f6eddc40b3d8a0046c002cf294c",
+        "file_path": "S43测试用例.pdf<SEP>s12测试用例.pdf<SEP>s22测试用例.pdf<SEP>s23测试用例.pdf<SEP>s25测试用例.pdf<SEP>s26测试用例.pdf<SEP>s27测试用例.pdf<SEP>s28测试用例.pdf<SEP>s29测试用例.pdf<SEP>s30测试用例.pdf<SEP>33.pdf<SEP>XMetrix_v2.2.pdf<SEP>XCloud_v1.2_小程序.pdf<SEP>环境样本采集.pdf<SEP>检测任务.pdf<SEP>检测任务可选设备.pdf<SEP>谱图导入.pdf<SEP>XCloud_2.0管理后台.pdf<SEP>XCloud_v1.2_Web.pdf<SEP>PID管理.pdf<SEP>标气管理.pdf<SEP>地点管理.pdf<SEP>设备管理.pdf<SEP>实验项目s52.pdf",
+        "created_at": 1782368485
+      },
+      {
+        "entity_name": "自定义:TD管管理/自定义:新增",
+        "entity_type": "concept",
+        "description": "自定义:TD管管理下的子模块，包含下载模版、上传文件、清空待导入数据、表单内重复、校验数据下一步等测试用例。",
+        "source_id": "chunk-528dfbccb40ac50452cdbfbcec76be91",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865345
+      },
+      {
+        "entity_name": "新增#1",
+        "entity_type": "event",
+        "description": "新增#1是一个测试用例，用于验证软件系统中各类模块的新增功能。该测试用例覆盖多个业务场景，包括物流单新增后在不同选项卡下的可见性验证、人员列表中新增人员数据的步骤与预期结果检查、样本模块中点击新增后能否定位到最新行、版本记录新增时对版本名称、版本类型、关联设备等字段的输入验证，以及图表模块的新增操作并预期成功新增图表。总体而言，新增#1作为一个通用新增功能验证用例，被应用于物流、人员管理、样本、版本管理及图表等多个模块，确保新增流程的正确性和界面的及时响应。<SEP>测试用例，测试新增检测卡功能，包括正常创建和异常输入。",
+        "source_id": "chunk-bcd09be11e4cb8558024dc597bedd9ce<SEP>chunk-56d7a4454df33eea2c98c2fc35c70ff9<SEP>chunk-25f1cb1e406256cd87fd263bebaf4db1<SEP>chunk-692b455010f79e1754ffe957eb1b4743<SEP>chunk-e1771468661d88df8215fa4a5cca135e<SEP>chunk-dd5486a83f744668de6e98b6b2da6679<SEP>chunk-e58a92662b7be26f58448548ade2c841<SEP>chunk-d6d523557052db74e45839e93e0e9798",
+        "file_path": "s14测试用例.pdf<SEP>s18测试用例.pdf<SEP>s24测试用例.pdf<SEP>s27测试用例.pdf<SEP>s29测试用例.pdf<SEP>s30测试用例.pdf<SEP>s32测试用例.pdf<SEP>s34测试用例.pdf",
+        "created_at": 1779876849
+      },
+      {
+        "entity_name": "TD管管理模块",
+        "entity_type": "artifact",
+        "description": "TD管管理模块是Linus Studio中的一个功能模块，用于管理TD管的状态、钢号、老化次数等信息，包含表格、搜索栏、新增按钮和分页控件。",
+        "source_id": "chunk-bbbf90b08060b198817f0a010fc21bba",
+        "file_path": "XCloud_v1.2_Web.pdf",
+        "created_at": 1780025293
+      },
+      {
+        "entity_name": "设备版本管理",
+        "entity_type": "concept",
+        "description": "设备版本管理是资产管理的子模块，管理设备的版本信息，包含新增、筛选、编辑、排序、权限等测试用例。<SEP>设备版本管理是设备管理下的一个功能模块，用于管理设备的硬件版本和软件版本。",
+        "source_id": "chunk-7d7a61c58995feeb84f48700728f7994<SEP>chunk-692b455010f79e1754ffe957eb1b4743",
+        "file_path": "s27测试用例.pdf",
+        "created_at": 1779874468
+      },
+      {
+        "entity_name": "小程序-新增多个TD管#1",
+        "entity_type": "method",
+        "description": "一个测试用例，步骤：点击添加TD管；预期：正常添加。",
+        "source_id": "chunk-8b784b76bd2e76fe01e7158deac2e90a",
+        "file_path": "s23测试用例.pdf",
+        "created_at": 1779870135
+      },
+      {
+        "entity_name": "XMetrix系统",
+        "entity_type": "organization",
+        "description": "XMetrix系统是一个用于数据登记和报告单发放的系统，支持任务管理、字段添加、批量修改等功能。<SEP>XMetrix系统是一个软件系统，用于处理检测报告任务列表，涉及定标记录管理和权限控制。",
+        "source_id": "chunk-7c117dc975dec304efd03c556c6839a7<SEP>chunk-35d019619819f9d4c3ef1428f9148595",
+        "file_path": "33.pdf<SEP>51测试用例.pdf",
+        "created_at": 1782100009
+      },
+      {
+        "entity_name": "REQ-002",
+        "entity_type": "concept",
+        "description": "REQ-002是一个需求编号，关联TC-002、TC-003和TC-008，涉及TD管号校验功能。<SEP>关联需求，涉及评分编辑和等级更新逻辑。<SEP>需求：TD管号为必填项，为空时系统提示并阻止提交",
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc<SEP>chunk-7b466b24fdfc7d7bf7e4f316b552421d<SEP>chunk-f146093ecca4ac54a79e424f6f562696",
+        "file_path": "S51测试用例.xlsx<SEP>51测试用例.pdf",
+        "created_at": 1782099986
+      },
+      {
+        "entity_name": "数据修改需求",
+        "entity_type": "event",
+        "description": "数据修改需求是用户提出的需要在数据库中提前加任务的需求，涉及使用医院提供的标本编码等数据。",
+        "source_id": "chunk-7c117dc975dec304efd03c556c6839a7",
+        "file_path": "33.pdf",
+        "created_at": 1779929573
+      },
+      {
+        "entity_name": "修改检测任务TD管信息",
+        "entity_type": "event",
+        "description": "修改检测任务TD管信息是更改检测任务关联样本的TD管数据的操作。",
+        "source_id": "chunk-2fc8fba7af5bfa57922c97b13e6e4334",
+        "file_path": "s26测试用例.pdf",
+        "created_at": 1779874171
+      },
+      {
+        "entity_name": "自定义设备版本管理",
+        "entity_type": "concept",
+        "description": "自定义设备版本管理是系统的一个模块，管理设备版本记录和变更。",
+        "source_id": "chunk-b1fbb373a870e3c74ceeb96fd684ecfb",
+        "file_path": "s27测试用例.pdf",
+        "created_at": 1779874625
+      },
+      {
+        "entity_name": "自定义:TD管管理/自定义:校验数据",
+        "entity_type": "concept",
+        "description": "自定义:TD管管理下的子模块，未列出具体用例。",
+        "source_id": "chunk-528dfbccb40ac50452cdbfbcec76be91",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865345
+      },
+      {
+        "entity_name": "计划版本",
+        "entity_type": "data",
+        "description": "计划版本是需求或任务的版本号。<SEP>计划版本是数据表中的一列，用于显示任务或需求对应的计划版本。",
+        "source_id": "chunk-16ff5c12ad7d01482cf463b2df5804bf<SEP>chunk-b48fc87b008ecbdf8a86214b36d752f3",
+        "file_path": "XMetrix_v2.4.pdf",
+        "created_at": 1779937113
+      },
+      {
+        "entity_name": "添加TD管表单",
+        "entity_type": "content",
+        "description": "一个模态窗口表单，包含4步向导(上传文件、校验数据、预览数据、数据导入)，用于新增TD管入库。<SEP>添加TD管表单是用于新建TD管记录的界面表单，包含上传文件、校验数据、预览数据和数据导入四个步骤。",
+        "source_id": "chunk-d814d2084b65f0a722c021e6e15bd49e<SEP>chunk-6a2ff776c502afb11af8ca8ef1fc3657",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353617
+      },
+      {
+        "entity_name": "需求文档",
+        "entity_type": "content",
+        "description": "需求文档是记录需求内容的文档。<SEP>需求文档是数据表中的一列，用于关联需求文档。<SEP>需求文档是一份文档，出现在导航栏中，可能是X Project的组成部分。<SEP>需求文档是导航路径中的一个文档层级，表示需求文档。",
+        "source_id": "chunk-16ff5c12ad7d01482cf463b2df5804bf<SEP>chunk-b48fc87b008ecbdf8a86214b36d752f3<SEP>chunk-2281ae4a97ebf8693510890b6be7747e<SEP>chunk-b164c7609b74a746212a49b9c27475c8",
+        "file_path": "XMetrix_v2.4.pdf<SEP>20.pdf<SEP>XMetrix_v2.2.pdf",
+        "created_at": 1779940725
+      },
+      {
+        "entity_name": "TD管管理系统",
+        "entity_type": "artifact",
+        "description": "一个用于管理TD管(实验室/医院资产)的web系统，包含使用记录和基本信息选项卡。",
+        "source_id": "chunk-2499f26f1c9e0fd9cb26e6a854427d70",
+        "file_path": "TD管管理.pdf",
+        "created_at": 1779946162
+      },
+      {
+        "entity_name": "采集仪",
+        "entity_type": "artifact",
+        "description": "采集仪是一种用于数据采集的硬件设备类型，具有序列号标识，并可关联多个采样点。该设备的主要功能包括采集气体或代谢气体分子样本，同时也能通过扫描二维码实现数据录入，其序列号可被设置，扫描二维码后可自动填充有效采样时间、采样耗时等字段。在管理方面，采集仪的质控记录不加以记录，但其版本信息会在版本变更记录中予以记录；此外，采集仪可拥有1条或多条标准流速，并用于生成流速统计图。综合来看，采集仪作为仪器设备，兼具样本采集、二维码管理、流速配置与统计等功能。<SEP>采集仪是用于样本采集中控制TD管或直接采样流程的设备，配有序列号标识。",
+        "source_id": "chunk-61bfb7e222dd19f595675a1fadadf9e5<SEP>chunk-0114eaf1591780ecaa1b31cac0cb8618<SEP>chunk-7d7a61c58995feeb84f48700728f7994<SEP>chunk-e1771468661d88df8215fa4a5cca135e<SEP>chunk-d253ba1c6b1e52f3efcc606c62903dba<SEP>chunk-7cb24e6b7932ae447ac0c29bff65322b<SEP>chunk-73fb19bf0bb38af0fc1cd9b6bb748850",
+        "file_path": "s21测试用例.pdf<SEP>s25测试用例.pdf<SEP>s27测试用例.pdf<SEP>s29测试用例.pdf<SEP>s30测试用例.pdf<SEP>34.pdf<SEP>采样登记.pdf",
+        "created_at": 1779947679
+      },
+      {
+        "entity_name": "加入批量输入TD管号功能",
+        "entity_type": "concept",
+        "description": "加入批量输入TD管号功能是系统中的一个新增功能，允许用户批量输入TD管号。",
+        "source_id": "chunk-2e5710d727f36ba8ec8dab65ff9e3af2",
+        "file_path": "老化任务.pdf",
+        "created_at": 1782366355
+      },
+      {
+        "entity_name": "编辑#1",
+        "entity_type": "concept",
+        "description": "编辑#1是人员列表中的测试用例，描述编辑人员数据的步骤和预期结果。<SEP>编辑#1是一个测试用例，涉及修改设备版本的各个字段。<SEP>编辑图表用例。<SEP>测试用例，验证编辑样本功能。",
+        "source_id": "chunk-56d7a4454df33eea2c98c2fc35c70ff9<SEP>chunk-692b455010f79e1754ffe957eb1b4743<SEP>chunk-e1771468661d88df8215fa4a5cca135e<SEP>chunk-e58a92662b7be26f58448548ade2c841",
+        "file_path": "s18测试用例.pdf<SEP>s27测试用例.pdf<SEP>s29测试用例.pdf<SEP>s32测试用例.pdf",
+        "created_at": 1779876289
+      },
+      {
+        "entity_name": "image_2.png",
+        "entity_type": "content",
+        "description": "系统界面截图的图片文件，路径为/home/chh/workspace/anything-chat-rag/parser_output/TD管管理-s52_a9898c73/TD管管理-s52/docling/images/image_2.png。",
+        "source_id": "chunk-10859b87ff39fe0f4dbf1f048e42ef32",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353622
+      },
+      {
+        "entity_name": "色谱仪",
+        "entity_type": "artifact",
+        "description": "色谱仪是一种用于色谱分析的实验室分析仪器，主要承担样本分析任务，可执行气相色谱（GC）分析，并能与TD10等设备协同工作。该设备具备接收参数、发送数据、执行清洁和分析动作的功能，同时在GC解析和清洁操作中负责参数发送与谱图数据接收。色谱仪在系统中可关联定性表，也记录有版本信息，并可能关联多个采样点。用户可根据系统中可选的设备序列号选择对应的色谱仪；此外，色谱仪还能用于气体分子分析，并可绑定TD管。在硬件控制层面，色谱仪具备仓门状态控制能力。",
+        "source_id": "chunk-bf21980654d67319a6cf866659f4c06e<SEP>chunk-27c59dcdfafb9c0a15b7a7b7c2556265<SEP>chunk-e6da75081ef9086fb4c053d66225410d<SEP>chunk-1f178322d0546ae1a3b26405a9605df5<SEP>chunk-0993b38cbdf06250867a506772025562<SEP>chunk-7d7a61c58995feeb84f48700728f7994<SEP>chunk-519f1b269f91f78e15c9b0e5cba75e75<SEP>chunk-e42a3f57c53bd0366445d2e282ab82b5",
+        "file_path": "S37测试用例.pdf<SEP>S43测试用例.pdf<SEP>s27测试用例.pdf<SEP>定标记录.pdf<SEP>设备管理.pdf",
+        "created_at": 1782366790
+      },
+      {
+        "entity_name": "TD管管理系统添加表单界面（CLOUD 精智未来） (image)",
+        "entity_type": "image",
+        "description": "Screenshot of a cloud-based TD tube management system (CLOUD 精智未来) with dual panels: left instructions for TD tube workflows (location, logistics, status), right a modal (*添加TD管表单*) for importing new TD tube data (Excel upload, wizard steps). Background table shows existing tubes (status *占用中*, location *精智未来*), illustrating asset tracking and data import functionality.",
+        "source_id": "chunk-6a2ff776c502afb11af8ca8ef1fc3657",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353554
+      },
+      {
+        "entity_name": "变更研究权限#1",
+        "entity_type": "event",
+        "description": "变更研究权限#1是一个测试用例，涉及权限从有到无时清空物品清单。",
+        "source_id": "chunk-692b455010f79e1754ffe957eb1b4743",
+        "file_path": "s27测试用例.pdf",
+        "created_at": 1779874470
+      },
+      {
+        "entity_name": "TD管数据录入表单（重复记录错误） (image)",
+        "entity_type": "image",
+        "description": "Web表单界面，用于录入TD管信息，含必填字段（状态、钢号、批次），显示“该TD管已存在！”的重复记录错误，属于Linus Studio的数据管理模块，与周边页面的设备/标本管理、重复验证逻辑关联。",
+        "source_id": "chunk-30eef9ee1ead839577dbaf1bff7c3d87",
+        "file_path": "XCloud_v1.2_Web.pdf",
+        "created_at": 1780025026
+      },
+      {
+        "entity_name": "物流管理",
+        "entity_type": "concept",
+        "description": "物流管理是呼析云系统（亦称精智未来云管理后台）中的一个核心功能模块，用于管理样本及相关物资的物流流程，涵盖物流信息的记录、物流单的状态跟踪以及物资运输与签收的全流程管理。该模块需要具备相应的物流权限才能访问和使用，既可以是系统预设模块，也支持自定义配置。作为资产管理下的子模块，物流管理具体包括物流单的新建、签收、补充备注等操作，并涉及寄出地点与签收地点的管理、样本选择范围以及变更研究权限等测试用例。模块支持Web平台和小程序平台，提供跨端的物流流程管理能力，其子模块包括“物流管理-小程序”和“创建物流单”等，通过整合采样点与样本信息，实现样本寄出和签收的全流程跟踪，从而保障物资在运输过程中的可追溯性和管理效率。\n\n在管理后台中，物流管理模块专门用于管理物流单据的签收状态，包含全部、待签收、已签收、未提交等标签页，方便用户分类查看和处理。该模块同时负责管理物流记录，是系统中一个重要的功能模块。值得注意的是，此功能模块的原系统名称“物流管理”已改为“物资流转”，但当前仍沿用旧称进行描述和操作。<SEP>物流管理是物资流转的旧称，指对物流活动进行计划、执行和控制的过程。<SEP>物流管理是系统侧边栏中的一个菜单项，代表物资流转管理的核心功能模块。<SEP>物流管理是CLOU精智未来云管理后台中的一个功能模块。",
+        "source_id": "chunk-2c6e84b5bad5e4779f0704a7153cd155<SEP>chunk-fd7ec210fa5159d9581c9e89a78dc114<SEP>chunk-b2f34033d15b997bd208eb19a41a460a<SEP>chunk-bb93b2f88bdc92af899f21f668e0ab50<SEP>chunk-e415c8fe3fc12b16c3057e5fc9ec3a9c<SEP>chunk-ad7edd3628a44e67eb079f7e15108bbd<SEP>chunk-6db3ee750aef8f127faedf3621a7c5c0<SEP>chunk-4abc228dd0a85238abfd8addc34e74eb<SEP>chunk-7d7a61c58995feeb84f48700728f7994<SEP>chunk-692b455010f79e1754ffe957eb1b4743<SEP>chunk-53d2d84ba4b8a66fddc523a79876e197<SEP>chunk-92e6e3db074dcb3f773e65cd02f1d64e<SEP>chunk-e1a7e6682d118fd3b55bd49650662382<SEP>chunk-747de3c44d79b5d050b0e4538a90442a<SEP>chunk-c120c7253784f58def105061cf29312e<SEP>chunk-601966ea2263a797992556bd87282e39<SEP>chunk-fb152d63a007e2531b0c1f843e2757b2<SEP>chunk-0c662b5f29265f3c1c6ad4d1245265db<SEP>chunk-230bf3a1b6c213c7c39fa13151204d69<SEP>chunk-fe9f8917e70f005203e189e82c531c99<SEP>chunk-dd08c85e140e46a7ec510e789b35b2a3<SEP>chunk-9b2395baba9953b4a001c4c7432c7253<SEP>chunk-2e5710d727f36ba8ec8dab65ff9e3af2<SEP>chunk-e42a3f57c53bd0366445d2e282ab82b5<SEP>chunk-c4aa042875f6a85468e02d7b0f395314<SEP>chunk-063f6cbe8d37f8f5a6047a5bef44d3b5<SEP>chunk-48478c3f994bdb657be43333618d93aa",
+        "file_path": "S43测试用例.pdf<SEP>s14测试用例.pdf<SEP>s16测试用例.pdf<SEP>s17测试用例.pdf<SEP>s23测试用例.pdf<SEP>s25测试用例.pdf<SEP>s26测试用例.pdf<SEP>s27测试用例.pdf<SEP>s29测试用例.pdf<SEP>s34测试用例.pdf<SEP>检测任务.pdf<SEP>检测任务可选设备.pdf<SEP>谱图导入.pdf<SEP>权限分配.pdf<SEP>物流清单.pdf<SEP>PID管理.pdf<SEP>标气管理.pdf<SEP>标气批次.pdf<SEP>地点管理.pdf<SEP>检测任务s52.pdf<SEP>角色管理.pdf<SEP>老化任务.pdf<SEP>设备管理.pdf<SEP>物资流转（原物流管理）.pdf<SEP>异常TD任务.pdf",
+        "created_at": 1782371040
+      },
+      {
+        "entity_name": "TD管管理程序指南",
+        "entity_type": "content",
+        "description": "左侧面板中的程序指南，包含编号步骤1-5及子要点，详细说明TD管管理程序(添加、移除、记录日志等)。",
+        "source_id": "chunk-66eda3389b8b11ef802a59a459c79220",
+        "file_path": "设备管理.pdf",
+        "created_at": 1782366901
+      },
+      {
+        "entity_name": "变更风险系数",
+        "entity_type": "event",
+        "description": "变更风险系数是用户在人工分析中时修改风险系数计算结果的事件。",
+        "source_id": "chunk-92e6e3db074dcb3f773e65cd02f1d64e",
+        "file_path": "s29测试用例.pdf",
+        "created_at": 1779875352
+      },
+      {
+        "entity_name": "TD管状态变化列",
+        "entity_type": "content",
+        "description": "表格列，记录TD管状态变化，如占用中->占用中、待领用->占用中等。",
+        "source_id": "chunk-2499f26f1c9e0fd9cb26e6a854427d70",
+        "file_path": "TD管管理.pdf",
+        "created_at": 1779946163
+      },
+      {
+        "entity_name": "用户",
+        "entity_type": "person",
+        "description": "用户是各类软件平台（如云呼气平台、肺癌风险分析平台、XCloud平台及其他操作系统）的核心操作者，承担测试、使用、管理等多重职能。其具体角色包括安装者、分析员、医生、测试人员、最终用户、上传人、分析人、发布人等，不同角色对应不同的操作权限。用户的属性涵盖用户名、手机号码、密码、邮箱等，系统可为其分配角色和权限。用户通过登录系统获得访问权限，可根据需要切换用户身份或退出账号。\n\n用户可执行的操作范围广泛，包括点击暂停、开盖、删除任务、搜索、排序、通知设置、变更分析结果、提交发布、新增、删除、校验、拖拽、下载以及数据导出、任务分析和谱图查看等。用户还能接收微信通知和短信通知，并可通过导入Excel表执行批量修改风险系数操作。作为检测卡的使用者，用户参与激活、预约、查看报告等流程。在具体使用场景中，用户需上传RT对照表并接收UI通知，通过点击“知道了”按钮确认错误并修正格式；也可请求导出谱图链接并进行下载。在数据录入系统中，用户在收到重复编码提示后执行重新录入操作；在个人信息填写和扫码采样时，会被引导扫描二维码并填写问卷。此外，用户还使用该软件应用进行环境样本采集相关任务，以及在定标界面中查看谱峰、检查R2值，并准备导出或保存校准数据。总之，用户是系统操作与数据交互的主体，其功能与权限因角色和平台而异。<SEP>用户已登录系统，具有任务管理权限，可以执行创建、取消任务等操作。",
+        "source_id": "chunk-27c59dcdfafb9c0a15b7a7b7c2556265<SEP>chunk-dad058a665f715c868cb5ebb012ea907<SEP>chunk-f66dec0ba8e2d12f2b2b9cf3145b777b<SEP>chunk-8813bd8cc303e4ab61e6bddea1c4cead<SEP>chunk-b3ab54c816fb2f928fa5ee967dbf58bf<SEP>chunk-7d7a61c58995feeb84f48700728f7994<SEP>chunk-92e6e3db074dcb3f773e65cd02f1d64e<SEP>chunk-0187389780978bb38e9b14e0fe20df8c<SEP>chunk-ed91dde2d811d2e31041cc655ed18627<SEP>chunk-d6d523557052db74e45839e93e0e9798<SEP>chunk-52cf1f2ce6ebdbdc896e5399d2ba4d13<SEP>chunk-7fec32f5eed14a278bf048b6fdc1c8e5<SEP>chunk-ff5e6581adea4bb5faae67d12b0a3f45<SEP>chunk-4c4de4cd372a8a4b19870222eacee4fa<SEP>chunk-16ff5c12ad7d01482cf463b2df5804bf<SEP>chunk-cbf96977f8c503e2df4e2a87730203a7",
+        "file_path": "S37测试用例.pdf<SEP>s12测试用例.pdf<SEP>s20测试用例.pdf<SEP>s21测试用例.pdf<SEP>s26测试用例.pdf<SEP>s27测试用例.pdf<SEP>s29测试用例.pdf<SEP>s30测试用例.pdf<SEP>S31测试用例.pdf<SEP>s34测试用例.pdf<SEP>33.pdf<SEP>34.pdf<SEP>XMetrix_v2.2.pdf<SEP>XMetrix_v2.4.pdf<SEP>XMetrix_v2.3.pdf<SEP>XCloud_v1.2_小程序.pdf<SEP>环境样本采集.pdf<SEP>定标记录.pdf<SEP>51测试用例.pdf",
+        "created_at": 1782099999
+      },
+      {
+        "entity_name": "TD管状态",
+        "entity_type": "UNKNOWN",
+        "description": "编辑TD管信息后保存，TD管状态不变更。",
+        "source_id": "chunk-b012500077ed86a8d05fd45b1247c317",
+        "file_path": "s26测试用例.pdf",
+        "created_at": 1779874187
+      },
+      {
+        "entity_name": "修改风险系数",
+        "entity_type": "method",
+        "description": "修改风险系数是一个测试用例中的操作步骤，用户输入任务ID和风险系数进行导入，以修改对应任务的风险系数。<SEP>通过导入Excel表批量修改项目中风险系数的操作。<SEP>修改风险系数是调整风险等级参数的操作。",
+        "source_id": "chunk-f8db68e64e75687f5b75f5163931349f<SEP>chunk-52cf1f2ce6ebdbdc896e5399d2ba4d13<SEP>chunk-480d837307dbe34f95cea5130e572039",
+        "file_path": "S33测试用例.pdf<SEP>33.pdf<SEP>检测报告任务列表.pdf",
+        "created_at": 1782356096
+      },
+      {
+        "entity_name": "自定义:TD管管理/自定义:编辑",
+        "entity_type": "concept",
+        "description": "自定义:TD管管理下的子模块，未列出具体用例。",
+        "source_id": "chunk-528dfbccb40ac50452cdbfbcec76be91",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865346
+      },
+      {
+        "entity_name": "项目管理",
+        "entity_type": "concept",
+        "description": "项目管理是系统中用于管理检测项目及相关信息的一个核心功能模块。在不同应用或架构描述中，它的具体定位和呈现形式存在差异：在ArcoPro应用中，项目管理作为功能模块出现，位于面包屑导航中，是VOC列表的上级页面，也可作为上层模块包含VOC列表、VOC组合列表和检测项目列表；在Web应用中，该模块包含检测项目列表和任务管理子模块；在METRIX精智·呼析云2.16.0软件中，它是左侧导航菜单中的一个功能模块，用于管理项目信息；此外，它还可作为侧边栏导航中的一个已展开菜单项，包含检测项目列表子菜单，或作为项目详情下的一个选项卡用于管理项目设置，以及作为管理后台中的一个视图用于管理项目本身的信息。尽管层级和归属在不同描述中有所不同，项目管理的核心职能始终围绕检测项目的组织与管理展开，涵盖检测项目列表、VOC相关配置及阈值设定等关键内容，并支持项目的创建、编辑等管理操作。<SEP>项目管理是系统中的一个功能模块，用于管理项目。<SEP>METRIX精智·呼析云系统中的一个管理模块。<SEP>项目管理是METRIX精智呼析云2.16.0侧边栏中的一个功能模块，用于管理项目信息。",
+        "source_id": "chunk-bbc556a405fe174733fa2d60daf5b4dc<SEP>chunk-56d7a4454df33eea2c98c2fc35c70ff9<SEP>chunk-8a98c36ae38c8eeb25db9aa4216ffaf9<SEP>chunk-de5451b1ed2c4025218262cc3487312a<SEP>chunk-649b74429c1cc667370afa392a940126<SEP>chunk-d493913f3802b2e18c8eefd1ca9f8381<SEP>chunk-45cd958657ec27af30c305d933168bd2<SEP>chunk-dd6411623a31693e3ed3fdc452764eb7<SEP>chunk-20c459fad9c08d0c97d0fc465ececb0d<SEP>chunk-519f1b269f91f78e15c9b0e5cba75e75<SEP>chunk-6189598135361cdf6e5754b3fa26b16e<SEP>chunk-e96a86ebe542ffec6dc84083b1563479<SEP>chunk-bece585ed2dfb5e5c44d898619f39802<SEP>chunk-480d837307dbe34f95cea5130e572039<SEP>chunk-b0796330cda0340c4ad2143ff2d4f9e3<SEP>chunk-f64ed389ca5a3fce311d48ca85a01dfd<SEP>chunk-13d85ba7a93b18ed91d83ed1ff846f73<SEP>chunk-793b18d21d6272b6940548a28be8f404<SEP>chunk-e9797aa4116af470728467718b575aec",
+        "file_path": "s15测试用例.pdf<SEP>s18测试用例.pdf<SEP>s22测试用例.pdf<SEP>s26测试用例.pdf<SEP>33.pdf<SEP>34.pdf<SEP>20.pdf<SEP>实验项目.pdf<SEP>定标记录.pdf<SEP>定标记录-s52.pdf<SEP>定性表列表s52.pdf<SEP>检测报告任务列表.pdf<SEP>检测项目列表.pdf<SEP>实验项目s52.pdf<SEP>质控任务列表.pdf",
+        "created_at": 1782373254
+      },
+      {
+        "entity_name": "TD管管理系统界面截图（TD Tube Management System Screenshot） (image)",
+        "entity_type": "image",
+        "description": "Screenshot of a TD tube management system (精智未来管理后台) showing a tube list (all '占用中') and a detailed usage log for TD管号 351484 (added by 丘许诚, located at 精智未来). Highlights TD tube asset tracking and operation history.",
+        "source_id": "chunk-8588466962b40b1c04f5a8c3a5c40960",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353554
+      },
+      {
+        "entity_name": "s24系统",
+        "entity_type": "artifact",
+        "description": "s24系统是一个软件系统，围绕其测试用例文档进行层次化组织，是图像中层次结构图的核心主题。",
+        "source_id": "chunk-59ceb173246ac1e9c6324f1272fbcc0e",
+        "file_path": "s24测试用例.pdf",
+        "created_at": 1779870583
+      },
+      {
+        "entity_name": "/home/chh/workspace/anything-chat-rag/parser_output/TD管管理-s52_a9898c73/TD管管理-s52/docling/images/image_4.png",
+        "entity_type": "data",
+        "description": "图像文件在文件系统中的完整路径，指向TD管管理相关图像。",
+        "source_id": "chunk-066b35f3a73c278c775291bc969058c1",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353621
+      },
+      {
+        "entity_name": "模板管理",
+        "entity_type": "concept",
+        "description": "模板管理是一个功能模块，集成于s24系统和METRIX精智·呼析云系统中，用于管理报告单模板。该模块支持对报告单模板执行新增、编辑、删除等基础操作，允许用户修改模板字段，并实现模板状态同步功能。模板管理既可作为独立的自定义模块使用，也可作为“客户管理”下的一个子菜单项，或作为配置管理下的一个子模块呈现；在检测管理系统中，它同样承担管理操作模板或报告模板的职能。\n\n在METRIX精智·呼析云系统中，模板管理位于左侧导航栏或侧边栏，是系统功能结构的一部分。具体显示为左侧导航菜单中的一个可展开模块，内部包含“报告单模板列表”子菜单或子模块，供用户查看和管理所有报告单模板。此外，该模块与测试用例上下文相关联，确保模板配置与测试流程保持一致。通过模板管理，用户能够高效地维护和同步系统中的报告单模板，以适应不同业务场景的需求。",
+        "source_id": "chunk-56d7a4454df33eea2c98c2fc35c70ff9<SEP>chunk-2daa345b401e8ad5329fa25aa5170937<SEP>chunk-d493913f3802b2e18c8eefd1ca9f8381<SEP>chunk-45cd958657ec27af30c305d933168bd2<SEP>chunk-7cb24e6b7932ae447ac0c29bff65322b<SEP>chunk-67795afbadc5f312ad41f93511d574a7<SEP>chunk-7f8105b7453da5623ce3362ec5bc0d14<SEP>chunk-a0aacb12a28a35beaac154022edd88c1<SEP>chunk-4c4de4cd372a8a4b19870222eacee4fa<SEP>chunk-442ba79a7c931acb0c2dc22835f6f0b1<SEP>chunk-30df855274a892bb8a1806085b39529d<SEP>chunk-fd3c2feb3db00c09ee678202d489bb73<SEP>chunk-16ff5c12ad7d01482cf463b2df5804bf<SEP>chunk-519f1b269f91f78e15c9b0e5cba75e75",
+        "file_path": "s18测试用例.pdf<SEP>s24测试用例.pdf<SEP>33.pdf<SEP>34.pdf<SEP>XMetrix_v2.1.pdf<SEP>XMetrix_v2.2.pdf<SEP>XMetrix_v2.3.pdf<SEP>XMetrix_v2.4.pdf<SEP>XMetrix_v2.5.pdf<SEP>定标记录.pdf",
+        "created_at": 1780050345
+      },
+      {
+        "entity_name": "自定义:TD管管理/自定义:数据预览",
+        "entity_type": "concept",
+        "description": "自定义:TD管管理下的子模块，未列出具体用例。",
+        "source_id": "chunk-528dfbccb40ac50452cdbfbcec76be91",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865345
+      },
+      {
+        "entity_name": "资产管理",
+        "entity_type": "concept",
+        "description": "资产管理是出现在多个系统平台中的一个核心功能模块，这些平台包括呼析云、精智·未来云（涉及LOU口精智·未来云）、XCloud 2.0管理后端、云呼气平台以及Linus Studio系统等。在管理后台或系统侧边栏的导航菜单中，该模块以菜单项形式呈现，通常带有下拉箭头，文本显示为蓝色，并可被高亮标识为当前选中部分。\n\n该模块承担资产全生命周期管理的职责，涵盖设备管理、设备版本管理、标气管理、TD管管理、耗材管理、PID管理、气体类型与组合列表配置、物联网卡管理等多个子模块。具体负责设备、标气、TD管、物联网卡等实体的注册、维护与追踪，通过设备版本管理子模块实现版本的精准控制，并支持气体类型与组合列表的配置与管理，确保资产信息的完整性与可追溯性。此外，该模块在图像内容分析的相关上下文中也被提及，与TD管管理模块的上下文有关。\n\n整体来看，资产管理面向企业内部或工业场景，旨在提升资产使用效率与数据准确性。<SEP>资产管理是管理后台中用于管理资产的模块。<SEP>资产管理是系统中用于管理资产信息的模块。<SEP>平台中管理设备资产的模块。<SEP>资产管理系统菜单项，包含子菜单(设备管理、TD管管理等)，用于管理资产。<SEP>资产管理是CLOU精智未来云管理后台中的一个功能模块。",
+        "source_id": "chunk-08584584f481d5d939e49a8cfc37e2a0<SEP>chunk-4abc228dd0a85238abfd8addc34e74eb<SEP>chunk-de5451b1ed2c4025218262cc3487312a<SEP>chunk-692b455010f79e1754ffe957eb1b4743<SEP>chunk-747de3c44d79b5d050b0e4538a90442a<SEP>chunk-c120c7253784f58def105061cf29312e<SEP>chunk-601966ea2263a797992556bd87282e39<SEP>chunk-20c459fad9c08d0c97d0fc465ececb0d<SEP>chunk-fb152d63a007e2531b0c1f843e2757b2<SEP>chunk-cf8213e510483360d2933624b0326731<SEP>chunk-110f84fd89402f7bca6e74b7955639c3<SEP>chunk-641d4a425cf8cdde299da5acd1f2cf0e<SEP>chunk-75d9d50112f120f44a8ca0cc3f1cba20<SEP>chunk-0c662b5f29265f3c1c6ad4d1245265db<SEP>chunk-cd9e8478e61a6763e8e3d1f4d5ba1af8<SEP>chunk-230bf3a1b6c213c7c39fa13151204d69<SEP>chunk-fe9f8917e70f005203e189e82c531c99<SEP>chunk-6b6d59941a728e98e7c077a0a694ae6d<SEP>chunk-dd08c85e140e46a7ec510e789b35b2a3<SEP>chunk-9b2395baba9953b4a001c4c7432c7253<SEP>chunk-2e5710d727f36ba8ec8dab65ff9e3af2<SEP>chunk-7bd4d30f0bd3f0972cbaac394b489f59<SEP>chunk-e42a3f57c53bd0366445d2e282ab82b5<SEP>chunk-48478c3f994bdb657be43333618d93aa",
+        "file_path": "s22测试用例.pdf<SEP>s26测试用例.pdf<SEP>s27测试用例.pdf<SEP>XMetrix_v2.3.pdf<SEP>检测任务可选设备.pdf<SEP>谱图导入.pdf<SEP>权限分配.pdf<SEP>实验项目.pdf<SEP>物流清单.pdf<SEP>XCloud_2.0管理后台.pdf<SEP>XCloud_v1.2_Web.pdf<SEP>PID管理.pdf<SEP>标气管理.pdf<SEP>标气批次.pdf<SEP>地点管理.pdf<SEP>检测任务s52.pdf<SEP>角色管理.pdf<SEP>老化任务.pdf<SEP>设备管理.pdf<SEP>实验项目s52.pdf<SEP>异常TD任务.pdf",
+        "created_at": 1782371040
+      },
+      {
+        "entity_name": "编辑手动登记样本新增TD管",
+        "entity_type": "method",
+        "description": "编辑手动登记样本并添加TD管信息的操作。",
+        "source_id": "chunk-b012500077ed86a8d05fd45b1247c317",
+        "file_path": "s26测试用例.pdf",
+        "created_at": 1779874170
+      },
+      {
+        "entity_name": "系统配置",
+        "entity_type": "concept",
+        "description": "配置文件sys_config.json用于保存系统配置，配置变更时自动更新。<SEP>系统配置是ChromXHRA中的一个功能模块，用于配置系统参数。<SEP>系统配置是ChromXHRA软件中提及的另一个模块，但未在图像中直接出现。<SEP>在软件中代表设置或配置功能的模块，由齿轮图标表示。<SEP>系统配置是BayzeProll系统中的一个功能模块，仅允许增删改操作，admin账号没有该模块权限。<SEP>系统配置是用户管理界面左侧菜单项之一。",
+        "source_id": "chunk-fe910910c810e98985a3f75d5c55591a<SEP>chunk-abfaa2bcd8ab16373853f9355c52146f<SEP>chunk-56a8144689a523d3ef85d7934616613f<SEP>chunk-cb02f7e1a96d990201b84f50ddf7d7f6",
+        "file_path": "S40测试用例.pdf<SEP>风险计算_登录页.pdf<SEP>风险计算_用户管理.pdf",
+        "created_at": 1780538623
+      },
+      {
+        "entity_name": "新增TD管采样样本#1",
+        "entity_type": "concept",
+        "description": "测试用例，验证新增TD管采样样本流程。",
+        "source_id": "chunk-e58a92662b7be26f58448548ade2c841",
+        "file_path": "s32测试用例.pdf",
+        "created_at": 1779876289
+      },
+      {
+        "entity_name": "配置文件sys_config.json",
+        "entity_type": "content",
+        "description": "系统配置备份文件，保存系统配置的JSON格式文件。",
+        "source_id": "chunk-fe910910c810e98985a3f75d5c55591a",
+        "file_path": "S40测试用例.pdf",
+        "created_at": 1779862833
+      },
+      {
+        "entity_name": "自定义:TD管管理/自定义:查看",
+        "entity_type": "concept",
+        "description": "自定义:TD管管理下的子模块，未列出具体用例。",
+        "source_id": "chunk-528dfbccb40ac50452cdbfbcec76be91",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865346
+      },
+      {
+        "entity_name": "变更检测项目",
+        "entity_type": "concept",
+        "description": "测试用例，验证变更检测项目操作。",
+        "source_id": "chunk-e58a92662b7be26f58448548ade2c841",
+        "file_path": "s32测试用例.pdf",
+        "created_at": 1779876294
+      },
+      {
+        "entity_name": "环境登记-TD管管理",
+        "entity_type": "concept",
+        "description": "环境登记-TD管管理是测试用例所属的模块，涵盖TD管添加、校验、提交、删除等功能测试。",
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097459
+      }
+    ],
+    "relationships": [
+      {
+        "src_id": "TD管号",
+        "tgt_id": "检测任务",
+        "description": "检测任务包含TD管号作为样品管标识。<SEP>通过TD管号可返回对应的检测任务。<SEP>每个检测任务具有TD管号作为另一标识。<SEP>检测任务表格中包含TD管号列，记录TD管编号。<SEP>检测任务关联TD管号，标识用于采样的TD管。",
+        "keywords": "关联,包含,数据字段,标识,检索,表格列,设备关联",
+        "weight": 5.0,
+        "source_id": "chunk-c6417e4b8c60bd7579cc3ab30335b2a3<SEP>chunk-39af86e2499209c5cc0eefe0d692bec7<SEP>chunk-fd3c2feb3db00c09ee678202d489bb73<SEP>chunk-e1a7e6682d118fd3b55bd49650662382",
+        "file_path": "s20测试用例.pdf<SEP>s30测试用例.pdf<SEP>XMetrix_v2.3.pdf<SEP>XMetrix_v2.2.pdf<SEP>检测任务.pdf",
+        "created_at": 1779948440
+      },
+      {
+        "src_id": "成功新增",
+        "tgt_id": "选择变更时间、硬件版本、软件版本步骤",
+        "description": "执行选择变更时间等步骤后，预期结果为成功新增。",
+        "keywords": "步骤验证,预期结果",
+        "weight": 1.0,
+        "source_id": "chunk-b1fbb373a870e3c74ceeb96fd684ecfb",
+        "file_path": "s27测试用例.pdf",
+        "created_at": 1779874627
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "检测报告任务列表",
+        "description": "TD管号字段用于对检测报告任务列表中的任务按试管编号进行筛选。<SEP>检测报告任务列表包含TD管号字段，用于查询任务。",
+        "keywords": "列表包含,数据过滤,查询字段,筛选条件",
+        "weight": 2.0,
+        "source_id": "chunk-d4fa749ba0efc816b7c307a8b063ae9a<SEP>chunk-b0796330cda0340c4ad2143ff2d4f9e3",
+        "file_path": "20.pdf<SEP>检测报告任务列表.pdf",
+        "created_at": 1782356115
+      },
+      {
+        "src_id": "版本变更记录",
+        "tgt_id": "设备管理",
+        "description": "设备管理包含版本变更记录作为其子功能。",
+        "keywords": "包含,子功能",
+        "weight": 1.0,
+        "source_id": "chunk-7d7a61c58995feeb84f48700728f7994",
+        "file_path": "s27测试用例.pdf",
+        "created_at": 1779874481
+      },
+      {
+        "src_id": "修改检测任务TD管信息",
+        "tgt_id": "检测任务",
+        "description": "修改检测任务TD管信息操作变更检测任务所关联样本的TD管信息。",
+        "keywords": "修改,更新",
+        "weight": 1.0,
+        "source_id": "chunk-2fc8fba7af5bfa57922c97b13e6e4334",
+        "file_path": "s26测试用例.pdf",
+        "created_at": 1779874192
+      },
+      {
+        "src_id": "新增#1",
+        "tgt_id": "选择变更时间、硬件版本、软件版本步骤",
+        "description": "新增#1用例包含具体的操作步骤，即选择变更时间、硬件版本和软件版本。",
+        "keywords": "包含,用例步骤",
+        "weight": 1.0,
+        "source_id": "chunk-b1fbb373a870e3c74ceeb96fd684ecfb",
+        "file_path": "s27测试用例.pdf",
+        "created_at": 1779874628
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "表格",
+        "description": "表格包含TD管号列。<SEP>表格中包含TD管号列，展示各TD管的编号。",
+        "keywords": "列定义,包含,展示",
+        "weight": 2.0,
+        "source_id": "chunk-dc8e9dc30533e6f975e0072eba1452e4<SEP>chunk-f0ab2e0597bbc8f53a6cd7772bd4f683",
+        "file_path": "实验项目.pdf<SEP>物流清单.pdf",
+        "created_at": 1779963074
+      },
+      {
+        "src_id": "设备版本管理",
+        "tgt_id": "设备管理",
+        "description": "设备版本管理是设备管理下的子功能模块。",
+        "keywords": "包含,子功能",
+        "weight": 1.0,
+        "source_id": "chunk-7d7a61c58995feeb84f48700728f7994",
+        "file_path": "s27测试用例.pdf",
+        "created_at": 1779874486
+      },
+      {
+        "src_id": "TD管",
+        "tgt_id": "TD管号",
+        "description": "TD管号是TD管的唯一编号标识。<SEP>TD管通过TD管号进行唯一标识和搜索。<SEP>TD管实体包含TD管号字段，用于标识设备。<SEP>每个TD管有唯一的TD管号。<SEP>TD管具有唯一的TD管号，用于识别和搜索。<SEP>TD管号是TD管的唯一编号，用于在采样过程中对应和追踪特定的TD管。<SEP>TD管号用于唯一标识每个TD管。",
+        "keywords": "关联,实体属性,数据字段,标识,标识属性,编号关联,编码",
+        "weight": 7.0,
+        "source_id": "chunk-9ac3543964f6578ff22a5d63fab1f482<SEP>chunk-713cc4d5874b2e8382535b5cb04f1d44<SEP>chunk-ae4bf2d83feb510b33d7defba968c75d<SEP>chunk-3b3b2b1c18e50a2fdf34af33ba40aa65<SEP>chunk-2c01d7368da5fc92474ddd99f63da1a1<SEP>chunk-8d297d210ef5e52f44dc279e31f09f78",
+        "file_path": "S39测试用例.pdf<SEP>S42测试用例.pdf<SEP>s13测试用例.pdf<SEP>s16测试用例.pdf<SEP>s19测试用例.pdf<SEP>环境样本采集.pdf<SEP>物流清单优化.pdf",
+        "created_at": 1780016988
+      },
+      {
+        "src_id": "XMetrix系统",
+        "tgt_id": "数据修改需求",
+        "description": "数据修改需求是用户对XMetrix系统提出的提前在数据库加任务的需求。",
+        "keywords": "功能改进,系统需求",
+        "weight": 1.0,
+        "source_id": "chunk-7c117dc975dec304efd03c556c6839a7",
+        "file_path": "33.pdf",
+        "created_at": 1779929585
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "样本",
+        "description": "样本包含TD管号属性，多个样本可能重复。<SEP>样本通过TD管号标识使用的采样管。",
+        "keywords": "包含,字段关联,属性,属性标识",
+        "weight": 2.0,
+        "source_id": "chunk-6db3ee750aef8f127faedf3621a7c5c0<SEP>chunk-efb6ebfc0b0988bcdbbbda656729ed9f",
+        "file_path": "s25测试用例.pdf<SEP>s32测试用例.pdf",
+        "created_at": 1779876356
+      },
+      {
+        "src_id": "版本变更记录",
+        "tgt_id": "自定义设备版本管理",
+        "description": "自定义设备版本管理模块还包含版本变更记录测试用例，用于验证变更记录功能。",
+        "keywords": "包含,模块用例",
+        "weight": 1.0,
+        "source_id": "chunk-b1fbb373a870e3c74ceeb96fd684ecfb",
+        "file_path": "s27测试用例.pdf",
+        "created_at": 1779874628
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "质控任务列表",
+        "description": "质控任务列表包含TD管号字段，标识使用的热脱附管。<SEP>质控任务列表界面中包含TD管号过滤字段。<SEP>质控任务列表包含TD管号数据列。",
+        "keywords": "包含,字段定义,数据列,数据项",
+        "weight": 3.0,
+        "source_id": "chunk-13d85ba7a93b18ed91d83ed1ff846f73<SEP>chunk-e9797aa4116af470728467718b575aec<SEP>chunk-eaa584eaf118c02eb565103475d975c6",
+        "file_path": "质控任务列表.pdf",
+        "created_at": 1782373334
+      },
+      {
+        "src_id": "新增#1",
+        "tgt_id": "设备版本管理",
+        "description": "设备版本管理模块下包含新增#1测试用例。",
+        "keywords": "包含,测试用例",
+        "weight": 1.0,
+        "source_id": "chunk-692b455010f79e1754ffe957eb1b4743",
+        "file_path": "s27测试用例.pdf",
+        "created_at": 1779874489
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "检测报告任务列表界面 (Detection Report Task List Interface) (image)",
+        "description": "Entity TD管号 belongs to 检测报告任务列表界面 (Detection Report Task List Interface) (image)<SEP>Entity TD管号 belongs to 检测报告任务列表界面 (Detection Report Task List Interface) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 20.0,
+        "source_id": "chunk-d4fa749ba0efc816b7c307a8b063ae9a",
+        "file_path": "20.pdf",
+        "created_at": 1779940106
+      },
+      {
+        "src_id": "计划版本",
+        "tgt_id": "需求文档",
+        "description": "需求文档关联到计划版本，用于版本控制。",
+        "keywords": "关联,版本管理",
+        "weight": 1.0,
+        "source_id": "chunk-16ff5c12ad7d01482cf463b2df5804bf",
+        "file_path": "XMetrix_v2.4.pdf",
+        "created_at": 1779936787
+      },
+      {
+        "src_id": "TD管",
+        "tgt_id": "TD管管理",
+        "description": "TD管管理模块负责管理TD管的使用和状态。",
+        "keywords": "管理,管理对象",
+        "weight": 1.0,
+        "source_id": "chunk-08584584f481d5d939e49a8cfc37e2a0",
+        "file_path": "s22测试用例.pdf",
+        "created_at": 1779869595
+      },
+      {
+        "src_id": "版本变更记录",
+        "tgt_id": "采集仪",
+        "description": "版本变更记录适用于采集仪，记录其版本变更。",
+        "keywords": "应用对象,版本记录",
+        "weight": 1.0,
+        "source_id": "chunk-7d7a61c58995feeb84f48700728f7994",
+        "file_path": "s27测试用例.pdf",
+        "created_at": 1779874483
+      },
+      {
+        "src_id": "TD管管理系统添加表单界面（CLOUD 精智未来） (image)",
+        "tgt_id": "取消按钮",
+        "description": "Entity 取消按钮 belongs to TD管管理系统添加表单界面（CLOUD 精智未来） (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-6a2ff776c502afb11af8ca8ef1fc3657",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353648
+      },
+      {
+        "src_id": "编辑#1",
+        "tgt_id": "设备版本管理",
+        "description": "设备版本管理模块下包含编辑#1测试用例。",
+        "keywords": "包含,测试用例",
+        "weight": 1.0,
+        "source_id": "chunk-692b455010f79e1754ffe957eb1b4743",
+        "file_path": "s27测试用例.pdf",
+        "created_at": 1779874490
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "采样登记",
+        "description": "采样登记时需填写TD管号",
+        "keywords": "字段输入",
+        "weight": 1.0,
+        "source_id": "chunk-bd5309f53f2c67cc8f934a0dfca814de",
+        "file_path": "s34测试用例.pdf",
+        "created_at": 1779876882
+      },
+      {
+        "src_id": "版本变更记录",
+        "tgt_id": "色谱仪",
+        "description": "版本变更记录适用于色谱仪，记录其版本变更。",
+        "keywords": "应用对象,版本记录",
+        "weight": 1.0,
+        "source_id": "chunk-7d7a61c58995feeb84f48700728f7994",
+        "file_path": "s27测试用例.pdf",
+        "created_at": 1779874481
+      },
+      {
+        "src_id": "取消按钮",
+        "tgt_id": "添加TD管表单",
+        "description": "添加TD管表单底部包含取消按钮。",
+        "keywords": "包含关系,界面按钮",
+        "weight": 1.0,
+        "source_id": "chunk-6a2ff776c502afb11af8ca8ef1fc3657",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353641
+      },
+      {
+        "src_id": "变更研究权限#1",
+        "tgt_id": "物流管理",
+        "description": "物流管理模块下包含变更研究权限#1测试用例。",
+        "keywords": "包含,测试用例",
+        "weight": 1.0,
+        "source_id": "chunk-692b455010f79e1754ffe957eb1b4743",
+        "file_path": "s27测试用例.pdf",
+        "created_at": 1779874488
+      },
+      {
+        "src_id": "TD管",
+        "tgt_id": "TD管数据录入表单（重复记录错误） (image)",
+        "description": "Entity TD管 belongs to TD管数据录入表单（重复记录错误） (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-30eef9ee1ead839577dbaf1bff7c3d87",
+        "file_path": "XCloud_v1.2_Web.pdf",
+        "created_at": 1780025339
+      },
+      {
+        "src_id": "变更风险系数",
+        "tgt_id": "用户",
+        "description": "用户作为操作者执行变更风险系数事件，修改检测报告任务的风险系数。",
+        "keywords": "修改,执行",
+        "weight": 1.0,
+        "source_id": "chunk-92e6e3db074dcb3f773e65cd02f1d64e",
+        "file_path": "s29测试用例.pdf",
+        "created_at": 1779875372
+      },
+      {
+        "src_id": "TD Tube Duplicate Entry Form (Linus Studio-like System) (image)",
+        "tgt_id": "TD管",
+        "description": "Entity TD管 belongs to TD Tube Duplicate Entry Form (Linus Studio-like System) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-0f360477b9f6249ea1648d3329ee8eb9",
+        "file_path": "XCloud_v1.2_Web.pdf",
+        "created_at": 1780025507
+      },
+      {
+        "src_id": "修改风险系数",
+        "tgt_id": "项目管理",
+        "description": "项目管理模块中包含修改风险系数的操作。",
+        "keywords": "包含,操作",
+        "weight": 1.0,
+        "source_id": "chunk-480d837307dbe34f95cea5130e572039",
+        "file_path": "检测报告任务列表.pdf",
+        "created_at": 1782356110
+      },
+      {
+        "src_id": "TD管",
+        "tgt_id": "TD管管理模块",
+        "description": "TD管管理模块通过表格、搜索和操作界面管理多个TD管实例。",
+        "keywords": "管理,跟踪",
+        "weight": 1.0,
+        "source_id": "chunk-bbbf90b08060b198817f0a010fc21bba",
+        "file_path": "XCloud_v1.2_Web.pdf",
+        "created_at": 1780025457
+      },
+      {
+        "src_id": "s24系统",
+        "tgt_id": "模板管理",
+        "description": "s24系统包含模板管理功能，作为测试用例上下文的组成部分。",
+        "keywords": "功能模块,包含",
+        "weight": 1.0,
+        "source_id": "chunk-59ceb173246ac1e9c6324f1272fbcc0e",
+        "file_path": "s24测试用例.pdf",
+        "created_at": 1779870586
+      },
+      {
+        "src_id": "TD管数据录入表单（重复记录错误） (image)",
+        "tgt_id": "取消按钮",
+        "description": "Entity 取消按钮 belongs to TD管数据录入表单（重复记录错误） (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-30eef9ee1ead839577dbaf1bff7c3d87",
+        "file_path": "XCloud_v1.2_Web.pdf",
+        "created_at": 1780025342
+      },
+      {
+        "src_id": "设备版本管理",
+        "tgt_id": "资产管理",
+        "description": "资产管理模块下包含设备版本管理子模块。",
+        "keywords": "包含,子模块",
+        "weight": 1.0,
+        "source_id": "chunk-692b455010f79e1754ffe957eb1b4743",
+        "file_path": "s27测试用例.pdf",
+        "created_at": 1779874489
+      },
+      {
+        "src_id": "TD管",
+        "tgt_id": "TD管管理系统界面（TD管351484详情） (image)",
+        "description": "Entity TD管 belongs to TD管管理系统界面（TD管351484详情） (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-10859b87ff39fe0f4dbf1f048e42ef32",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353658
+      },
+      {
+        "src_id": "系统配置",
+        "tgt_id": "配置文件sys_config.json",
+        "description": "配置文件sys_config.json用于保存系统配置，配置变更时自动更新。",
+        "keywords": "变更更新,备份保存",
+        "weight": 1.0,
+        "source_id": "chunk-fe910910c810e98985a3f75d5c55591a",
+        "file_path": "S40测试用例.pdf",
+        "created_at": 1779862851
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "表单界面",
+        "description": "表单界面包含TD管号字段，用于输入或选择管号。",
+        "keywords": "包含,字段",
+        "weight": 1.0,
+        "source_id": "chunk-353a5fdec3c686ff447267fc9e29dc1a",
+        "file_path": "实验项目.pdf",
+        "created_at": 1779961661
+      },
+      {
+        "src_id": "变更检测项目",
+        "tgt_id": "检测项目",
+        "description": "测试用例“变更检测项目”验证检测项目变更功能。",
+        "keywords": "功能验证,测试用例",
+        "weight": 1.0,
+        "source_id": "chunk-e58a92662b7be26f58448548ade2c841",
+        "file_path": "s32测试用例.pdf",
+        "created_at": 1779876342
+      },
+      {
+        "src_id": "TD管管理系统界面截图（TD Tube Management System Screenshot） (image)",
+        "tgt_id": "精智未来",
+        "description": "Entity 精智未来 belongs to TD管管理系统界面截图（TD Tube Management System Screenshot） (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-8588466962b40b1c04f5a8c3a5c40960",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353655
+      },
+      {
+        "src_id": "操作日志",
+        "tgt_id": "配置管理",
+        "description": "配置管理利用操作日志的功能来实现对模板和字典条目更改的可追溯性。",
+        "keywords": "可追溯性,相互支持",
+        "weight": 1.0,
+        "source_id": "chunk-4898e475fa9140c4b0b0faf48ec8ba3c",
+        "file_path": "34.pdf",
+        "created_at": 1779937548
+      },
+      {
+        "src_id": "TD Tube Duplicate Entry Form (Linus Studio-like System) (image)",
+        "tgt_id": "取消按钮",
+        "description": "Entity 取消按钮 belongs to TD Tube Duplicate Entry Form (Linus Studio-like System) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-0f360477b9f6249ea1648d3329ee8eb9",
+        "file_path": "XCloud_v1.2_Web.pdf",
+        "created_at": 1780025509
+      },
+      {
+        "src_id": "权限#1",
+        "tgt_id": "设备版本管理",
+        "description": "设备版本管理模块下包含权限#1测试用例。",
+        "keywords": "包含,测试用例",
+        "weight": 1.0,
+        "source_id": "chunk-692b455010f79e1754ffe957eb1b4743",
+        "file_path": "s27测试用例.pdf",
+        "created_at": 1779874491
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "排序",
+        "description": "若没有采样时间，则按TD管号从小到大排列。<SEP>排序功能支持按TD管号字段进行排序。",
+        "keywords": "排列,排序依据,排序字段",
+        "weight": 2.0,
+        "source_id": "chunk-21d7eeb1224b1f095d98f84674fe77de<SEP>chunk-6a0bdd94818406989167e9cf2801ec24",
+        "file_path": "s14测试用例.pdf<SEP>s20测试用例.pdf",
+        "created_at": 1779867818
+      },
+      {
+        "src_id": "更新",
+        "tgt_id": "点击确定",
+        "description": "点击确定后系统执行更新动作。",
+        "keywords": "流程触发,用户操作",
+        "weight": 1.0,
+        "source_id": "chunk-dd5486a83f744668de6e98b6b2da6679",
+        "file_path": "s30测试用例.pdf",
+        "created_at": 1779875737
+      },
+      {
+        "src_id": "TD管",
+        "tgt_id": "TD管管理系统",
+        "description": "TD管管理系统用于对TD管进行全生命周期的操作记录和状态跟踪。",
+        "keywords": "管理,资产跟踪",
+        "weight": 1.0,
+        "source_id": "chunk-2499f26f1c9e0fd9cb26e6a854427d70",
+        "file_path": "TD管管理.pdf",
+        "created_at": 1779946174
+      },
+      {
+        "src_id": "新增#1",
+        "tgt_id": "自定义设备版本管理",
+        "description": "自定义设备版本管理模块包含测试用例新增#1，用于测试版本新增操作。",
+        "keywords": "包含,模块用例",
+        "weight": 1.0,
+        "source_id": "chunk-b1fbb373a870e3c74ceeb96fd684ecfb",
+        "file_path": "s27测试用例.pdf",
+        "created_at": 1779874627
+      },
+      {
+        "src_id": "TD管",
+        "tgt_id": "该TD管已存在！",
+        "description": "错误消息提示用户尝试添加的TD管已经存在于系统中。",
+        "keywords": "提示,重复",
+        "weight": 1.0,
+        "source_id": "chunk-30eef9ee1ead839577dbaf1bff7c3d87",
+        "file_path": "XCloud_v1.2_Web.pdf",
+        "created_at": 1780025332
+      },
+      {
+        "src_id": "定性表列表",
+        "tgt_id": "配置管理",
+        "description": "配置管理功能模块包含定性表列表。",
+        "keywords": "包含,子模块",
+        "weight": 1.0,
+        "source_id": "chunk-6189598135361cdf6e5754b3fa26b16e",
+        "file_path": "定标记录-s52.pdf",
+        "created_at": 1782355358
+      },
+      {
+        "src_id": "TD管",
+        "tgt_id": "TD管记录",
+        "description": "TD管记录是TD管在系统中的数据表示。",
+        "keywords": "数据关联,设备管理",
+        "weight": 1.0,
+        "source_id": "chunk-0f360477b9f6249ea1648d3329ee8eb9",
+        "file_path": "XCloud_v1.2_Web.pdf",
+        "created_at": 1780025505
+      },
+      {
+        "src_id": "历史数据迁移",
+        "tgt_id": "系统升级",
+        "description": "历史数据迁移是在系统升级过程中执行的转换操作。",
+        "keywords": "版本过渡,过程关联",
+        "weight": 1.0,
+        "source_id": "chunk-30a11dbe5b215c6c05d9c79f0e57ff57",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100064
+      },
+      {
+        "src_id": "TD管",
+        "tgt_id": "新增T管",
+        "description": "新增T管操作用于创建新的TD管。",
+        "keywords": "创建,生成",
+        "weight": 1.0,
+        "source_id": "chunk-9348e364f3ce581b1904ae256496a838",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353449
+      },
+      {
+        "src_id": "s24系统",
+        "tgt_id": "任务状态同步",
+        "description": "s24系统包含任务状态同步功能，作为测试用例上下文的组成部分。",
+        "keywords": "功能模块,包含",
+        "weight": 1.0,
+        "source_id": "chunk-59ceb173246ac1e9c6324f1272fbcc0e",
+        "file_path": "s24测试用例.pdf",
+        "created_at": 1779870588
+      },
+      {
+        "src_id": "TD管",
+        "tgt_id": "用例:新增/删除TD管#1",
+        "description": "该用例测试TD管的新增与删除操作。",
+        "keywords": "测试操作",
+        "weight": 1.0,
+        "source_id": "chunk-313e136ae906bd5efc0871114ed295c9",
+        "file_path": "s28测试用例.pdf",
+        "created_at": 1779874923
+      },
+      {
+        "src_id": "历史数据迁移",
+        "tgt_id": "项目",
+        "description": "项目的低风险配置在系统升级时被转换为0-0.4的范围值。",
+        "keywords": "受影响的实体,转换过程",
+        "weight": 1.0,
+        "source_id": "chunk-30a11dbe5b215c6c05d9c79f0e57ff57",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100065
+      },
+      {
+        "src_id": "检测任务XXXX#000001",
+        "tgt_id": "精智未来",
+        "description": "精智未来管理检测任务XXXX#000001，执行检测操作。",
+        "keywords": "检测流程,管理",
+        "weight": 1.0,
+        "source_id": "chunk-8b4465c11a80a459d356593e0b16a3c5",
+        "file_path": "TD管管理.pdf",
+        "created_at": 1779946090
+      },
+      {
+        "src_id": "变更检测设备",
+        "tgt_id": "弹窗提示",
+        "description": "变更检测设备时系统弹出确认对话框。",
+        "keywords": "操作触发,用户交互",
+        "weight": 1.0,
+        "source_id": "chunk-dd5486a83f744668de6e98b6b2da6679",
+        "file_path": "s30测试用例.pdf",
+        "created_at": 1779875737
+      },
+      {
+        "src_id": "TD管数据录入表单（重复记录错误） (image)",
+        "tgt_id": "确定按钮",
+        "description": "Entity 确定按钮 belongs to TD管数据录入表单（重复记录错误） (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-30eef9ee1ead839577dbaf1bff7c3d87",
+        "file_path": "XCloud_v1.2_Web.pdf",
+        "created_at": 1780025343
+      },
+      {
+        "src_id": "报告单模板列表",
+        "tgt_id": "配置管理",
+        "description": "配置管理功能用于管理报告单模板列表的更改，提供可追溯性。",
+        "keywords": "可追溯性,管理",
+        "weight": 1.0,
+        "source_id": "chunk-4898e475fa9140c4b0b0faf48ec8ba3c",
+        "file_path": "34.pdf",
+        "created_at": 1779937547
+      },
+      {
+        "src_id": "METRIX精智呼析云2.16.0 - 质控任务列表（分析中标签页） (web interface screenshot)",
+        "tgt_id": "TD管号",
+        "description": "Entity TD管号 belongs to METRIX精智呼析云2.16.0 - 质控任务列表（分析中标签页） (web interface screenshot)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-e9797aa4116af470728467718b575aec",
+        "file_path": "质控任务列表.pdf",
+        "created_at": 1782373351
+      },
+      {
+        "src_id": "研究管理",
+        "tgt_id": "研究管理:字段变更#1",
+        "description": "研究管理模块包含字段变更#1测试用例。",
+        "keywords": "包含,测试用例",
+        "weight": 1.0,
+        "source_id": "chunk-08584584f481d5d939e49a8cfc37e2a0",
+        "file_path": "s22测试用例.pdf",
+        "created_at": 1779869592
+      },
+      {
+        "src_id": "TD Tube Duplicate Entry Form (Linus Studio-like System) (image)",
+        "tgt_id": "确定按钮",
+        "description": "Entity 确定按钮 belongs to TD Tube Duplicate Entry Form (Linus Studio-like System) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-0f360477b9f6249ea1648d3329ee8eb9",
+        "file_path": "XCloud_v1.2_Web.pdf",
+        "created_at": 1780025509
+      },
+      {
+        "src_id": "列表数据排序#1",
+        "tgt_id": "设备版本管理",
+        "description": "设备版本管理模块下包含列表数据排序#1测试用例。",
+        "keywords": "包含,测试用例",
+        "weight": 1.0,
+        "source_id": "chunk-692b455010f79e1754ffe957eb1b4743",
+        "file_path": "s27测试用例.pdf",
+        "created_at": 1779874491
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "搜索",
+        "description": "搜索可基于TD管号进行等于、大于等条件查询。<SEP>搜索操作以TD管号作为其中一个搜索条件。<SEP>搜索操作使用TD管号作为条件，返回对应记录。",
+        "keywords": "使用条件,字段过滤,搜索条件,数据字段",
+        "weight": 3.0,
+        "source_id": "chunk-dad058a665f715c868cb5ebb012ea907<SEP>chunk-87882fe61c6123d3bb9f005060cf9048<SEP>chunk-61bfb7e222dd19f595675a1fadadf9e5",
+        "file_path": "s12测试用例.pdf<SEP>s21测试用例.pdf",
+        "created_at": 1779868608
+      },
+      {
+        "src_id": "版本说明",
+        "tgt_id": "设备版本管理",
+        "description": "设备版本管理模块包含版本说明字段。",
+        "keywords": "拥有,数据字段",
+        "weight": 1.0,
+        "source_id": "chunk-692b455010f79e1754ffe957eb1b4743",
+        "file_path": "s27测试用例.pdf",
+        "created_at": 1779874493
+      },
+      {
+        "src_id": "Medical Task Management Interface (检测报告任务列表) (image)",
+        "tgt_id": "TD管号",
+        "description": "Entity TD管号 belongs to Medical Task Management Interface (检测报告任务列表) (image)<SEP>Entity TD管号 belongs to Medical Task Management Interface (检测报告任务列表) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 20.0,
+        "source_id": "chunk-f0f03f68278481561f7215c41f2d5a88",
+        "file_path": "20.pdf",
+        "created_at": 1779940015
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "气体来源",
+        "description": "当气体来源非标气时，展示TD管号字段并可搜索选择。<SEP>当气体来源不等于标气时，TD管号字段为必填且不能为空。",
+        "keywords": "业务规则,决定,显示,条件必填",
+        "weight": 2.0,
+        "source_id": "chunk-dcecfd8727d6aedcfb965c9fb6ff3672<SEP>chunk-1af68c7b4677a1f9adbc5e600296cf25",
+        "file_path": "s32测试用例.pdf",
+        "created_at": 1779876345
+      },
+      {
+        "src_id": "任务",
+        "tgt_id": "系统",
+        "description": "系统涉及任务功能模块。",
+        "keywords": "功能模块,涉及",
+        "weight": 1.0,
+        "source_id": "chunk-c86e8dc5584d2c7a3dc7b9e829c04a84",
+        "file_path": "34.pdf",
+        "created_at": 1779937484
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "标气",
+        "description": "选择标气时，需输入TD管号用于匹配标气ID。",
+        "keywords": "数据关联,输入校验",
+        "weight": 1.0,
+        "source_id": "chunk-1f18ee948450e27cdd532616ff4fd359",
+        "file_path": "TD24.pdf",
+        "created_at": 1782349387
+      },
+      {
+        "src_id": "任务进度条优化",
+        "tgt_id": "进度条",
+        "description": "任务进度条优化是对进度条的自定义修改。",
+        "keywords": "修改对象,自定义变更",
+        "weight": 1.0,
+        "source_id": "chunk-e7aed5a6965b4a43d475f002037e6175",
+        "file_path": "S40测试用例.pdf",
+        "created_at": 1779862939
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "老化任务",
+        "description": "老化任务包含TD管号作为标识字段。",
+        "keywords": "字段,属性",
+        "weight": 1.0,
+        "source_id": "chunk-2e5710d727f36ba8ec8dab65ff9e3af2",
+        "file_path": "老化任务.pdf",
+        "created_at": 1782366360
+      },
+      {
+        "src_id": "设备版本管理",
+        "tgt_id": "软件版本",
+        "description": "软件版本是设备版本管理中定义的一种版本类型。",
+        "keywords": "所属模块,版本类型",
+        "weight": 1.0,
+        "source_id": "chunk-7d7a61c58995feeb84f48700728f7994",
+        "file_path": "s27测试用例.pdf",
+        "created_at": 1779874486
+      },
+      {
+        "src_id": "添加TD管记录操作",
+        "tgt_id": "确定按钮",
+        "description": "用户通过点击确定按钮来触发添加TD管记录的操作。",
+        "keywords": "提交动作,操作触发",
+        "weight": 1.0,
+        "source_id": "chunk-0f360477b9f6249ea1648d3329ee8eb9",
+        "file_path": "XCloud_v1.2_Web.pdf",
+        "created_at": 1780025505
+      },
+      {
+        "src_id": "成员",
+        "tgt_id": "权限变更",
+        "description": "权限变更操作修改成员的权限范围，涉及数据录入、数据访问或数据维护。",
+        "keywords": "修改,分配",
+        "weight": 1.0,
+        "source_id": "chunk-2c01d7368da5fc92474ddd99f63da1a1",
+        "file_path": "s19测试用例.pdf",
+        "created_at": 1779867250
+      },
+      {
+        "src_id": "METRIX精智·呼析云2.16.0 Task Details with Chromatogram and VOC Analysis (image)",
+        "tgt_id": "TD管号",
+        "description": "Entity TD管号 belongs to METRIX精智·呼析云2.16.0 Task Details with Chromatogram and VOC Analysis (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-8885e54037e4616ef94613df6d8fb8e2",
+        "file_path": "质控任务列表.pdf",
+        "created_at": 1782373275
+      },
+      {
+        "src_id": "任务状态",
+        "tgt_id": "周期为日变更任务状态",
+        "description": "周期为日变更任务状态涉及任务状态变更。",
+        "keywords": "任务管理,状态变更",
+        "weight": 1.0,
+        "source_id": "chunk-167b490573e7bdfc7325c0c6d6de533b",
+        "file_path": "s28测试用例.pdf",
+        "created_at": 1779874929
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "实验管理系统样本列表界面 (image)",
+        "description": "Entity TD管号 belongs to 实验管理系统样本列表界面 (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-a0310c676725958237fd85ea1d7d8c5b",
+        "file_path": "实验项目.pdf",
+        "created_at": 1779961722
+      },
+      {
+        "src_id": "算法管理",
+        "tgt_id": "配置管理",
+        "description": "配置管理功能模块包含算法管理子模块。",
+        "keywords": "包含",
+        "weight": 1.0,
+        "source_id": "chunk-519f1b269f91f78e15c9b0e5cba75e75",
+        "file_path": "定标记录.pdf",
+        "created_at": 1780050352
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "检测报告任务列表（人工分析中）界面截图 (image)",
+        "description": "Entity TD管号 belongs to 检测报告任务列表（人工分析中）界面截图 (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-b6d52c4ffc29f9dbc427a1c01d9a8a10",
+        "file_path": "XMetrix_v2.3.pdf",
+        "created_at": 1779936917
+      },
+      {
+        "src_id": "任务管理",
+        "tgt_id": "系统",
+        "description": "任务管理是系统的一个功能模块，用户通过系统访问任务管理。",
+        "keywords": "功能包含,模块",
+        "weight": 1.0,
+        "source_id": "chunk-8a75d34072785fbfb54a9bf035fea0aa",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100091
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "TD管管理",
+        "description": "TD管管理中通过TD管号唯一标识每根TD管。",
+        "keywords": "标识字段,管理",
+        "weight": 1.0,
+        "source_id": "chunk-747de3c44d79b5d050b0e4538a90442a",
+        "file_path": "检测任务可选设备.pdf",
+        "created_at": 1779948985
+      },
+      {
+        "src_id": "检测项目管理",
+        "tgt_id": "软件界面",
+        "description": "软件界面中集成了检测项目管理功能。",
+        "keywords": "功能集成,包含关系",
+        "weight": 1.0,
+        "source_id": "chunk-4aaf05e9f2f2f3f5720581edb95428a5",
+        "file_path": "20.pdf",
+        "created_at": 1779940041
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "样本列表",
+        "description": "样本列表表格中包含TD管号这一列。<SEP>样本列表表格中包含TD管号列。",
+        "keywords": "包含列,包含数据列,数据结构",
+        "weight": 2.0,
+        "source_id": "chunk-4fdade61b4e4856efa9982e8c0bb3bee<SEP>chunk-a0310c676725958237fd85ea1d7d8c5b",
+        "file_path": "XMetrix_v2.3.pdf<SEP>实验项目.pdf",
+        "created_at": 1779961712
+      },
+      {
+        "src_id": "呼析云",
+        "tgt_id": "阈值设置文案变更",
+        "description": "阈值设置文案变更是对呼析云系统文字内容的修改。",
+        "keywords": "修改对象,自定义变更",
+        "weight": 1.0,
+        "source_id": "chunk-e7aed5a6965b4a43d475f002037e6175",
+        "file_path": "S40测试用例.pdf",
+        "created_at": 1779862940
+      },
+      {
+        "src_id": "METRIX 精智·呼析云 报告单列表与数据说明界面 (image)",
+        "tgt_id": "TD管号",
+        "description": "Entity TD管号 belongs to METRIX 精智·呼析云 报告单列表与数据说明界面 (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-c83af75d374fb4ebe975342eb0d84457",
+        "file_path": "33.pdf",
+        "created_at": 1779929892
+      },
+      {
+        "src_id": "模板管理",
+        "tgt_id": "配置管理",
+        "description": "配置管理功能模块包含模板管理子模块。",
+        "keywords": "包含",
+        "weight": 1.0,
+        "source_id": "chunk-519f1b269f91f78e15c9b0e5cba75e75",
+        "file_path": "定标记录.pdf",
+        "created_at": 1780050352
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "X.CLOUD实验项目管理后台-新增样本界面 (image)",
+        "description": "Entity TD管号 belongs to X.CLOUD实验项目管理后台-新增样本界面 (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-26c65f6eddc40b3d8a0046c002cf294c",
+        "file_path": "实验项目s52.pdf",
+        "created_at": 1782368506
+      },
+      {
+        "src_id": "版本名称",
+        "tgt_id": "设备版本管理",
+        "description": "设备版本管理模块包含版本名称字段。",
+        "keywords": "拥有,数据字段",
+        "weight": 1.0,
+        "source_id": "chunk-692b455010f79e1754ffe957eb1b4743",
+        "file_path": "s27测试用例.pdf",
+        "created_at": 1779874492
+      },
+      {
+        "src_id": "Detection Task Management Interface (Exhaled Air Samples) (image)",
+        "tgt_id": "TD管号",
+        "description": "Entity TD管号 belongs to Detection Task Management Interface (Exhaled Air Samples) (image)<SEP>Entity TD管号 belongs to Detection Task Management Interface (Exhaled Air Samples) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 20.0,
+        "source_id": "chunk-7f18de708772a055b30a04b1908b318f",
+        "file_path": "XMetrix_v2.2.pdf",
+        "created_at": 1779940778
+      },
+      {
+        "src_id": "XMetrix系统",
+        "tgt_id": "批量修改",
+        "description": "XMetrix系统需要添加批量修改功能，以便快速修改数据。",
+        "keywords": "功能支持,数据操作",
+        "weight": 1.0,
+        "source_id": "chunk-7c117dc975dec304efd03c556c6839a7",
+        "file_path": "33.pdf",
+        "created_at": 1779929583
+      },
+      {
+        "src_id": "Sampling Registration Form (Clinical/Research Management System) (image)",
+        "tgt_id": "TD管号",
+        "description": "Entity TD管号 belongs to Sampling Registration Form (Clinical/Research Management System) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-a8ce9ce2fff43941695cda2a51cbdfce",
+        "file_path": "XCloud_2.0管理后台.pdf",
+        "created_at": 1780022269
+      },
+      {
+        "src_id": "新增",
+        "tgt_id": "新增#1",
+        "description": "测试用例新增#1用于验证新增操作的功能正确性。",
+        "keywords": "功能关联,测试用例",
+        "weight": 1.0,
+        "source_id": "chunk-dd5486a83f744668de6e98b6b2da6679",
+        "file_path": "s30测试用例.pdf",
+        "created_at": 1779875737
+      },
+      {
+        "src_id": "Medical Sampling Registration Form (Mobile App Interface) (image)",
+        "tgt_id": "TD管号",
+        "description": "Entity TD管号 belongs to Medical Sampling Registration Form (Mobile App Interface) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-6da1caab67d273e181b53308d149de71",
+        "file_path": "采样登记优化.pdf",
+        "created_at": 1780017739
+      },
+      {
+        "src_id": "物流管理",
+        "tgt_id": "物资流转",
+        "description": "物流管理改为物资流转，相应字段名称同步更改。<SEP>物资流转原称为物流管理，两者指向同一管理领域。",
+        "keywords": "历史名称,名称变更,命名变更,系统更新",
+        "weight": 2.0,
+        "source_id": "chunk-c4aa042875f6a85468e02d7b0f395314<SEP>chunk-ed013f92a19fbd2d65ed1d7591245030",
+        "file_path": "物资流转（原物流管理）.pdf",
+        "created_at": 1782370398
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "新增样本",
+        "description": "新增样本模态窗口包含TD管号字段。",
+        "keywords": "包含,字段",
+        "weight": 1.0,
+        "source_id": "chunk-26c65f6eddc40b3d8a0046c002cf294c",
+        "file_path": "实验项目s52.pdf",
+        "created_at": 1782368497
+      },
+      {
+        "src_id": "版本类型",
+        "tgt_id": "设备版本管理",
+        "description": "设备版本管理模块包含版本类型字段。",
+        "keywords": "拥有,数据字段",
+        "weight": 1.0,
+        "source_id": "chunk-692b455010f79e1754ffe957eb1b4743",
+        "file_path": "s27测试用例.pdf",
+        "created_at": 1779874492
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "环境采样",
+        "description": "环境采样过程中需输入TD管号以标识所用TD管。",
+        "keywords": "字段关联,设备标识",
+        "weight": 1.0,
+        "source_id": "chunk-e48afb317d199e4e4c4c788428bc1e17",
+        "file_path": "环境样本采集.pdf",
+        "created_at": 1779948127
+      },
+      {
+        "src_id": "版本链接",
+        "tgt_id": "设备版本管理",
+        "description": "设备版本管理模块包含版本链接字段。",
+        "keywords": "拥有,数据字段",
+        "weight": 1.0,
+        "source_id": "chunk-692b455010f79e1754ffe957eb1b4743",
+        "file_path": "s27测试用例.pdf",
+        "created_at": 1779874493
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "异常TD任务",
+        "description": "TD管号是异常TD任务的一个标识字段。",
+        "keywords": "字段归属",
+        "weight": 1.0,
+        "source_id": "chunk-48478c3f994bdb657be43333618d93aa",
+        "file_path": "异常TD任务.pdf",
+        "created_at": 1782371044
+      },
+      {
+        "src_id": "修改配置功能",
+        "tgt_id": "采样管模式",
+        "description": "在采样管模式下，修改配置功能的可用性取决于系统是否处于检测中且有检测任务执行。",
+        "keywords": "状态依赖,配置变更",
+        "weight": 1.0,
+        "source_id": "chunk-17fb019485b53d341e9b1af1d060e08a",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862534
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "谱图数据",
+        "description": "谱图数据记录包含了TD管号字段。",
+        "keywords": "数据包含",
+        "weight": 1.0,
+        "source_id": "chunk-3fd38316ab0dac3cb262cc41ee66174b",
+        "file_path": "研究关联采样点.pdf",
+        "created_at": 1779963150
+      },
+      {
+        "src_id": "日志信息",
+        "tgt_id": "检测项目",
+        "description": "检测项目变更后，添加日志信息记录操作。",
+        "keywords": "生成记录",
+        "weight": 1.0,
+        "source_id": "chunk-fc4eb9a96dc69fd533da68772ec7db9e",
+        "file_path": "s32测试用例.pdf",
+        "created_at": 1779876366
+      },
+      {
+        "src_id": "METRIX 精智·呼析云 - 任务复核 (Task Review) Interface (UI Screenshot)",
+        "tgt_id": "TD管号",
+        "description": "Entity TD管号 belongs to METRIX 精智·呼析云 - 任务复核 (Task Review) Interface (UI Screenshot)<SEP>Entity TD管号 belongs to METRIX 精智·呼析云 - 任务复核 (Task Review) Interface (UI Screenshot)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 20.0,
+        "source_id": "chunk-f76258def26b758932175fd45e02075c",
+        "file_path": "XMetrix_v2.1.pdf",
+        "created_at": 1779936261
+      },
+      {
+        "src_id": "METRIX系统",
+        "tgt_id": "配置管理",
+        "description": "METRIX系统包含配置管理功能模块。",
+        "keywords": "包含关系,系统模块",
+        "weight": 1.0,
+        "source_id": "chunk-860a9085ac52538980a08ffdec663b27",
+        "file_path": "XMetrix_v2.1.pdf",
+        "created_at": 1779936185
+      },
+      {
+        "src_id": "METRIX 精智·呼析云 2.16.0 - 质控任务列表（检测完成标签页） (web interface screenshot)",
+        "tgt_id": "TD管号",
+        "description": "Entity TD管号 belongs to METRIX 精智·呼析云 2.16.0 - 质控任务列表（检测完成标签页） (web interface screenshot)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-eaa584eaf118c02eb565103475d975c6",
+        "file_path": "质控任务列表.pdf",
+        "created_at": 1782373362
+      },
+      {
+        "src_id": "s24系统",
+        "tgt_id": "模板自定义",
+        "description": "s24系统包含模板自定义功能，作为测试用例上下文的组成部分。",
+        "keywords": "功能模块,包含",
+        "weight": 1.0,
+        "source_id": "chunk-59ceb173246ac1e9c6324f1272fbcc0e",
+        "file_path": "s24测试用例.pdf",
+        "created_at": 1779870588
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "报告单列表",
+        "description": "TD管号用于生成报告单文件的名称。",
+        "keywords": "文档,标识",
+        "weight": 1.0,
+        "source_id": "chunk-c0936409aab015f13658e04cfbb2ff46",
+        "file_path": "S33测试用例.pdf",
+        "created_at": 1779876532
+      },
+      {
+        "src_id": "操作人",
+        "tgt_id": "检测项目",
+        "description": "操作人执行检测项目的变更操作。",
+        "keywords": "变更操作",
+        "weight": 1.0,
+        "source_id": "chunk-fc4eb9a96dc69fd533da68772ec7db9e",
+        "file_path": "s32测试用例.pdf",
+        "created_at": 1779876366
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "送检任务",
+        "description": "送检任务中的TD管号字段取自表单值。",
+        "keywords": "数据引用",
+        "weight": 1.0,
+        "source_id": "chunk-7cb24e6b7932ae447ac0c29bff65322b",
+        "file_path": "34.pdf",
+        "created_at": 1779931060
+      },
+      {
+        "src_id": "任务进度条优化",
+        "tgt_id": "呼析云",
+        "description": "任务进度条优化是对呼析云小程序功能的自定义修改。",
+        "keywords": "系统修改,自定义",
+        "weight": 1.0,
+        "source_id": "chunk-e7aed5a6965b4a43d475f002037e6175",
+        "file_path": "S40测试用例.pdf",
+        "created_at": 1779862941
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "任务复核",
+        "description": "TD管号用于唯一标识该任务复核所对应的样本管。",
+        "keywords": "标识",
+        "weight": 1.0,
+        "source_id": "chunk-f76258def26b758932175fd45e02075c",
+        "file_path": "XMetrix_v2.1.pdf",
+        "created_at": 1779936252
+      },
+      {
+        "src_id": "管理后台",
+        "tgt_id": "设备版本",
+        "description": "管理后台包含设备版本模块。",
+        "keywords": "包含",
+        "weight": 1.0,
+        "source_id": "chunk-0c662b5f29265f3c1c6ad4d1245265db",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350042
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "环境样本采集",
+        "description": "环境样本采集界面包含TD管号字段，用于输入管子编号。",
+        "keywords": "包含,字段",
+        "weight": 1.0,
+        "source_id": "chunk-2ef6bbcb2da41f055a1a5a84363cb550",
+        "file_path": "环境样本采集.pdf",
+        "created_at": 1779948415
+      },
+      {
+        "src_id": "创建时间",
+        "tgt_id": "设备版本管理",
+        "description": "设备版本管理模块包含创建时间字段。",
+        "keywords": "拥有,数据字段",
+        "weight": 1.0,
+        "source_id": "chunk-692b455010f79e1754ffe957eb1b4743",
+        "file_path": "s27测试用例.pdf",
+        "created_at": 1779874494
+      },
+      {
+        "src_id": "123456",
+        "tgt_id": "TD管号",
+        "description": "123456是TD管号的一个具体取值。",
+        "keywords": "实例关系,编码值",
+        "weight": 1.0,
+        "source_id": "chunk-d493913f3802b2e18c8eefd1ca9f8381",
+        "file_path": "34.pdf",
+        "created_at": 1779931085
+      },
+      {
+        "src_id": "创建人",
+        "tgt_id": "设备版本管理",
+        "description": "设备版本管理模块包含创建人字段。",
+        "keywords": "拥有,数据字段",
+        "weight": 1.0,
+        "source_id": "chunk-692b455010f79e1754ffe957eb1b4743",
+        "file_path": "s27测试用例.pdf",
+        "created_at": 1779874494
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "异常TD任务管理后台新建任务界面 (image)",
+        "description": "Entity TD管号 belongs to 异常TD任务管理后台新建任务界面 (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-48c855d52c9a5e8513bb83a77a80dd5f",
+        "file_path": "异常TD任务.pdf",
+        "created_at": 1782371163
+      },
+      {
+        "src_id": "筛选#1",
+        "tgt_id": "设备版本管理",
+        "description": "设备版本管理模块下包含筛选#1测试用例。",
+        "keywords": "包含,测试用例",
+        "weight": 1.0,
+        "source_id": "chunk-692b455010f79e1754ffe957eb1b4743",
+        "file_path": "s27测试用例.pdf",
+        "created_at": 1779874490
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "实验管理系统新增样本界面 (image)",
+        "description": "Entity TD管号 belongs to 实验管理系统新增样本界面 (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-dc8e9dc30533e6f975e0072eba1452e4",
+        "file_path": "实验项目.pdf",
+        "created_at": 1779961678
+      },
+      {
+        "src_id": "成功变更检测项目",
+        "tgt_id": "操作人",
+        "description": "操作人执行检测项目变更操作，导致成功变更检测项目事件。",
+        "keywords": "执行,结果",
+        "weight": 1.0,
+        "source_id": "chunk-fc4eb9a96dc69fd533da68772ec7db9e",
+        "file_path": "s32测试用例.pdf",
+        "created_at": 1779876367
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "样本信息",
+        "description": "添加的TD管号不存在时提示'TD管号不存在，请核实或联系项目经理'。",
+        "keywords": "验证",
+        "weight": 1.0,
+        "source_id": "chunk-e415c8fe3fc12b16c3057e5fc9ec3a9c",
+        "file_path": "s17测试用例.pdf",
+        "created_at": 1779866797
+      },
+      {
+        "src_id": "任务管理",
+        "tgt_id": "配置管理",
+        "description": "任务管理包含配置管理。",
+        "keywords": "包含,子模块",
+        "weight": 1.0,
+        "source_id": "chunk-e9797aa4116af470728467718b575aec",
+        "file_path": "质控任务列表.pdf",
+        "created_at": 1782373331
+      },
+      {
+        "src_id": "TD Tube Specimen Management Interface (Page 1) (image)",
+        "tgt_id": "TD管号",
+        "description": "Entity TD管号 belongs to TD Tube Specimen Management Interface (Page 1) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-f0ab2e0597bbc8f53a6cd7772bd4f683",
+        "file_path": "物流清单.pdf",
+        "created_at": 1779963083
+      },
+      {
+        "src_id": "Experimental Sample Detail Edit Form (样本编码XXXXX) (image)",
+        "tgt_id": "TD管号",
+        "description": "Entity TD管号 belongs to Experimental Sample Detail Edit Form (样本编码XXXXX) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-353a5fdec3c686ff447267fc9e29dc1a",
+        "file_path": "实验项目.pdf",
+        "created_at": 1779961669
+      },
+      {
+        "src_id": "ChromX Health 呼析云 Sample Management Interface (web application screenshot)",
+        "tgt_id": "TD管号",
+        "description": "Entity TD管号 belongs to ChromX Health 呼析云 Sample Management Interface (web application screenshot)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-4fdade61b4e4856efa9982e8c0bb3bee",
+        "file_path": "XMetrix_v2.3.pdf",
+        "created_at": 1779936924
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "任务详情页面",
+        "description": "任务详情页面包含TD管号元数据字段。",
+        "keywords": "包含",
+        "weight": 1.0,
+        "source_id": "chunk-8885e54037e4616ef94613df6d8fb8e2",
+        "file_path": "质控任务列表.pdf",
+        "created_at": 1782373269
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "云平台",
+        "description": "输入的TD管号与云平台标气管理后台进行校验，以匹配标气ID。",
+        "keywords": "校验匹配,管理功能",
+        "weight": 1.0,
+        "source_id": "chunk-1f18ee948450e27cdd532616ff4fd359",
+        "file_path": "TD24.pdf",
+        "created_at": 1782349389
+      },
+      {
+        "src_id": "Laboratory VOC Analysis & Lung Cancer Risk Assessment Software Interface (image)",
+        "tgt_id": "TD管号",
+        "description": "Entity TD管号 belongs to Laboratory VOC Analysis & Lung Cancer Risk Assessment Software Interface (image)<SEP>Entity TD管号 belongs to Laboratory VOC Analysis & Lung Cancer Risk Assessment Software Interface (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 20.0,
+        "source_id": "chunk-e46aeabf463d94d31be3ac45ff21eb2f",
+        "file_path": "XMetrix_v2.2.pdf",
+        "created_at": 1779940945
+      },
+      {
+        "src_id": "Environmental Sampling Mobile App Form Interface (image)",
+        "tgt_id": "TD管号",
+        "description": "Entity TD管号 belongs to Environmental Sampling Mobile App Form Interface (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-2ef6bbcb2da41f055a1a5a84363cb550",
+        "file_path": "环境样本采集.pdf",
+        "created_at": 1779948421
+      },
+      {
+        "src_id": "Placeholder Image for Medical Form - Related Section (image)",
+        "tgt_id": "TD管号",
+        "description": "Entity TD管号 belongs to Placeholder Image for Medical Form - Related Section (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-cd098fd52cd07dc9cd193e4706e5b5ca",
+        "file_path": "XCloud_v1.2_小程序.pdf",
+        "created_at": 1779942722
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "提示",
+        "description": "当输入的TD管号没有待老化任务时，系统提示没有该TD管号的老化任务。<SEP>当输入相同的TD管号时，系统提示TD管重复。",
+        "keywords": "存在性校验,重复校验",
+        "weight": 2.0,
+        "source_id": "chunk-14bee55c8769ffa847a6e21fdfc888d7",
+        "file_path": "s28测试用例.pdf",
+        "created_at": 1779874921
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "搜索栏",
+        "description": "搜索栏允许用户输入TD管号进行查询。",
+        "keywords": "查询,输入",
+        "weight": 1.0,
+        "source_id": "chunk-f0ab2e0597bbc8f53a6cd7772bd4f683",
+        "file_path": "物流清单.pdf",
+        "created_at": 1779963073
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "搜索功能",
+        "description": "搜索功能支持输入TD管号进行模糊匹配查询。",
+        "keywords": "查询,输入",
+        "weight": 1.0,
+        "source_id": "chunk-4e945c9f07a671e06aee8ca691e7c2e0",
+        "file_path": "s14测试用例.pdf",
+        "created_at": 1779865600
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "创建任务表单",
+        "description": "创建任务表单包含TD管号字段，作为必填项之一。",
+        "keywords": "包含,字段",
+        "weight": 1.0,
+        "source_id": "chunk-99f3777ec34fd264885b25dc4ac09165",
+        "file_path": "XMetrix_v2.2.pdf",
+        "created_at": 1779940853
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "老化时间",
+        "description": "当TD管号的老化时间早于任务创建时间时，系统提示对应TD管号老化时间早于任务创建时间。",
+        "keywords": "时间顺序校验",
+        "weight": 1.0,
+        "source_id": "chunk-14bee55c8769ffa847a6e21fdfc888d7",
+        "file_path": "s28测试用例.pdf",
+        "created_at": 1779874921
+      },
+      {
+        "src_id": "TD管管理",
+        "tgt_id": "资产管理",
+        "description": "资产管理模块下包含TD管管理子模块。<SEP>资产管理包含TD管管理子模块，负责TD管全生命周期管理。<SEP>资产管理包含TD管管理子模块。<SEP>资产管理菜单项包含TD管管理子菜单，用于TD管管理功能。",
+        "keywords": "包含,包含关系,子模块,子菜单",
+        "weight": 4.0,
+        "source_id": "chunk-08584584f481d5d939e49a8cfc37e2a0<SEP>chunk-747de3c44d79b5d050b0e4538a90442a<SEP>chunk-c120c7253784f58def105061cf29312e<SEP>chunk-26c65f6eddc40b3d8a0046c002cf294c",
+        "file_path": "s22测试用例.pdf<SEP>检测任务可选设备.pdf<SEP>谱图导入.pdf<SEP>实验项目s52.pdf",
+        "created_at": 1782368501
+      },
+      {
+        "src_id": "TD管管理",
+        "tgt_id": "管理后台",
+        "description": "管理后台包含TD管管理模块。",
+        "keywords": "包含",
+        "weight": 1.0,
+        "source_id": "chunk-0c662b5f29265f3c1c6ad4d1245265db",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350044
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "新建异常任务",
+        "description": "新建异常任务模态框中包含必填字段TD管号。",
+        "keywords": "必填,表单字段",
+        "weight": 1.0,
+        "source_id": "chunk-48c855d52c9a5e8513bb83a77a80dd5f",
+        "file_path": "异常TD任务.pdf",
+        "created_at": 1782371158
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "标气ID",
+        "description": "输入的TD管号与标气管理中的标气ID进行匹配，以识别对应的标气。",
+        "keywords": "匹配关联,数据校验",
+        "weight": 1.0,
+        "source_id": "chunk-1f18ee948450e27cdd532616ff4fd359",
+        "file_path": "TD24.pdf",
+        "created_at": 1782349390
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "子记录",
+        "description": "子记录包含TD管号字段表示热脱附管编号。",
+        "keywords": "包含,设备编号",
+        "weight": 1.0,
+        "source_id": "chunk-a8ce9ce2fff43941695cda2a51cbdfce",
+        "file_path": "XCloud_2.0管理后台.pdf",
+        "created_at": 1780022255
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "异常原因",
+        "description": "选择异常原因后，对应TD管号的状态变更为异常。",
+        "keywords": "影响,状态变更",
+        "weight": 1.0,
+        "source_id": "chunk-666c50ace1109e21891c724670cd9d32",
+        "file_path": "s14测试用例.pdf",
+        "created_at": 1779865610
+      },
+      {
+        "src_id": "Create Task Form for Medical/Laboratory Testing (with TD Tube Number Field) (image)",
+        "tgt_id": "TD管号",
+        "description": "Entity TD管号 belongs to Create Task Form for Medical/Laboratory Testing (with TD Tube Number Field) (image)<SEP>Entity TD管号 belongs to Create Task Form for Medical/Laboratory Testing (with TD Tube Number Field) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 20.0,
+        "source_id": "chunk-99f3777ec34fd264885b25dc4ac09165",
+        "file_path": "XMetrix_v2.2.pdf",
+        "created_at": 1779940859
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "任务分析",
+        "description": "任务分析使用TD管号123456标识采样管。",
+        "keywords": "任务关联,采样管标识",
+        "weight": 1.0,
+        "source_id": "chunk-e46aeabf463d94d31be3ac45ff21eb2f",
+        "file_path": "XMetrix_v2.2.pdf",
+        "created_at": 1779940941
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "简单检索",
+        "description": "简单检索时输入TD管号作为检索条件。<SEP>简单检索支持输入TD管号作为搜索条件。",
+        "keywords": "使用方法,检索字段,检索条件",
+        "weight": 2.0,
+        "source_id": "chunk-dd5486a83f744668de6e98b6b2da6679<SEP>chunk-b77c45dcbe6460a6d0a3d6fead6afb51",
+        "file_path": "s30测试用例.pdf",
+        "created_at": 1779875734
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "呼气-TD管采样",
+        "description": "呼气-TD管采样子部分包含TD管号下拉选择框，默认值为“1”。",
+        "keywords": "包含,管号选择",
+        "weight": 1.0,
+        "source_id": "chunk-6da1caab67d273e181b53308d149de71",
+        "file_path": "采样登记优化.pdf",
+        "created_at": 1780017735
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "检测中状态",
+        "description": "在检测中状态或暂停倒计时中，点击TD管号无法添加样本。",
+        "keywords": "状态限制,禁止添加",
+        "weight": 1.0,
+        "source_id": "chunk-9ac3543964f6578ff22a5d63fab1f482",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862528
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "TD管样本",
+        "description": "TD管样本需要填写TD管号来标识，且可选非报废状态的管号。",
+        "keywords": "关联,标识",
+        "weight": 1.0,
+        "source_id": "chunk-dcecfd8727d6aedcfb965c9fb6ff3672",
+        "file_path": "s32测试用例.pdf",
+        "created_at": 1779876345
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "必填校验",
+        "description": "必填校验应用于TD管号字段，确保填写。",
+        "keywords": "校验规则",
+        "weight": 1.0,
+        "source_id": "chunk-3b3b2b1c18e50a2fdf34af33ba40aa65",
+        "file_path": "s16测试用例.pdf",
+        "created_at": 1779866381
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "苏玛罐编码",
+        "description": "标气列表中原有的TD管号字段被更改为苏玛罐编码。",
+        "keywords": "字段替换,编码更改",
+        "weight": 1.0,
+        "source_id": "chunk-fe9f8917e70f005203e189e82c531c99",
+        "file_path": "标气批次.pdf",
+        "created_at": 1782354136
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "本底",
+        "description": "选择本底时，需手动输入TD管号，无需自动校验。",
+        "keywords": "字段关联,手动输入",
+        "weight": 1.0,
+        "source_id": "chunk-1f18ee948450e27cdd532616ff4fd359",
+        "file_path": "TD24.pdf",
+        "created_at": 1782349389
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "XCloud-检测任务",
+        "description": "XCloud-检测任务中的TD管号字段取自表单值。",
+        "keywords": "数据引用",
+        "weight": 1.0,
+        "source_id": "chunk-7cb24e6b7932ae447ac0c29bff65322b",
+        "file_path": "34.pdf",
+        "created_at": 1779931060
+      },
+      {
+        "src_id": "TD管管理",
+        "tgt_id": "设备管理",
+        "description": "设备管理模块包含TD管管理功能。",
+        "keywords": "功能模块,包含关系",
+        "weight": 1.0,
+        "source_id": "chunk-e42a3f57c53bd0366445d2e282ab82b5",
+        "file_path": "设备管理.pdf",
+        "created_at": 1782366805
+      },
+      {
+        "src_id": "Form Fields",
+        "tgt_id": "TD管号",
+        "description": "表单字段包含TD管号。",
+        "keywords": "包含关系,表单结构",
+        "weight": 1.0,
+        "source_id": "chunk-cd098fd52cd07dc9cd193e4706e5b5ca",
+        "file_path": "XCloud_v1.2_小程序.pdf",
+        "created_at": 1779942716
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "标气列表",
+        "description": "标气列表包含TD管号字段，用于标识TD管。",
+        "keywords": "包含,字段",
+        "weight": 1.0,
+        "source_id": "chunk-ed91dde2d811d2e31041cc655ed18627",
+        "file_path": "S31测试用例.pdf",
+        "created_at": 1779875988
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "制备序号",
+        "description": "制备序号和TD管号在校验时不能为空且不能重复，系统会提示错误。",
+        "keywords": "校验,重复,非空",
+        "weight": 1.0,
+        "source_id": "chunk-ed91dde2d811d2e31041cc655ed18627",
+        "file_path": "S31测试用例.pdf",
+        "created_at": 1779875988
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "样本已提交检测",
+        "description": "在样本已提交检测状态下，TD管号字段可编辑。",
+        "keywords": "字段约束,编辑权限",
+        "weight": 1.0,
+        "source_id": "chunk-1af68c7b4677a1f9adbc5e600296cf25",
+        "file_path": "s32测试用例.pdf",
+        "created_at": 1779876371
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "格式校验用例#1",
+        "description": "格式校验用例#1中，若TD管号已作废或不存在，分别提示对应信息。",
+        "keywords": "提示信息,格式校验",
+        "weight": 1.0,
+        "source_id": "chunk-25f1cb1e406256cd87fd263bebaf4db1",
+        "file_path": "s24测试用例.pdf",
+        "created_at": 1779870453
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "本底任务",
+        "description": "本底任务需要选择TD管号进行采样。",
+        "keywords": "使用,配置",
+        "weight": 1.0,
+        "source_id": "chunk-0a27e42a77a10e864206efbd04aac40f",
+        "file_path": "s32测试用例.pdf",
+        "created_at": 1779876335
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "暂停状态",
+        "description": "在暂停状态下，点击TD管号可以正常添加样本。",
+        "keywords": "样本添加,状态兼容",
+        "weight": 1.0,
+        "source_id": "chunk-9ac3543964f6578ff22a5d63fab1f482",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862528
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "清单物品",
+        "description": "输入TD管号可搜索返回对应清单物品。",
+        "keywords": "搜索条件,标识",
+        "weight": 1.0,
+        "source_id": "chunk-666c50ace1109e21891c724670cd9d32",
+        "file_path": "s14测试用例.pdf",
+        "created_at": 1779865610
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "非报废状态",
+        "description": "TD管号仅可选非报废状态的(待转运状态编辑时可选)。",
+        "keywords": "状态,需为",
+        "weight": 1.0,
+        "source_id": "chunk-dcecfd8727d6aedcfb965c9fb6ff3672",
+        "file_path": "s32测试用例.pdf",
+        "created_at": 1779876346
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "校验",
+        "description": "用户输入TD管号后，系统校验其是否合法(如6位数字)。<SEP>点击校验按钮可对当前TD管号进行合法性检查。",
+        "keywords": "合法性检查,触发方式",
+        "weight": 2.0,
+        "source_id": "chunk-14bee55c8769ffa847a6e21fdfc888d7",
+        "file_path": "s28测试用例.pdf",
+        "created_at": 1779874921
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "TD管号不匹配",
+        "description": "当研究采样没有云端对应的TD管号时，触发TD管号不匹配。",
+        "keywords": "匹配失败,数据缺失",
+        "weight": 1.0,
+        "source_id": "chunk-87882fe61c6123d3bb9f005060cf9048",
+        "file_path": "s12测试用例.pdf",
+        "created_at": 1779864730
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "项目经历",
+        "description": "当TD管号不存在时，提示需要联系项目经历进行核实。",
+        "keywords": "提醒,联系",
+        "weight": 1.0,
+        "source_id": "chunk-e415c8fe3fc12b16c3057e5fc9ec3a9c",
+        "file_path": "s17测试用例.pdf",
+        "created_at": 1779866798
+      },
+      {
+        "src_id": "LOU口精智·未来云",
+        "tgt_id": "TD管管理",
+        "description": "LOU口精智·未来云系统包含TD管管理模块。",
+        "keywords": "包含关系,模块组成",
+        "weight": 1.0,
+        "source_id": "chunk-e1a7e6682d118fd3b55bd49650662382",
+        "file_path": "检测任务.pdf",
+        "created_at": 1779948448
+      },
+      {
+        "src_id": "TD管数据录入表单（重复记录错误） (image)",
+        "tgt_id": "表单界面",
+        "description": "Entity 表单界面 belongs to TD管数据录入表单（重复记录错误） (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-30eef9ee1ead839577dbaf1bff7c3d87",
+        "file_path": "XCloud_v1.2_Web.pdf",
+        "created_at": 1780025344
+      },
+      {
+        "src_id": "Linus Studio",
+        "tgt_id": "TD管数据录入表单（重复记录错误） (image)",
+        "description": "Entity Linus Studio belongs to TD管数据录入表单（重复记录错误） (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-30eef9ee1ead839577dbaf1bff7c3d87",
+        "file_path": "XCloud_v1.2_Web.pdf",
+        "created_at": 1780025335
+      },
+      {
+        "src_id": "添加TD管样本按钮",
+        "tgt_id": "采样登记",
+        "description": "采样登记界面中删除了添加TD管样本按钮。",
+        "keywords": "功能修改",
+        "weight": 1.0,
+        "source_id": "chunk-7cb24e6b7932ae447ac0c29bff65322b",
+        "file_path": "34.pdf",
+        "created_at": 1779931062
+      },
+      {
+        "src_id": "TD管管理",
+        "tgt_id": "左侧导航栏",
+        "description": "TD管管理功能模块的界面包含左侧导航栏。",
+        "keywords": "导航,界面组件",
+        "weight": 1.0,
+        "source_id": "chunk-10859b87ff39fe0f4dbf1f048e42ef32",
+        "file_path": "TD管管理-s52.pdf",
+        "created_at": 1782353656
+      },
+      {
+        "src_id": "Linus Studio",
+        "tgt_id": "TD Tube Duplicate Entry Form (Linus Studio-like System) (image)",
+        "description": "Entity Linus Studio belongs to TD Tube Duplicate Entry Form (Linus Studio-like System) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-0f360477b9f6249ea1648d3329ee8eb9",
+        "file_path": "XCloud_v1.2_Web.pdf",
+        "created_at": 1780025508
+      },
+      {
+        "src_id": "Linus Studio",
+        "tgt_id": "TD管管理模块",
+        "description": "Linus Studio作为Web应用程序，包含TD管管理模块作为其功能部分。",
+        "keywords": "包含,组成",
+        "weight": 1.0,
+        "source_id": "chunk-bbbf90b08060b198817f0a010fc21bba",
+        "file_path": "XCloud_v1.2_Web.pdf",
+        "created_at": 1780025457
+      },
+      {
+        "src_id": "TD管管理模块",
+        "tgt_id": "资产管理",
+        "description": "TD管管理模块的上下文与资产管理相关。",
+        "keywords": "主题,相关",
+        "weight": 1.0,
+        "source_id": "chunk-bbbf90b08060b198817f0a010fc21bba",
+        "file_path": "XCloud_v1.2_Web.pdf",
+        "created_at": 1780025462
+      },
+      {
+        "src_id": "TD管管理界面 - TD管列表 (TD Tube Management Interface - TD Tube List) (image)",
+        "tgt_id": "左侧边栏",
+        "description": "Entity 左侧边栏 belongs to TD管管理界面 - TD管列表 (TD Tube Management Interface - TD Tube List) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-d855a997cc9843a5f05a566c2936a6b5",
+        "file_path": "TD管管理.pdf",
+        "created_at": 1779946172
+      },
+      {
+        "src_id": "表单界面",
+        "tgt_id": "该TD管已存在！",
+        "description": "表单界面在检测到重复记录时显示错误消息“该TD管已存在！”。",
+        "keywords": "显示,错误提示",
+        "weight": 1.0,
+        "source_id": "chunk-30eef9ee1ead839577dbaf1bff7c3d87",
+        "file_path": "XCloud_v1.2_Web.pdf",
+        "created_at": 1780025336
+      },
+      {
+        "src_id": "TD管管理",
+        "tgt_id": "X.CLOUD实验项目管理后台-新增样本界面 (image)",
+        "description": "Entity TD管管理 belongs to X.CLOUD实验项目管理后台-新增样本界面 (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-26c65f6eddc40b3d8a0046c002cf294c",
+        "file_path": "实验项目s52.pdf",
+        "created_at": 1782368515
+      }
+    ],
+    "chunks": [
+      {
+        "reference_id": "1",
+        "content": "行输入\n\n激活日期\n\n取消\n\n确定\n\n为必填项\n\n状态\n\n在用\n\n流量\n\n卡号\n\n关联设备\n\n购买日期\n\n备注\n\n多行输入\n\n激活日期\n\n修改原因\n\n多行输入\n\n取消\n\n确定\n\n郑\n\n账户设置\n\n03\n\n退出登录\n\nU\n\nLinus Studio\n\n口\n\n首页\n\n首页\n\n品\n\n数据治理\n\n研究管理\n\n状态\n\n正常\n\n搜索\n\n钢号/关联标本条码\n\n队列管理\n\n数据分析\n\nSql查询\n\nTD管\n\n物联网卡\n\n新增\n\n分析引擎\n\n状态\n\n钢号\n\n老化次数1L\n\n老化时间1L\n\n厂商\n\n备注\n\n操作\n\n资产管理\n\n正常\n\n121616\n\n查看详情\n\n设备管理\n\n耗材管理\n\n正常\n\n121515\n\n查看详情\n\n系统管理\n\n正常\n\n121414\n\n查看详情\n\n组织管理\n\n异常\n\n121313\n\n查看详情\n\n用户管理\n\n字典管理\n\n报废\n\n121212\n\n查看详情\n\n报废\n\n121211\n\n查看详情\n\n共658条\n\n2\n\n10条/页\n\n该TD管已存在！\n\n为必填项\n\n状态\n\n正常\n\n厂商\n\n钢号\n\n备注\n\n多行输入\n\n取消\n\n确定\n\n钢号\n\n121414\n\n状态\n\n正常\n\n厂商\n\n莱创应用\n\n入库时间2021年2月15日15:05:02\n\n编辑\n\n备注\n\nXXXXXX\n\n使用记录\n\n十新增\n\n序号\n\n使用类型\n\n使用时间\n\n关联标本编码\n\n老化次数\n\n老化时间\n\n备注\n\n操作\n\n4\n\n采样检测\n\n2023/7/1210:01:07\n\nLSDC-SDBS#123478\n\n编辑\n\n3\n\n采样检测\n\n2023/6/112:25:07\n\nLSD-KQ#000002\n\n2\n\n2023/5/1715:45:23\n\n空气检测需老化\n\n编辑\n\n2\n\n本底检测\n\nLSD-BD#000001\n\n化处理\n\n实验室本底监测无需老\n\n编辑\n\n新TD管使用前的初次\n\n1\n\n初次老化\n\n1\n\n2023/5/213:15:14\n\n老化\n\n编辑",
+        "file_path": "XCloud_v1.2_Web.pdf",
+        "chunk_id": "chunk-110f84fd89402f7bca6e74b7955639c3"
+      },
+      {
+        "reference_id": "2",
+        "content": "中 / 待检测（有样本无法老化）\n\n自定义:异常（维修过程中不可老化）\n\n自定义:必填校验\n\n自定义:格式校验\n\n自定义:添加单个任务\n\n自定义:字段\n\n自定义:TD管号\n\n自定义:来源：待领用、异常、报废的TD管号\n\n自定义:单选\n\n自定义:可搜索\n\n自定义:老化原因\n\n自定义:必填校验\n\n自定义:添加单个任务\n\n自定义:列表数据\n\n自定义:来源\n\n自定义:新增TD管自动创建 ： 首次老化\n\n自定义:检测任务完成自动创建 ： 检测完成\n\n自定义:谱图上传结果 成功 / 失败\n\n自定义:清理样本（已清理）自动创建 ： 清理样\n\n本\n\n自定义:异常任务（物流单签收异常）完成自动创\n\n建 ： 异常TD创建\n\n自定义:手动创建\n\n自定义:排序\n\n自定义:按创建时间倒序排列\n\n自定义:翻页\n\n自定义:取消老化任务\n\n自定义:勾选\n\n自定义:手动创建的老化任务\n\n自定义:可勾选\n\n自定义:其他任务\n\n自定义:不可勾选\n\n自定义:勾选任务，点击取消老化任务，输入老化\n\n原因，点击确定\n\n自定义:成功取消该老化任务\n\n自定义:部分老化任务没有选择取消原因，点击确\n\n定\n\n自定义:提示该任务需要选择输入取消原因\n\n自定义:编辑\n\n自定义:已完成\n\n自定义:已取消\n\n自定义:异常TD任务\n\n自定义:待处理\n\n自定义:来源\n\n自定义:自动创建\n\n自定义:收件地点为精致未来，物品为空TD管，\n\n异常部分TD管 / 全部TD管？\n\n自定义:异常原因自动填入'采样寄回检查'\n\n自定义:发现异常时间？\n\n自定义:签收地点非精致未来，物品为空TD管，\n\n不创建\n\n自定义:签收地点为精致未来，物品为TD管样\n\n本，不创建\n\n自定义:手动创建\n\n自定义:完成\n\n自定义:处理结果\n\n自定义:正常\n\n自定义:自动创建老化任务\n\n自定义:数据流转至已完成\n\n自定义:作废\n\n自定义:输入作废原因，点击确定，提示'TD管\n\n报废后不可恢复，请谨慎处理'\n\n自定义:确定作废，数据更改为'已作废'\n\n自定义:处理方式\n\n自定义:备注\n\n自定义:处理时间\n\n自定义:作废\n\n自定义:输入作废原因，点击确定\n\n自定义:成功作废该数据，数据流转至已作废tab\n\n自定义:新建异常任务\n\n自定义:TD管号\n\n自定义:任意状态\n\n自定义:单选\n\n自定义:可搜索\n\n自定义:是否任务中\n\n自定义:检测任务中\n\n自定义:提示'该TD管有未完成的检测 / 老化任\n\n务，请先完成或取消其他任务'\n\n自定义:老化任务中\n\n自定义:不在任务中\n\n自定义:正常添加\n\n自定义:异常原因\n\n自定义:发现异常时间\n\n自定义:已完成\n\n自定义:已作废\n\n自定义:谱图导入\n\n自定义:检测任务\n\n自定义:待分配\n\n自定义:数据来源\n\n自定义:物流单\n\n自定义:已签收\n\n自定义:签收地点为'精致未来'\n\n自定义:TD管（样本）\n\n自定义:TD管（空）\n\n自定义:不包含\n\n自定义:签收地点非'精致未来'\n\n自定义:不包含\n\n自定义:未签收\n\n自定义:不包含\n\n自定义:签收TD管采样\n\n自定义:一个采样类型多个TD管样本\n\n自定义:一个人多个采样类型\n\n自定义:TD管采样-TD管号\n\n自定义:顶空瓶+TD管采样-TD管号\n\n自定义:以上为未分配任务的样本 / 取消分析样本\n\n自定义:列表字段\n\n自定义:标本编码\n\n自定义:气体来源\n\n自定义:采样方式\n\n自定义:TD管号\n\n自定义:采样时间\n\n自定义:采样备注\n\n自定义:任务类型\n\n自定义:签收时间\n\n自定义:签收异常原因\n\n自定义:样本存放位置\n\n自定义:项目名称\n\n自定义:所属组织\n\n自定义:关联病种\n\n自定义:采样点\n\n自定义:编辑样本\n\n自定义:修改校验？是否同步采样登记？\n\n自定义:权限\n\n自定义:管理可编辑\n\n自定义:非管理不可编辑\n\n自定义:TD管号\n\n自定义:数据源\n\n自定义:非报废状态TD管号\n\n自定义:选择\n\n自定义:单选\n\n自定义:可搜索\n\n自定义:必填校验\n\n自定义:TD管号、修改原因\n\n自定义:确认修改\n\n自定义:10秒倒计时\n\n自定义:未结束，不可点击\n\n自定义:已结束，可点击\n\n自定义:通用操作\n\n自定义:筛选\n\n用例:按标本编码筛选 #1\n\n步骤:输入标本编码包含xx，点击",
+        "file_path": "s16测试用例.pdf",
+        "chunk_id": "chunk-3b3b2b1c18e50a2fdf34af33ba40aa65"
+      },
+      {
+        "reference_id": "3",
+        "content": "1.加入批量输入TD管号功能\n\n%CLOU口精智未来云\n\n管理后台\n\n颜\n\n任务中心\n\n老化任务\n\n数据大屏\n\n待老化(1890)\n\n已完成（41095）\n\n已取消（4085）\n\n十创建老化任务\n\n筛选\n\n轻排序\n\nC刷新\n\n实验项目\n\nTD管号\n\n老化原因\n\n任务来源\n\n任务创建时间\n\n创建人\n\n通知中心\n\n350317\n\n检测报告任务完成\n\n2026/06/10 11:26:55\n\n任务中心\n\n350801\n\n检测报告任务完成\n\n2026/06/10 11:26:51\n\n检测批次\n\n350651\n\n检测报告任务完成\n\n2026/06/10 115:01\n\n检测任务\n\n350452\n\n检测报告任务完成\n\n2026/06/10 11:08:22\n\n谱图导入\n\n350629\n\n08:02\n\n老化批次\n\n350485\n\n新增老化任务\n\n×\n\n07.21\n\n老化任务\n\n131944\n\n新增\n\n校验\n\n批量输入\n\n共0根TD管\n\n06:15\n\n异常TD任务\n\n330341\n\nTD管编号*\n\n老化原因*批量应用\n\n提示\n\n操作\n\n5955\n\n目资产管理\n\n350547\n\n.5242\n\n物流管理\n\n350543\n\n:52:03\n\n字典管理\n\n350601\n\n暂无数据\n\n:42-48\n\n组织管理\n\n350782\n\n2:41:47\n\n采样点管理\n\n322268\n\n:39:49\n\n350831\n\n:38:46\n\n系统管理\n\n取消\n\n创建\n\n350511\n\n:32-46\n\n350610\n\n检测报告任务完成\n\n2026/06/10 10:29.06\n\n350459\n\n检测报告任务完成\n\n2026/06/10 10:27:08\n\n350638\n\n检测报告任务完成\n\n2026/06/10 10:17:20\n\n350473\n\n检测报告任务完成\n\n2026/06/10 10:16.18\n\n350509\n\n检测报告任务完成\n\n2026/06/10 10:09:58\n\n共1891条\n\n20条/页\n\n版权所有@ Copyright ChromX Health All Rights Reserved 粤ICP备2022036775号-1",
+        "file_path": "老化任务.pdf",
+        "chunk_id": "chunk-2e5710d727f36ba8ec8dab65ff9e3af2"
+      },
+      {
+        "reference_id": "4",
+        "content": "例:新增/删除TD管 #1\n\n用例:TD管列表顺序保存#1\n\n用例:筛选#1\n\n用例:排序#1\n\n用例:筛选#1\n\n用例:排序#1\n\n用例:筛选#1\n\n用例:排序#1\n\n用例:查看详情 #1\n\n用例:筛选#1\n\n用例:排序#1\n\n用例:正常新增#1\n\n自定义:新增校验\n\n自定义:web\n\n自定义:小程序\n\n自定义:全部\n\n自定义:草稿\n\n自定义:已完成\n\n自定义:新增老化批次\n\n自定义:物流管理\n\n自定义:老化批次\n\ns28测试用例\n\n自定义:研究管理\n\n自定义:采样小程序\n\n自定义:数据大屏\n\n自定义:登记二维码\n\n自定义:扫码登记\n\n自定义:采样记录\n\n自定义:任务中心\n\n自定义:时间筛选\n\n自定义:任务中心\n\n自定义:折线图、柱状图、条形图鼠标悬浮展示横\n\n纵坐标\n\n自定义:折线图、柱状图、条形图设置过滤最高和\n\n最低值\n\n用例: 旧二维码#1\n\n用例:新二维码 #1\n\n用例:登记采样信息#1\n\n用例:继续录入#1\n\n用例:筛选#1\n\n自定义:每日检测量\n\n自定义:检测任务趋势折线图表\n\n步骤:原登记二维码入口\n\n步骤:新登记二维码入口\n\n步骤:点击查看二维码信息\n\n步骤:扫描旧二维码\n\n预期:保留展示\n\n预期:在绑定采样点右边展示，一个采样点一个二\n\n维码\n\n预期:增加采样点名称和采样点ID\n\n预期:正常识别填入研究信息，采样点需手动填入\n\n步骤:扫描新二维码\n\n预期:正常识别填入研究信息、采样点信息\n\n步骤:先扫描旧二维码，再扫描新二维码\n\n预期:新二维码的研究信息、采样点信息覆盖填入\n\n步骤:先扫描新二维码，再扫描旧二维码\n\n步骤:完成手动采样登记，点击继续录入\n\n步骤:按'采样点'筛选，只能选择有权限研究的\n\n采样点\n\n用例:字段变更#1\n\n用例:筛选 #1\n\n用例:新增#1\n\n预期:返回对应采样点的记录\n\n步骤:去掉'实际检测设备'字段\n\n预期:图表返回所有设备序列号的检测量\n\n步骤:按'实际检测设备'筛选\n\n预期:返回该设备序列号的检测量\n\n步骤:输入图表名称、统计周期、统计字段，点击\n\n确定\n\n步骤:筛选范围：设备序列号=一个/多个设备序列\n\n号\n\n步骤:筛选范围：统计字段=设备检测时间\n\n预期:返回所有设备检测量\n\n预期:展示选择的设备的检测量\n\n预期:按设备检测时间来展示每日检测量\n\n步骤:筛选范围：统计字段=任务结束时间\n\n预期:按任务结束时间来展示每日检测量\n\n步骤:输入图表名称、统计周期（日/周/月/年，\n\n预期:成功新增并展示折线图表，默认展示所有状\n\n按创建时间展示），点击新增\n\n步骤:输入重复的图表名称\n\n预期:提示名称已存在\n\n步骤:图表名称、统计周期为空，点击新增\n\n预期:提示对应字段不能为空\n\n步骤:任务状态选择'待转运'\n\n预期:展示对应状态的检测任务趋势\n\n步骤:任务状态选择'待分配'\n\n步骤:任务状态选择'待检测'\n\n步骤:任务状态选择'检测中'\n\n步骤:任务状态选择'待分析'\n\n步骤:任务状态选择'已完成'\n\n步骤:任务状态选择'检测失败'\n\n步骤:任务状态选择'待清理'\n\n步骤:任务状态选择'已清理'\n\n步骤:任务状态选择'已作废'\n\n步骤:任务状态选择'全部'\n\n预期:展示对应状态的检测任务趋势\n\n预期:展示对应状态的检测任务趋势\n\n预期:展示对应状态的检测任务趋势\n\n预期:展示对应状态的检测任务趋势\n\n预期:展示对应状态的检测任务趋势\n\n预期:展示对应状态的检测任务趋势\n\n预期:展示对应状态的检测任务趋势\n\n预期:展示对应状态的检测任务趋势\n\n预期:展示对应状态的检测任务趋势\n\n预期:展示对应状态的检测任务趋势\n\n步骤:没有'全部'选项，不选状态\n\n预期:展示所有任务状态的折线图\n\n步骤:变更图表名称、筛选中的任务状态、统计周\n\n期，点击确定\n\n步骤:点击删除并确定\n\n预期:成功编辑保存\n\n预期:成功删除图表\n\n步骤:按备用样本、检测优先级、标本编码、气体\n\n来源、气体类型、采样方式等所有字段进行筛选\n\n预期:展示对应数据的趋势\n\n步骤:周期为日，变更任务状态\n\n预期:按新的状态来展示图表\n\n步骤:按'设备序列号'筛选\n\n预期:返回该设备序列号的检测量\n\n步骤:按采样时间早于/晚于/区间进行筛选\n\n预期:返回对应时间的数据\n\n步骤:",
+        "file_path": "s28测试用例.pdf",
+        "chunk_id": "chunk-313e136ae906bd5efc0871114ed295c9"
+      },
+      {
+        "reference_id": "5",
+        "content": "已变更过TD管的环境样本任务\n\n步骤:编辑TD管信息后，点击保存\n\n预期:无法作废\n\n预期:正常作废\n\n预期:成功编辑\n\n步骤:变更TD管信息\n\n预期:TD管状态不变更\n\n步骤:标本编码、气体来源、气体类型、采样方\n\n式、TD管号、采样时间、采样备注、\n\n采集仪序列号、采样点、项目名称、所属组织、\n\n关联病种'、样本当前位置\n\n步骤:待转运样本新增物流单\n\n步骤:待分配样本新增物流单\n\n预期:正常展示\n\n预期:样本状态变更为'运输中'\n\n预期:样本状态变更为'运输中'\n\n步骤:列表数据\n\n用例:增加待转运/运输中状态#1\n\n预期:正常展示待转运/运输中状态的数据\n\n步骤:按任务状态=待转运筛选\n\n预期:正常返回\n\n步骤:按任务状态=运输中筛选\n\n预期:正常返回\n\n步骤:实验项目提交检测\n\n预期:新增一条数据\n\n预期:新增一条数据\n\n预期:可查看及操作\n\n预期:可查看及操作\n\n预期:可查看及操作\n\n预期:不可查看\n\n预期:不支持修改\n\n预期:提示'识别失败，请扫描正确受试者二维\n\n码'\n\n预期:正常识别/手动填入\n\n预期:提示'编码xxx已重复'\n\n预期:正常跳转查看报告\n\n步骤:飞书内部人员登录\n\n步骤:第三方人员登录\n\n自定义:我的\n\n自定义:首页\n\n自定义:我的\n\n自定义:检测报告任务列表\n\n自定义:待检测\n\n自定义:检测中\n\n自定义:待分析\n\n用例:分析页面名称修改#1\n\n用例:暂存分析结果 #1\n\n用例:提交分析结果#1\n\n用例:编辑分析结果 #1\n\n用例:列表字段#1\n\n用例:数据来源#1\n\n用例:作废检测任务#1\n\n用例:编辑#1\n\n用例:列表字段#1\n\n用例:数据来源#1\n\n用例:数据来源#1\n\n步骤:签收物流单样本\n\n步骤:设置检测任务管理权限\n\n步骤:设置检测任务分配权限\n\n步骤:设置检测任务分析权限\n\n步骤:没有设置检测任务权限\n\n步骤:有权限，点击切换为工作人员\n\n步骤:没有权限\n\n预期:弹窗二次确认，成功切换\n\n预期:不展示切换\n\n步骤:点击退出账号\n\n自定义:添加受试者\n\n自定义:受试者列表\n\n预期:弹窗二次确认，成功退出\n\n用例:扫描身份证自动填入#1\n\n用例:新增受试者#1\n\n步骤:默认排序\n\n预期:正常查看报告\n\n预期:返回对应采样样本",
+        "file_path": "s26测试用例.pdf",
+        "chunk_id": "chunk-26a6decf77438bd3bac48f9ed3f86be6"
+      },
+      {
+        "reference_id": "6",
+        "content": "SP+6位顺序位\n\ns13测试用例\n\n自定义:TD管管理\n\n自定义:新增\n\n用例:下载模版 #1\n\n步骤:点击下载模版\n\n预期:正常下载模版，模版字段为TD管号、生产\n\n产商、采购时间、备注\n\n用例:上传文件#1\n\n步骤:点击上传文件，选择文件上传\n\n预期:成功解析文件数据，共x条数据，\n\n可点击下一步操作\n\n用例:清空待导入数据 #1\n\n步骤:点击清空数据\n\n预期:成功清空已上传的数据，\n\n下一步按钮置灰不可点击\n\n自定义:校验数据\n\n用例:表单内TD管重复#1\n\n步骤:上传文件数据有多条TD管一样的数据\n\n预期:上传失败，提示表单中包含重复数据XX\n\n条，序号为：xx、xx\n\n用例:表单与数据库完全重复#1\n\n步骤:文件导入多条与数据库完全重复的数据\n\n预期:弹窗展示已跳过的完全重复数据\n\n用例:表单与数据库部分重复（TD管号重复，其\n\n他不同）#1\n\n步骤:生产厂商不同，其他相同\n\n预期:该数据展示在待确认重复列表上\n\n步骤:采购时间相同，其他不同\n\n预期:该数据展示在待确认重复列表上\n\n步骤:备注相同，其他不同\n\n预期:该数据展示在待确认重复列表上\n\n用例:TD管号格式错误#1\n\n步骤:TD管号为5位的数字\n\n预期:上传数据时就提示该TD管号格式不正确\n\n用例:生产产商不存在#1\n\n步骤:生产厂商不是来自供应商字典\n\n预期:提示厂商错误，可点击修改选择厂商\n\n用例:采购时间格式错误#1\n\n步骤:采购日期为随机数字\n\n预期:提示采购时间错误，可点击修改选择时间\n\n用例:备注字符数超限#1\n\n步骤:备注字符数超过50字符\n\n预期:提示备注错误，可点击修改\n\n用例:校验数据下一步 #1\n\n步骤:未完成全部格式错误校验，点击下一步\n\n预期:无法进入下一步，提示请修改格式错误的字\n\n段\n\n用例:校验数据页面翻页 #1\n\n步骤:点击下一页\n\n预期:正常切换到下一页\n\n用例:预览数据页面翻页 #1\n\n步骤:点击下一页\n\n预期:正常切换到下一页\n\n用例:TD管号为空 #1\n\n步骤:上传数据包含多条TD管号为空的数据\n\n预期:上传数据时就提示TD管为空，包含几条为\n\n空数据\n\n用例:必填项 #1\n\n步骤:上传多条有正确TD管号，生产厂商、采购\n\n时间、备注为空的数据\n\n预期:正常上传\n\n自定义:数据预览\n\n用例:预览数据提交#1\n\n步骤:校验数据提交后，预览数据正常查看，且仅\n\n包含来源为待上传的数据，点击下一步\n\n预期:跳转上传成功页面，成功上传数据\n\n自定义:查看\n\n用例:数据展示#1\n\n步骤:新增导入完TD管数据\n\n预期:列表正常展示导入的数据\n\n用例:翻页 #1\n\n步骤:点击下一页\n\n预期:正常切换到下一页\n\n步骤:点击指定页数\n\n预期:正常切换到指定页数\n\n步骤:切换每页条数\n\n预期:正常切换\n\n自定义:编辑\n\n用例:编辑TD管基本信息#1\n\n步骤:更改生产厂商、采购时间、备注，点击保存\n\n预期:成功编辑TD管信息\n\n用例:编辑备注信息 #1\n\n步骤:备注输入超过50字符\n\n预期:超过部分自动截断\n\n自定义:采样点管理\n\n自定义:新增\n\n用例:新增采样点#1\n\n步骤:点击新增，\n\n输入采样点名称、采样点位置、备注，\n\n点击确定\n\n预期:成功新增该采样点，且自动生成采样点ID：\n\n步骤:输入重复的采样点名称，点击确定\n\n预期:提示名称已存在\n\n步骤:输入采样点名称超过10字符\n\n预期:超出部分自动截断\n\n步骤:输入采样点备注超过50字符\n\n预期:超出部分自动截断\n\n步骤:输入采样点位置超过50字符\n\n预期:超出部分自动截断\n\n步骤:不输入采样点名称，输入采样点位置和备\n\n注，点击确定\n\n预期:提示采样点名称不能为空\n\n自定义:编辑\n\n用例:编辑信息 #1\n\n步骤:点击编辑，\n\n输入采样点名称、采样点位置、备注，\n\n关闭状态，\n\n点击确定\n\n预期:成功编辑该采样点信息\n\n步骤:修改采样点名称\n\n预期:提示'如已打印研究二维码，请及时更新物\n\n料'\n\n自定义:查看\n\n用例:数据展示#1\n\n步骤:新增完采样点信息\n\n预期:列表正常展示新增的采样点信息\n\n用例:翻页 #1\n\n步骤:点击下一页\n\n预期:正常切换到下一页\n\n步骤:点击指定页数\n\n预期:正常切换到指定页数\n\n步骤:切换每页条数\n\n预期:正常",
+        "file_path": "s13测试用例.pdf",
+        "chunk_id": "chunk-ae4bf2d83feb510b33d7defba968c75d"
+      },
+      {
+        "reference_id": "7",
+        "content": "J.单管济有地点默沃为：床来（广州）\n\n增“归民方“须加生点作为归属方，允许备 改，项共亡的点答率 在地点”，用来记家TD情入本而的研的他置\n\n新片D答时，单中地如个司“当前际\n\nTRN\n\n5.新增T管时。\n\n购含销部（地点D：8F000004)\n\n上传时核验当前所在地点是否正理，否则线 示精式讲误\n\n，可手动选择是否同时签知待\n\n上片文\n\nb. 快演国号：\n\n8.客这方式：白带\n\n.远单图片：空\n\nd.丧进人：操作用户\n\nPit\n\n用+\n\nht\n\n.零避时间：提交时间\n\nU物品：T（空}\n\n0.丧造地点：手动造择\n\nh.清单：所有新TD管\n\n(点管理)\n\n用+\n\nPt\n\n9\n\n方\n\n.标气起输时，穿定的TD管事买时服为在位\n\n.TD管状点考知：已集出、，千动更\n\nk途加州片：空\n\n盖理贴蛋票，并在使用记录中体理\n\n1.运输全件：紫温\n\n1.数量-所选1D管效\n\n用+\n\nA.符选、统计、列表等柜关展示应宣同多更\n\n7A2号\n\n2#ta unonx\n\nD管\n\n十\n\n上行文作\n\nPJV>显3蛋\n\n124\n\n高等TD糖可同时创比符签校的物齐实较单\n\n手动这挥有递地点\n\n有活地点美点2次\n\n1087\n\nrut\n\nT5\n\nB\n\n4\n\n上月十\n\n86 anon3 X\n\n世月29\n\n二*1A\n\nA1+\n\nM.vt.\n\nT\n\n归属方\n\nX CLCUO 4S S\n\n人\n\n2\n\n1\n\n1\n\nC\n\nRLRR\n\n195\n\n**\n\n*\n\n占ut\n\n增列衰导出\"功能，导出TD管列表内齐，\n\n2.嫩属方\n\n不彬染件",
+        "file_path": "TD管管理-s52.pdf",
+        "chunk_id": "chunk-9348e364f3ce581b1904ae256496a838"
+      }
+    ],
+    "references": [
+      {
+        "reference_id": "1",
+        "file_path": "XCloud_v1.2_Web.pdf"
+      },
+      {
+        "reference_id": "2",
+        "file_path": "s16测试用例.pdf"
+      },
+      {
+        "reference_id": "3",
+        "file_path": "老化任务.pdf"
+      },
+      {
+        "reference_id": "4",
+        "file_path": "s28测试用例.pdf"
+      },
+      {
+        "reference_id": "5",
+        "file_path": "s26测试用例.pdf"
+      },
+      {
+        "reference_id": "6",
+        "file_path": "s13测试用例.pdf"
+      },
+      {
+        "reference_id": "7",
+        "file_path": "TD管管理-s52.pdf"
+      }
+    ]
+  },
+  "metadata": {
+    "query_mode": "mix",
+    "keywords": {
+      "high_level": [
+        "系统变更管理",
+        "功能需求修改",
+        "软件版本升级"
+      ],
+      "low_level": [
+        "TD管管理-s52",
+        "新增功能",
+        "修改需求"
+      ]
+    },
+    "processing_info": {
+      "total_entities_found": 138,
+      "total_relations_found": 420,
+      "entities_after_truncation": 53,
+      "relations_after_truncation": 172,
+      "merged_chunks_count": 184,
+      "final_chunks_count": 7
+    }
+  }
+}

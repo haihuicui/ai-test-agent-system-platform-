@@ -1,0 +1,1992 @@
+{
+  "status": "success",
+  "message": "Query processed successfully",
+  "data": {
+    "entities": [
+      {
+        "entity_name": "校验规则",
+        "entity_type": "concept",
+        "description": "PID序列号长度为20字符，可输入英文、数字及特定符号。",
+        "source_id": "chunk-0c662b5f29265f3c1c6ad4d1245265db",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350031
+      },
+      {
+        "entity_name": "PID编码规则",
+        "entity_type": "concept",
+        "description": "关于PID序列号生成和修改的规则，包括新PID和返修/返工PID的格式定义。",
+        "source_id": "chunk-0c662b5f29265f3c1c6ad4d1245265db",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350030
+      },
+      {
+        "entity_name": "历史PID序列号",
+        "entity_type": "data",
+        "description": "原有PID序列号，按照编码规则保持不变。",
+        "source_id": "chunk-0c662b5f29265f3c1c6ad4d1245265db",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350033
+      },
+      {
+        "entity_name": "新PID",
+        "entity_type": "data",
+        "description": "新PID的格式为PI+YYMMXXXX，例如PI26050001，其中YY为年份，MM为月份，XXXX为流水号。",
+        "source_id": "chunk-0c662b5f29265f3c1c6ad4d1245265db",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350030
+      },
+      {
+        "entity_name": "PID序列号",
+        "entity_type": "concept",
+        "description": "用于搜索或标识PID的唯一序列号，可输入搜索非报废状态的PID。<SEP>PID的唯一标识符，如PI-0470、PI-0469等，遵循PID编码规则生成。<SEP>PID序列号是PID的唯一标识符，在表格中作为一列显示。",
+        "source_id": "chunk-be65904aa22ae8bdfeb240fc12b2fed1<SEP>chunk-0c662b5f29265f3c1c6ad4d1245265db<SEP>chunk-7bd4d30f0bd3f0972cbaac394b489f59",
+        "file_path": "s27测试用例.pdf<SEP>PID管理.pdf",
+        "created_at": 1782350148
+      },
+      {
+        "entity_name": "返修/返工PID",
+        "entity_type": "data",
+        "description": "返修/返工PID的格式为XR-PIYYMMXXXX，其中R表示返工次数(第一次为R，第二次为2R)，YY为年份，MM为月份，XXXX为流水号。",
+        "source_id": "chunk-0c662b5f29265f3c1c6ad4d1245265db",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350030
+      },
+      {
+        "entity_name": "检测报告任务PID字段",
+        "entity_type": "concept",
+        "description": "检测报告任务PID字段是一个测试用例，关注PID字段在检测报告任务中的展示。",
+        "source_id": "chunk-0114eaf1591780ecaa1b31cac0cb8618",
+        "file_path": "s25测试用例.pdf",
+        "created_at": 1779870778
+      },
+      {
+        "entity_name": "返工/返修次数",
+        "entity_type": "concept",
+        "description": "表示返工或返修的次数，R为第一次，2R为第二次，以此类推。",
+        "source_id": "chunk-0c662b5f29265f3c1c6ad4d1245265db",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350031
+      },
+      {
+        "entity_name": "PID编号",
+        "entity_type": "data",
+        "description": "PID编号是质控任务的标识编号。<SEP>PID编号是检测任务中的一个字段，可能表示受试者或样本的唯一标识。<SEP>PID编号是系统中用于标识设备或任务的唯一编号。<SEP>PID编号是检测报告任务列表页面的搜索字段，用于按PID编号过滤任务。<SEP>PID编号是检测报告任务列表中的一个查询字段，可从下拉选择，用于筛选任务。",
+        "source_id": "chunk-e0f3736c571348619ac573810d3d4eea<SEP>chunk-d493913f3802b2e18c8eefd1ca9f8381<SEP>chunk-a83879cfab8ab7794bad130a12814610<SEP>chunk-b0796330cda0340c4ad2143ff2d4f9e3",
+        "file_path": "s23测试用例.pdf<SEP>34.pdf<SEP>定标记录.pdf<SEP>检测报告任务列表.pdf",
+        "created_at": 1782356101
+      },
+      {
+        "entity_name": "质控任务增加PID编号字段#1",
+        "entity_type": "event",
+        "description": "质控任务增加PID编号字段#1是一个测试用例，涉及设备绑定PID质控。",
+        "source_id": "chunk-e0f3736c571348619ac573810d3d4eea",
+        "file_path": "s23测试用例.pdf",
+        "created_at": 1779870132
+      },
+      {
+        "entity_name": "PID",
+        "entity_type": "data",
+        "description": "PID是配件标识符，用于跟踪配件更换操作，具有序列号、类型、状态(待用、在用、报废)等属性，可与设备绑定或解绑。<SEP>设备的唯一标识编号，用于设备绑定、搜索等操作。<SEP>PID是项目中用来标识的一个字段，可以上传和复制。",
+        "source_id": "chunk-1ec8a6cbd2dcfd8a4214e8379626158d<SEP>chunk-12213945bf8e700b05501baf76a65236<SEP>chunk-0114eaf1591780ecaa1b31cac0cb8618",
+        "file_path": "s21测试用例.pdf<SEP>s25测试用例.pdf",
+        "created_at": 1779870778
+      },
+      {
+        "entity_name": "TD PID编程",
+        "entity_type": "method",
+        "description": "TD PID编程是左侧边栏中列出的指令之一，涉及TD PID参数编程。",
+        "source_id": "chunk-68a41211608b20b95070190b91644c3c",
+        "file_path": "PROII_生产调试—单模块测试.pdf",
+        "created_at": 1780973367
+      },
+      {
+        "entity_name": "上传PID",
+        "entity_type": "method",
+        "description": "测试用例中的一个操作步骤，指上传PID文件。",
+        "source_id": "chunk-b50e0f11538a64bef57bcbec51ba7b04",
+        "file_path": "s25测试用例.pdf",
+        "created_at": 1779870923
+      },
+      {
+        "entity_name": "单模块测试-单GC测试 串口设置界面 (Single-Module GC Test - Serial Port Settings Interface) (image)",
+        "entity_type": "image",
+        "description": "Screenshot of a software interface for configuring serial ports and parameters (e.g., temperature thresholds) for a single-module GC test. Includes left-side instructions for test procedures (airtightness, form filling) and a dark-themed main panel with tabs (串口设置, 气密性测试, etc.) for production debugging.",
+        "source_id": "chunk-68a41211608b20b95070190b91644c3c",
+        "file_path": "PROII_生产调试—单模块测试.pdf",
+        "created_at": 1780973315
+      },
+      {
+        "entity_name": "S41测试用例",
+        "entity_type": "content",
+        "description": "S41测试用例是一组用于测试软件功能的测试用例集合，以流程图形式组织，包含多个自定义模块。<SEP>S41测试用例是一份描述测试场景的文档，以思维导图形式组织，包含多个测试类别和详细用例。",
+        "source_id": "chunk-4e3aedcc9097f0d1a6d69397be8f7195<SEP>chunk-d758cde2dccb09c9add1548c7afdc993",
+        "file_path": "S41测试用例.pdf",
+        "created_at": 1779863297
+      },
+      {
+        "entity_name": "PID/HD-PID(mV)",
+        "entity_type": "data",
+        "description": "显示PID或HD-PID检测器电压信号的字段，单位为mV。",
+        "source_id": "chunk-f337cc4ee534d94b06d74187d0e53492",
+        "file_path": "PROII_单GC模块的实时信息.pdf",
+        "created_at": 1780562085
+      },
+      {
+        "entity_name": "用例:客户、采样点、PID字段变更为多选#1",
+        "entity_type": "content",
+        "description": "用例:客户、采样点、PID字段变更为多选#1是一个测试用例，包含步骤(关于多选过滤)和预期结果(正常返回)。",
+        "source_id": "chunk-d758cde2dccb09c9add1548c7afdc993",
+        "file_path": "S41测试用例.pdf",
+        "created_at": 1779863299
+      },
+      {
+        "entity_name": "客户、采样点、PID字段变更为多选#1",
+        "entity_type": "event",
+        "description": "客户、采样点、PID字段变更为多选#1是一个测试用例，验证多选客户、采样点、PID字段进行筛选的功能。",
+        "source_id": "chunk-5a956e38fde5b20399e4f71b1cd1177c",
+        "file_path": "S41测试用例.pdf",
+        "created_at": 1779863158
+      },
+      {
+        "entity_name": "PID/HD-PID (mV)",
+        "entity_type": "data",
+        "description": "显示PID/HD-PID电压值的指标。",
+        "source_id": "chunk-154680d05458fb5929166634da7a1c19",
+        "file_path": "PROII_单GC模块的实时信息.pdf",
+        "created_at": 1780562196
+      },
+      {
+        "entity_name": "待检测",
+        "entity_type": "concept",
+        "description": "待检测是一个多义术语，在不同应用场景中具有多种含义，但其核心概念均围绕“尚未执行检测”这一状态。在任务管理或检测流程中，待检测通常指代检测任务或样本的一种状态，表示任务已被创建（或样本已提交），但尚未开始实际的检测执行环节。这一状态可以是检测任务的初始状态（等待被解析），也可以是任务等待开始检测或等待执行检测的中间状态，属于任务生命周期中的常见节点。具体而言，它出现在检测报告任务、检测任务、质控任务或样本检测流程中，统一标识尚未进入检测工作的阶段。在可视化界面中，该状态常以橙色标签显示，并在任务列表中作为状态筛选标签使用，例如显示“有635个任务被选中”或作为选项卡列出所有待检测任务。\n\n在检测卡管理场景中，待检测也是一种常见状态，但具体含义存在细微差异：有些情况下表示检测卡已通过审核，等待进行检测操作；另一些情况下则表示审核通过后等待采样（即样本尚未采集）；还有场景指出它表示已预约并等待在指定时间到采样点进行检测。这些差异反映了不同业务系统对检测卡状态划分的粒度不同，但本质均为处于“检测前”的等待阶段。\n\n在数据筛选或页面过滤场景中，待检测被用作一种筛选状态，用于标记尚未经过检测处理的数据类别，帮助用户区分已检测与未检测的数据记录。此外，待检测还被用作自定义模块的名称，该模块专门用于处理与待检测任务相关的功能逻辑。例如，在检测报告任务列表或质控任务列表中，待检测可作为一个筛选标签或选项卡，显示所有等待检测的任务。综上所述，待检测至少包含四种不同含义：任务/样本状态（尚未开始检测）、检测卡状态（审核后等待检测或采样）、筛选状态（未检测数据）以及功能模块名称。具体含义需根据所在系统或应用场景加以区分。",
+        "source_id": "chunk-1f178322d0546ae1a3b26405a9605df5<SEP>chunk-4f50aa87e0ee4778d3ba75cfda3f3db7<SEP>chunk-5a956e38fde5b20399e4f71b1cd1177c<SEP>chunk-b8e6641d0d08007db3431ee49381c0ce<SEP>chunk-0993b38cbdf06250867a506772025562<SEP>chunk-26a6decf77438bd3bac48f9ed3f86be6<SEP>chunk-92e6e3db074dcb3f773e65cd02f1d64e<SEP>chunk-dd5486a83f744668de6e98b6b2da6679<SEP>chunk-c0936409aab015f13658e04cfbb2ff46<SEP>chunk-bd5309f53f2c67cc8f934a0dfca814de<SEP>chunk-d6d523557052db74e45839e93e0e9798<SEP>chunk-4880920ba6ad256d8041d9c9ce55b436<SEP>chunk-2193e2c6a59452bd1b2ea6e9b1bec3c0<SEP>chunk-ac2879d32fa6a2c40f73b13fb3540420<SEP>chunk-938ef22b635d8d3fbfc60393c82a4da1<SEP>chunk-d493913f3802b2e18c8eefd1ca9f8381<SEP>chunk-7ed021f3dc2c6e8cf011cec5cab8499c<SEP>chunk-d05fb6df6e75e3f689fb64cd6bf3a715<SEP>chunk-73fb23370174af53d6c9df1ded392381<SEP>chunk-dd08c85e140e46a7ec510e789b35b2a3<SEP>chunk-13d85ba7a93b18ed91d83ed1ff846f73<SEP>chunk-793b18d21d6272b6940548a28be8f404<SEP>chunk-e9797aa4116af470728467718b575aec<SEP>chunk-eaa584eaf118c02eb565103475d975c6",
+        "file_path": "S37测试用例.pdf<SEP>S40测试用例.pdf<SEP>S41测试用例.pdf<SEP>S42测试用例.pdf<SEP>S43测试用例.pdf<SEP>s26测试用例.pdf<SEP>s29测试用例.pdf<SEP>s30测试用例.pdf<SEP>S33测试用例.pdf<SEP>s34测试用例.pdf<SEP>S35测试用例.pdf<SEP>S36测试用例.pdf<SEP>商业化小程序.pdf<SEP>33.pdf<SEP>34.pdf<SEP>PROII_单GC测试.pdf<SEP>51测试用例.pdf<SEP>检测报告任务列表.pdf<SEP>检测任务s52.pdf<SEP>质控任务列表.pdf",
+        "created_at": 1782373264
+      },
+      {
+        "entity_name": "非报废状态的PID",
+        "entity_type": "data",
+        "description": "通过PID序列号搜索返回的未报废的PID信息。",
+        "source_id": "chunk-be65904aa22ae8bdfeb240fc12b2fed1",
+        "file_path": "s27测试用例.pdf",
+        "created_at": 1779874474
+      },
+      {
+        "entity_name": "PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "entity_type": "image",
+        "description": "Screenshot of a web interface for PID Management (资产管理 > PID管理) in 精智未来云. Shows a PID list (229 items, PID-II/待用) and a modal for adding new PIDs (prefixed with 'PI-', aligning with new coding rules). Sidebar, pagination, and form fields are visible.",
+        "source_id": "chunk-7bd4d30f0bd3f0972cbaac394b489f59",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350096
+      },
+      {
+        "entity_name": "PID列表",
+        "entity_type": "concept",
+        "description": "PID管理模块中展示的PID序列号列表，包含PID序列号、PID类型、状态、设备序列号等字段。<SEP>PID列表是PID管理模块下的一个标签，以表格形式展示PID序列号、PID类型、状态和设备序列号等信息。",
+        "source_id": "chunk-0c662b5f29265f3c1c6ad4d1245265db<SEP>chunk-7bd4d30f0bd3f0972cbaac394b489f59",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350148
+      },
+      {
+        "entity_name": "PID类型",
+        "entity_type": "concept",
+        "description": "PID序列号的类型，如PID-1、PID-II等，在PID列表中显示。<SEP>PID类型是PID的类别属性，如PID-II，在表格中作为一列显示。",
+        "source_id": "chunk-0c662b5f29265f3c1c6ad4d1245265db<SEP>chunk-7bd4d30f0bd3f0972cbaac394b489f59",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350148
+      },
+      {
+        "entity_name": "新增PID",
+        "entity_type": "concept",
+        "description": "PID管理模块中的功能，用于创建新的PID序列号，弹出对话框要求输入PID序列号、PID类型等信息。<SEP>新增PID是一个操作界面，以模态窗口形式提供，用于添加新的PID记录，包含PID序列号和PID类型输入。<SEP>新增PID是配件更换记录中的一种操作类型，表示添加一个新的PID配件。",
+        "source_id": "chunk-0c662b5f29265f3c1c6ad4d1245265db<SEP>chunk-7bd4d30f0bd3f0972cbaac394b489f59<SEP>chunk-a3756c6e1d95d4794ce69dde41409284",
+        "file_path": "PID管理.pdf<SEP>设备管理.pdf",
+        "created_at": 1782366903
+      },
+      {
+        "entity_name": "PID管理",
+        "entity_type": "location",
+        "description": "管理后台中的一个模块，用于管理PID序列号，包括新增、筛选、列表展示等功能。<SEP>PID管理是资产管理下的一个子模块，包含PID列表和新增PID功能，用于管理PID序列号。<SEP>系统中的一个功能模块，管理PID设备。<SEP>PID管理是系统的一个功能模块，管理PID相关信息。<SEP>平台中管理PID的模块。<SEP>PID管理是系统的功能模块，用于管理PID(光离子化检测器)相关资源。",
+        "source_id": "chunk-0c662b5f29265f3c1c6ad4d1245265db<SEP>chunk-230bf3a1b6c213c7c39fa13151204d69<SEP>chunk-fe9f8917e70f005203e189e82c531c99<SEP>chunk-e42a3f57c53bd0366445d2e282ab82b5<SEP>chunk-1df499ac615e547e5e253c3beb1bb6d1",
+        "file_path": "PID管理.pdf<SEP>标气管理.pdf<SEP>标气批次.pdf<SEP>设备管理.pdf<SEP>实验项目s52.pdf",
+        "created_at": 1782368375
+      },
+      {
+        "entity_name": "样本编码规则",
+        "entity_type": "method",
+        "description": "用于对样本进行编码的规则，由测试组织定义。",
+        "source_id": "chunk-847e9e818abe8a4f58ab7dec9b0f1ec5",
+        "file_path": "XCloud_2.0管理后台.pdf",
+        "created_at": 1780022181
+      },
+      {
+        "entity_name": "检测任务",
+        "entity_type": "concept",
+        "description": "检测任务是系统中的一个核心实体与独立模块，代表一次具体的检测过程或样本分析工作单元。该任务通常由样本物流单签收后自动生成，作为待分配任务归属于某一项目；用户也可直接在平台上手动创建以分析特定样本。检测任务涵盖从创建到结果输出的完整生命周期，其状态集合包括待分配、待检测、检测中、解析中、分析中、已完成、分析失败、检测失败、待清理、已清理、已作废，以及运输中、待转运等与物流操作相关的状态。通过采样登记创建的检测任务类型为“送检项目”，初始状态为“待转运”，后续可流转至待分析或已完成状态。工作流还包含人工分析中、复核中、已发布、已取消等状态及其对应操作。\n\n在类型划分上，检测任务可作为具体的工作任务存在，如检测报告任务、直吹任务、送检任务等；按运行模式可分为直吹模式任务和采样管模式任务。任务拥有项目名称、所属组、所属病种、气体来源、任务类型、谱图类型等字段，管理TD管、苏玛罐、标气等物品的签收和修改，并设有标气类型字段用于判断分析状态字段的展示内容。检测任务具备状态、日志、关联文件等属性，能够提交谱图分析结果并产生检测记录。系统行为方面，当通过BS模式添加检测任务时，系统会发送通知；任务在创建与未完成阶段也会触发事件通知；任务完成后可自动创建老化任务。检测任务由XCloud创建并驱动送检任务的状态流转，作为系统中管理样本分析的单元，具有待分析、分析中等状态可被用户操作。\n\n从系统模块角度看，检测任务是与xmetris s25、xcloud并列的独立模块，同时也是任务中心管理的基本任务单元，与检测报告及s24系统的测试用例上下文相关联。检测任务是整个分析的流程单元，包含状态、检测项目、分析结果等属性，也是呼析云左侧边栏导航菜单中的一项，用于管理检测任务。在任务中心下的表格模块中，检测任务展示样本检测任务的详细信息，包括标本条码、气体来源、采样方式等列。发布后需要为其创建报告单，是系统中的核心事件。平台的功能模块包含子项如检测任务-待分析、新增/签收物品类型等。用户通过操作界面提交检测任务，每个任务可包含多个样本，但每个样本不能同时存在多个未完成的检测任务。检测任务作为任务中心下的主要任务类型，整体上用于管理样本的检测流程，包括待分配、待分析等状态，是系统中管理检测任务的核心模块，同时也可作为筛选分类标签或后台功能模块，与老化任务并列用于设备检测。<SEP>检测任务是对样本进行分析检测的任务，提交后自动创建物流单并进入待分配状态。<SEP>检测任务是物流管理系统中自动创建的任务，当特定物品类型在指定地点签收时触发。<SEP>检测任务是CLOU精智未来云管理后台中的一个菜单项或任务筛选类别。",
+        "source_id": "chunk-27c59dcdfafb9c0a15b7a7b7c2556265<SEP>chunk-e6da75081ef9086fb4c053d66225410d<SEP>chunk-1f178322d0546ae1a3b26405a9605df5<SEP>chunk-58848ea998aa4fde313a7ce9f2938304<SEP>chunk-608d8b00ae661453836d5b8f7f6475e8<SEP>chunk-b8e6641d0d08007db3431ee49381c0ce<SEP>chunk-9841933cd514da80792231df2319ddf7<SEP>chunk-713cc4d5874b2e8382535b5cb04f1d44<SEP>chunk-3b3b2b1c18e50a2fdf34af33ba40aa65<SEP>chunk-936a82968227eb455c3c20bdf195b9df<SEP>chunk-d5900916f1bfc5a54dd14b301fab07a1<SEP>chunk-96183638fe0bad99dc9dd93987f96370<SEP>chunk-c6417e4b8c60bd7579cc3ab30335b2a3<SEP>chunk-f66dec0ba8e2d12f2b2b9cf3145b777b<SEP>chunk-8a98c36ae38c8eeb25db9aa4216ffaf9<SEP>chunk-ad7edd3628a44e67eb079f7e15108bbd<SEP>chunk-25f1cb1e406256cd87fd263bebaf4db1<SEP>chunk-2daa345b401e8ad5329fa25aa5170937<SEP>chunk-0114eaf1591780ecaa1b31cac0cb8618<SEP>chunk-6db3ee750aef8f127faedf3621a7c5c0<SEP>chunk-4abc228dd0a85238abfd8addc34e74eb<SEP>chunk-26a6decf77438bd3bac48f9ed3f86be6<SEP>chunk-b012500077ed86a8d05fd45b1247c317<SEP>chunk-2fc8fba7af5bfa57922c97b13e6e4334<SEP>chunk-de5451b1ed2c4025218262cc3487312a<SEP>chunk-692b455010f79e1754ffe957eb1b4743<SEP>chunk-53d2d84ba4b8a66fddc523a79876e197<SEP>chunk-92e6e3db074dcb3f773e65cd02f1d64e<SEP>chunk-dd5486a83f744668de6e98b6b2da6679<SEP>chunk-39af86e2499209c5cc0eefe0d692bec7<SEP>chunk-32cfe9c230757a58bf202973c03bc901<SEP>chunk-e58a92662b7be26f58448548ade2c841<SEP>chunk-dcecfd8727d6aedcfb965c9fb6ff3672<SEP>chunk-78bbe22117f604c4dfa3a41cb7c0792e<SEP>chunk-efb6ebfc0b0988bcdbbbda656729ed9f<SEP>chunk-fc4eb9a96dc69fd533da68772ec7db9e<SEP>chunk-1af68c7b4677a1f9adbc5e600296cf25<SEP>chunk-880e5b4b63b3acd3d1053062446a08e3<SEP>chunk-919eb72d90cdf4b581afa32b30ab6c65<SEP>chunk-d52e262d8f84c56a07e9d1fcfa1d4c46<SEP>chunk-bd5309f53f2c67cc8f934a0dfca814de<SEP>chunk-4880920ba6ad256d8041d9c9ce55b436<SEP>chunk-2193e2c6a59452bd1b2ea6e9b1bec3c0<SEP>chunk-ac2879d32fa6a2c40f73b13fb3540420<SEP>chunk-d493913f3802b2e18c8eefd1ca9f8381<SEP>chunk-30df855274a892bb8a1806085b39529d<SEP>chunk-c51595385cd96628a5e86fda5e45a69e<SEP>chunk-fd3c2feb3db00c09ee678202d489bb73<SEP>chunk-d6c9c7c0d994127bc5e7fda88a9276ed<SEP>chunk-e1a7e6682d118fd3b55bd49650662382<SEP>chunk-7f18de708772a055b30a04b1908b318f<SEP>chunk-747de3c44d79b5d050b0e4538a90442a<SEP>chunk-c120c7253784f58def105061cf29312e<SEP>chunk-601966ea2263a797992556bd87282e39<SEP>chunk-20c459fad9c08d0c97d0fc465ececb0d<SEP>chunk-0429211d298a75fab4ea458c198ba5e9<SEP>chunk-fb152d63a007e2531b0c1f843e2757b2<SEP>chunk-fe9f8917e70f005203e189e82c531c99<SEP>chunk-dd08c85e140e46a7ec510e789b35b2a3<SEP>chunk-2e5710d727f36ba8ec8dab65ff9e3af2<SEP>chunk-e42a3f57c53bd0366445d2e282ab82b5<SEP>chunk-1df499ac615e547e5e253c3beb1bb6d1<SEP>chunk-c4aa042875f6a85468e02d7b0f395314<SEP>chunk-48478c3f994bdb657be43333618d93aa<SEP>chunk-2f1ebe47b8d9924eff96e67cb79b08bd",
+        "file_path": "S37测试用例.pdf<SEP>S38测试用例.pdf<SEP>S41测试用例.pdf<SEP>S42测试用例.pdf<SEP>s16测试用例.pdf<SEP>s19测试用例.pdf<SEP>s20测试用例.pdf<SEP>s22测试用例.pdf<SEP>s23测试用例.pdf<SEP>s24测试用例.pdf<SEP>s25测试用例.pdf<SEP>s26测试用例.pdf<SEP>s27测试用例.pdf<SEP>s29测试用例.pdf<SEP>s30测试用例.pdf<SEP>s32测试用例.pdf<SEP>s34测试用例.pdf<SEP>S35测试用例.pdf<SEP>S36测试用例.pdf<SEP>34.pdf<SEP>XMetrix_v2.2.pdf<SEP>XMetrix_v2.3.pdf<SEP>检测任务.pdf<SEP>检测任务可选设备.pdf<SEP>谱图导入.pdf<SEP>权限分配.pdf<SEP>实验项目.pdf<SEP>物流清单.pdf<SEP>标气批次.pdf<SEP>检测任务s52.pdf<SEP>老化任务.pdf<SEP>设备管理.pdf<SEP>实验项目s52.pdf<SEP>物资流转（原物流管理）.pdf<SEP>异常TD任务.pdf",
+        "created_at": 1782371040
+      },
+      {
+        "entity_name": "设备标识符AT-MIM-SGP-20250115-001",
+        "entity_type": "data",
+        "description": "用于标识特定测试设备的一组唯一代码，关联残留测试。",
+        "source_id": "chunk-88ddfee9f5826ff6cdd3e5264d9be2d5",
+        "file_path": "PROII_生产调试—单模块测试.pdf",
+        "created_at": 1780973366
+      },
+      {
+        "entity_name": "研究标本编码正则",
+        "entity_type": "data",
+        "description": "用于匹配标本编码的正则表达式，通过扫码设备二维码获得。",
+        "source_id": "chunk-6e6152f5c43eb513dfe1a0f425a330d4",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865184
+      },
+      {
+        "entity_name": "编码规则",
+        "entity_type": "method",
+        "description": "生成物流编号的规则，格式为CXWL+年月日+四位顺序号。<SEP>编码规则用于生成采样点或研究的编号，如SP+6位数字，若格式不合法则提示不可添加。<SEP>标本编码的规则，前缀需符合编码规则，后缀为6位数字。<SEP>编码规则为“MLD-GYFY#XXXXXX”，用于对研究数据进行唯一编码，属于研究元数据的一部分。",
+        "source_id": "chunk-666c50ace1109e21891c724670cd9d32<SEP>chunk-36dfe62d33aa08c6e2c54fa92d67f9e1<SEP>chunk-dcecfd8727d6aedcfb965c9fb6ff3672<SEP>chunk-70a48b4102736d5f4ce8d84879807b3f",
+        "file_path": "s14测试用例.pdf<SEP>s19测试用例.pdf<SEP>s32测试用例.pdf<SEP>研究关联采样点.pdf",
+        "created_at": 1779963307
+      },
+      {
+        "entity_name": "工单",
+        "entity_type": "concept",
+        "description": "工单是记录维修或维护操作的文件，包括维修工单和维护工单，可涉及故障记录、质控记录以及PID更换。<SEP>工单是记录工作任务的数据实体，可通过新增工单按钮创建。<SEP>记录安装或维修任务的单据，包含历史安装工单信息。<SEP>工单是设备管理中的任务类型，包括设备安装、设备维修、设备维护，有未完成、已完成等状态。<SEP>用于记录设备检查和故障维修的行政表单。<SEP>系统中管理的工单，作为TD管数据管理功能的上下文。",
+        "source_id": "chunk-1ec8a6cbd2dcfd8a4214e8379626158d<SEP>chunk-61bfb7e222dd19f595675a1fadadf9e5<SEP>chunk-12213945bf8e700b05501baf76a65236<SEP>chunk-fccba77594b03434c34ec2df5929f922<SEP>chunk-731dcaa03e7d520fcb1ef3d603e3ec69<SEP>chunk-0f360477b9f6249ea1648d3329ee8eb9",
+        "file_path": "s21测试用例.pdf<SEP>XCloud_v1.2_小程序.pdf<SEP>XCloud_v1.2_Web.pdf",
+        "created_at": 1780025296
+      },
+      {
+        "entity_name": "设备绑定PID",
+        "entity_type": "method",
+        "description": "将设备与PID进行关联的操作。",
+        "source_id": "chunk-1ec8a6cbd2dcfd8a4214e8379626158d",
+        "file_path": "s21测试用例.pdf",
+        "created_at": 1779868580
+      },
+      {
+        "entity_name": "步骤:去掉实际检测设备字段",
+        "entity_type": "method",
+        "description": "测试步骤，去掉实际检测设备字段。",
+        "source_id": "chunk-313e136ae906bd5efc0871114ed295c9",
+        "file_path": "s28测试用例.pdf",
+        "created_at": 1779874910
+      },
+      {
+        "entity_name": "筛选",
+        "entity_type": "event",
+        "description": "筛选是一种通用的数据操作或系统功能，用于根据用户指定的条件对各类数据列表进行过滤，从而缩小显示范围并快速定位目标信息。其本质是通过设定过滤规则，从完整数据集中返回符合条件的数据项，是数据管理中的基本交互手段。该功能可应用于多种数据场景，包括但不限于谱图列表、物流单列表、标本列表、质控记录、采样样本以及检测任务列表等。在不同上下文中，筛选条件的设置各有侧重：例如，对物流单列表可依据状态、寄送方式等条件进行过滤；对标本列表可按采集仪序列号或采样点进行过滤；对采样样本则支持按采样时间、采样点、客户、检测项目等条件筛选；此外，筛选还可针对标本编码等字段执行通用过滤操作。在部分具体实现中，筛选支持按姓名（模糊匹配）、风险等级（精确匹配）、风险系数范围、超限物质数量范围等进行筛选。该功能通常以操作按钮或列表操作的形式呈现于界面中，部分系统在用户失焦后自动执行筛选。<SEP>PID管理模块中的功能，用于按条件筛选PID列表中的记录。<SEP>筛选是任务列表中的过滤功能，用于按条件查找任务。<SEP>用于在列表中筛选和查找设备的操作。<SEP>筛选是用户操作功能，用于按条件过滤样本列表。<SEP>筛选是一个操作按钮，用于对样本列表进行筛选。<SEP>筛选是对任务列表进行筛选的操作事件。",
+        "source_id": "chunk-300889d4aaad356f00f4749ee317a7c8<SEP>chunk-87882fe61c6123d3bb9f005060cf9048<SEP>chunk-b2f34033d15b997bd208eb19a41a460a<SEP>chunk-3b3b2b1c18e50a2fdf34af33ba40aa65<SEP>chunk-d5900916f1bfc5a54dd14b301fab07a1<SEP>chunk-61bfb7e222dd19f595675a1fadadf9e5<SEP>chunk-b3ab54c816fb2f928fa5ee967dbf58bf<SEP>chunk-313e136ae906bd5efc0871114ed295c9<SEP>chunk-e58a92662b7be26f58448548ade2c841<SEP>chunk-ac2879d32fa6a2c40f73b13fb3540420<SEP>chunk-16ff5c12ad7d01482cf463b2df5804bf<SEP>chunk-e48afb317d199e4e4c4c788428bc1e17<SEP>chunk-e1a7e6682d118fd3b55bd49650662382<SEP>chunk-20c459fad9c08d0c97d0fc465ececb0d<SEP>chunk-73a1b178fd33733294c677d967fdab9a<SEP>chunk-0c662b5f29265f3c1c6ad4d1245265db<SEP>chunk-2e5710d727f36ba8ec8dab65ff9e3af2<SEP>chunk-e42a3f57c53bd0366445d2e282ab82b5<SEP>chunk-1df499ac615e547e5e253c3beb1bb6d1<SEP>chunk-48478c3f994bdb657be43333618d93aa",
+        "file_path": "s12测试用例.pdf<SEP>s14测试用例.pdf<SEP>s16测试用例.pdf<SEP>s19测试用例.pdf<SEP>s21测试用例.pdf<SEP>s23测试用例.pdf<SEP>s26测试用例.pdf<SEP>s32测试用例.pdf<SEP>S36测试用例.pdf<SEP>XMetrix_v2.4.pdf<SEP>检测任务.pdf<SEP>实验项目.pdf<SEP>风险计算_任务列表.pdf<SEP>PID管理.pdf<SEP>老化任务.pdf<SEP>设备管理.pdf<SEP>实验项目s52.pdf<SEP>异常TD任务.pdf",
+        "created_at": 1782371038
+      },
+      {
+        "entity_name": "模式ID",
+        "entity_type": "data",
+        "description": "上位机设置的标识符，关联后结果包自动上传到检测项目。",
+        "source_id": "chunk-b9a48dd7ea6e551a6f6e80ceec5a9cf5",
+        "file_path": "风险计算_系统配置.pdf",
+        "created_at": 1780537612
+      },
+      {
+        "entity_name": "设备序列号",
+        "entity_type": "data",
+        "description": "设备序列号是用于唯一标识每个检测设备的编号，在系统中作为设备的身份识别码，确保不同设备之间能够被准确区分。该编号常与设备名称一同展示，便于用户清晰识别对应设备。在单选模式下，用户可通过输入或点击方式进行搜索与录入，并能根据状态过滤出待用和故障设备。设备序列号的具体表现形式包括数字编码如“321851”或字母数字组合如“BA25000078”，可来源于BS-MS、GC-MS、代谢气体分子分析色谱仪等多种检测设备类型，在多通道呼气分析仪等设备中也作为唯一标识使用。\n\n在系统功能层面，设备序列号是设备配置面板中的一个必填字段，用于新增设备配置；在关联设备中，该字段作为一列在表格中显示，或在PID列表中展示。同时，设备序列号用于关联质控任务，确保任务与特定设备绑定，也是创建直吹报告时所需的传参字段。在数据分析场景中，设备序列号是每日检测量图表所必需的字段，可用于筛选特定设备并返回相应检测量数据。在检测报告任务列表中，设备序列号作为一个查询字段，可从下拉选择中筛选设备。此外，设备序列号还作为设备号下拉选项中的候选项，用于唯一标识设备。总之，设备序列号在设备管理、质量控制、数据统计、任务关联以及报告生成等多个环节中，均发挥着关键的基础标识与筛选作用。<SEP>设备序列号是任务列表中的一个列，表示设备的唯一标识。<SEP>设备序列号是设备信息的组成部分，用于标识设备。",
+        "source_id": "chunk-b8e6641d0d08007db3431ee49381c0ce<SEP>chunk-75667450ede2ed0dafd80a6f4b3b0989<SEP>chunk-2c01d7368da5fc92474ddd99f63da1a1<SEP>chunk-61bfb7e222dd19f595675a1fadadf9e5<SEP>chunk-08584584f481d5d939e49a8cfc37e2a0<SEP>chunk-6db3ee750aef8f127faedf3621a7c5c0<SEP>chunk-313e136ae906bd5efc0871114ed295c9<SEP>chunk-167b490573e7bdfc7325c0c6d6de533b<SEP>chunk-53d2d84ba4b8a66fddc523a79876e197<SEP>chunk-92e6e3db074dcb3f773e65cd02f1d64e<SEP>chunk-0a27e42a77a10e864206efbd04aac40f<SEP>chunk-d33ca988ab888fc3f841b64a6f324b19<SEP>chunk-ee3dca129cb80d9f7b03c0a7a30dde33<SEP>chunk-747de3c44d79b5d050b0e4538a90442a<SEP>chunk-519f1b269f91f78e15c9b0e5cba75e75<SEP>chunk-84fb67f843ffee0e4d7a6c79e2e45b3d<SEP>chunk-0c662b5f29265f3c1c6ad4d1245265db<SEP>chunk-b0796330cda0340c4ad2143ff2d4f9e3<SEP>chunk-dd08c85e140e46a7ec510e789b35b2a3<SEP>chunk-b66b03e60fa6553e40a3141e6456e1e9",
+        "file_path": "S42测试用例.pdf<SEP>s16测试用例.pdf<SEP>s19测试用例.pdf<SEP>s21测试用例.pdf<SEP>s22测试用例.pdf<SEP>s25测试用例.pdf<SEP>s28测试用例.pdf<SEP>s29测试用例.pdf<SEP>s32测试用例.pdf<SEP>S36测试用例.pdf<SEP>检测任务可选设备.pdf<SEP>定标记录.pdf<SEP>风险计算_系统配置.pdf<SEP>PID管理.pdf<SEP>定性表列表s52.pdf<SEP>检测报告任务列表.pdf<SEP>检测任务s52.pdf<SEP>结果包保存设备信息.pdf",
+        "created_at": 1782358873
+      },
+      {
+        "entity_name": "设备标识符AT-MM-LT-20250115-001",
+        "entity_type": "data",
+        "description": "用于标识特定测试设备的一组唯一代码，关联线性测试。",
+        "source_id": "chunk-88ddfee9f5826ff6cdd3e5264d9be2d5",
+        "file_path": "PROII_生产调试—单模块测试.pdf",
+        "created_at": 1780973366
+      },
+      {
+        "entity_name": "TC采样登记-资料码-002",
+        "entity_type": "event",
+        "description": "一个测试用例，验证检测项目不一致时的二次确认功能，优先级P0。",
+        "source_id": "chunk-c35e46adb79408ea1a469ea1077c2f2f",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782099979
+      },
+      {
+        "entity_name": "编码生成规则",
+        "entity_type": "method",
+        "description": "编码生成规则定义了标本编码的格式，如SP000000#时间-EN。",
+        "source_id": "chunk-53d2d84ba4b8a66fddc523a79876e197",
+        "file_path": "s29测试用例.pdf",
+        "created_at": 1779875344
+      },
+      {
+        "entity_name": "上传检测结果",
+        "entity_type": "method",
+        "description": "变更后的操作入口，点击后选择PID序列号并上传结果文件以获取谱图数据。<SEP>上传检测结果是一种操作类型，指将GC-MS设备的检测结果上传到系统的行为。<SEP>上传检测结果是质控任务列表下的一项操作功能。<SEP>质控任务列表中对单个任务的操作，用于上传检测结果。",
+        "source_id": "chunk-be65904aa22ae8bdfeb240fc12b2fed1<SEP>chunk-9b2395baba9953b4a001c4c7432c7253<SEP>chunk-13d85ba7a93b18ed91d83ed1ff846f73",
+        "file_path": "s27测试用例.pdf<SEP>34.pdf<SEP>角色管理.pdf<SEP>质控任务列表.pdf",
+        "created_at": 1782372866
+      },
+      {
+        "entity_name": "多TD管提交成功与编码分配",
+        "entity_type": "concept",
+        "description": "多TD管提交成功与编码分配是一个测试用例标题，描述提交多根有效TD管后系统生成编码的测试。",
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097460
+      },
+      {
+        "entity_name": "管理后台",
+        "entity_type": "concept",
+        "description": "管理后台是精智·未来云（亦称LOU口精智·未来云、CLOUD精智·未来云或CLOUD精智未来云）系统的后台管理界面，专供系统管理员操作使用。作为整个平台的核心管理入口，该界面集成了权限分配与系统配置功能，支持字典列表、通知中心、字典配置、检测项目设置、订单管理、标气批次管理等子模块的维护与数据管理。同时，管理后台还涵盖系统设置、用户管理、任务中心、资产管理、实验项目、项目管理等行政任务，确保后台各项业务有序运行。其名称通常以文字标题形式出现在精智·未来云管理平台中，明确标示后台管理部分。\n\n此外，该管理后台也被描述为呼析云平台的管理界面，包含系统管理、角色管理等模块，并提供菜单导航功能，用于配置和监控各项任务。平台的核心模块负责配置和监控各类操作，同时支持检测任务的管理。多个描述均指出管理后台是精智·未来云系统的后台管理系统，集成了多个管理模块，通过菜单导航实现功能访问。整体而言，管理后台作为平台的后台管理界面，是系统管理员进行日常运维与业务配置的核心工具。",
+        "source_id": "chunk-300889d4aaad356f00f4749ee317a7c8<SEP>chunk-96183638fe0bad99dc9dd93987f96370<SEP>chunk-e58a92662b7be26f58448548ade2c841<SEP>chunk-d6d523557052db74e45839e93e0e9798<SEP>chunk-ac2879d32fa6a2c40f73b13fb3540420<SEP>chunk-e1a7e6682d118fd3b55bd49650662382<SEP>chunk-747de3c44d79b5d050b0e4538a90442a<SEP>chunk-d855a997cc9843a5f05a566c2936a6b5<SEP>chunk-c120c7253784f58def105061cf29312e<SEP>chunk-601966ea2263a797992556bd87282e39<SEP>chunk-20c459fad9c08d0c97d0fc465ececb0d<SEP>chunk-0429211d298a75fab4ea458c198ba5e9<SEP>chunk-0c662b5f29265f3c1c6ad4d1245265db<SEP>chunk-cd9e8478e61a6763e8e3d1f4d5ba1af8<SEP>chunk-230bf3a1b6c213c7c39fa13151204d69<SEP>chunk-9b2395baba9953b4a001c4c7432c7253<SEP>chunk-38d4722d5f628d38f49e5e997294c803<SEP>chunk-2e5710d727f36ba8ec8dab65ff9e3af2<SEP>chunk-e42a3f57c53bd0366445d2e282ab82b5<SEP>chunk-48478c3f994bdb657be43333618d93aa<SEP>chunk-2f1ebe47b8d9924eff96e67cb79b08bd",
+        "file_path": "s12测试用例.pdf<SEP>s19测试用例.pdf<SEP>s32测试用例.pdf<SEP>s34测试用例.pdf<SEP>S36测试用例.pdf<SEP>TD管管理.pdf<SEP>检测任务.pdf<SEP>检测任务可选设备.pdf<SEP>谱图导入.pdf<SEP>权限分配.pdf<SEP>实验项目.pdf<SEP>PID管理.pdf<SEP>标气管理.pdf<SEP>检测任务s52.pdf<SEP>角色管理.pdf<SEP>老化任务.pdf<SEP>设备管理.pdf<SEP>异常TD任务.pdf",
+        "created_at": 1782371042
+      },
+      {
+        "entity_name": "检测项目ID",
+        "entity_type": "data",
+        "description": "检测项目ID是检测项目的唯一标识，用于在创建直吹报告时作为传参。<SEP>检测项目ID是检测项目的标识。",
+        "source_id": "chunk-92e6e3db074dcb3f773e65cd02f1d64e<SEP>chunk-4ee7a841f208c6563571af725a5af65e",
+        "file_path": "s29测试用例.pdf<SEP>51测试用例.pdf",
+        "created_at": 1782099961
+      },
+      {
+        "entity_name": "模态窗口",
+        "entity_type": "artifact",
+        "description": "模态窗口是在图像中显示的一个用户界面元素，其标题在输入文本中被截断。<SEP>模态窗口是用于新增PID的弹出界面，包含动态表格输入行。",
+        "source_id": "chunk-834fb4ebe074b80c539e189048251030<SEP>chunk-7bd4d30f0bd3f0972cbaac394b489f59",
+        "file_path": "20.pdf<SEP>PID管理.pdf",
+        "created_at": 1782350149
+      },
+      {
+        "entity_name": "采用点编码",
+        "entity_type": "data",
+        "description": "采样点的编码，为必填字段之一。",
+        "source_id": "chunk-dcecfd8727d6aedcfb965c9fb6ff3672",
+        "file_path": "s32测试用例.pdf",
+        "created_at": 1779876298
+      },
+      {
+        "entity_name": "s25测试用例系统模块功能流程图 (image)",
+        "entity_type": "image",
+        "description": "A flowchart of s25 test cases, organizing system modules (experiment tasks, analysis, data management) into use cases with steps and expected results. Validates functions like PID upload, voc data handling, and task operations, aligning with xmetrix s25/xcloud test context.",
+        "source_id": "chunk-b50e0f11538a64bef57bcbec51ba7b04",
+        "file_path": "s25测试用例.pdf",
+        "created_at": 1779870842
+      },
+      {
+        "entity_name": "PI-0384",
+        "entity_type": "data",
+        "description": "PI-0384是设备的PID标识符，用于设备管理。<SEP>一个设备的PID编号。<SEP>PI-0384是一个配件ID，与微型气相色谱仪(CXBA-Alpha)相关联，在配件更换记录中被操作。",
+        "source_id": "chunk-8a9daab365a72ce4f43f482415957267<SEP>chunk-e42a3f57c53bd0366445d2e282ab82b5<SEP>chunk-a3756c6e1d95d4794ce69dde41409284",
+        "file_path": "设备管理.pdf",
+        "created_at": 1782366903
+      },
+      {
+        "entity_name": "设备标识符AT-GCM-RT-20250115-001",
+        "entity_type": "data",
+        "description": "用于标识特定测试设备的一组唯一代码，关联重复性测试。",
+        "source_id": "chunk-88ddfee9f5826ff6cdd3e5264d9be2d5",
+        "file_path": "PROII_生产调试—单模块测试.pdf",
+        "created_at": 1780973366
+      },
+      {
+        "entity_name": "检测报告任务列表",
+        "entity_type": "concept",
+        "description": "检测报告任务列表是Xmetrix（亦称METRIX或XMetrix）平台中任务管理模块的核心功能子模块，通常以Web界面的主内容区域形式呈现，位于系统左侧导航菜单中，并可被高亮显示为活动状态。该列表实质是一个专用于展示和管理检测报告相关任务的界面，以表格形式集中显示所有检测任务，包含“全部”、“待检测”、“已检测”、“已发布”等多种状态标签，方便用户按条件筛选和分类处理。列表中每条任务通常包含标本编码（条码号）、姓名、设备号、状态等关键信息，同时也可能出现TD管号、风险系数、ID、客户、采样点、检测项目、操作等字段，作为报告单数据的基础数据源，用于记录和跟踪每项任务的完整流程。\n\n该模块不仅支持查看任务详情，还提供筛选条件、分页、批量操作以及发布报告、上传检测结果、定标操作、批量数据导出等功能。任务ID作用于该列表以实现具体的任务管理和权限控制。在特定应用场景中，检测报告任务列表曾被用于左旗人民肺癌风险评估项目的任务管理，作为项目中的任务列表发挥作用。此外，该列表也被描述为权限管理界面中的一个资源列表，其中“访问”单选按钮被选中，体现了其在不同系统模块中的多面性。同时，它也是导出测试用例覆盖的一种任务列表类型，并被视为生成检测报告的任务清单。\n\n检测报告任务列表是企业应用界面中的主要功能模块，用于管理和查看检测报告任务，是任务管理界面下的一个子页面，展示数据表格并包含筛选、导出等功能。该界面也是任务管理系统的核心页面，包含状态标签、筛选区、数据表格和批量操作栏，与表格配置的字段相关联，并在右侧主内容区显示任务表格，其标题表示任务管理界面的表头。整体而言，该模块是任务管理流程中的核心组件，帮助用户从任务接收、处理到结果发布，实现高效的检测任务全生命周期管理。<SEP>检测报告任务列表是任务管理下的一个子模块，用于管理检测报告任务。",
+        "source_id": "chunk-dcb42dac9865ce55b8cdfe0001c9b01b<SEP>chunk-9ac3543964f6578ff22a5d63fab1f482<SEP>chunk-b8e6641d0d08007db3431ee49381c0ce<SEP>chunk-c93cd063a4dc0565d6b310a6099db85d<SEP>chunk-6a0bdd94818406989167e9cf2801ec24<SEP>chunk-1ec8a6cbd2dcfd8a4214e8379626158d<SEP>chunk-8a98c36ae38c8eeb25db9aa4216ffaf9<SEP>chunk-26a6decf77438bd3bac48f9ed3f86be6<SEP>chunk-692b455010f79e1754ffe957eb1b4743<SEP>chunk-92e6e3db074dcb3f773e65cd02f1d64e<SEP>chunk-52cf1f2ce6ebdbdc896e5399d2ba4d13<SEP>chunk-c8a5a0f451e789873a2d55bee02f77d2<SEP>chunk-649b74429c1cc667370afa392a940126<SEP>chunk-d493913f3802b2e18c8eefd1ca9f8381<SEP>chunk-f6751230d0e868dbf9e73c8a59f9ddcc<SEP>chunk-3cb4c9db782f4b6abddd9df02ae92781<SEP>chunk-93ce99b5185d46376d066859c0c22163<SEP>chunk-dd6411623a31693e3ed3fdc452764eb7<SEP>chunk-a9cee361885834d6458e12387325e049<SEP>chunk-67795afbadc5f312ad41f93511d574a7<SEP>chunk-c83af75d374fb4ebe975342eb0d84457<SEP>chunk-ae6b75b54cca5bba2411cfcac67dc6ad<SEP>chunk-30df855274a892bb8a1806085b39529d<SEP>chunk-a0aacb12a28a35beaac154022edd88c1<SEP>chunk-c51595385cd96628a5e86fda5e45a69e<SEP>chunk-442ba79a7c931acb0c2dc22835f6f0b1<SEP>chunk-e09133495b5900bd1caabef95198f67c<SEP>chunk-74bdce6ceea5b06476893f95a2d316f0<SEP>chunk-16ff5c12ad7d01482cf463b2df5804bf<SEP>chunk-db6bcfaac83a804c239dd0cd795c8c22<SEP>chunk-519f1b269f91f78e15c9b0e5cba75e75<SEP>chunk-a83879cfab8ab7794bad130a12814610<SEP>chunk-3fc857bcfada51884a4aefd186e73ca7<SEP>chunk-cfaf948e0c03ba463ecfe2d9868545dc<SEP>chunk-ccbffb0e4c2cd7d32a2aaee17abc92a0<SEP>chunk-6831903baaea264b3689fe877296364e<SEP>chunk-8a75d34072785fbfb54a9bf035fea0aa<SEP>chunk-7cf8ac2d4b29f13248f49c0222b42648<SEP>chunk-6189598135361cdf6e5754b3fa26b16e<SEP>chunk-480d837307dbe34f95cea5130e572039<SEP>chunk-b0796330cda0340c4ad2143ff2d4f9e3<SEP>chunk-d4fa749ba0efc816b7c307a8b063ae9a<SEP>chunk-13d85ba7a93b18ed91d83ed1ff846f73<SEP>chunk-793b18d21d6272b6940548a28be8f404<SEP>chunk-e9797aa4116af470728467718b575aec",
+        "file_path": "S38测试用例.pdf<SEP>S39测试用例.pdf<SEP>S42测试用例.pdf<SEP>s18测试用例.pdf<SEP>s20测试用例.pdf<SEP>s21测试用例.pdf<SEP>s22测试用例.pdf<SEP>s26测试用例.pdf<SEP>s27测试用例.pdf<SEP>s29测试用例.pdf<SEP>33.pdf<SEP>34.pdf<SEP>20.pdf<SEP>XMetrix_v2.1.pdf<SEP>XMetrix_v2.2.pdf<SEP>XMetrix_v2.4.pdf<SEP>XMetrix_v2.3.pdf<SEP>XMetrix_v2.5.pdf<SEP>定标记录.pdf<SEP>51测试用例.pdf<SEP>定标记录-s52.pdf<SEP>检测报告任务列表.pdf<SEP>质控任务列表.pdf",
+        "created_at": 1782373254
+      },
+      {
+        "entity_name": "TC采样登记-资料码-001",
+        "entity_type": "event",
+        "description": "一个测试用例，验证检测项目一致时的提交确认功能，优先级P0。",
+        "source_id": "chunk-c35e46adb79408ea1a469ea1077c2f2f",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782099979
+      }
+    ],
+    "relationships": [
+      {
+        "src_id": "PID编号",
+        "tgt_id": "检测任务",
+        "description": "检测任务中包含PID编号字段。",
+        "keywords": "字段包含,属性",
+        "weight": 1.0,
+        "source_id": "chunk-d493913f3802b2e18c8eefd1ca9f8381",
+        "file_path": "34.pdf",
+        "created_at": 1779931085
+      },
+      {
+        "src_id": "PID编码规则",
+        "tgt_id": "历史PID序列号",
+        "description": "历史PID序列号遵循原有的PID编码规则，保持不变。",
+        "keywords": "规则适用",
+        "weight": 1.0,
+        "source_id": "chunk-0c662b5f29265f3c1c6ad4d1245265db",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350046
+      },
+      {
+        "src_id": "PID编号",
+        "tgt_id": "检测报告任务列表",
+        "description": "检测报告任务列表页面包含PID编号搜索字段。",
+        "keywords": "包含,搜索字段",
+        "weight": 1.0,
+        "source_id": "chunk-c35fddac9926c0122361ad4c7235d741",
+        "file_path": "定标记录.pdf",
+        "created_at": 1780050616
+      },
+      {
+        "src_id": "PID编码规则",
+        "tgt_id": "新PID",
+        "description": "PID编码规则定义了新PID的格式为PI+YYMMXXXX。",
+        "keywords": "格式规范,规则定义",
+        "weight": 1.0,
+        "source_id": "chunk-0c662b5f29265f3c1c6ad4d1245265db",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350038
+      },
+      {
+        "src_id": "PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "tgt_id": "表格",
+        "description": "Entity 表格 belongs to PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-7bd4d30f0bd3f0972cbaac394b489f59",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350165
+      },
+      {
+        "src_id": "PID编码规则",
+        "tgt_id": "校验规则",
+        "description": "PID编码规则规定了PID序列号的校验规则，包括长度20字符。",
+        "keywords": "规则约束,长度限制",
+        "weight": 1.0,
+        "source_id": "chunk-0c662b5f29265f3c1c6ad4d1245265db",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350039
+      },
+      {
+        "src_id": "PID序列号",
+        "tgt_id": "表格",
+        "description": "表格中包含PID序列号列。",
+        "keywords": "列,包含",
+        "weight": 1.0,
+        "source_id": "chunk-7bd4d30f0bd3f0972cbaac394b489f59",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350153
+      },
+      {
+        "src_id": "PID编码规则",
+        "tgt_id": "返修/返工PID",
+        "description": "PID编码规则定义了返修/返工PID的格式为XR-PIYYMMXXXX。",
+        "keywords": "格式规范,规则定义",
+        "weight": 1.0,
+        "source_id": "chunk-0c662b5f29265f3c1c6ad4d1245265db",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350038
+      },
+      {
+        "src_id": "PID类型",
+        "tgt_id": "表格",
+        "description": "表格中包含PID类型列。",
+        "keywords": "列,包含",
+        "weight": 1.0,
+        "source_id": "chunk-7bd4d30f0bd3f0972cbaac394b489f59",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350154
+      },
+      {
+        "src_id": "PID编码规则",
+        "tgt_id": "返工/返修次数",
+        "description": "PID编码规则中包含返工/返修次数的表示方式。",
+        "keywords": "编号规则,规则组成",
+        "weight": 1.0,
+        "source_id": "chunk-0c662b5f29265f3c1c6ad4d1245265db",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350039
+      },
+      {
+        "src_id": "检测项目",
+        "tgt_id": "模式ID",
+        "description": "检测项目关联上位机设置的模式ID，关联后结果包自动上传。",
+        "keywords": "关联关系,自动上传",
+        "weight": 1.0,
+        "source_id": "chunk-b9a48dd7ea6e551a6f6e80ceec5a9cf5",
+        "file_path": "风险计算_系统配置.pdf",
+        "created_at": 1780537624
+      },
+      {
+        "src_id": "PID编号",
+        "tgt_id": "质控任务增加PID编号字段#1",
+        "description": "测试用例涉及设备绑定PID-1和PID-2质控，从而增加PID编号字段。",
+        "keywords": "字段增加,设备绑定",
+        "weight": 1.0,
+        "source_id": "chunk-e0f3736c571348619ac573810d3d4eea",
+        "file_path": "s23测试用例.pdf",
+        "created_at": 1779870150
+      },
+      {
+        "src_id": "TC采样登记-资料码-003",
+        "tgt_id": "确定按钮",
+        "description": "在二次确认提示框中点击确定按钮确认提交。",
+        "keywords": "点击,确认",
+        "weight": 1.0,
+        "source_id": "chunk-7d5b50b36d2042a42c8d05fb250388bf",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100076
+      },
+      {
+        "src_id": "TD PID编程",
+        "tgt_id": "单模块测试-单GC测试 串口设置界面 (Single-Module GC Test - Serial Port Settings Interface) (image)",
+        "description": "Entity TD PID编程 belongs to 单模块测试-单GC测试 串口设置界面 (Single-Module GC Test - Serial Port Settings Interface) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-68a41211608b20b95070190b91644c3c",
+        "file_path": "PROII_生产调试—单模块测试.pdf",
+        "created_at": 1780973388
+      },
+      {
+        "src_id": "PID",
+        "tgt_id": "检测报告任务",
+        "description": "检测报告任务展示PID字段，且可复制。",
+        "keywords": "字段,展示",
+        "weight": 1.0,
+        "source_id": "chunk-0114eaf1591780ecaa1b31cac0cb8618",
+        "file_path": "s25测试用例.pdf",
+        "created_at": 1779870789
+      },
+      {
+        "src_id": "S41测试用例",
+        "tgt_id": "用例:客户、采样点、PID字段变更为多选#1",
+        "description": "S41测试用例直接包含附加测试用例“用例:客户、采样点、PID字段变更为多选#1”。",
+        "keywords": "包含,测试用例归属",
+        "weight": 1.0,
+        "source_id": "chunk-d758cde2dccb09c9add1548c7afdc993",
+        "file_path": "S41测试用例.pdf",
+        "created_at": 1779863311
+      },
+      {
+        "src_id": "标本编码",
+        "tgt_id": "编码规则",
+        "description": "标本编码需符合编码规则，否则提示格式不对。",
+        "keywords": "符合,验证",
+        "weight": 1.0,
+        "source_id": "chunk-dcecfd8727d6aedcfb965c9fb6ff3672",
+        "file_path": "s32测试用例.pdf",
+        "created_at": 1779876346
+      },
+      {
+        "src_id": "客户、采样点、PID字段变更为多选#1",
+        "tgt_id": "待检测",
+        "description": "该测试用例属于待检测模块，验证多选客户、采样点、PID字段进行筛选的功能。",
+        "keywords": "功能测试,归属关系",
+        "weight": 1.0,
+        "source_id": "chunk-5a956e38fde5b20399e4f71b1cd1177c",
+        "file_path": "S41测试用例.pdf",
+        "created_at": 1779863166
+      },
+      {
+        "src_id": "标本编码",
+        "tgt_id": "顺序号",
+        "description": "标本编码由QC+年月日+3位顺序号组成，顺序号每天重置。",
+        "keywords": "生成规则,组成部分",
+        "weight": 1.0,
+        "source_id": "chunk-13d85ba7a93b18ed91d83ed1ff846f73",
+        "file_path": "质控任务列表.pdf",
+        "created_at": 1782372900
+      },
+      {
+        "src_id": "PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "tgt_id": "PID序列号",
+        "description": "Entity PID序列号 belongs to PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-7bd4d30f0bd3f0972cbaac394b489f59",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350159
+      },
+      {
+        "src_id": "标本编码",
+        "tgt_id": "标本编码生成规则",
+        "description": "标本编码按照标本编码生成规则生成。",
+        "keywords": "编码生成,遵循",
+        "weight": 1.0,
+        "source_id": "chunk-d5900916f1bfc5a54dd14b301fab07a1",
+        "file_path": "s19测试用例.pdf",
+        "created_at": 1779867251
+      },
+      {
+        "src_id": "PID列表",
+        "tgt_id": "PID管理",
+        "description": "PID管理模块提供PID列表用于展示和管理PID序列号。<SEP>PID管理模块下包含PID列表标签，用于显示PID数据。",
+        "keywords": "包含,数据展示,标签页,模块功能",
+        "weight": 2.0,
+        "source_id": "chunk-0c662b5f29265f3c1c6ad4d1245265db<SEP>chunk-7bd4d30f0bd3f0972cbaac394b489f59",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350151
+      },
+      {
+        "src_id": "编码规则",
+        "tgt_id": "采样点",
+        "description": "采样点新增时根据编码规则生成编码，模糊搜索返回启用状态的采样点。",
+        "keywords": "校验,生成",
+        "weight": 1.0,
+        "source_id": "chunk-36dfe62d33aa08c6e2c54fa92d67f9e1",
+        "file_path": "s19测试用例.pdf",
+        "created_at": 1779867251
+      },
+      {
+        "src_id": "格式校验用例#1",
+        "tgt_id": "采样点",
+        "description": "格式校验用例#1中，若采样点不存在，字段下方提示“采样点不存在”。",
+        "keywords": "提示信息,格式校验",
+        "weight": 1.0,
+        "source_id": "chunk-25f1cb1e406256cd87fd263bebaf4db1",
+        "file_path": "s24测试用例.pdf",
+        "created_at": 1779870451
+      },
+      {
+        "src_id": "PID管理",
+        "tgt_id": "新增PID",
+        "description": "PID管理模块包含新增PID功能。<SEP>PID管理模块下提供新增PID操作，通过模态窗口添加新PID。",
+        "keywords": "功能包含,包含,操作",
+        "weight": 2.0,
+        "source_id": "chunk-0c662b5f29265f3c1c6ad4d1245265db<SEP>chunk-7bd4d30f0bd3f0972cbaac394b489f59",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350152
+      },
+      {
+        "src_id": "PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "tgt_id": "首页",
+        "description": "Entity 首页 belongs to PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-7bd4d30f0bd3f0972cbaac394b489f59",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350158
+      },
+      {
+        "src_id": "PID",
+        "tgt_id": "工单",
+        "description": "工单(维修或维护)中可更换设备的PID，记录更换后的PID及处理时间。",
+        "keywords": "更换操作",
+        "weight": 1.0,
+        "source_id": "chunk-12213945bf8e700b05501baf76a65236",
+        "file_path": "s21测试用例.pdf",
+        "created_at": 1779868610
+      },
+      {
+        "src_id": "PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "tgt_id": "状态",
+        "description": "Entity 状态 belongs to PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-7bd4d30f0bd3f0972cbaac394b489f59",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350160
+      },
+      {
+        "src_id": "PID序列号",
+        "tgt_id": "非报废状态的PID",
+        "description": "输入PID序列号搜索可返回非报废状态的PID。",
+        "keywords": "搜索,返回结果",
+        "weight": 1.0,
+        "source_id": "chunk-be65904aa22ae8bdfeb240fc12b2fed1",
+        "file_path": "s27测试用例.pdf",
+        "created_at": 1779874495
+      },
+      {
+        "src_id": "PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "tgt_id": "资产管理",
+        "description": "Entity 资产管理 belongs to PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-7bd4d30f0bd3f0972cbaac394b489f59",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350156
+      },
+      {
+        "src_id": "PID管理",
+        "tgt_id": "筛选",
+        "description": "PID管理模块包含筛选功能。",
+        "keywords": "功能包含",
+        "weight": 1.0,
+        "source_id": "chunk-0c662b5f29265f3c1c6ad4d1245265db",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350045
+      },
+      {
+        "src_id": "TD管号",
+        "tgt_id": "格式校验用例#1",
+        "description": "格式校验用例#1中，若TD管号已作废或不存在，分别提示对应信息。",
+        "keywords": "提示信息,格式校验",
+        "weight": 1.0,
+        "source_id": "chunk-25f1cb1e406256cd87fd263bebaf4db1",
+        "file_path": "s24测试用例.pdf",
+        "created_at": 1779870453
+      },
+      {
+        "src_id": "PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "tgt_id": "设备序列号",
+        "description": "Entity 设备序列号 belongs to PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-7bd4d30f0bd3f0972cbaac394b489f59",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350160
+      },
+      {
+        "src_id": "PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "tgt_id": "设备管理",
+        "description": "Entity 设备管理 belongs to PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-7bd4d30f0bd3f0972cbaac394b489f59",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350157
+      },
+      {
+        "src_id": "PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "tgt_id": "PID类型",
+        "description": "Entity PID类型 belongs to PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-7bd4d30f0bd3f0972cbaac394b489f59",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350160
+      },
+      {
+        "src_id": "PID列表",
+        "tgt_id": "状态",
+        "description": "PID列表中的每一行包含状态字段。<SEP>PID列表的表格中展示状态列。",
+        "keywords": "列表字段,字段,显示",
+        "weight": 2.0,
+        "source_id": "chunk-0c662b5f29265f3c1c6ad4d1245265db<SEP>chunk-7bd4d30f0bd3f0972cbaac394b489f59",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350153
+      },
+      {
+        "src_id": "PID序列号",
+        "tgt_id": "设备序列号",
+        "description": "PID序列号与设备序列号在系统中相互关联。",
+        "keywords": "一对多,数据关联",
+        "weight": 1.0,
+        "source_id": "chunk-0c662b5f29265f3c1c6ad4d1245265db",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350038
+      },
+      {
+        "src_id": "PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "tgt_id": "实验项目",
+        "description": "Entity 实验项目 belongs to PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-7bd4d30f0bd3f0972cbaac394b489f59",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350158
+      },
+      {
+        "src_id": "PID",
+        "tgt_id": "设备绑定PID",
+        "description": "设备通过绑定PID建立关联，设备报废时解除或标记。",
+        "keywords": "关联,设备管理",
+        "weight": 1.0,
+        "source_id": "chunk-1ec8a6cbd2dcfd8a4214e8379626158d",
+        "file_path": "s21测试用例.pdf",
+        "created_at": 1779868598
+      },
+      {
+        "src_id": "格式校验用例#1",
+        "tgt_id": "采样时间",
+        "description": "格式校验用例#1中，若采样时间格式不对，字段下方提示“时间格式不对”。",
+        "keywords": "提示信息,格式校验",
+        "weight": 1.0,
+        "source_id": "chunk-25f1cb1e406256cd87fd263bebaf4db1",
+        "file_path": "s24测试用例.pdf",
+        "created_at": 1779870453
+      },
+      {
+        "src_id": "PID序列号",
+        "tgt_id": "上传检测结果",
+        "description": "点击上传检测结果后需要选择或输入PID序列号。",
+        "keywords": "操作,输入选择",
+        "weight": 1.0,
+        "source_id": "chunk-be65904aa22ae8bdfeb240fc12b2fed1",
+        "file_path": "s27测试用例.pdf",
+        "created_at": 1779874494
+      },
+      {
+        "src_id": "PID管理",
+        "tgt_id": "资产管理",
+        "description": "资产管理菜单下包含PID管理子模块。",
+        "keywords": "包含,子模块",
+        "weight": 1.0,
+        "source_id": "chunk-7bd4d30f0bd3f0972cbaac394b489f59",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350151
+      },
+      {
+        "src_id": "PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "tgt_id": "新增PID",
+        "description": "Entity 新增PID belongs to PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-7bd4d30f0bd3f0972cbaac394b489f59",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350162
+      },
+      {
+        "src_id": "PID管理",
+        "tgt_id": "管理后台",
+        "description": "管理后台中包含PID管理模块。",
+        "keywords": "功能划分,模块包含",
+        "weight": 1.0,
+        "source_id": "chunk-0c662b5f29265f3c1c6ad4d1245265db",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350038
+      },
+      {
+        "src_id": "PID",
+        "tgt_id": "设备",
+        "description": "设备可绑定多个PID，绑定后PID状态变更为在用；取消绑定后PID状态解绑。",
+        "keywords": "绑定关联",
+        "weight": 1.0,
+        "source_id": "chunk-12213945bf8e700b05501baf76a65236",
+        "file_path": "s21测试用例.pdf",
+        "created_at": 1779868609
+      },
+      {
+        "src_id": "新增PID",
+        "tgt_id": "模态窗口",
+        "description": "新增PID功能通过模态窗口实现，模态窗口用于输入和提交新PID信息。",
+        "keywords": "关联,操作界面",
+        "weight": 1.0,
+        "source_id": "chunk-7bd4d30f0bd3f0972cbaac394b489f59",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350154
+      },
+      {
+        "src_id": "PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "tgt_id": "PID列表",
+        "description": "Entity PID列表 belongs to PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-7bd4d30f0bd3f0972cbaac394b489f59",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350159
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-004",
+        "tgt_id": "环境登记-TD管管理测试用例表 (table)",
+        "description": "Entity TC-FUTURE-ENV-TD-004 belongs to 环境登记-TD管管理测试用例表 (table)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097480
+      },
+      {
+        "src_id": "PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "tgt_id": "PID管理",
+        "description": "Entity PID管理 belongs to PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-7bd4d30f0bd3f0972cbaac394b489f59",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350156
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-004",
+        "tgt_id": "系统",
+        "description": "该测试用例验证系统对多TD管的提交成功与编码分配。",
+        "keywords": "提交,编码分配",
+        "weight": 1.0,
+        "source_id": "chunk-7d5b50b36d2042a42c8d05fb250388bf",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100078
+      },
+      {
+        "src_id": "s25测试用例系统模块功能流程图 (image)",
+        "tgt_id": "上传PID",
+        "description": "Entity 上传PID belongs to s25测试用例系统模块功能流程图 (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-b50e0f11538a64bef57bcbec51ba7b04",
+        "file_path": "s25测试用例.pdf",
+        "created_at": 1779870947
+      },
+      {
+        "src_id": "新增校验标气批次",
+        "tgt_id": "标气批次",
+        "description": "新增校验标气批次操作验证标气批次字段的正确性和格式。",
+        "keywords": "校验,验证",
+        "weight": 1.0,
+        "source_id": "chunk-4bc2988a9eb91ebea67175707d3422c8",
+        "file_path": "S31测试用例.pdf",
+        "created_at": 1779875997
+      },
+      {
+        "src_id": "PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "tgt_id": "精智未来云",
+        "description": "Entity 精智未来云 belongs to PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-7bd4d30f0bd3f0972cbaac394b489f59",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350154
+      },
+      {
+        "src_id": "标气",
+        "tgt_id": "顺序号",
+        "description": "标气ID由SGP、批次和顺序号组成。",
+        "keywords": "标识,生成规则",
+        "weight": 1.0,
+        "source_id": "chunk-82f6c62693aee5d1c5d071b22f5f55aa",
+        "file_path": "s24测试用例.pdf",
+        "created_at": 1779870458
+      },
+      {
+        "src_id": "PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "tgt_id": "PID-II",
+        "description": "Entity PID-II belongs to PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-7bd4d30f0bd3f0972cbaac394b489f59",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350161
+      },
+      {
+        "src_id": "PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "tgt_id": "数据大屏",
+        "description": "Entity 数据大屏 belongs to PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-7bd4d30f0bd3f0972cbaac394b489f59",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350158
+      },
+      {
+        "src_id": "TD管检测",
+        "tgt_id": "编码生成规则",
+        "description": "TD管检测任务使用编码生成规则来生成标本编码。",
+        "keywords": "使用,规则应用",
+        "weight": 1.0,
+        "source_id": "chunk-53d2d84ba4b8a66fddc523a79876e197",
+        "file_path": "s29测试用例.pdf",
+        "created_at": 1779875361
+      },
+      {
+        "src_id": "多TD管提交成功与编码分配",
+        "tgt_id": "环境登记-TD管管理测试用例表 (table)",
+        "description": "Entity 多TD管提交成功与编码分配 belongs to 环境登记-TD管管理测试用例表 (table)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097481
+      },
+      {
+        "src_id": "PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "tgt_id": "气体组合",
+        "description": "Entity 气体组合 belongs to PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-7bd4d30f0bd3f0972cbaac394b489f59",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350157
+      },
+      {
+        "src_id": "环境标本编码示例",
+        "tgt_id": "环境登记-TD管管理测试用例表 (table)",
+        "description": "Entity 环境标本编码示例 belongs to 环境登记-TD管管理测试用例表 (table)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097490
+      },
+      {
+        "src_id": "S41测试用例_测试流程图 (image)",
+        "tgt_id": "用例:客户、采样点、PID字段变更为多选#1",
+        "description": "Entity 用例:客户、采样点、PID字段变更为多选#1 belongs to S41测试用例_测试流程图 (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-d758cde2dccb09c9add1548c7afdc993",
+        "file_path": "S41测试用例.pdf",
+        "created_at": 1779863315
+      },
+      {
+        "src_id": "PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "tgt_id": "面包屑导航",
+        "description": "Entity 面包屑导航 belongs to PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-7bd4d30f0bd3f0972cbaac394b489f59",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350166
+      },
+      {
+        "src_id": "PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "tgt_id": "分页",
+        "description": "Entity 分页 belongs to PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-7bd4d30f0bd3f0972cbaac394b489f59",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350165
+      },
+      {
+        "src_id": "PID列表",
+        "tgt_id": "设备序列号",
+        "description": "PID列表中的每一行包含对应的设备序列号。<SEP>PID列表的表格中展示设备序列号列。",
+        "keywords": "关联数据,列表字段,字段,显示",
+        "weight": 2.0,
+        "source_id": "chunk-0c662b5f29265f3c1c6ad4d1245265db<SEP>chunk-7bd4d30f0bd3f0972cbaac394b489f59",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350153
+      },
+      {
+        "src_id": "测试数据上传",
+        "tgt_id": "编码规则",
+        "description": "研究项目采用编码规则“MLD-GYFY#XXXXXX”进行数据编码。",
+        "keywords": "数据管理,编码方式",
+        "weight": 1.0,
+        "source_id": "chunk-70a48b4102736d5f4ce8d84879807b3f",
+        "file_path": "研究关联采样点.pdf",
+        "created_at": 1779963316
+      },
+      {
+        "src_id": "CLOUD精智未来云管理后台",
+        "tgt_id": "PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "description": "Entity CLOUD精智未来云管理后台 belongs to PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-7bd4d30f0bd3f0972cbaac394b489f59",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350165
+      },
+      {
+        "src_id": "PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "tgt_id": "面包屑",
+        "description": "Entity 面包屑 belongs to PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-7bd4d30f0bd3f0972cbaac394b489f59",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350164
+      },
+      {
+        "src_id": "PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "tgt_id": "待用",
+        "description": "Entity 待用 belongs to PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-7bd4d30f0bd3f0972cbaac394b489f59",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350161
+      },
+      {
+        "src_id": "P0",
+        "tgt_id": "TC-FUTURE-ENV-TD-004",
+        "description": "TC-FUTURE-ENV-TD-004被分配为P0优先级，表示其为核心关键功能。",
+        "keywords": "优先级分配,关键功能",
+        "weight": 1.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097473
+      },
+      {
+        "src_id": "METRIX 精智·呼析云 检测报告任务列表 - 定标验证错误提示 (software interface screenshot)",
+        "tgt_id": "PID编号",
+        "description": "Entity PID编号 belongs to METRIX 精智·呼析云 检测报告任务列表 - 定标验证错误提示 (software interface screenshot)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-c35fddac9926c0122361ad4c7235d741",
+        "file_path": "定标记录.pdf",
+        "created_at": 1780050628
+      },
+      {
+        "src_id": "PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "tgt_id": "主要内容区",
+        "description": "Entity 主要内容区 belongs to PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-7bd4d30f0bd3f0972cbaac394b489f59",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350163
+      },
+      {
+        "src_id": "PID编号",
+        "tgt_id": "质控任务",
+        "description": "输入PID编号并查询，返回对应PID编号的质控任务。",
+        "keywords": "查询,筛选",
+        "weight": 1.0,
+        "source_id": "chunk-e0f3736c571348619ac573810d3d4eea",
+        "file_path": "s23测试用例.pdf",
+        "created_at": 1779870149
+      },
+      {
+        "src_id": "TC-TASK-CREATE-004",
+        "tgt_id": "关联需求REQ-CREATE-001",
+        "description": "测试用例TC-TASK-CREATE-004验证了需求REQ-CREATE-001中关于标本编码和T/D号不继承的规定。",
+        "keywords": "测试覆盖,需求关联",
+        "weight": 1.0,
+        "source_id": "chunk-2738e0c21a402ab239051054197bc957",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100012
+      },
+      {
+        "src_id": "上海瑞金医院",
+        "tgt_id": "已有标本编码规则列表",
+        "description": "上海瑞金医院拥有多条已有标本编码规则记录。",
+        "keywords": "包含,拥有",
+        "weight": 1.0,
+        "source_id": "chunk-92853832877a1d4eebebd6b988c03d90",
+        "file_path": "XCloud_2.0管理后台.pdf",
+        "created_at": 1780021307
+      },
+      {
+        "src_id": "S39测试用例",
+        "tgt_id": "自定义TD管模式优化",
+        "description": "S39测试用例包含自定义TD管模式优化作为顶层类别。",
+        "keywords": "包含,组织",
+        "weight": 1.0,
+        "source_id": "chunk-5a609e07c645f8b77b1570d40db7e420",
+        "file_path": "S39测试用例.pdf",
+        "created_at": 1779862667
+      },
+      {
+        "src_id": "PID列表",
+        "tgt_id": "PID序列号",
+        "description": "PID列表中的每一行包含一个PID序列号。<SEP>PID列表的表格中展示PID序列号列。",
+        "keywords": "列表字段,字段,数据条目,显示",
+        "weight": 2.0,
+        "source_id": "chunk-0c662b5f29265f3c1c6ad4d1245265db<SEP>chunk-7bd4d30f0bd3f0972cbaac394b489f59",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350152
+      },
+      {
+        "src_id": "PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "tgt_id": "模态窗口",
+        "description": "Entity 模态窗口 belongs to PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-7bd4d30f0bd3f0972cbaac394b489f59",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350164
+      },
+      {
+        "src_id": "新增PID",
+        "tgt_id": "配件更换记录",
+        "description": "新增PID是配件更换记录中记录的操作类型。",
+        "keywords": "内容,操作类型",
+        "weight": 1.0,
+        "source_id": "chunk-a3756c6e1d95d4794ce69dde41409284",
+        "file_path": "设备管理.pdf",
+        "created_at": 1782366908
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-004",
+        "tgt_id": "功能测试",
+        "description": "TC-FUTURE-ENV-TD-004的类型是功能测试，用于验证系统功能是否符合预期。",
+        "keywords": "功能验证,测试类型",
+        "weight": 1.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097472
+      },
+      {
+        "src_id": "PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "tgt_id": "图像界面",
+        "description": "Entity 图像界面 belongs to PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-7bd4d30f0bd3f0972cbaac394b489f59",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350162
+      },
+      {
+        "src_id": "Research Management Interface for '测试数据上传' (Renai Hospital, Microbiology) (web application interface (research management system))",
+        "tgt_id": "编码规则",
+        "description": "Entity 编码规则 belongs to Research Management Interface for '测试数据上传' (Renai Hospital, Microbiology) (web application interface (research management system))",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-70a48b4102736d5f4ce8d84879807b3f",
+        "file_path": "研究关联采样点.pdf",
+        "created_at": 1779963324
+      },
+      {
+        "src_id": "采样登记表",
+        "tgt_id": "采用点编码",
+        "description": "采样登记表包含采用点编码字段，用于新增时填写。",
+        "keywords": "包含,字段",
+        "weight": 1.0,
+        "source_id": "chunk-dcecfd8727d6aedcfb965c9fb6ff3672",
+        "file_path": "s32测试用例.pdf",
+        "created_at": 1779876347
+      },
+      {
+        "src_id": "设备标识符AT-GCM-RT-20250115-001",
+        "tgt_id": "重复性测试",
+        "description": "该设备标识符出现在“重复性测试”激活的截图左侧，表明它被用于重复性测试。",
+        "keywords": "设备关联测试",
+        "weight": 1.0,
+        "source_id": "chunk-88ddfee9f5826ff6cdd3e5264d9be2d5",
+        "file_path": "PROII_生产调试—单模块测试.pdf",
+        "created_at": 1780973374
+      },
+      {
+        "src_id": "PID/HD-PID (mV)",
+        "tgt_id": "设备控制工具 (Equipment Control Tool) - GC Monitoring Interface (image)",
+        "description": "Entity PID/HD-PID (mV) belongs to 设备控制工具 (Equipment Control Tool) - GC Monitoring Interface (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-154680d05458fb5929166634da7a1c19",
+        "file_path": "PROII_单GC模块的实时信息.pdf",
+        "created_at": 1780562209
+      },
+      {
+        "src_id": "PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "tgt_id": "顶部导航",
+        "description": "Entity 顶部导航 belongs to PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-7bd4d30f0bd3f0972cbaac394b489f59",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350163
+      },
+      {
+        "src_id": "PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "tgt_id": "边栏",
+        "description": "Entity 边栏 belongs to PID Management Interface (精智未来云 - Add New PID Modal) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-7bd4d30f0bd3f0972cbaac394b489f59",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350162
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-004",
+        "tgt_id": "测试用例表格",
+        "description": "测试用例表格包含测试用例TC-FUTURE-ENV-TD-004。",
+        "keywords": "包含关系,用例组织",
+        "weight": 1.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097476
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-004",
+        "tgt_id": "环境登记-TD管管理",
+        "description": "TC-FUTURE-ENV-TD-004归属于环境登记-TD管管理模块，用于验证多TD管提交与编码分配。",
+        "keywords": "功能测试,归属关系",
+        "weight": 1.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097471
+      },
+      {
+        "src_id": "TC采样登记-资料码-003",
+        "tgt_id": "提交按钮",
+        "description": "测试用例中点击提交按钮触发二次确认。",
+        "keywords": "点击,触发",
+        "weight": 1.0,
+        "source_id": "chunk-7d5b50b36d2042a42c8d05fb250388bf",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100075
+      },
+      {
+        "src_id": "REQ-001",
+        "tgt_id": "TC-FUTURE-ENV-TD-004",
+        "description": "TC-FUTURE-ENV-TD-004验证了REQ-001中系统生成唯一环境标本编码的功能",
+        "keywords": "关联需求,功能验证",
+        "weight": 1.0,
+        "source_id": "chunk-f146093ecca4ac54a79e424f6f562696",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100068
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-004",
+        "tgt_id": "TD001",
+        "description": "TC-FUTURE-ENV-TD-004使用TD001作为第一根TD管参与多管提交。<SEP>TC-FUTURE-ENV-TD-004中使用了TD001作为测试数据进行提交",
+        "keywords": "多管提交,提交操作,测试数据,测试数据使用",
+        "weight": 2.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc<SEP>chunk-f146093ecca4ac54a79e424f6f562696",
+        "file_path": "S51测试用例.xlsx<SEP>51测试用例.pdf",
+        "created_at": 1782100069
+      },
+      {
+        "src_id": "上位机",
+        "tgt_id": "模式ID",
+        "description": "上位机用于设置模式ID，关联检测项目触发自动上传。",
+        "keywords": "关联,设置",
+        "weight": 1.0,
+        "source_id": "chunk-b9a48dd7ea6e551a6f6e80ceec5a9cf5",
+        "file_path": "风险计算_系统配置.pdf",
+        "created_at": 1780537624
+      },
+      {
+        "src_id": "P0",
+        "tgt_id": "TC-采样登记-资料码-002",
+        "description": "该测试用例的优先级为P0，属于最高优先级。",
+        "keywords": "优先级,等级",
+        "weight": 1.0,
+        "source_id": "chunk-e2166622fe66904cd64b4171da49d3cf",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097465
+      },
+      {
+        "src_id": "P0",
+        "tgt_id": "TC-采样登记-资料码-001",
+        "description": "该测试用例的优先级为P0，属于最高优先级。",
+        "keywords": "优先级,等级",
+        "weight": 1.0,
+        "source_id": "chunk-e2166622fe66904cd64b4171da49d3cf",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097465
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-004",
+        "tgt_id": "环境",
+        "description": "TC-FUTURE-ENV-TD-004测试用例中气体来源设置为环境。",
+        "keywords": "气体来源设置",
+        "weight": 1.0,
+        "source_id": "chunk-f146093ecca4ac54a79e424f6f562696",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100071
+      },
+      {
+        "src_id": "Software UI for Single Module (GC) Test - Three Test Types (Repeatability, Linearity, Residue) (image)",
+        "tgt_id": "设备标识符AT-MIM-SGP-20250115-001",
+        "description": "Entity 设备标识符AT-MIM-SGP-20250115-001 belongs to Software UI for Single Module (GC) Test - Three Test Types (Repeatability, Linearity, Residue) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-88ddfee9f5826ff6cdd3e5264d9be2d5",
+        "file_path": "PROII_生产调试—单模块测试.pdf",
+        "created_at": 1780973381
+      },
+      {
+        "src_id": "Software UI for Single Module (GC) Test - Three Test Types (Repeatability, Linearity, Residue) (image)",
+        "tgt_id": "设备标识符AT-MM-LT-20250115-001",
+        "description": "Entity 设备标识符AT-MM-LT-20250115-001 belongs to Software UI for Single Module (GC) Test - Three Test Types (Repeatability, Linearity, Residue) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-88ddfee9f5826ff6cdd3e5264d9be2d5",
+        "file_path": "PROII_生产调试—单模块测试.pdf",
+        "created_at": 1780973380
+      },
+      {
+        "src_id": "Software UI for Single Module (GC) Test - Three Test Types (Repeatability, Linearity, Residue) (image)",
+        "tgt_id": "设备标识符AT-GCM-RT-20250115-001",
+        "description": "Entity 设备标识符AT-GCM-RT-20250115-001 belongs to Software UI for Single Module (GC) Test - Three Test Types (Repeatability, Linearity, Residue) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-88ddfee9f5826ff6cdd3e5264d9be2d5",
+        "file_path": "PROII_生产调试—单模块测试.pdf",
+        "created_at": 1780973380
+      },
+      {
+        "src_id": "TC-采样登记-资料码-002",
+        "tgt_id": "采样登记（资料码）功能测试用例表 (table)",
+        "description": "Entity TC-采样登记-资料码-002 belongs to 采样登记（资料码）功能测试用例表 (table)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-e2166622fe66904cd64b4171da49d3cf",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097469
+      },
+      {
+        "src_id": "TC-采样登记-资料码-001",
+        "tgt_id": "采样登记（资料码）功能测试用例表 (table)",
+        "description": "Entity TC-采样登记-资料码-001 belongs to 采样登记（资料码）功能测试用例表 (table)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-e2166622fe66904cd64b4171da49d3cf",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097469
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-004",
+        "tgt_id": "TD002",
+        "description": "TC-FUTURE-ENV-TD-004使用TD002作为第二根TD管参与多管提交。<SEP>TC-FUTURE-ENV-TD-004中使用了TD002作为测试数据进行提交",
+        "keywords": "多管提交,提交操作,测试数据,测试数据使用",
+        "weight": 2.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc<SEP>chunk-f146093ecca4ac54a79e424f6f562696",
+        "file_path": "S51测试用例.xlsx<SEP>51测试用例.pdf",
+        "created_at": 1782100069
+      },
+      {
+        "src_id": "TC-采样登记-资料码-002",
+        "tgt_id": "受试者二维码",
+        "description": "测试用例使用受试者二维码进行扫描操作。",
+        "keywords": "使用,测试数据",
+        "weight": 1.0,
+        "source_id": "chunk-e2166622fe66904cd64b4171da49d3cf",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097464
+      },
+      {
+        "src_id": "TC-采样登记-资料码-001",
+        "tgt_id": "受试者二维码",
+        "description": "测试用例使用受试者二维码进行扫描操作。",
+        "keywords": "使用,测试数据",
+        "weight": 1.0,
+        "source_id": "chunk-e2166622fe66904cd64b4171da49d3cf",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097463
+      },
+      {
+        "src_id": "TC采样登记-资料码-003",
+        "tgt_id": "受试者二维码",
+        "description": "测试用例中使用扫码工具扫描受试者二维码。",
+        "keywords": "使用,扫描",
+        "weight": 1.0,
+        "source_id": "chunk-7d5b50b36d2042a42c8d05fb250388bf",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100074
+      },
+      {
+        "src_id": "TC-采样登记-资料码-002",
+        "tgt_id": "功能测试",
+        "description": "该测试用例的类型为功能测试。",
+        "keywords": "分类,用例类型",
+        "weight": 1.0,
+        "source_id": "chunk-e2166622fe66904cd64b4171da49d3cf",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097465
+      },
+      {
+        "src_id": "TC-采样登记-资料码-001",
+        "tgt_id": "功能测试",
+        "description": "该测试用例的类型为功能测试。",
+        "keywords": "分类,用例类型",
+        "weight": 1.0,
+        "source_id": "chunk-e2166622fe66904cd64b4171da49d3cf",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097464
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-004",
+        "tgt_id": "采集仪B",
+        "description": "TC-FUTURE-ENV-TD-004中TD002配属采集仪B",
+        "keywords": "测试数据,配属",
+        "weight": 1.0,
+        "source_id": "chunk-f146093ecca4ac54a79e424f6f562696",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100070
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-004",
+        "tgt_id": "采集仪A",
+        "description": "TC-FUTURE-ENV-TD-004中TD001配属采集仪A",
+        "keywords": "测试数据,配属",
+        "weight": 1.0,
+        "source_id": "chunk-f146093ecca4ac54a79e424f6f562696",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100070
+      },
+      {
+        "src_id": "PID/HD-PID (mV)",
+        "tgt_id": "设备控制工具",
+        "description": "设备控制工具的左侧上方面板中包含该电压值指标。",
+        "keywords": "包含",
+        "weight": 1.0,
+        "source_id": "chunk-154680d05458fb5929166634da7a1c19",
+        "file_path": "PROII_单GC模块的实时信息.pdf",
+        "created_at": 1780562206
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-004",
+        "tgt_id": "实验室A",
+        "description": "TC-FUTURE-ENV-TD-004的测试数据指定实验室A作为采样点。<SEP>TC-FUTURE-ENV-TD-004测试用例中采样点设置为实验室A。",
+        "keywords": "测试数据使用,采样地点,采样点设置",
+        "weight": 2.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc<SEP>chunk-f146093ecca4ac54a79e424f6f562696",
+        "file_path": "S51测试用例.xlsx<SEP>51测试用例.pdf",
+        "created_at": 1782100071
+      },
+      {
+        "src_id": "REQ-004",
+        "tgt_id": "TC-FUTURE-ENV-TD-004",
+        "description": "TC-FUTURE-ENV-TD-004关联需求REQ-004，用于覆盖标本编码生成功能。<SEP>TC-FUTURE-ENV-TD-004验证了REQ-004中系统处理多根TD管提交的功能",
+        "keywords": "关联需求,功能覆盖,功能验证",
+        "weight": 2.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc<SEP>chunk-f146093ecca4ac54a79e424f6f562696",
+        "file_path": "S51测试用例.xlsx<SEP>51测试用例.pdf",
+        "created_at": 1782100068
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-004",
+        "tgt_id": "多TD管提交成功与编码分配",
+        "description": "TC-FUTURE-ENV-TD-004的标题是多TD管提交成功与编码分配，描述成功提交多根管并生成编码。",
+        "keywords": "标题关联,用例标识",
+        "weight": 1.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097474
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-004",
+        "tgt_id": "环境标本编码示例",
+        "description": "TC-FUTURE-ENV-TD-004成功提交后系统生成环境标本编码示例。",
+        "keywords": "结果输出,编码生成",
+        "weight": 1.0,
+        "source_id": "chunk-1f8143580b262733d988f44cc53724bc",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097478
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-004",
+        "tgt_id": "环境样本记录列表",
+        "description": "TC-FUTURE-ENV-TD-004提交成功后页面跳转至环境样本记录列表。",
+        "keywords": "跳转结果",
+        "weight": 1.0,
+        "source_id": "chunk-f146093ecca4ac54a79e424f6f562696",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100072
+      },
+      {
+        "src_id": "TC-FUTURE-ENV-TD-004",
+        "tgt_id": "采样时间2026/05/07 14:02:00",
+        "description": "TC-FUTURE-ENV-TD-004测试用例中采样时间设置为2026/05/07 14:02:00。",
+        "keywords": "采样时间设置",
+        "weight": 1.0,
+        "source_id": "chunk-f146093ecca4ac54a79e424f6f562696",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100071
+      },
+      {
+        "src_id": "研究",
+        "tgt_id": "编码规则",
+        "description": "研究新增或编辑时可设置编码规则(如SP+6位数字)，若输入不合法则提示不可添加。",
+        "keywords": "校验,设置",
+        "weight": 1.0,
+        "source_id": "chunk-36dfe62d33aa08c6e2c54fa92d67f9e1",
+        "file_path": "s19测试用例.pdf",
+        "created_at": 1779867250
+      },
+      {
+        "src_id": "TC采样登记-资料码-001",
+        "tgt_id": "受试者二维码",
+        "description": "测试用例TC采样登记-资料码-001中受试者二维码携带检测项目RES-BS-004。",
+        "keywords": "测试数据,涉及输入",
+        "weight": 1.0,
+        "source_id": "chunk-c35e46adb79408ea1a469ea1077c2f2f",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100034
+      },
+      {
+        "src_id": "Task Creation UI (Dark Theme) - Detection Device Task List (image)",
+        "tgt_id": "三项完全一致规则",
+        "description": "Entity 三项完全一致规则 belongs to Task Creation UI (Dark Theme) - Detection Device Task List (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-e50cbc7e0ec038220a344fd953405e71",
+        "file_path": "风险计算_任务列表.pdf",
+        "created_at": 1780537007
+      },
+      {
+        "src_id": "TC采样登记-资料码-003",
+        "tgt_id": "登记记录",
+        "description": "测试用例执行后系统生成新的登记记录。",
+        "keywords": "生成,结果",
+        "weight": 1.0,
+        "source_id": "chunk-7d5b50b36d2042a42c8d05fb250388bf",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100076
+      },
+      {
+        "src_id": "临床数据",
+        "tgt_id": "样本编码规则",
+        "description": "临床数据的样本登记和标识遵循测试组织定义的样本编码规则。",
+        "keywords": "数据规范,编码标准",
+        "weight": 1.0,
+        "source_id": "chunk-847e9e818abe8a4f58ab7dec9b0f1ec5",
+        "file_path": "XCloud_2.0管理后台.pdf",
+        "created_at": 1780022409
+      },
+      {
+        "src_id": "CLOUD精智未来云管理后台-微型气相色谱仪设备详情及配件更换记录界面 (image)",
+        "tgt_id": "新增PID",
+        "description": "Entity 新增PID belongs to CLOUD精智未来云管理后台-微型气相色谱仪设备详情及配件更换记录界面 (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-a3756c6e1d95d4794ce69dde41409284",
+        "file_path": "设备管理.pdf",
+        "created_at": 1782366912
+      },
+      {
+        "src_id": "TC-采样登记-资料码-002",
+        "tgt_id": "二次确认提示框",
+        "description": "在TC-002中，点击提交后触发二次确认提示框。",
+        "keywords": "用户界面,触发",
+        "weight": 1.0,
+        "source_id": "chunk-e2166622fe66904cd64b4171da49d3cf",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097463
+      },
+      {
+        "src_id": "中山大学第一附属医院",
+        "tgt_id": "已有标本编码规则列表",
+        "description": "中山大学第一附属医院拥有多条已有标本编码规则记录。",
+        "keywords": "包含,拥有",
+        "weight": 1.0,
+        "source_id": "chunk-92853832877a1d4eebebd6b988c03d90",
+        "file_path": "XCloud_2.0管理后台.pdf",
+        "created_at": 1780021308
+      },
+      {
+        "src_id": "TC采样登记-资料码-003",
+        "tgt_id": "二次确认提示框",
+        "description": "点击提交后系统弹出二次确认提示框。",
+        "keywords": "弹出,显示",
+        "weight": 1.0,
+        "source_id": "chunk-7d5b50b36d2042a42c8d05fb250388bf",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100075
+      },
+      {
+        "src_id": "Clinical Data Management Interface (CHROM/XCloud Platform) (image)",
+        "tgt_id": "样本编码规则",
+        "description": "Entity 样本编码规则 belongs to Clinical Data Management Interface (CHROM/XCloud Platform) (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-847e9e818abe8a4f58ab7dec9b0f1ec5",
+        "file_path": "XCloud_2.0管理后台.pdf",
+        "created_at": 1780022411
+      },
+      {
+        "src_id": "CLOUD精智未来云管理后台-微型气相色谱仪设备详情及配件更换记录界面 (image)",
+        "tgt_id": "PI-0384",
+        "description": "Entity PI-0384 belongs to CLOUD精智未来云管理后台-微型气相色谱仪设备详情及配件更换记录界面 (image)",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-a3756c6e1d95d4794ce69dde41409284",
+        "file_path": "设备管理.pdf",
+        "created_at": 1782366911
+      },
+      {
+        "src_id": "TC-采样登记-资料码-002",
+        "tgt_id": "扫码工具",
+        "description": "在测试用例的测试步骤中，需要使用扫码工具扫描受试者二维码。",
+        "keywords": "使用,测试步骤",
+        "weight": 1.0,
+        "source_id": "chunk-e2166622fe66904cd64b4171da49d3cf",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097466
+      },
+      {
+        "src_id": "TC-采样登记-资料码-001",
+        "tgt_id": "扫码工具",
+        "description": "在测试用例的测试步骤中，需要使用扫码工具扫描受试者二维码。",
+        "keywords": "使用,测试步骤",
+        "weight": 1.0,
+        "source_id": "chunk-e2166622fe66904cd64b4171da49d3cf",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097465
+      },
+      {
+        "src_id": "TC采样登记-资料码-003",
+        "tgt_id": "采样登记(资料码)表单",
+        "description": "测试用例中操作表单并选择检测项目RES-BS-005。",
+        "keywords": "操作,选择",
+        "weight": 1.0,
+        "source_id": "chunk-7d5b50b36d2042a42c8d05fb250388bf",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100075
+      },
+      {
+        "src_id": "RT对照表格式错误通知 (RT Comparison Table Format Error Notification) (image (UI notification))",
+        "tgt_id": "验证",
+        "description": "Entity 验证 belongs to RT对照表格式错误通知 (RT Comparison Table Format Error Notification) (image (UI notification))",
+        "keywords": "belongs_to,contained_in,part_of",
+        "weight": 10.0,
+        "source_id": "chunk-17aeb6af23aac5cf185bf6aba27865b7",
+        "file_path": "XMetrix_v2.3.pdf",
+        "created_at": 1779936856
+      },
+      {
+        "src_id": "残留测试",
+        "tgt_id": "设备标识符AT-MIM-SGP-20250115-001",
+        "description": "该设备标识符出现在“残留测试”激活的截图左侧，表明它被用于残留测试。",
+        "keywords": "设备关联测试",
+        "weight": 1.0,
+        "source_id": "chunk-88ddfee9f5826ff6cdd3e5264d9be2d5",
+        "file_path": "PROII_生产调试—单模块测试.pdf",
+        "created_at": 1780973373
+      },
+      {
+        "src_id": "线性测试",
+        "tgt_id": "设备标识符AT-MM-LT-20250115-001",
+        "description": "该设备标识符出现在“线性测试”激活的截图左侧，表明它被用于线性测试。",
+        "keywords": "设备关联测试",
+        "weight": 1.0,
+        "source_id": "chunk-88ddfee9f5826ff6cdd3e5264d9be2d5",
+        "file_path": "PROII_生产调试—单模块测试.pdf",
+        "created_at": 1780973373
+      },
+      {
+        "src_id": "RES-BS-005无创肺癌早筛CT影像分析(CT)",
+        "tgt_id": "TC-采样登记-资料码-002",
+        "description": "在TC-002中，用户在表单中选择检测项目RES-BS-005，与二维码携带项目不同。",
+        "keywords": "不匹配,选择",
+        "weight": 1.0,
+        "source_id": "chunk-e2166622fe66904cd64b4171da49d3cf",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097464
+      },
+      {
+        "src_id": "TC-采样登记-资料码-002",
+        "tgt_id": "采样登记(资料码)模块",
+        "description": "该测试用例属于采样登记(资料码)模块。",
+        "keywords": "所属模块,测试用例归属",
+        "weight": 1.0,
+        "source_id": "chunk-e2166622fe66904cd64b4171da49d3cf",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097463
+      },
+      {
+        "src_id": "TC-采样登记-资料码-001",
+        "tgt_id": "采样登记(资料码)模块",
+        "description": "该测试用例属于采样登记(资料码)模块。",
+        "keywords": "所属模块,测试用例归属",
+        "weight": 1.0,
+        "source_id": "chunk-e2166622fe66904cd64b4171da49d3cf",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097462
+      },
+      {
+        "src_id": "RES-BS-004无创肺癌早筛VOICE呼气分析(BS)",
+        "tgt_id": "TC-采样登记-资料码-001",
+        "description": "在TC-001中，用户在表单中选择检测项目RES-BS-004，与二维码携带项目相同。",
+        "keywords": "匹配,选择",
+        "weight": 1.0,
+        "source_id": "chunk-e2166622fe66904cd64b4171da49d3cf",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097464
+      },
+      {
+        "src_id": "TC采样登记-资料码-003",
+        "tgt_id": "检测项目RES-BS-004",
+        "description": "测试用例TC采样登记-资料码-003中二维码携带检测项目RES-BS-004。",
+        "keywords": "测试数据,涉及二维码项目",
+        "weight": 1.0,
+        "source_id": "chunk-c35e46adb79408ea1a469ea1077c2f2f",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100035
+      },
+      {
+        "src_id": "TC-采样登记-资料码-001",
+        "tgt_id": "确认提示框",
+        "description": "在TC-001中，点击提交后触发确认提示框。",
+        "keywords": "用户界面,触发",
+        "weight": 1.0,
+        "source_id": "chunk-e2166622fe66904cd64b4171da49d3cf",
+        "file_path": "S51测试用例.xlsx",
+        "created_at": 1782097463
+      },
+      {
+        "src_id": "TC采样登记-资料码-003",
+        "tgt_id": "检测项目RES-BS-005",
+        "description": "测试用例TC采样登记-资料码-003中选择的检测项目为RES-BS-005。",
+        "keywords": "测试数据,涉及选择项目",
+        "weight": 1.0,
+        "source_id": "chunk-c35e46adb79408ea1a469ea1077c2f2f",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100035
+      },
+      {
+        "src_id": "TC采样登记-资料码-002",
+        "tgt_id": "二次确认提示框",
+        "description": "测试用例TC采样登记-资料码-002预期弹出二次确认提示框。",
+        "keywords": "测试预期,触发提示",
+        "weight": 1.0,
+        "source_id": "chunk-c35e46adb79408ea1a469ea1077c2f2f",
+        "file_path": "51测试用例.pdf",
+        "created_at": 1782100035
+      },
+      {
+        "src_id": "环境追踪",
+        "tgt_id": "编码生成规则",
+        "description": "环境追踪任务使用编码生成规则来生成标本编码。",
+        "keywords": "使用,规则应用",
+        "weight": 1.0,
+        "source_id": "chunk-53d2d84ba4b8a66fddc523a79876e197",
+        "file_path": "s29测试用例.pdf",
+        "created_at": 1779875360
+      },
+      {
+        "src_id": "PI-0384",
+        "tgt_id": "微型气相色谱仪(CXBA-Alpho)",
+        "description": "微型气相色谱仪(CXBA-Alpho)拥有PID标识符PI-0384。",
+        "keywords": "拥有,标识",
+        "weight": 1.0,
+        "source_id": "chunk-8a9daab365a72ce4f43f482415957267",
+        "file_path": "设备管理.pdf",
+        "created_at": 1782366803
+      },
+      {
+        "src_id": "PID列表",
+        "tgt_id": "PID类型",
+        "description": "PID列表中的每一行包含PID类型字段。<SEP>PID列表的表格中展示PID类型列。",
+        "keywords": "列表字段,字段,显示",
+        "weight": 2.0,
+        "source_id": "chunk-0c662b5f29265f3c1c6ad4d1245265db<SEP>chunk-7bd4d30f0bd3f0972cbaac394b489f59",
+        "file_path": "PID管理.pdf",
+        "created_at": 1782350152
+      },
+      {
+        "src_id": "PI-0384",
+        "tgt_id": "黄嘉仪",
+        "description": "黄嘉仪新增了PID标识PI-0384。<SEP>黄嘉仪处理了配件ID为PI-0384的更换操作。",
+        "keywords": "处理,工程师,操作,新增",
+        "weight": 2.0,
+        "source_id": "chunk-8a9daab365a72ce4f43f482415957267<SEP>chunk-a3756c6e1d95d4794ce69dde41409284",
+        "file_path": "设备管理.pdf",
+        "created_at": 1782366909
+      },
+      {
+        "src_id": "PID编号",
+        "tgt_id": "招晋未来(广州)智能科技有限公司",
+        "description": "招晋未来(广州)智能科技有限公司的系统记录中使用PID编号标识设备。",
+        "keywords": "标识,设备管理",
+        "weight": 1.0,
+        "source_id": "chunk-a83879cfab8ab7794bad130a12814610",
+        "file_path": "定标记录.pdf",
+        "created_at": 1780050353
+      },
+      {
+        "src_id": "PID编号",
+        "tgt_id": "自动筛选",
+        "description": "自动筛选功能根据输入的PID编号返回对应结果。",
+        "keywords": "筛选,返回",
+        "weight": 1.0,
+        "source_id": "chunk-e0f3736c571348619ac573810d3d4eea",
+        "file_path": "s23测试用例.pdf",
+        "created_at": 1779870151
+      },
+      {
+        "src_id": "研究标本编码正则",
+        "tgt_id": "设备二维码",
+        "description": "扫描设备二维码后，二维码展示的标本编码前缀则为该研究编码，且扫描结果即为该研究标本编码正则。",
+        "keywords": "扫描,获取",
+        "weight": 1.0,
+        "source_id": "chunk-6e6152f5c43eb513dfe1a0f425a330d4",
+        "file_path": "s13测试用例.pdf",
+        "created_at": 1779865195
+      },
+      {
+        "src_id": "PI-0384",
+        "tgt_id": "添加配件更换记录",
+        "description": "添加配件更换记录中包含配件ID为PI-0384的更换操作。",
+        "keywords": "包含,配件",
+        "weight": 1.0,
+        "source_id": "chunk-a3756c6e1d95d4794ce69dde41409284",
+        "file_path": "设备管理.pdf",
+        "created_at": 1782366908
+      },
+      {
+        "src_id": "格式错误",
+        "tgt_id": "验证",
+        "description": "格式错误是RT对照表在验证过程中因不符合要求而产生的结果。",
+        "keywords": "关联,结果",
+        "weight": 1.0,
+        "source_id": "chunk-17aeb6af23aac5cf185bf6aba27865b7",
+        "file_path": "XMetrix_v2.3.pdf",
+        "created_at": 1779936851
+      },
+      {
+        "src_id": "批次ID",
+        "tgt_id": "顺序号",
+        "description": "顺序号是批次ID的组成部分，与生产日期一起唯一标识批次。",
+        "keywords": "组成部分",
+        "weight": 1.0,
+        "source_id": "chunk-2daa345b401e8ad5329fa25aa5170937",
+        "file_path": "s24测试用例.pdf",
+        "created_at": 1779870467
+      }
+    ],
+    "chunks": [
+      {
+        "reference_id": "1",
+        "content": "1.PID编码规则修改：\n\na.新PID：PI+YYMMXXXX，如PI26050001\n\nb.返修/返工PID：XR-PIYYMMXXXX，如2RPI26050001\n\nC.R为返工/返修次数，第一次R,第二次2R,以此类 推，ZZ为成品或者中间品代码，YY为返工返工/ 返修订单下单年份，MIM为返工订单下达月 份，XXXX为4位流水号，序号同年累计、不清 零。\n\n2.历史PID序列号不变\n\n3.校验：长度20字符，可输入：英文、数字、一\n\n%CL口U口精智未来云\n\n管理后台\n\n<\n\n资产管理\n\nPID管理\n\n数据大屏\n\nPID列表\n\n实验项目\n\n通知中心\n\n√\n\n筛选\n\n十新增\n\n日任务中心\n\n√\n\nPID序列号\n\nPID类型\n\n状态\n\n设备序列号\n\nA\n\nPI-0470\n\nPID-1\n\n待用\n\n设备管理\n\nPI-0469\n\nPID-I\n\n待用\n\n设备版本\n\nPI-0468\n\nPID-1I\n\n待用\n\n气体组合\n\nPI.0467\n\nPID-I\n\n待用\n\n气体类型\n\nPI-0466\n\nPID-I\n\n待用\n\n标气批次\n\nPI-0465\n\nPID-I\n\n新增PID\n\nPI-0464\n\nPID-II\n\n标气管理\n\nPl-0463\n\nPID-1I\n\nNO.\n\nPID序列号·\n\nPID类型·\n\n操作\n\nTD管管理\n\nPI-0462\n\nPID-1I\n\n1\n\nPl。\n\n自\n\n苏玛罐管理\n\nPl-0461\n\nPID-1I\n\nPID管理\n\n2\n\nP.\n\n共229条\n\n23\n\n10条/顶v\n\n物流管理\n\n十新增\n\n2036775号-1\n\n】字典管理\n\n组织管理\n\n取消\n\n确定\n\n采样点管理\n\n系统管理",
+        "file_path": "PID管理.pdf",
+        "chunk_id": "chunk-0c662b5f29265f3c1c6ad4d1245265db"
+      },
+      {
+        "reference_id": "2",
+        "content": "453.BL\n\n血液\n\n2023/10/17 18:36:51\n\nG\n\nM\n\n66AA#123453-BD\n\n本底\n\n2023/10/1718:36:51\n\n66AA#123453\n\n呼气\n\n2023/10/17 18:36:51\n\n2023-08-19 17:33:31\n\n2023/05/26 19:47:11\n\n2mmmm.\n\n5\n\nWELL\n\n。\n\n1266666\n\n编带\n\n3\n\nWELL\n\n女性\n\n1266666\n\n编摄\n\n王\n\n2\n\nASDF\n\n女性\n\n10\n\n4563+548\n\n地诊\n\n术前门诊\n\n编裤\n\nSFDD\n\n45\n\nASD.415326\n\n急诊\n\n术前：门诊\n\n第一次\n\n早餐\n\n编链\n\nCHROM%精智未来\n\n数据治\n\n8数治理\n\n研究管理\n\n队列管理\n\n数据分析\n\n（）采样登记表\n\n诊断和病理信息\n\n影像类信息\n\n检验类信息·包含微生物\n\n麻醉和手术信息\n\n基因检测信息\n\n其他功能类检测信息\n\n用药情况\n\n问卷信息>\n\n编辑必填字段\n\n序号\n\n姓名编码\n\n生别\n\n采样年龄\n\n住院/门诊ID号\n\n检测者来源\n\n相对采样时间\n\n相对采样时间补充\n\n进餐情况\n\n操作\n\n7\n\nJRYZ\n\n男性\n\n。\n\n456668\n\n体检\n\n术前门诊\n\n相对采样时间补充\n\n进餐情况\n\n漕民数据\n\n标本混码\n\n群本类别\n\n聚祥日期\n\n1DE号\n\nMicro-GC检测时间\n\nGC.MS检测时间\n\n备注\n\nG\n\nM\n\n66AA#123453-UR\n\n尿液\n\n2023/10/17 1836:51\n\nG\n\nM\n\n66AA23453-BL\n\n血液：\n\n2023/10/1718.3651\n\nG\n\nM\n\n66AA#123453-BD\n\n本展\n\n2023/10/17183651\n\n66AA#123453\n\n呼气\n\n2023/10/17 18.36:51\n\n202308.19 1733.31\n\n2023/05/26 19:47:11\n\n2m\n\n5\n\nWELL\n\n男性\n\n。\n\n1266666\n\n编指\n\n十\n\n3\n\nWELL\n\n女性\n\n1266666\n\n编辑\n\n2\n\nASDF\n\n女性\n\n10\n\n4563+548\n\n编辑\n\nSFDD\n\n男性\n\n45\n\nASD。415326-\n\n急诊\n\n术前门诊\n\n第一次\n\n早餐\n\n编箱\n\n7\n\nJRYZ\n\n男性\n\n。\n\n45666\n\n体检\n\n米\n\n相对采样时间补充\n\n进餐情况\n\n编描\n\n港墨数据\n\n样本类期\n\nTD营号\n\nMicro-GC检测搁\n\nGC.MS检领时间\n\nG\n\nM\n\n66AA#123453-UR\n\n尿液\n\n2023/10/718:3651\n\nG\n\nM\n\n66AA#123453-BL\n\n血液\n\n2023/10/718:36:51\n\nG\n\n66AA排123453-BD\n\n本底\n\n2023/10/718:3651\n\n66AA#123453\n\n呼气\n\n2023/10/1718.3651\n\n2023-08.19 17:3331\n\n2023/05/26 19:47:11\n\n2mmmmm\n\n5\n\nWELL\n\n男性\n\n。\n\n126666\n\n术前门诊\n\n编辑\n\n3\n\nWELL\n\n女姓\n\n。\n\n126666\n\n2\n\nASDF\n\n女性\n\n10\n\n4563+548\n\n术前门诊\n\n编铜\n\n1\n\nSFDD\n\n男性\n\n45\n\nASD。415326-\n\n急诊\n\n术前门诊\n\n第一次\n\n早餐\n\n编箱\n\n录入表单\n\n上传谐图数据\n\n新增研究\n\nx\n\n所属组织\n\n所属病种\n\n研究名称\n\n已有标本编码规则\n\n请前入研究名称\n\n搜索\n\n编码规则\n\n默人为组只代码\n\n#XXXXXX\n\n所属组织\n\n所属病种\n\n研究名称\n\n标本编码规则\n\n查看已有标本编码规则\n\n上海瑞金医院\n\n哮喘、肺炎、肺结节\n\n咳喘中心VOC研究\n\nSHRJ\n\n必须道图\n\nGC-MS\n\nMicro-GC\n\n上海瑞金医院\n\n肺癌肺结节\n\n肺癌VOC研究\n\nLCLN-SHRJ\n\n肺炎VOCs与肺部微生物组和\n\n上海瑞金医院\n\n肺部感染\n\nLINF-SHRJ\n\n预后的相关研究\n\n必填项目\n\n关联用户\n\n改为：研究成员\n\n中山大学第一附属医院\n\n肺癌肺结节\n\n肺癌VOC研究\n\nLCLN-ZS1E\n\n中山大学第一附属医院\n\n肺癌肺结节\n\n肺癌VOC研究\n\nLCLN-ZS1E\n\n问卷地址\n\n中山大学第一附属医院\n\n肺癌肺结节\n\n肺癌VOC研究\n\nLCLN-ZS1E\n\n备注\n\n<\n\n1\n\n2\n\n3\n\n4\n\n5\n\n>\n\n注意新增研究时有新增字\n\n段：所属科室、PI、研究\n\n性质、预期收集样本\n\n与研究信息中相同\n\n已有标本编码规则列表展示：\n\n所属组织、所属病种、研究名\n\n称、标本编码规则\n\n顺序：按组织名称A-Z顺序排\n\n列，同个组织代码的编码规则\n\n排在一起",
+        "file_path": "XCloud_2.0管理后台.pdf",
+        "chunk_id": "chunk-92853832877a1d4eebebd6b988c03d90"
+      },
+      {
+        "reference_id": "1",
+        "content": "\nImage Content Analysis:\nImage Path: /home/chh/workspace/anything-chat-rag/parser_output/PID管理_d2a018ed/PID管理/docling/images/image_0.png\nCaptions: None\nFootnotes: None\n\nVisual Analysis: The image displays a web-based management interface for **PID Management** (PID管理) within the '精智未来云 (Intelligent Future Cloud)' platform. The layout consists of a left sidebar, top navigation, main content area, and a modal window for adding new PIDs.  \n\n### Sidebar (Left):  \n- Menu items under *资产管理 (Asset Management)* include **PID管理** (highlighted in blue, current page), along with *设备管理 (Device Management)*, *气体组合 (Gas Combination)*, etc. Other sections: *首页 (Home)*, *数据大屏 (Data Dashboard)*, *实验项目 (Experiment Project)*, etc.  \n\n### Top Navigation:  \n- Branding: *CLOUD 精智未来云 管理后台* (Cloud Intelligent Future Cloud Management Backend).  \n- Icons: Hamburger menu, dark mode (moon), and user/profile (green circle).  \n\n### Main Content (PID List):  \n- Breadcrumb: *资产管理 > PID管理* (Asset Management > PID Management).  \n- Active tab: *PID列表 (PID List)* (blue underline).  \n- Table columns: *PID序列号 (PID Serial Number)*, *PID类型 (PID Type)*, *状态 (Status)*, *设备序列号 (Device Serial Number)*.  \n- Table rows: 10 entries (e.g., PI0470, PI0469, ..., PI0461) with *PID类型 = PID-II* and *状态 = 待用 (Standby)*.  \n- Pagination: Total 229 items, 10 per page, page 1 of 23.  \n\n### Modal Window (*新增PID - Add New PID*):  \n- Dynamic table with columns: *NO.*, *PID序列号\\** (required), *PID类型\\** (required), *操作 (Operation)*.  \n- Rows: 2 rows (NO. 1, 2) with text inputs for *PID序列号* prefilled with ",
+        "file_path": "PID管理.pdf",
+        "chunk_id": "chunk-7bd4d30f0bd3f0972cbaac394b489f59"
+      },
+      {
+        "reference_id": "3",
+        "content": "） ，采集仪序列号 = 采集 仪 A ，流速 =50ml ，备注 = 测试 1. 系统提示' TD 管号为必填项，请填写' 。 2. TD 管号输入 框标红，表单未提交。 关联需求 REQ-002\n\nTC-FUTURE-ENV-TD-004 多 TD 管提交成功与编码分配 环境登记 -TD 管管理 功 能 测 试 P0 已添加 2 根有效 TD 管，所有必填项填写完整 1. 填写 2 组 TD 管数据及采样信息。 2. 点击'提交生成标本编码'按钮。 第一根 TD 管： TD001 ，采集仪 A ，流速 =50ml ，备 注 = 样本 1 ；第二根 TD 管： TD002 ，采集仪 B ，流速 =60ml ，备注 = 样本 2 ；采样点：实验室 A ， 气体来源：环境，采样时间： 2026/05/07 14:02:00 1. 提交成功，页面跳转至环境样本记录 列表。 2. 系统为每根 TD 管生成唯一的环境标本编码（如 20260507140200-TD001 、\n\n20260507140200-TD002 ） 关联需求 REQ-001 、 REQ-004\n\nTC-FUTURE-ENV-TD-005 TD 管删除与采集仪序列号联动 环境登记 -TD 管管理 功 能 测 试 P1 已添加 2 根 TD 管，第二根 TD 管的采集仪序列号已填写（如采集仪 B ） 1. 点击 第二根 TD 管输入框旁的垃圾桶图标。 2. 观察第二根 TD 管的输入框及采集仪序列号输入框 的变化。 第一根 TD 管： TD001 ，采集仪 A ，流速 =50ml ，备注 = 样本 1 ；第二根 TD 管： TD002 ，采集仪 B ，流速 =60ml ，备注 = 样本 2 1. 第二根 TD 管的输入框被移除。 2. 第二根 TD 管对应的采集仪序列号输入框被清空。 3. 第一根 TD 管的输入框保持不变，数据未丢失。\n\n关联需求 REQ-003\n\nTC-FUTURE-ENV-TD-007 50 根 TD 管添加与提交环境登记 -TD 管管理 功能测试 P2 进 入环境登记表单，网络稳定 1. 点击'添加 TD 管'按钮 49 次，累计添加 50 组 TD 管。 2. 为每组输入框填写测试数据。 3. 点击'提交生成标本编码'按钮。 50 组 TD 管数据 （示例： TD001 ，采集仪 A001 ，流速 =50ml ，备注 = 样本 1 ； TD002 ，采集仪 A002 ，流速 =51ml ，备注 = 样本 2 ； ... TD050 ，采集仪 A050 ，流速 =99ml ，备注 = 样本 50 ） 1. 系统成功处理 50 根 TD 管的提交，无页面崩溃、卡顿（响应时间 <5 秒） 。 2. 生成 50 条环境样本记录，每条对应唯 一的标本编码。 3. 所有样本状态为'待转运' 。 关联需求 REQ-001 （边界情况）\n\nTC-FUTURE-ENV-TD-008 空 TD 管号提交（无效数据） 环境登记 -TD 管管理 功 能 测 试 P2 已添加 1 根 TD 管， TD 管号为空，其他字段填写完整 1. 填写采集仪序列号、流 速、备注，保持 TD 管号为空。 2. 点击'提交生成标本编码'按钮。 TD 管号 = （空） ，采集 仪序列号 = 采集仪 A ，流速 =50ml ，备注 = 测试 1. 系统提示' TD 管号为必填项，请填写' 。 2. 表单未提交， TD 管号输入框标红。 关联需求 REQ-002 （边界情况）",
+        "file_path": "51测试用例.pdf",
+        "chunk_id": "chunk-f146093ecca4ac54a79e424f6f562696"
+      },
+      {
+        "reference_id": "4",
+        "content": "预期:底色为灰色\n\n预期:底色为蓝色\n\n预期:正常完成异常任务\n\n预期:正常完成异常任务\n\n预期:正常作废异常任务\n\n步骤:选择设备名称，输入序列号，点击确定\n\n预期:正常新增\n\n预期:提示重复\n\n步骤:输入序列号重复\n\n预期:提示不匹配\n\n步骤:输入序列号不匹配正则\n\n预期:设备名称、序列号、安装日期、备注、附件\n\n预期:设备名称、序列号、生产日期、PID、\n\nICCID、备注、附件\n\n预期:正常展示\n\n预期:展示更换后的PID\n\n预期:展示更换后的PID\n\n预期:更换配件操作\n\n预期:更换配件操作\n\n预期:更换配件操作\n\n预期:展示PID、工程师\n\n步骤:选择有质控记录的设备名称\n\n步骤:选择没有质控记录的设备名称\n\n预期:使用现有设备账号\n\n步骤:已关联\n\n预期:新增设备账号\n\n预期:正常返回\n\n预期:单选，正常选择新增\n\n步骤:新增设备时，绑定序列号\n\n步骤:维修工单跟换PID\n\n步骤:维护工单更换PID\n\n步骤:维修工单-故障记录\n\n步骤:维修工单-质控记录\n\n步骤:维护工单-质控记录\n\n步骤:新增设备绑定PID\n\n预期:多条数据\n\n步骤:一个工单多个处理操作\n\n预期:记录处理时间最新的PID更换记录\n\n步骤:646\n\n预期:展示PID\n\n预期:不展示PID\n\n预期:更换时间为验收时间\n\n预期:不记录\n\n预期:正常提交\n\n预期:正常提交\n\n预期:正常提交\n\n预期:校验提示格式不符合\n\n用例:设备绑定PID#1\n\n步骤:选择PID\n\n用例:PID序列号#1\n\n用例:数据来源#1\n\n用例:配件ID#1\n\n用例:记录时机#1\n\n步骤:未验收工单\n\n步骤:输入一个PID：输入PID序列号、选择PID-\n\n1，点击提交\n\n步骤:输入一个PID：输入PID序列号、选择PID-\n\n2，点击提交\n\n步骤:输入多个PID：输入PID序列号、选择PID-\n\n1/PID-2，新增多个，点击提交\n\n预期:正常删除\n\n步骤:输入PID后，点击删除\n\n预期:正常取消\n\n步骤:输入PID后，点击取消\n\n步骤:PID序列号输入中文/符号/非4位数字\n\n预期:无法提交\n\n步骤:未新增PID，点击提交\n\n预期:提示重复\n\n步骤:输入PID序列号与系统内的重复\n\n预期:提示重复\n\n步骤:输入多个重复的PID序列号\n\n预期:按PID序列号大小排序，大的排前面\n\n步骤:排序方式\n\n预期:返回对应数据\n\n预期:返回对应数据\n\n预期:返回对应数据\n\n预期:返回对应数据\n\n预期:正常切换\n\n步骤:按状态筛选\n\n步骤:按PID序列号筛选\n\n步骤:按PID类型筛选\n\n步骤:按当前关联设备筛选\n\n步骤:切换到指定页数\n\n预期:状态未选\n\n步骤:新增未绑定设备\n\n预期:正常变更\n\n预期:无法变更\n\n预期:无法变更\n\n步骤:把待用状态变更为报废状态\n\n步骤:把报废状态变更为在用\n\n步骤:把在用状态变更为待用/报废\n\n预期:正常变更\n\n步骤:把报废状态变更为待用\n\n预期:无法变更\n\n步骤:把待用变更在用\n\n预期:无法取消\n\n步骤:在用/待用/报废状态下，取消绑定\n\n预期:PID状态变更为在用\n\n步骤:设备绑定PID\n\n预期:PID解绑设备\n\n步骤:样本（TD管）/样本（环境）未添加清单\n\n步骤:样本（TD管）/样本（环境）已添加清单\n\n预期:按个人使用频率排序\n\n步骤:采样点选择\n\n预期:返回对应样本\n\n步骤:按TD管搜索\n\n预期:返回对应样本\n\n预期:返回对应数据\n\n预期:返回对应数据\n\n预期:返回对应数据\n\n预期:返回对应数据\n\n预期:返回对应数据\n\n预期:返回对应数据\n\n预期:返回对应数据\n\n预期:返回对应数据\n\n步骤:按标本编码搜索\n\n步骤:按状态筛选\n\n步骤:按物流编号筛选\n\n步骤:按寄件地点筛选\n\n步骤:按寄出人筛选\n\n步骤:按寄出时间筛选\n\n步骤:按收件地点筛选\n\n步骤:按签收人筛选\n\n步骤:按签收时间筛选\n\n预期:返回对应数据\n\n步骤:按寄送方式筛选\n\n预期:底色为灰色\n\n步骤:样本（TD管）/样本（环境）未添加清单\n\n预期:底色为蓝色\n\n步骤:样本（TD管）/样本（环境）已添加清单\n\n预期:可多选异常任务，其他单个操作完成/作废\n\n不可点击\n\n步骤:点击批量",
+        "file_path": "s21测试用例.pdf",
+        "chunk_id": "chunk-12213945bf8e700b05501baf76a65236"
+      }
+    ],
+    "references": [
+      {
+        "reference_id": "1",
+        "file_path": "PID管理.pdf"
+      },
+      {
+        "reference_id": "2",
+        "file_path": "XCloud_2.0管理后台.pdf"
+      },
+      {
+        "reference_id": "3",
+        "file_path": "51测试用例.pdf"
+      },
+      {
+        "reference_id": "4",
+        "file_path": "s21测试用例.pdf"
+      }
+    ]
+  },
+  "metadata": {
+    "query_mode": "mix",
+    "keywords": {
+      "high_level": [
+        "PID管理",
+        "PID编码规则",
+        "测试用例"
+      ],
+      "low_level": [
+        "PID编码格式",
+        "编码规则验证",
+        "测试方法",
+        "PID标识符"
+      ]
+    },
+    "processing_info": {
+      "total_entities_found": 85,
+      "total_relations_found": 161,
+      "entities_after_truncation": 51,
+      "relations_after_truncation": 150,
+      "merged_chunks_count": 167,
+      "final_chunks_count": 5
+    }
+  }
+}
