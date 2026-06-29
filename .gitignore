@@ -29,6 +29,11 @@ build/
 .vercel
 ui/.next/
 
+# LightRAG runtime/generated artifacts
+LightRAG/.venv-docling/
+LightRAG/docling-models/
+LightRAG/lightrag_webui/node_modules/
+
 # Claude Code local files
 .claude/
 ._hist*.json
