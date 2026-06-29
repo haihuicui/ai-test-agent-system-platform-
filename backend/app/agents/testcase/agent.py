@@ -17,6 +17,7 @@ from langgraph.pregel import Pregel
 
 from app.agents.tools.testcase import get_all_tools, get_local_tools
 from app.agents.tools.error_handler import wrap_tools_with_error_handling
+from app.agents.testcase.rag_middleware import RAGMiddleware
 from app.config.settings import settings
 from app.core.llms import text_model, image_model
 
@@ -82,6 +83,13 @@ class ContextInjectionMiddleware(AgentMiddleware):
     ) -> ModelResponse:
         ctx = request.runtime.context
 
+        rag_instruction = (
+            "收到需求后，首先激活 `rag-query` Skill，查询历史测试用例、业务规则、领域知识；"
+            "所有分析必须基于 RAG 检索到的上下文展开。"
+            if ctx.enable_rag
+            else "RAG 检索已关闭，请勿调用任何 RAG 相关工具，直接基于用户提供的原始需求进行分析。"
+        )
+
         context_info = f"""
 
 ---
@@ -92,12 +100,14 @@ class ContextInjectionMiddleware(AgentMiddleware):
 - `project_identifier`: `{ctx.project_identifier}`
 - `folder_id`: `{ctx.folder_id}`
 - `默认模板类型`: `{ctx.template_type}`
+- `RAG 检索`: `{'开启' if ctx.enable_rag else '关闭'}`
 
 **重要提示：**
 1. 这些参数由系统自动注入，不要询问用户提供
 2. `template_type` 为 `test_case` 时创建普通测试用例（使用 test_case_steps）
 3. `template_type` 为 `test_case_bdd` 时创建 BDD 测试用例（使用 feature/scenario/background）
-4. 如果上述参数为空，提示用户"系统配置错误，缺少必要的项目或文件夹信息"
+4. {rag_instruction}
+5. 如果上述参数为空，提示用户"系统配置错误，缺少必要的项目或文件夹信息"
 
 **正确的工具调用示例：**
 ```python
@@ -116,6 +126,24 @@ create_test_case_tool(
             request.system_message.content = request.system_message.content + [{"type": "text", "text": context_info}]
         else:
             request.system_message.content = request.system_message.content + context_info
+
+        # 检测用户消息中的 PDF 附件，追加解析提示
+        last_msg = request.messages[-1] if request.messages else None
+        if last_msg and getattr(last_msg, "type", None) == "human":
+            attachments = getattr(last_msg, "additional_kwargs", {}).get("attachments", []) or []
+            for att in attachments:
+                if isinstance(att, dict) and att.get("mimeType") == "application/pdf" and att.get("url"):
+                    filename = (att.get("metadata") or {}).get("filename", "document.pdf")
+                    pdf_prompt = (
+                        f"\n\n[系统提示] 用户上传了 PDF 文件 `{filename}`，"
+                        f"URL: {att['url']}。请调用 parse_document_from_url("
+                        f"url='{att['url']}', document_type='application/pdf') 解析该文件获取上下文。"
+                    )
+                    if isinstance(last_msg.content, list):
+                        last_msg.content = last_msg.content + [{"type": "text", "text": pdf_prompt}]
+                    elif isinstance(last_msg.content, str):
+                        last_msg.content = last_msg.content + pdf_prompt
+
         return await handler(request)
 
 
@@ -375,6 +403,7 @@ async def make_agent() -> AsyncIterator[Pregel]:
     - 支持异步 MCP 工具初始化
     """
     context_middleware = ContextInjectionMiddleware()
+    rag_middleware = RAGMiddleware()
 
     # 加载所有工具（包括本地工具和 RAG MCP 工具）
     all_tools = await get_all_tools()
@@ -390,6 +419,7 @@ async def make_agent() -> AsyncIterator[Pregel]:
         middleware=[
             skills_middleware,
             context_middleware,
+            rag_middleware,
             dynamic_model_selection,
         ],
         backend=composite_backend,
