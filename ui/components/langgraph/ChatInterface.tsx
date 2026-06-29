@@ -7,6 +7,7 @@ import React, {
   useCallback,
   useMemo,
   useEffect,
+  useLayoutEffect,
   FormEvent,
   Fragment,
 } from "react";
@@ -19,6 +20,7 @@ import {
   Circle,
   FileIcon,
   Loader2,
+  Plus,
 } from "lucide-react";
 import { ChatMessage } from "@/components/langgraph/ChatMessage";
 import type {
@@ -33,6 +35,10 @@ import { useChatContext } from "@/providers/ChatProvider";
 import { cn } from "@/lib/utils";
 import { useStickToBottom } from "use-stick-to-bottom";
 import { FilesPopover } from "@/components/langgraph/TasksFilesSidebar";
+import { useFileUpload } from "@/hooks/useFileUpload";
+import { ContentBlocksPreview } from "@/components/langgraph/ContentBlocksPreview";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 interface ChatInterfaceProps {
   assistant: Assistant | null;
@@ -73,15 +79,22 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const [input, setInput] = useState("");
+  const [enableRag, setEnableRag] = useState(true);
+  const {
+    contentBlocks,
+    handleFileUpload,
+    handlePaste,
+    dropRef,
+    removeBlock,
+    resetBlocks,
+    dragOver,
+  } = useFileUpload();
   const { scrollRef, contentRef } = useStickToBottom();
   const initialPromptSentRef = useRef(false);
   const sendMessageRef = useRef<((content: string) => void) | null>(null);
   const isMountedRef = useRef(true);
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
-  const scrollRestoreRef = useRef<{
-    scrollTop: number;
-    scrollHeight: number;
-  } | null>(null);
+  const lastScrollTopRef = useRef(0);
+  const scrollTopBeforeLoadRef = useRef(0);
 
   const {
     stream,
@@ -122,11 +135,26 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
         e.preventDefault();
       }
       const messageText = input.trim();
-      if (!messageText || isLoading || submitDisabled) return;
-      sendMessage(messageText);
+      if (
+        (!messageText && contentBlocks.length === 0) ||
+        isLoading ||
+        submitDisabled
+      )
+        return;
+      sendMessage(messageText, contentBlocks, { enable_rag: enableRag });
       setInput("");
+      resetBlocks();
     },
-    [input, isLoading, sendMessage, setInput, submitDisabled]
+    [
+      input,
+      contentBlocks,
+      isLoading,
+      sendMessage,
+      setInput,
+      submitDisabled,
+      enableRag,
+      resetBlocks,
+    ]
   );
 
   const handleKeyDown = useCallback(
@@ -172,55 +200,79 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
     }
   }, [initialPrompt, isLoading, isThreadLoading, assistant, messages.length]);
 
-  // 滚动到顶部时自动加载更多历史消息
-  const handleLoadMore = useCallback(() => {
+  // 向上滚动到顶部附近时加载更多历史消息
+  useEffect(() => {
     const container = scrollRef.current;
-    if (!container || isLoadingMoreHistory || isReachingEnd) return;
+    if (!container) return;
 
-    scrollRestoreRef.current = {
-      scrollTop: container.scrollTop,
-      scrollHeight: container.scrollHeight,
+    const onScroll = () => {
+      const currentScrollTop = container.scrollTop;
+      const isScrollingUp = currentScrollTop < lastScrollTopRef.current;
+      lastScrollTopRef.current = currentScrollTop;
+
+      if (!isScrollingUp) return;
+      if (isThreadLoading || isLoadingMoreHistory || isReachingEnd) return;
+      // 只在接近顶部时触发，给用户留出一段可滚动查看已加载历史的空间
+      if (currentScrollTop > 100) return;
+
+      scrollTopBeforeLoadRef.current = currentScrollTop;
+      loadMoreHistory();
     };
-    loadMoreHistory();
-  }, [scrollRef, isLoadingMoreHistory, isReachingEnd, loadMoreHistory]);
 
+    container.addEventListener("scroll", onScroll);
+    return () => container.removeEventListener("scroll", onScroll);
+  }, [
+    scrollRef,
+    isThreadLoading,
+    isLoadingMoreHistory,
+    isReachingEnd,
+    loadMoreHistory,
+  ]);
+
+  // 鼠标滚轮在顶部继续往上滚时也能连续加载，不需要先往下滚再往上滚
   useEffect(() => {
-    const sentinel = sentinelRef.current;
     const container = scrollRef.current;
-    if (!sentinel || !container) return;
+    if (!container) return;
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) {
-          handleLoadMore();
-        }
-      },
-      {
-        root: container,
-        rootMargin: "200px 0px 0px 0px",
-        threshold: 0,
-      }
-    );
+    const onWheel = (e: WheelEvent) => {
+      if (isThreadLoading || isLoadingMoreHistory || isReachingEnd) return;
+      // deltaY < 0 表示向上滚动
+      if (e.deltaY >= 0) return;
+      // 只在到达或贴近顶部时触发
+      if (container.scrollTop > 10) return;
 
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [scrollRef, handleLoadMore]);
+      scrollTopBeforeLoadRef.current = container.scrollTop;
+      loadMoreHistory();
+    };
 
-  // 加载更多历史后恢复滚动位置（避免老消息 prepend 后视图跳到顶部）
-  useEffect(() => {
+    container.addEventListener("wheel", onWheel);
+    return () => container.removeEventListener("wheel", onWheel);
+  }, [
+    scrollRef,
+    isThreadLoading,
+    isLoadingMoreHistory,
+    isReachingEnd,
+    loadMoreHistory,
+  ]);
+
+  // 历史加载完成后，把滚动位置保持在顶部，让刚加载出来的历史消息直接可见
+  useLayoutEffect(() => {
     if (isLoadingMoreHistory) return;
-    if (!scrollRestoreRef.current) return;
+    if (scrollTopBeforeLoadRef.current === -1) return;
 
     const container = scrollRef.current;
     if (!container) {
-      scrollRestoreRef.current = null;
+      scrollTopBeforeLoadRef.current = -1;
       return;
     }
 
-    const { scrollTop, scrollHeight } = scrollRestoreRef.current;
-    const newScrollHeight = container.scrollHeight;
-    container.scrollTop = scrollTop + (newScrollHeight - scrollHeight);
-    scrollRestoreRef.current = null;
+    // 只有原本就在顶部附近才强制回到顶部，避免影响用户在中部/底部的阅读位置
+    if (scrollTopBeforeLoadRef.current <= 100) {
+      // 先同步更新参考值，避免设置 scrollTop 触发的 scroll 事件被误判为向上滚动
+      lastScrollTopRef.current = 0;
+      container.scrollTop = 0;
+    }
+    scrollTopBeforeLoadRef.current = -1;
   }, [isLoadingMoreHistory, messages.length, scrollRef]);
 
   // 缓存 message UI 映射，避免每次渲染都 O(n*m) filter
@@ -417,13 +469,6 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
             </div>
           ) : (
             <>
-              {isReachingEnd && messages.length > 0 && (
-                <div className="flex items-center justify-center py-4">
-                  <span className="text-xs text-muted-foreground">
-                    没有更多消息了
-                  </span>
-                </div>
-              )}
               {isLoadingMoreHistory && (
                 <div className="flex items-center justify-center py-4">
                   <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
@@ -432,8 +477,20 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
                   </span>
                 </div>
               )}
-              {/* 滚动到顶部的检测哨兵 */}
-              <div ref={sentinelRef} className="h-1" />
+              {!isReachingEnd && !isLoadingMoreHistory && (
+                <div className="flex items-center justify-center py-2">
+                  <span className="text-xs text-muted-foreground">
+                    向上滚动加载更多历史消息
+                  </span>
+                </div>
+              )}
+              {isReachingEnd && messages.length > 0 && (
+                <div className="flex items-center justify-center py-4">
+                  <span className="text-xs text-muted-foreground">
+                    没有更多消息了
+                  </span>
+                </div>
+              )}
               {processedMessages.map((data, index) => {
                 const messageUi = messageUiMap.get(data.message.id ?? "");
                 const isLastMessage = index === processedMessages.length - 1;
@@ -466,9 +523,11 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
 
       <div className="flex-shrink-0 bg-background">
         <div
+          ref={dropRef}
           className={cn(
             "mx-4 mb-6 flex flex-shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-background",
-            "mx-auto w-[calc(100%-32px)] max-w-[1024px] transition-colors duration-200 ease-in-out"
+            "mx-auto w-[calc(100%-32px)] max-w-[1024px] transition-colors duration-200 ease-in-out",
+            dragOver && "border-primary border-2 border-dashed"
           )}
         >
           {(hasTasks || hasFiles) && (
@@ -678,26 +737,64 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
               )}
             </div>
           )}
-          <form
-            onSubmit={handleSubmit}
-            className="flex flex-col"
-          >
+          <form onSubmit={handleSubmit} className="flex flex-col">
+            <ContentBlocksPreview
+              blocks={contentBlocks}
+              onRemove={removeBlock}
+              size="md"
+            />
             <textarea
               ref={textareaRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={isLoading ? "运行中..." : "输入您的消息..."}
+              onPaste={handlePaste}
+              placeholder={isLoading ? "运行中..." : "输入您的消息，或上传 PDF / 图片..."}
               className="font-inherit field-sizing-content flex-1 resize-none border-0 bg-transparent px-[18px] pb-[13px] pt-[14px] text-sm leading-7 text-primary outline-none placeholder:text-tertiary"
               rows={1}
             />
-            <div className="flex justify-between gap-2 p-3">
+            <div className="flex items-center justify-between gap-2 p-3">
+              <div className="flex items-center gap-4">
+                <Label
+                  htmlFor="chat-file-input"
+                  className="flex cursor-pointer items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-primary"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>上传 PDF 或图片</span>
+                </Label>
+                <input
+                  id="chat-file-input"
+                  type="file"
+                  multiple
+                  accept="image/jpeg,image/png,image/gif,image/webp,application/pdf"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="rag-switch"
+                    checked={enableRag}
+                    onCheckedChange={setEnableRag}
+                    disabled={isLoading}
+                  />
+                  <Label
+                    htmlFor="rag-switch"
+                    className="cursor-pointer text-sm text-muted-foreground"
+                  >
+                    开启 RAG
+                  </Label>
+                </div>
+              </div>
               <div className="flex justify-end gap-2">
                 <Button
                   type={isLoading ? "button" : "submit"}
                   variant={isLoading ? "destructive" : "default"}
                   onClick={isLoading ? stopStream : handleSubmit}
-                  disabled={!isLoading && (submitDisabled || !input.trim())}
+                  disabled={
+                    !isLoading &&
+                    (submitDisabled ||
+                      (!input.trim() && contentBlocks.length === 0))
+                  }
                 >
                   {isLoading ? (
                     <>
