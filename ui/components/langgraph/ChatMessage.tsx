@@ -5,6 +5,13 @@ import React, { useMemo, useState, useCallback } from "react";
 import { SubAgentIndicator } from "@/components/langgraph/SubAgentIndicator";
 import { ToolCallBox } from "@/components/langgraph/ToolCallBox";
 import { MarkdownContent } from "@/components/langgraph/MarkdownContent";
+import { MultimodalPreview } from "@/components/langgraph/MultimodalPreview";
+import {
+  isImageUrlBlock,
+  isFileBlock,
+  type FileBlock,
+  type ImageUrlBlock,
+} from "@/lib/langgraph/multimodal";
 import type {
   SubAgent,
   ToolCall,
@@ -75,6 +82,16 @@ export const ChatMessage = React.memo<ChatMessageProps>(
     const hasContent = messageContent && messageContent.trim() !== "";
     const hasToolCalls = toolCalls.length > 0;
 
+    // 用户上传的附件：图片以 image_url 块存在 content 中，PDF 放在 additional_kwargs.attachments
+    const imageUrlBlocks: ImageUrlBlock[] = Array.isArray(message.content)
+      ? (message.content as unknown[]).filter(isImageUrlBlock)
+      : [];
+    const rawAttachments = (message.additional_kwargs as Record<string, unknown>)?.attachments;
+    const pdfBlocks: FileBlock[] = Array.isArray(rawAttachments)
+      ? (rawAttachments as unknown[]).filter(isFileBlock)
+      : [];
+    const hasAttachments = imageUrlBlocks.length > 0 || pdfBlocks.length > 0;
+
     const subAgents = useMemo(
       () =>
         toolCalls
@@ -114,29 +131,53 @@ export const ChatMessage = React.memo<ChatMessageProps>(
         style={{ contentVisibility: "auto", containIntrinsicSize: "200px" }}
       >
         <div className={cn("min-w-0 max-w-full", isUser ? "max-w-[70%]" : "w-full")}>
-          {hasContent && (
+          {(hasContent || hasAttachments) && (
             <div className={cn("relative flex items-end gap-0")}>
-              <div
-                className={cn(
-                  "mt-4 overflow-hidden break-words text-sm font-normal leading-[150%]",
-                  isUser
-                    ? "rounded-xl rounded-br-none border border-border px-3 py-2 text-foreground"
-                    : "text-primary"
-                )}
-                style={
-                  isUser
-                    ? { backgroundColor: "var(--color-user-message-bg)" }
-                    : undefined
-                }
-              >
-                {isUser ? (
-                  <p className="m-0 whitespace-pre-wrap break-words text-sm leading-relaxed">
-                    {messageContent}
-                  </p>
-                ) : hasContent ? (
+              {isUser ? (
+                /* 用户消息：先显示附件，再显示文本气泡 */
+                <div className="mt-4 flex flex-col items-end gap-2">
+                  {hasAttachments && (
+                    <div className="flex flex-wrap justify-end gap-2">
+                      {imageUrlBlocks.map((block, idx) => (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          key={`img-${idx}`}
+                          src={block.image_url.url}
+                          alt={`uploaded image ${idx + 1}`}
+                          className="h-16 w-16 rounded-md object-cover"
+                        />
+                      ))}
+                      {pdfBlocks.map((block, idx) => (
+                        <MultimodalPreview
+                          key={`pdf-${idx}`}
+                          block={block}
+                          size="md"
+                        />
+                      ))}
+                    </div>
+                  )}
+                  {hasContent && (
+                    <div
+                      className="overflow-hidden break-words rounded-xl rounded-br-none border border-border px-3 py-2 text-sm font-normal leading-[150%] text-foreground"
+                      style={{
+                        backgroundColor: "var(--color-user-message-bg)",
+                      }}
+                    >
+                      <p className="m-0 whitespace-pre-wrap break-words text-sm leading-relaxed">
+                        {messageContent}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div
+                  className={cn(
+                    "mt-4 overflow-hidden break-words text-sm font-normal leading-[150%] text-primary"
+                  )}
+                >
                   <MarkdownContent content={messageContent} streaming={isStreaming} />
-                ) : null}
-              </div>
+                </div>
+              )}
             </div>
           )}
           {hasToolCalls && (
