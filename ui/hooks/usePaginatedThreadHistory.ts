@@ -55,6 +55,7 @@ export function usePaginatedThreadHistory(
     getKey(threadId),
     (key) => (client ? fetcher(client, key) : Promise.resolve([])),
     {
+      initialSize: 0,
       revalidateFirstPage: false,
       revalidateOnFocus: false,
     }
@@ -65,9 +66,12 @@ export function usePaginatedThreadHistory(
   // 更 robust 的尽头判断：
   // - 校验中先假设还有更多；
   // - 请求的页数比实际返回的多，说明有 key 返回了 null（已到尽头）；
+  // - 数据为空且没有正在校验、且已经请求过页面，说明返回了空页（已到尽头）；
   // - 最后一页数量不足 PAGE_SIZE，也代表已到尽头。
   const hasMore = useMemo(() => {
-    if (!swr.data || swr.data.length === 0) return true;
+    if (!swr.data || swr.data.length === 0) {
+      return swr.isValidating || swr.size === 0;
+    }
     if (swr.isValidating) return true;
     if (swr.size > swr.data.length) return false;
     const lastPage = swr.data[swr.data.length - 1];
