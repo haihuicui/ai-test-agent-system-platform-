@@ -39,6 +39,9 @@ LightRAG/lightrag_webui/node_modules/
 ._hist*.json
 ._threads.json
 
+# TypeScript build info
+*.tsbuildinfo
+
 # Logs
 *.log
 
