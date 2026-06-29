@@ -358,6 +358,7 @@ export function useChat({
     // 历史分页
     loadMoreHistory,
     isLoadingMoreHistory: paginatedHistory.isLoadingMore,
+    historyPages: paginatedHistory.pages,
   };
 }
 // TODO  My80OmFIVnBZMlhsdEpUbXRiZm92b2s2WjFsNVp3PT06NmUwNGM4MzQ=
