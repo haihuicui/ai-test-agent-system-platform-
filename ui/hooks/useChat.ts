@@ -14,6 +14,12 @@ import type { TodoItem } from "@/lib/langgraph/types";
 import { useClient } from "@/providers/ClientProvider";
 import { useQueryState } from "nuqs";
 import { usePaginatedThreadHistory } from "./usePaginatedThreadHistory";
+import {
+  type ChatAttachmentBlock,
+  isImageBlock,
+  isFileBlock,
+  type ImageUrlBlock,
+} from "@/lib/langgraph/multimodal";
 // NOTE  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2WjFsNVp3PT06NmUwNGM4MzQ=
 
 export type StateType = {
@@ -30,6 +36,7 @@ export type StateType = {
     project_identifier?: string;
     folder_id?: string;
     template_type?: string;
+    enable_rag?: boolean;
   };
 };
 // FIXME  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2WjFsNVp3PT06NmUwNGM4MzQ=
@@ -120,13 +127,12 @@ export function useChat({
     return [...older, ...stream.messages];
   }, [stream.messages, paginatedHistory.data]);
 
-  // 不做尽头判断：用户可以无限向上滚动加载历史 checkpoints。
-  const isReachingEnd = false;
+  // 当分页历史已经到达尽头时，不再自动加载。
+  const isReachingEnd = !paginatedHistory.hasMore;
 
   const loadMoreHistory = useCallback(() => {
-    if (isReachingEnd || paginatedHistory.isLoadingMore) return;
-    paginatedHistory.setSize((size) => size + 1);
-  }, [isReachingEnd, paginatedHistory.isLoadingMore, paginatedHistory.setSize]);
+    paginatedHistory.loadMore();
+  }, [paginatedHistory.loadMore]);
 
   // 流式渲染节流：逐 token 推送时，把"每个 token 触发一次渲染"降为"每 ~33ms 一次"，
   // 大幅减少长对话流式过程中的重复渲染。新消息（计数变化）和流结束时立即同步，
@@ -193,8 +199,38 @@ export function useChat({
   );
 
   const sendMessage = useCallback(
-    (content: string) => {
-      const newMessage: Message = { id: uuidv4(), type: "human", content };
+    (
+      content: string,
+      contentBlocks?: ChatAttachmentBlock[],
+      options?: { enable_rag?: boolean }
+    ) => {
+      const imageBlocks = contentBlocks?.filter(isImageBlock) ?? [];
+      const pdfBlocks = contentBlocks?.filter(isFileBlock) ?? [];
+
+      // 图片转换为 OpenAI / Doubao 兼容的 image_url 格式
+      const imageUrlBlocks: ImageUrlBlock[] = imageBlocks.map((b) => ({
+        type: "image_url",
+        image_url: { url: `data:${b.mimeType};base64,${b.data}` },
+      }));
+
+      const messageContent: Message["content"] =
+        imageUrlBlocks.length > 0
+          ? ([
+              ...(content.trim().length > 0
+                ? [{ type: "text" as const, text: content.trim() }]
+                : []),
+              ...imageUrlBlocks,
+            ] as Message["content"])
+          : content.trim();
+
+      const newMessage: Message = {
+        id: uuidv4(),
+        type: "human",
+        content: messageContent,
+        ...(pdfBlocks.length > 0
+          ? { additional_kwargs: { attachments: pdfBlocks } }
+          : {}),
+      };
 
       // 从 assistant config 中提取 context 信息
       const context = activeAssistant?.config?.configurable || {};
@@ -204,13 +240,14 @@ export function useChat({
         project_identifier: context.project_identifier || "",
         folder_id: context.folder_id || "",
         template_type: context.template_type || "test_case",
+        enable_rag: options?.enable_rag ?? true,
       };
 
       stream.submit(
         {
           messages: [newMessage],
           // 将 context 信息传递给后端智能体
-          context: agentContext
+          context: agentContext,
         },
         {
           optimisticValues: (prev) => ({

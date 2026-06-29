@@ -1,12 +1,12 @@
 "use client";
 
 import useSWRInfinite from "swr/infinite";
-import { useMemo } from "react";
+import { useMemo, useCallback } from "react";
 import type { Client, ThreadState, Config } from "@langchain/langgraph-sdk";
 import type { StateType } from "./useChat";
 
-// 每页固定拉 1 个 checkpoint，用户可无限向上滚动加载。
-const PAGE_SIZE = 1;
+// 每页固定拉 10 个 checkpoint，减少加载次数，一次能看到更多历史。
+const PAGE_SIZE = 10;
 
 interface HistoryKey {
   kind: "thread-history";
@@ -61,7 +61,25 @@ export function usePaginatedThreadHistory(
   );
 
   const flattened = useMemo(() => swr.data?.flat() ?? [], [swr.data]);
-  const isLoadingMore = swr.size > 0 && swr.data?.[swr.size - 1] == null;
+
+  // 更 robust 的尽头判断：
+  // - 校验中先假设还有更多；
+  // - 请求的页数比实际返回的多，说明有 key 返回了 null（已到尽头）；
+  // - 最后一页数量不足 PAGE_SIZE，也代表已到尽头。
+  const hasMore = useMemo(() => {
+    if (!swr.data || swr.data.length === 0) return true;
+    if (swr.isValidating) return true;
+    if (swr.size > swr.data.length) return false;
+    const lastPage = swr.data[swr.data.length - 1];
+    return lastPage.length >= PAGE_SIZE;
+  }, [swr.data, swr.isValidating, swr.size]);
+
+  const isLoadingMore = swr.size > (swr.data?.length ?? 0) && hasMore;
+
+  const loadMore = useCallback(() => {
+    if (!threadId || !hasMore || isLoadingMore) return;
+    swr.setSize((size) => size + 1);
+  }, [threadId, hasMore, isLoadingMore, swr.setSize]);
 
   return {
     data: flattened,
@@ -71,5 +89,7 @@ export function usePaginatedThreadHistory(
     mutate: swr.mutate,
     isLoadingMore,
     setSize: swr.setSize,
+    hasMore,
+    loadMore,
   };
 }
