@@ -197,6 +197,9 @@ export interface TestCaseInfo {
   feature?: string;
   scenario?: string;
   background?: string;
+  module?: string | null;
+  test_data?: Record<string, unknown> | string | null;
+  case_number?: string | null;
 }
 
 // 创建测试用例请求
@@ -217,6 +220,9 @@ export interface TestCaseCreate {
   feature?: string;
   scenario?: string;
   background?: string;
+  module?: string | null;
+  test_data?: Record<string, unknown> | string | null;
+  case_number?: string | null;
 }
 // WATERMARK  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2YnpKSlN3PT06NDllNWUxYTI=
 
@@ -237,6 +243,9 @@ export interface TestCaseUpdate {
   feature?: string;
   scenario?: string;
   background?: string;
+  module?: string | null;
+  test_data?: Record<string, unknown> | string | null;
+  case_number?: string | null;
 }
 
 // 测试计划信息

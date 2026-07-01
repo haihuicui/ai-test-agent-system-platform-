@@ -53,7 +53,10 @@ export function TableRowSkeleton({
             </td>
           )}
           <td className="p-3">
-            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-4 w-36" />
+          </td>
+          <td className="p-3">
+            <Skeleton className="h-4 w-32" />
           </td>
           <td className="p-3">
             <Skeleton className="h-4 w-full max-w-xs" />
@@ -66,12 +69,6 @@ export function TableRowSkeleton({
           </td>
           <td className="p-3">
             <Skeleton className="h-4 w-24" />
-          </td>
-          <td className="p-3">
-            <div className="flex gap-1">
-              <Skeleton className="h-5 w-12 rounded-full" />
-              <Skeleton className="h-5 w-12 rounded-full" />
-            </div>
           </td>
           <td className="p-3">
             <Skeleton className="h-7 w-7" />

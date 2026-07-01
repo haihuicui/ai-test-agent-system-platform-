@@ -227,9 +227,10 @@ export function useChat({
         id: uuidv4(),
         type: "human",
         content: messageContent,
-        ...(pdfBlocks.length > 0
-          ? { additional_kwargs: { attachments: pdfBlocks } }
-          : {}),
+        additional_kwargs: {
+          ...(pdfBlocks.length > 0 ? { attachments: pdfBlocks } : {}),
+          enable_rag: options?.enable_rag ?? true,
+        },
       };
 
       // 从 assistant config 中提取 context 信息

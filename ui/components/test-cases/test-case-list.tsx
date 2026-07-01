@@ -338,8 +338,16 @@ export function TestCaseList({
           </div>
         </td>
         <td className="p-3 overflow-hidden">
-          <span className="text-sm text-muted-foreground truncate block">
-            {testCase.identifier}
+          <span className="text-sm truncate block" title={testCase.module || "-"}>
+            {testCase.module || "-"}
+          </span>
+        </td>
+        <td className="p-3 overflow-hidden">
+          <span
+            className="text-sm text-muted-foreground truncate block"
+            title={testCase.case_number || testCase.identifier}
+          >
+            {testCase.case_number || testCase.identifier}
           </span>
         </td>
         <td className="p-3 overflow-hidden">
@@ -372,24 +380,6 @@ export function TestCaseList({
           <span className="text-sm truncate block">
             {testCase.owner || testCase.created_by || "-"}
           </span>
-        </td>
-        <td className="p-3 overflow-hidden">
-          <div className="flex flex-wrap gap-1">
-            {testCase.tags && testCase.tags.length > 0 ? (
-              testCase.tags.slice(0, 2).map((tag) => (
-                <Badge key={tag} variant="outline" className="text-xs truncate">
-                  {tag}
-                </Badge>
-              ))
-            ) : (
-              <span className="text-sm text-muted-foreground">-</span>
-            )}
-            {testCase.tags && testCase.tags.length > 2 && (
-              <Badge variant="outline" className="text-xs">
-                +{testCase.tags.length - 2}
-              </Badge>
-            )}
-          </div>
         </td>
         <td className="p-3">
           <DropdownMenu>
@@ -651,11 +641,12 @@ export function TestCaseList({
               <thead className="sticky top-0 bg-card">
                 <tr className="border-b text-left text-xs font-medium uppercase text-muted-foreground">
                   <th className="w-16 p-3"></th>
-                  <th className="w-28 p-3">ID</th>
+                  <th className="w-44 p-3">MODULE</th>
+                  <th className="w-40 p-3">用例编号</th>
                   <th className="p-3">TITLE</th>
                   <th className="w-28 p-3">PRIORITY</th>
+                  <th className="w-28 p-3">STATUS</th>
                   <th className="w-36 p-3">OWNER</th>
-                  <th className="w-44 p-3">TAGS</th>
                   <th className="w-16 p-3"></th>
                 </tr>
               </thead>
@@ -753,12 +744,12 @@ export function TestCaseList({
                         aria-label="全选"
                       />
                     </th>
-                    <th className="w-28 p-3">ID</th>
+                    <th className="w-44 p-3">MODULE</th>
+                    <th className="w-40 p-3">用例编号</th>
                     <th className="p-3">TITLE</th>
                     <th className="w-28 p-3">PRIORITY</th>
                     <th className="w-28 p-3">STATUS</th>
                     <th className="w-36 p-3">OWNER</th>
-                    <th className="w-44 p-3">TAGS</th>
                     <th className="w-16 p-3"></th>
                   </tr>
                 </thead>
