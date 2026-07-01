@@ -48,3 +48,8 @@ LightRAG/lightrag_webui/node_modules/
 # OS
 .DS_Store
 Thumbs.db
+
+# Agent runtime workspaces (agent-generated artifacts: exports, tool results,
+# conversation history, scratch scripts, node_modules — not source)
+backend/workspace/
+.langgraph_api/
