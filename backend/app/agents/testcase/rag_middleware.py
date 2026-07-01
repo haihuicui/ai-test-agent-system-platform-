@@ -11,6 +11,13 @@ class RAGMiddleware(AgentMiddleware):
     """根据 enable_rag 开关动态控制 RAG 工具的注入与过滤。"""
 
     def _is_rag_enabled(self, request: ModelRequest) -> bool:
+        # 优先从最后一条 human 消息的 additional_kwargs 中读取开关状态
+        last_msg = request.messages[-1] if request.messages else None
+        if last_msg and getattr(last_msg, "type", None) == "human":
+            ak = getattr(last_msg, "additional_kwargs", None) or {}
+            if "enable_rag" in ak:
+                return bool(ak["enable_rag"])
+
         runtime = getattr(request, "runtime", None)
         context = getattr(runtime, "context", None) if runtime else None
         return getattr(context, "enable_rag", True) if context else True

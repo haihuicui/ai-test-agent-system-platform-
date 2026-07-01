@@ -22,6 +22,14 @@ def _get_api_url(path: str) -> str:
     """构建完整的 API URL"""
     return f"{API_BASE_URL}{API_PREFIX}{path}"
 
+
+def _resolve_field(data: dict[str, Any], *keys: str) -> Any:
+    """按候选 key 顺序从字典中提取字段，用于兼容 Agent 输出的多种字段别名。"""
+    for key in keys:
+        if key in data:
+            return data[key]
+    return None
+
 # type: ignore  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2YzNOVE5RPT06YjNlZWQyMDc=
 
 async def _make_http_request(
@@ -74,6 +82,10 @@ async def _create_test_case_impl(
     feature: Optional[str] = None,
     scenario: Optional[str] = None,
     background: Optional[str] = None,
+    module: Optional[str] = None,
+    test_data: Optional[dict[str, Any]] = None,
+    case_number: Optional[str] = None,
+    case_id: Optional[str] = None,
 ) -> dict[str, Any]:
     """创建测试用例的内部实现"""
     request_data: dict[str, Any] = {
@@ -97,6 +109,14 @@ async def _create_test_case_impl(
         request_data["issues"] = issues
     if custom_fields is not None:
         request_data["custom_fields"] = custom_fields
+    if module is not None:
+        request_data["module"] = module
+    if test_data is not None:
+        request_data["test_data"] = test_data
+    # case_number 优先；未提供时尝试 case_id（兼容 Agent 输出中的 id/用例编号）
+    effective_case_number = case_number if case_number is not None else case_id
+    if effective_case_number is not None:
+        request_data["case_number"] = effective_case_number
 
     if template == "test_case_bdd":
         if feature is not None:
@@ -143,6 +163,10 @@ async def create_test_case_tool(
     feature: Optional[str] = None,
     scenario: Optional[str] = None,
     background: Optional[str] = None,
+    module: Optional[str] = None,
+    test_data: Optional[dict[str, Any]] = None,
+    case_number: Optional[str] = None,
+    case_id: Optional[str] = None,
 ) -> dict[str, Any]:
     """
     创建测试用例工具（通过 HTTP 接口调用）。
@@ -168,6 +192,10 @@ async def create_test_case_tool(
         feature: BDD Feature 描述（BDD 测试用例必填）
         scenario: BDD Scenario 描述（BDD 测试用例必填）
         background: BDD Background 描述（BDD 测试用例可选）
+        module: 所属模块（可选）
+        test_data: 测试数据（可选，JSON 对象）
+        case_number: 用例编号（可选）
+        case_id: 用例编号别名（可选，与 case_number 二选一，兼容 Agent 输出中的 id）
 
     Returns:
         dict: 包含创建结果的字典
@@ -192,6 +220,10 @@ async def create_test_case_tool(
             feature=feature,
             scenario=scenario,
             background=background,
+            module=module,
+            test_data=test_data,
+            case_number=case_number,
+            case_id=case_id,
         )
     except Exception as e:
         return {"success": False, "error": str(e), "message": f"创建测试用例失败: {str(e)}"}
@@ -217,6 +249,9 @@ async def _update_test_case_impl(
     feature: Optional[str] = None,
     scenario: Optional[str] = None,
     background: Optional[str] = None,
+    module: Optional[str] = None,
+    test_data: Optional[dict[str, Any]] = None,
+    case_number: Optional[str] = None,
 ) -> dict[str, Any]:
     """更新测试用例的内部实现"""
     request_data: dict[str, Any] = {}
@@ -254,6 +289,13 @@ async def _update_test_case_impl(
     if background is not None:
         request_data["background"] = background
 # type: ignore  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2YzNOVE5RPT06YjNlZWQyMDc=
+
+    if module is not None:
+        request_data["module"] = module
+    if test_data is not None:
+        request_data["test_data"] = test_data
+    if case_number is not None:
+        request_data["case_number"] = case_number
 
     if not request_data:
         return {
@@ -296,6 +338,9 @@ async def update_test_case_tool(
     feature: Optional[str] = None,
     scenario: Optional[str] = None,
     background: Optional[str] = None,
+    module: Optional[str] = None,
+    test_data: Optional[dict[str, Any]] = None,
+    case_number: Optional[str] = None,
 ) -> dict[str, Any]:
     """
     更新测试用例工具（通过 HTTP 接口调用）。
@@ -321,6 +366,9 @@ async def update_test_case_tool(
         feature: BDD Feature 描述
         scenario: BDD Scenario 描述
         background: BDD Background 描述
+        module: 所属模块（可选）
+        test_data: 测试数据（可选，JSON 对象）
+        case_number: 用例编号（可选）
 
     Returns:
         dict: 包含更新结果的字典
@@ -345,6 +393,9 @@ async def update_test_case_tool(
             feature=feature,
             scenario=scenario,
             background=background,
+            module=module,
+            test_data=test_data,
+            case_number=case_number,
         )
     except Exception as e:
         return {"success": False, "error": str(e), "message": f"更新测试用例失败: {str(e)}"}
@@ -374,8 +425,8 @@ async def _batch_create_test_cases_impl(
                 results.append({
                     "index": index,
                     "success": False,
+                    "name": None,
                     "error": "测试用例名称不能为空",
-                    "data": test_case_data
                 })
                 failed += 1
                 continue
@@ -399,15 +450,25 @@ async def _batch_create_test_cases_impl(
                 feature=test_case_data.get("feature"),
                 scenario=test_case_data.get("scenario"),
                 background=test_case_data.get("background"),
+                module=_resolve_field(test_case_data, "module", "所属模块"),
+                test_data=_resolve_field(test_case_data, "test_data", "测试数据"),
+                case_number=_resolve_field(
+                    test_case_data, "case_number", "id", "用例编号", "identifier", "case_id", "编号"
+                ),
             )
 # noqa  My80OmFIVnBZMlhsdEpUbXRiZm92b2s2YzNOVE5RPT06YjNlZWQyMDc=
 
+            # 仅回传精简结果：完整用例对象（result["data"]）与输入用例体积很大，
+            # 会随每次批量创建整段写入 checkpoint / 历史 state，长会话下累积到数百 KB，
+            # 拖垮前端「加载历史对话」。Agent 后续只需要「成功/失败 + 用例标识」即可，
+            # 因此这里丢弃完整对象，只保留 index/success/identifier/name/error。
+            case_data = result.get("data") or {}
             results.append({
                 "index": index,
                 "success": result.get("success", False),
-                "data": result.get("data"),
+                "identifier": case_data.get("identifier") or case_data.get("case_number"),
+                "name": name,
                 "error": result.get("error"),
-                "message": result.get("message")
             })
 
             if result.get("success"):
@@ -419,8 +480,8 @@ async def _batch_create_test_cases_impl(
             results.append({
                 "index": index,
                 "success": False,
+                "name": test_case_data.get("name"),
                 "error": str(e),
-                "data": test_case_data
             })
             failed += 1
 

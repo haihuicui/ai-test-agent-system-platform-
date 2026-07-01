@@ -1,39 +1,32 @@
 "use client";
 
 import useSWRInfinite from "swr/infinite";
-import { useMemo, useCallback } from "react";
-import type { Client, ThreadState, Config } from "@langchain/langgraph-sdk";
+import { useMemo } from "react";
+import type { Client, ThreadState } from "@langchain/langgraph-sdk";
 import type { StateType } from "./useChat";
 
-// 每页固定拉 10 个 checkpoint，减少加载次数，一次能看到更多历史。
-const PAGE_SIZE = 10;
+// LangGraph 的 messages channel 是「只增（append-only）累积」的：最新（head）
+// checkpoint 已经包含了整段对话的全部消息。以前按 checkpoint 分页会把几乎完全
+// 相同的整段消息数组重复拉取 N 次（10 个 checkpoint ≈ 10 份全量快照），一个
+// 200+ 消息的会话就能到 40MB+ / 60s，直接把「加载历史对话」卡死；而这些旧
+// checkpoint 只是消息更少的子集，翻页永远拿不到任何新消息。
+//
+// 因此这里只拉最新的 1 个 checkpoint（limit=1），它即为完整对话。既避免了
+// 冗余传输，也在打开会话时立即加载出历史（initialSize:1），不再依赖用户向上
+// 滚动才触发首次加载。
+const PAGE_SIZE = 1;
 
 interface HistoryKey {
   kind: "thread-history";
   threadId: string;
-  before?: Config;
 }
 
 function getKey(threadId: string | null | undefined) {
-  return (
-    pageIndex: number,
-    previousPageData: ThreadState<StateType>[] | null
-  ): HistoryKey | null => {
+  return (pageIndex: number): HistoryKey | null => {
     if (!threadId) return null;
-    if (previousPageData && previousPageData.length === 0) return null;
-
-    const before =
-      previousPageData && previousPageData.length > 0
-        ? {
-            configurable: {
-              checkpoint_id:
-                previousPageData[previousPageData.length - 1].checkpoint
-                  .checkpoint_id,
-            },
-          }
-        : undefined;
-
-    return { kind: "thread-history", threadId, before };
+    // 只加载最新 checkpoint（已含全部消息），不再翻页。
+    if (pageIndex > 0) return null;
+    return { kind: "thread-history", threadId };
   };
 }
 
@@ -43,7 +36,6 @@ async function fetcher(
 ): Promise<ThreadState<StateType>[]> {
   return client.threads.getHistory<StateType>(key.threadId, {
     limit: PAGE_SIZE,
-    ...(key.before ? { before: key.before } : {}),
   });
 }
 
@@ -55,7 +47,8 @@ export function usePaginatedThreadHistory(
     getKey(threadId),
     (key) => (client ? fetcher(client, key) : Promise.resolve([])),
     {
-      initialSize: 0,
+      // 打开会话时立即加载最新 checkpoint（其中已含整段对话）。
+      initialSize: 1,
       revalidateFirstPage: false,
       revalidateOnFocus: false,
     }
@@ -63,37 +56,16 @@ export function usePaginatedThreadHistory(
 
   const flattened = useMemo(() => swr.data?.flat() ?? [], [swr.data]);
 
-  // 更 robust 的尽头判断：
-  // - 校验中先假设还有更多；
-  // - 请求的页数比实际返回的多，说明有 key 返回了 null（已到尽头）；
-  // - 数据为空且没有正在校验、且已经请求过页面，说明返回了空页（已到尽头）；
-  // - 最后一页数量不足 PAGE_SIZE，也代表已到尽头。
-  const hasMore = useMemo(() => {
-    if (!swr.data || swr.data.length === 0) {
-      return swr.isValidating || swr.size === 0;
-    }
-    if (swr.isValidating) return true;
-    if (swr.size > swr.data.length) return false;
-    const lastPage = swr.data[swr.data.length - 1];
-    return lastPage.length >= PAGE_SIZE;
-  }, [swr.data, swr.isValidating, swr.size]);
-
-  const isLoadingMore = swr.size > (swr.data?.length ?? 0) && hasMore;
-
-  const loadMore = useCallback(() => {
-    if (!threadId || !hasMore || isLoadingMore) return;
-    swr.setSize((size) => size + 1);
-  }, [threadId, hasMore, isLoadingMore, swr.setSize]);
-
   return {
     data: flattened,
     pages: swr.data,
     error: swr.error,
     isLoading: swr.isLoading && swr.data == null,
     mutate: swr.mutate,
-    isLoadingMore,
+    // 最新 checkpoint 即完整对话，没有可继续加载的更早消息。
+    isLoadingMore: false,
     setSize: swr.setSize,
-    hasMore,
-    loadMore,
+    hasMore: false,
+    loadMore: () => {},
   };
 }

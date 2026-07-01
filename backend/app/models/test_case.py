@@ -140,6 +140,22 @@ class TestCase(Base, UUIDMixin, TimestampMixin):
         nullable=True,
         comment="最后更新者 ID"
     )
+    module: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        index=True,
+        comment="所属模块"
+    )
+    test_data: Mapped[dict | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment="测试数据"
+    )
+    case_number: Mapped[str | None] = mapped_column(
+        String(50),
+        nullable=True,
+        comment="用例编号"
+    )
     dataset: Mapped[list | None] = mapped_column(
         JSONB,
         nullable=True,

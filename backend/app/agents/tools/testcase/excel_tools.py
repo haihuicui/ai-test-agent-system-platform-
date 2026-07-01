@@ -248,49 +248,138 @@ def _resolve_input_path(input_path: str | Path) -> Path:
     return resolved
 
 
-def _load_test_cases_from_file(input_path: str | Path) -> list[dict[str, Any]]:
-    """从工作目录下的数据文件读取测试用例列表。
+def _parse_json_objects(text: str, source: str) -> list[Any]:
+    """从文本中解析出所有 JSON 对象，对常见的「脏」格式有强容错。
 
-    支持两种格式（自动识别）：
-      - JSONL：每行一个 JSON 对象（推荐，便于 Agent 分批追加写入，永不超 token 上限）
-      - JSON ：整个文件是一个 JSON 数组 [ {...}, {...} ]
+    无需调用方保证文件是严格的 JSONL，自动兼容：
+      - 标准 JSONL：每行一个 JSON 对象
+      - 整文件 JSON 数组：[ {...}, {...} ]
+      - 多个对象挤在同一行、对象跨多行、对象之间用逗号或空白分隔
+        （例如 LLM 直接拼接产出的 `{...},{...},{...}`）
 
-    分批追加写入的 JSONL 不受单次 LLM 输出长度限制，从根本上规避「用例多时截断」。
+    实现上用 json.JSONDecoder().raw_decode 顺序扫描，不依赖换行边界，
+    因此 Agent 不再需要在 LLM 侧手工合并/规整文件，从根本上规避
+    「跨行 JSON 解析失败」「合并时 token 截断」等问题。
     """
-    real_path = _resolve_input_path(input_path)
-    if not real_path.is_file():
-        raise FileNotFoundError(f"用例数据文件不存在：{input_path}")
-
-    text = real_path.read_text(encoding="utf-8").strip()
+    text = text.strip()
     if not text:
-        raise ValueError(f"用例数据文件为空：{input_path}")
+        return []
 
-    cases: list[dict[str, Any]] = []
-
-    if text.lstrip().startswith("["):
-        # 整文件 JSON 数组
+    # 整文件 JSON 数组：直接解析
+    if text.startswith("["):
         data = json.loads(text)
         if not isinstance(data, list):
-            raise ValueError(f"用例数据文件顶层不是 JSON 数组：{input_path}")
-        cases = data
-    else:
-        # JSONL：逐行解析，跳过空行
-        for line_no, line in enumerate(text.splitlines(), start=1):
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                cases.append(json.loads(line))
-            except json.JSONDecodeError as e:
-                raise ValueError(
-                    f"用例数据文件第 {line_no} 行不是合法 JSON：{e}"
-                ) from e
+            raise ValueError(f"用例数据文件顶层不是 JSON 数组：{source}")
+        return data
+
+    # 其余情况：顺序扫描出连续的 JSON 值，容忍逗号/空白分隔
+    decoder = json.JSONDecoder()
+    objs: list[Any] = []
+    idx, n = 0, len(text)
+    while idx < n:
+        # 跳过对象之间的空白与逗号分隔符
+        while idx < n and text[idx] in " \t\r\n,":
+            idx += 1
+        if idx >= n:
+            break
+        try:
+            obj, end = decoder.raw_decode(text, idx)
+        except json.JSONDecodeError as e:
+            snippet = text[idx:idx + 80].replace("\n", " ")
+            raise ValueError(
+                f"用例数据文件 {source} 第 {text.count(chr(10), 0, idx) + 1} 行附近不是合法 JSON："
+                f"{e}（片段：{snippet!r}）"
+            ) from e
+        objs.append(obj)
+        idx = end
+    return objs
+
+
+def _case_key(case: dict[str, Any]) -> Any:
+    """提取用例的去重标识：优先用例编号，其次标题/名称；都没有则返回 None（不去重）。"""
+    return _extract_field(
+        case, "id", "用例编号", "identifier", "case_id", "编号",
+        "title", "用例标题", "name", "标题", "用例名称",
+        default=None,
+    )
+
+
+def _describe_missing_file(requested: str | Path, resolved: Path) -> str:
+    """构造「文件不存在」的自纠错提示。
+
+    模型常传入宿主机绝对路径（如 D:\\sorted_cases.jsonl）或拼错文件名，
+    仅回显原始路径无法让模型知道工具实际去哪找、工作目录里到底有哪些文件。
+    这里同时给出解析后的真实路径，并列出工作目录下现有的 .jsonl/.json 数据文件，
+    让模型据此改用正确的（虚拟）相对路径重试。
+    """
+    try:
+        available = sorted(
+            _to_virtual_path(f)
+            for f in _WORKSPACE_ROOT.glob("*")
+            if f.is_file()
+            and f.suffix.lower() in (".jsonl", ".json")
+            and f.name.lower() not in ("package.json", "package-lock.json")
+        )
+    except OSError:
+        available = []
+    avail_hint = "、".join(available) if available else "（工作目录下暂无 .jsonl/.json 数据文件）"
+    return (
+        f"用例数据文件不存在：{requested}\n"
+        f"工具实际查找的真实路径：{resolved}\n"
+        f"提示：input_file 应使用工作目录下的（虚拟）相对路径，不要用 D:\\ 等宿主机绝对路径。\n"
+        f"当前工作目录下可用的数据文件：{avail_hint}"
+    )
+
+
+def _load_test_cases_from_file(
+    input_path: str | Path | list[str | Path],
+    dedup: bool = True,
+) -> list[dict[str, Any]]:
+    """从工作目录下的一个或多个数据文件读取并合并测试用例列表。
+
+    支持的格式（每个文件自动识别，详见 _parse_json_objects）：
+      - JSONL：每行一个 JSON 对象（推荐，便于 Agent 分批追加写入，永不超 token 上限）
+      - JSON ：整个文件是一个 JSON 数组 [ {...}, {...} ]
+      - 容错：多个对象同行/跨行/逗号分隔的「脏」拼接格式
+
+    input_path 可以是单个路径，也可以是路径列表——传列表时按顺序读取并合并所有文件，
+    Agent 无需先把多个文件手工合并成一个，直接把文件清单交给本工具即可。
+
+    dedup=True 时按用例编号（或标题）去重，后出现的覆盖先出现的，
+    用于消除多文件之间的重复用例。
+    """
+    paths = input_path if isinstance(input_path, (list, tuple)) else [input_path]
+
+    cases: list[dict[str, Any]] = []
+    for p in paths:
+        real_path = _resolve_input_path(p)
+        if not real_path.is_file():
+            raise FileNotFoundError(_describe_missing_file(p, real_path))
+        text = real_path.read_text(encoding="utf-8").strip()
+        if not text:
+            # 多文件场景下允许个别文件为空，跳过即可；单文件为空仍然报错
+            if len(paths) == 1:
+                raise ValueError(f"用例数据文件为空：{p}")
+            continue
+        cases.extend(_parse_json_objects(text, str(p)))
 
     invalid = [i for i, c in enumerate(cases) if not isinstance(c, dict)]
     if invalid:
         raise ValueError(
             f"用例数据文件存在非对象元素（下标 {invalid[:5]}...），每条用例必须是 JSON 对象。"
         )
+
+    if dedup:
+        merged: dict[Any, dict[str, Any]] = {}
+        no_key: list[dict[str, Any]] = []
+        for case in cases:
+            key = _case_key(case)
+            if key is None:
+                no_key.append(case)
+            else:
+                merged[key] = case  # 后出现的覆盖先出现的
+        cases = list(merged.values()) + no_key
+
     return cases
 
 
@@ -298,16 +387,21 @@ def _load_test_cases_from_file(input_path: str | Path) -> list[dict[str, Any]]:
 def export_test_cases_to_excel(
     output_path: str | Path,
     test_cases: list[dict[str, Any]] | None = None,
-    input_file: str | Path | None = None,
+    input_file: str | Path | list[str | Path] | None = None,
     sheet_name: str = "测试用例",
+    dedup: bool = True,
 ) -> str:
     """
     将测试用例导出为 Excel 文件。
 
     用例来源二选一（推荐使用 input_file 以规避「用例多时数据截断」）：
-      - input_file: 工作目录下的用例数据文件路径（.jsonl 或 .json）。**用例数量多时优先用此方式**：
-        先用文件写入工具分批把用例追加进一个 .jsonl 文件（每行一个 JSON 对象），
-        再调用本工具读取该文件导出。分批写入不受单次模型输出长度限制，永不截断。
+      - input_file: 工作目录下的用例数据文件路径（.jsonl 或 .json），**可传单个路径，
+        也可传路径列表一次性合并多个文件**。**用例数量多或分散在多个文件时优先用此方式**：
+        先用文件写入工具把用例追加进 .jsonl 文件，再把文件（或文件清单）交给本工具读取导出。
+        无需在对话里手工合并多个文件——直接传 input_file=["a.jsonl", "b.jsonl", ...] 即可，
+        合并与去重在服务端完成，不受单次模型输出长度限制，永不截断。
+        每个文件的格式自动识别并强容错：标准 JSONL（每行一对象）、整文件 JSON 数组、
+        以及多个对象同行/跨行/逗号分隔的「脏」拼接格式都能正确解析。
       - test_cases: 直接内联传入的用例字典列表。仅适用于用例较少（约 < 30 条）的场景；
         用例过多会因模型单次输出 token 上限导致 JSON 被截断、数据丢失。
     两者同时提供时，input_file 优先。
@@ -329,14 +423,16 @@ def export_test_cases_to_excel(
             "/测试用例.xlsx"）会映射到 Agent 工作目录（workspace_root）下，
             与其他文件工具看到的虚拟文件系统保持一致。缺少 .xlsx 后缀时自动补全。
         test_cases: 测试用例字典列表，每个字典描述一条用例（用例少时使用）。
-        input_file: 用例数据文件（.jsonl/.json）路径，映射规则同 output_path（用例多时推荐）。
+        input_file: 用例数据文件（.jsonl/.json）路径，或多个文件路径组成的列表（用例多时推荐）。
+            映射规则同 output_path。传列表时按顺序读取并合并所有文件。
         sheet_name: 工作表名称，默认为 "测试用例"。
+        dedup: 是否按用例编号（或标题）去重，默认 True；多文件合并时可消除重复用例。
 
     Returns:
         导出文件的虚拟路径字符串（以 "/" 为根），可直接交给其他文件工具复用。
     """
     if input_file is not None:
-        test_cases = _load_test_cases_from_file(input_file)
+        test_cases = _load_test_cases_from_file(input_file, dedup=dedup)
 
     if not test_cases:
         raise ValueError(

@@ -18,6 +18,7 @@ from langgraph.pregel import Pregel
 from app.agents.tools.testcase import get_all_tools, get_local_tools
 from app.agents.tools.error_handler import wrap_tools_with_error_handling
 from app.agents.testcase.rag_middleware import RAGMiddleware
+from app.agents.testcase.state_compaction_middleware import StaleToolResultOffloadMiddleware
 from app.config.settings import settings
 from app.core.llms import text_model, image_model
 
@@ -83,11 +84,17 @@ class ContextInjectionMiddleware(AgentMiddleware):
     ) -> ModelResponse:
         ctx = request.runtime.context
 
+        # 优先从最后一条 human 消息的 additional_kwargs 中读取 RAG 开关
+        last_msg = request.messages[-1] if request.messages else None
+        ak = getattr(last_msg, "additional_kwargs", None) or {} if last_msg else {}
+        msg_enable_rag = ak.get("enable_rag") if isinstance(ak, dict) else None
+        enable_rag = msg_enable_rag if msg_enable_rag is not None else getattr(ctx, "enable_rag", True)
+
         rag_instruction = (
             "收到需求后，首先激活 `rag-query` Skill，查询历史测试用例、业务规则、领域知识；"
             "所有分析必须基于 RAG 检索到的上下文展开。"
-            if ctx.enable_rag
-            else "RAG 检索已关闭，请勿调用任何 RAG 相关工具，直接基于用户提供的原始需求进行分析。"
+            if enable_rag
+            else "RAG 检索已关闭，请忽略任何关于 RAG 检索的指令，不要调用任何 RAG 相关工具，直接基于用户提供的原始需求进行分析。"
         )
 
         context_info = f"""
@@ -100,7 +107,7 @@ class ContextInjectionMiddleware(AgentMiddleware):
 - `project_identifier`: `{ctx.project_identifier}`
 - `folder_id`: `{ctx.folder_id}`
 - `默认模板类型`: `{ctx.template_type}`
-- `RAG 检索`: `{'开启' if ctx.enable_rag else '关闭'}`
+- `RAG 检索`: `{'开启' if enable_rag else '关闭'}`
 
 **重要提示：**
 1. 这些参数由系统自动注入，不要询问用户提供
@@ -295,23 +302,51 @@ create_test_case_tool(
     project_identifier=project_identifier,  # 从上下文获取
     folder_id=folder_id,                    # 从上下文获取
     name="用例名称",
+    case_number="TC-PROJECT-MODULE-001",    # Agent 生成的用例编号，必填
+    module="所属模块",                       # Agent 生成的所属模块，必填
     description="用例描述",
     priority="high",
     test_case_steps=[
         {"step": "步骤1", "result": "预期结果1"},
         {"step": "步骤2", "result": "预期结果2"}
-    ]
+    ],
+    test_data={"username": "test001", "password": "Test@123"}  # Agent 生成的测试数据，必填
 )
 ```
+
+> 注意：Agent 生成的 `case_number`（用例编号）、`module`（所属模块）、`test_data`（测试数据）必须显式传入工具参数，否则这些字段在保存后会丢失。
 
 ## 批量创建测试用例
 ```python
 batch_create_test_cases_tool(
     project_identifier=project_identifier,
     folder_id=folder_id,
-    test_cases=[...]  # 测试用例列表
+    test_cases=[
+        {
+            "name": "用例名称1",
+            "case_number": "TC-PROJECT-MODULE-001",
+            "module": "所属模块",
+            "test_data": {"username": "test001", "password": "Test@123"},
+            "priority": "high",
+            "test_case_steps": [
+                {"step": "步骤1", "result": "预期结果1"}
+            ]
+        },
+        {
+            "name": "用例名称2",
+            "case_number": "TC-PROJECT-MODULE-002",
+            "module": "所属模块",
+            "test_data": {"username": "test002", "password": "Test@456"},
+            "priority": "medium",
+            "test_case_steps": [
+                {"step": "步骤1", "result": "预期结果1"}
+            ]
+        }
+    ]
 )
 ```
+
+> 注意：批量创建时，每个用例字典都必须包含 `case_number`、`module`、`test_data`，否则这些字段会丢失。
 
 ## 更新测试用例
 ```python
@@ -333,16 +368,26 @@ export_test_cases_to_excel(
 )
 ```
 
-**用例较多（约 >= 30 条，必须用此方式，否则会数据截断）**：先分批把用例追加写入 JSONL 文件（每行一个 JSON 对象，每批 20~30 条），再读文件导出
+**用例较多（约 >= 30 条，必须用此方式，否则会数据截断）**：把用例写入 JSONL 文件后读文件导出，**禁止在对话里手工合并多个文件或把全部用例塞进一次输出**
 ```python
-# 1) 用文件写入工具分批把用例追加进 cases.jsonl（每行一条用例）
+# 1) 用文件写入工具把用例分批追加进 .jsonl（每行一条用例即可，不必严格规整）
 # 2) 全部写完后一次性导出：
 export_test_cases_to_excel(
     input_file="cases.jsonl",
     output_path="测试用例.xlsx"
 )
 ```
-> 原因：内联传入要求模型在一次输出里序列化全部用例，用例多时会超过单次输出 token 上限导致 JSON 截断、用例丢失；JSONL 分批写入不受此限制。
+
+**用例分散在多个文件**：直接把文件清单交给工具，由工具在服务端合并并去重，**不要自己读取再拼接**
+```python
+export_test_cases_to_excel(
+    input_file=["cases.jsonl", "supplement_cases.jsonl", "wuliu_supplement_cases.jsonl"],
+    output_path="测试用例.xlsx"
+)
+```
+> 工具对每个文件的格式强容错：标准 JSONL、整文件 JSON 数组、以及多个对象同行/跨行/逗号分隔的「脏」拼接格式都能正确解析，默认按用例编号去重。
+> 原因：内联传入或手工合并要求模型在一次输出里序列化全部用例，用例多时会超过单次输出 token 上限导致 JSON 截断、用例丢失；交给工具读文件不受此限制。
+> 注意：shell（execute）运行在虚拟文件系统中，宿主机真实 Python 无法访问这些路径，**不要尝试用 python 脚本合并文件**，统一用 input_file 列表交给导出工具。
 
 ---
 
@@ -404,6 +449,8 @@ async def make_agent() -> AsyncIterator[Pregel]:
     """
     context_middleware = ContextInjectionMiddleware()
     rag_middleware = RAGMiddleware()
+    # 陈旧大工具结果（read_file / grep）卸载：控制 checkpoint / 历史 state 体积
+    stale_offload_middleware = StaleToolResultOffloadMiddleware(backend=composite_backend)
 
     # 加载所有工具（包括本地工具和 RAG MCP 工具）
     all_tools = await get_all_tools()
@@ -420,6 +467,7 @@ async def make_agent() -> AsyncIterator[Pregel]:
             skills_middleware,
             context_middleware,
             rag_middleware,
+            stale_offload_middleware,
             dynamic_model_selection,
         ],
         backend=composite_backend,

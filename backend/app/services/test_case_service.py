@@ -71,9 +71,11 @@ class TestCaseService:
         return TestCaseInfo(
             id=tc.id,
             identifier=tc.identifier,
+            case_number=tc.case_number,
             name=tc.name,
             description=tc.description,
             preconditions=tc.preconditions,
+            module=tc.module,
             priority=tc.priority,
             status=tc.state,
             case_type=tc.test_case_type,
@@ -89,6 +91,7 @@ class TestCaseService:
             tags=tags,
             issues=issues,
             custom_fields=tc.custom_fields,
+            test_data=tc.test_data,
             test_case_steps=steps,
             feature=tc.feature,
             scenario=tc.scenario,
@@ -110,7 +113,9 @@ class TestCaseService:
         return TestCaseMinifiedInfo(
             id=tc.id,
             identifier=tc.identifier,
+            case_number=tc.case_number,
             name=tc.name,
+            module=tc.module,
             priority=tc.priority,
             status=tc.state,
             case_type=tc.test_case_type,
@@ -238,9 +243,11 @@ class TestCaseService:
             project_id=project.id,
             folder_id=folder_id,
             identifier=identifier,
+            case_number=data.case_number,
             name=data.name,
             description=data.description,
             preconditions=data.preconditions,
+            module=data.module,
             priority=data.priority,
             state=data.state,
             test_case_type=data.test_case_type,
@@ -250,6 +257,7 @@ class TestCaseService:
             background=data.background,
             automation_status=data.automation_status,
             custom_fields=data.custom_fields,
+            test_data=data.test_data,
             issues=data.issues,
             owner_id=owner_id,
             created_by=created_by,
@@ -298,6 +306,13 @@ class TestCaseService:
         # 更新基本信息
         update_data = data.model_dump(exclude_unset=True, exclude={"steps", "tags"})
         tc = await self.repo.update(tc, **update_data)
+
+        # 更新标签
+        if data.tags is not None:
+            await self.repo.clear_test_case_tags(tc.id)
+            for tag_name in data.tags:
+                tag = await self.repo.get_or_create_tag(project.id, tag_name)
+                await self.repo.add_tag_to_test_case(tc.id, tag)
 
         # 更新版本号
         tc.version = (tc.version or 1) + 1
