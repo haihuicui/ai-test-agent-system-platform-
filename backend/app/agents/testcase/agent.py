@@ -17,6 +17,7 @@ from langgraph.pregel import Pregel
 
 from app.agents.tools.testcase import get_all_tools, get_local_tools
 from app.agents.tools.error_handler import wrap_tools_with_error_handling
+from app.agents.testcase.phase_review_middleware import PhaseReviewMiddleware
 from app.agents.testcase.rag_middleware import RAGMiddleware
 from app.agents.testcase.state_compaction_middleware import StaleToolResultOffloadMiddleware
 from app.config.settings import settings
@@ -67,6 +68,7 @@ class TestCaseGeneratorContext:
     current_user_id: str = "00000000-0000-0000-0000-000000000001"
     template_type: str = "test_case"  # test_case 或 test_case_bdd
     enable_rag: bool = True
+    auto_approve_threshold: float = 100.0  # 阶段报告自动审批阈值（0-100 质量分），100 表示关闭
 
 
 # ============================================================================
@@ -108,13 +110,16 @@ class ContextInjectionMiddleware(AgentMiddleware):
 - `folder_id`: `{ctx.folder_id}`
 - `默认模板类型`: `{ctx.template_type}`
 - `RAG 检索`: `{'开启' if enable_rag else '关闭'}`
+- `自动审批阈值`: `{getattr(ctx, 'auto_approve_threshold', 100.0)}`（报告综合评分 ≥ 该阈值时将跳过人工评审）
 
 **重要提示：**
 1. 这些参数由系统自动注入，不要询问用户提供
 2. `template_type` 为 `test_case` 时创建普通测试用例（使用 test_case_steps）
 3. `template_type` 为 `test_case_bdd` 时创建 BDD 测试用例（使用 feature/scenario/background）
 4. {rag_instruction}
-5. 如果上述参数为空，提示用户"系统配置错误，缺少必要的项目或文件夹信息"
+5. 阶段报告质量综合评分 ≥ `{getattr(ctx, 'auto_approve_threshold', 100.0)}` 时，系统会自动通过该阶段评审；请在质量评审报告中明确输出 `综合评分：XX 分`
+6. `project_identifier` 为空时，提示用户"系统配置错误，缺少项目信息"；`folder_id` 为空表示用户当前位于"全部用例"，此时用例会保存到项目根目录（folder_id 传空字符串或省略均可）
+7. 如果 `folder_id` 非空，必须保持原值，不要替换成其他文件夹
 
 **正确的工具调用示例：**
 ```python
@@ -207,13 +212,46 @@ SYSTEM_PROMPT = """
 
 | 阶段 | 激活 Skill | 产出要求 | 进入下一阶段条件 |
 |------|-----------|---------|----------------|
-| Phase 1 | `requirement-analysis` | 需求解析报告（功能矩阵 + 风险清单 + 用例预估） | 用户确认或默认继续 |
-| Phase 2 | `test-strategy` | 测试策略报告（类型选择 + 优先级 + 深度分配） | 用户确认或默认继续 |
-| Phase 3 | `test-case-design` + `test-data-generator` | 逐模块测试用例 + 具体测试数据 | 每模块含轻量自检 |
-| Phase 4 | `quality-review` | 质量评审报告 | 综合评分 >= 75分，否则回退修改 |
-| Phase 5 | `output-formatter` | 最终交付物（用户指定格式） | - |
+| Phase 1 | `requirement-analysis` | 需求解析报告（功能矩阵 + 风险清单 + 用例预估） | **系统触发人工评审，用户确认后继续** |
+| Phase 2 | `test-strategy` | 测试策略报告（类型选择 + 优先级 + 深度分配） | **系统触发人工评审，用户确认后继续** |
+| Phase 3 | `test-case-design` + `test-data-generator` | 逐模块测试用例 + 具体测试数据 | **系统触发人工评审，用户确认后继续** |
+| Phase 4 | `quality-review` | 质量评审报告 | **系统触发人工评审，用户确认后继续**；综合评分 < 75分需回退修改 |
+| Phase 5 | `output-formatter` | 最终交付物（用户指定格式） | **系统触发格式选择，用户选择后继续** |
 
-> 红线：未完成 Phase 1（需求分析）和 Phase 2（测试策略）前，**禁止生成具体测试用例**。
+> 红线：未完成 Phase 1（需求分析）和 Phase 2（测试策略）前，**禁止生成具体测试用例**。 Phase 4 评审通过前，禁止进入 Phase 5。
+
+---
+
+## 阶段报告人工评审规则
+
+完成 Phase 1 / Phase 2 / Phase 3 / Phase 4 后，系统会自动弹出人工评审卡片：
+
+1. **报告标题必须保留标准格式**，以便系统识别阶段：
+   - Phase 1：使用 `## 需求解析报告` 或 `## 功能测试矩阵`
+   - Phase 2：使用 `## 测试策略报告`
+   - Phase 3：所有模块用例创建完成后，输出 `## 测试用例生成完成` 作为阶段完成标记
+   - Phase 4：使用 `## 📊 测试用例质量评审报告`
+2. **用户通过（批准）后**：直接输出下一阶段报告，**禁止添加"好的，我将继续..."等过渡语句**。
+3. **用户拒绝（提意见）后**：根据反馈修改当前阶段报告或用例，然后重新进入评审。
+4. **快捷操作语义**：
+   - **重新生成**：重跑当前阶段，输出新版本报告。
+   - **跳过本阶段**：直接进入下一阶段，不再修改当前报告。
+   - **缩小范围**：按用户意见收窄当前阶段范围后重新输出。
+5. **评审维度清单**：系统会提供 4 个默认勾选维度（功能覆盖完整 / 边界值场景充分 / 包含安全异常场景 / 优先级分配合理）。用户取消某一项即表示该维度需要补充，Agent 收到通过决策时也需关注这些未通过维度。
+6. **不要主动询问用户"是否需要继续"**，系统会自动处理确认流程。
+
+### Phase 3 特别说明
+
+- 测试用例可以分多批创建，但**全部创建完成后必须输出 `## 测试用例生成完成`** 触发人工评审。
+- 评审通过前，已创建的用例会保留；若用户要求修改，使用 `update_test_case_tool` 或补充创建新用例。
+- 不要每创建一批用例就输出一次完成标记，只在最终汇总时输出一次。
+
+### Phase 5 输出格式选择特别说明
+
+- 进入 Phase 5 后，**先输出 `## 输出格式化`** 触发格式选择面板，**不要以自然语言询问用户"你希望什么格式"**。
+- 格式选择面板会提供：Markdown / Excel / JSON / CSV。
+- 收到用户选择的格式后，直接按该格式生成最终交付物，禁止输出过渡语句。
+- 若用户选择 Excel，调用 `export_test_cases_to_excel` 生成文件，并在后续消息中说明文件路径。
 
 ---
 
@@ -363,10 +401,26 @@ update_test_case_tool(
 **用例较少（约 < 30 条）**：可直接内联传入用例列表
 ```python
 export_test_cases_to_excel(
-    test_cases=[...],
+    test_cases=[
+        {
+            "case_number": "TC-PROJECT-MODULE-001",
+            "name": "用例标题",
+            "module": "所属模块",
+            "case_type": "functional",
+            "priority": "high",
+            "preconditions": ["前置条件1", "前置条件2"],
+            "test_case_steps": [
+                {"step": "步骤1", "result": "预期结果1"},
+                {"step": "步骤2", "result": "预期结果2"},
+            ],
+            "test_data": {"字段名": "具体值"},
+            "remarks": "关联需求 REQ-XXX",
+        }
+    ],
     output_path="测试用例.xlsx"
 )
 ```
+> 注意：导出到 Excel 时，必须显式提供 `case_number`（用例编号）、`case_type`（用例类型）、`preconditions`（前置条件）、`test_case_steps`（步骤与预期结果）、`remarks`（备注），否则对应列会为空。
 
 **用例较多（约 >= 30 条，必须用此方式，否则会数据截断）**：把用例写入 JSONL 文件后读文件导出，**禁止在对话里手工合并多个文件或把全部用例塞进一次输出**
 ```python
@@ -421,8 +475,11 @@ export_test_cases_to_excel(
 1. **每模块完成后**：自动调用 `quality-review` 轻量自检（10项快速检查），输出自检结果
 2. **所有模块完成后**：输出完整汇总表 + 质量评审报告（四维度评分）
 3. **格式选择**：
-   - 未指定时 -> 默认 `output-formatter` 的 Markdown 详细格式
-   - 用户说"导出" -> 询问目标工具（禅道/TestRail/Excel/Jira），调用 `output-formatter` 输出对应格式
+   - 进入 Phase 5 时，系统会自动弹出格式选择面板（Markdown / Excel / JSON / CSV）
+   - 用户未指定或选择 Markdown -> 默认 `output-formatter` 的 Markdown 详细格式
+   - 用户选择 Excel -> 调用 `export_test_cases_to_excel` 生成 .xlsx 文件
+   - 用户选择 JSON / CSV -> 调用 `output-formatter` 输出对应格式
+   - **禁止用自然语言反问用户"你希望什么格式"**，统一由格式选择面板处理
 4. **用例密度控制**：P0 >= 3条/模块，P1 >= 3条/核心功能，P2/P3按需补充
 5. **语言一致性**：用户用中文提问，所有输出（包括用例标题、步骤、预期结果）必须使用中文
 6. **保持输出**：定期输出进度信息，避免长时间无响应
@@ -451,6 +508,8 @@ async def make_agent() -> AsyncIterator[Pregel]:
     rag_middleware = RAGMiddleware()
     # 陈旧大工具结果（read_file / grep）卸载：控制 checkpoint / 历史 state 体积
     stale_offload_middleware = StaleToolResultOffloadMiddleware(backend=composite_backend)
+    # 阶段报告人工评审：需求分析、测试策略、质量评审完成后触发 HITL
+    phase_review_middleware = PhaseReviewMiddleware()
 
     # 加载所有工具（包括本地工具和 RAG MCP 工具）
     all_tools = await get_all_tools()
@@ -468,6 +527,7 @@ async def make_agent() -> AsyncIterator[Pregel]:
             context_middleware,
             rag_middleware,
             stale_offload_middleware,
+            phase_review_middleware,
             dynamic_model_selection,
         ],
         backend=composite_backend,

@@ -24,7 +24,8 @@ from app.schemas.test_case import (
     TestCaseCreate, TestCaseUpdate, TestCaseInfo, TestCaseMinifiedInfo,
     BulkTestCaseRequest, BulkEditWithOperationsRequest, BulkDeleteRequest,
     BulkOperationResponse, ExportBDDRequest, ExportBDDResponse,
-    ExportStatusResponse, TestCaseHistoryResponse
+    ExportStatusResponse, TestCaseHistoryResponse,
+    ExportExcelRequest, ExportExcelResponse,
 )
 from app.schemas.common import SuccessResponse, MessageResponse
 from app.schemas.pagination import PaginatedResponse, PaginationInfo
@@ -66,6 +67,8 @@ async def get_test_cases(
     # Jira 集成
     issue_ids: Optional[str] = Query(None, description="关联的 Jira issue ID 列表，逗号分隔"),
     issue_type: Optional[str] = Query(None, description="issue 类型，如 jira"),
+    # 关键字搜索
+    search: Optional[str] = Query(None, description="关键字搜索，支持用例名称、标识符、编号、模块、描述"),
 ):
     """
     获取测试用例列表
@@ -106,6 +109,7 @@ async def get_test_cases(
         "custom_fields": custom_fields if custom_fields else None,
         "updated_after": updated_after,
         "updated_before": updated_before,
+        "search": search,
     }
 
     offset = (pagination.page - 1) * pagination.page_size
@@ -163,6 +167,8 @@ async def get_folder_test_cases(
     case_type: Optional[str] = Query(None, description="测试类型列表，逗号分隔，如 functional,regression"),
     owner: Optional[str] = Query(None, description="负责人邮箱列表，逗号分隔"),
     tags: Optional[str] = Query(None, description="标签列表，逗号分隔"),
+    # 关键字搜索
+    search: Optional[str] = Query(None, description="关键字搜索，支持用例名称、标识符、编号、模块、描述"),
 ):
     """获取文件夹下的测试用例列表"""
     filters = {
@@ -172,6 +178,7 @@ async def get_folder_test_cases(
         "case_types": case_type.split(",") if case_type else None,
         "owners": owner.split(",") if owner else None,
         "tags": tags.split(",") if tags else None,
+        "search": search,
     }
 
     offset = (pagination.page - 1) * pagination.page_size
@@ -268,6 +275,28 @@ async def create_test_case_in_folder(
     """
     test_case = await service.create_test_case(
         project_identifier, data, current_user_id, folder_id
+    )
+    await db.commit()
+    return SuccessResponse(success=True, data=test_case)
+
+
+@router.post(
+    "/test-cases",
+    response_model=SuccessResponse[TestCaseInfo],
+    status_code=status.HTTP_201_CREATED,
+    summary="在项目中创建测试用例",
+    description="在不指定文件夹的情况下创建新的测试用例（保存到项目根，对应前端的“全部用例”）",
+)
+async def create_test_case(
+    project_identifier: str,
+    data: TestCaseCreate,
+    service: TestCaseServiceDep,
+    current_user_id: CurrentUserIdDep,
+    db: DbSessionDep,
+) -> SuccessResponse[TestCaseInfo]:
+    """在项目中创建测试用例（不指定文件夹）"""
+    test_case = await service.create_test_case(
+        project_identifier, data, current_user_id, folder_id=None
     )
     await db.commit()
     return SuccessResponse(success=True, data=test_case)
@@ -441,6 +470,30 @@ async def export_bdd_test_cases(
     """
     export_result = await export_service.start_bdd_export(
         project_identifier, data
+    )
+    return export_result
+
+
+@router.post(
+    "/test-cases/export-excel",
+    response_model=ExportExcelResponse,
+    summary="导出测试用例为 Excel",
+    description="根据测试用例 ID 列表或文件夹 ID 导出 Excel 文件",
+)
+async def export_excel_test_cases(
+    project_identifier: str,
+    data: ExportExcelRequest,
+    service: TestCaseServiceDep,
+    export_service: ExportServiceDep,
+) -> ExportExcelResponse:
+    """
+    导出测试用例为 Excel
+
+    - **test_case_ids**: 要导出的测试用例标识符列表
+    - **folder_id**: 要导出的文件夹 ID（与 test_case_ids 二选一）
+    """
+    export_result = await export_service.start_excel_export(
+        project_identifier, data, service
     )
     return export_result
 

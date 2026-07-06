@@ -9,6 +9,7 @@ export { AIGenerateDialog } from "./ai-generate-dialog";
 export { AIGenerateFromDocumentDialog } from "./ai-generate-from-document-dialog";
 export { AIGenerateResultDialog } from "./ai-generate-result-dialog";
 export { AIChatDialog } from "./ai-chat-dialog";
+export { BulkEditDialog } from "./bulk-edit-dialog";
 // TODO  MC8yOmFIVnBZMlhsdEpUbXRiZm92b2s2YURJMk13PT06NTY0NmUwMzA=
 
 // FIXME  MS8yOmFIVnBZMlhsdEpUbXRiZm92b2s2YURJMk13PT06NTY0NmUwMzA=

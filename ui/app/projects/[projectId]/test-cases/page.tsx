@@ -13,6 +13,7 @@ import {
   MoveFolderDialog,
   AIGenerateDialog,
   AIGenerateFromDocumentDialog,
+  BulkEditDialog,
 } from "@/components/test-cases";
 import type { FolderTreeRef } from "@/components/test-cases";
 import {
@@ -30,6 +31,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { AIChatContainer } from "@/components/langgraph/AIChatContainer";
 import { ClientProvider } from "@/providers/ClientProvider";
+import { useDelayedUnmount } from "@/hooks/useDelayedUnmount";
 import { Assistant } from "@langchain/langgraph-sdk";
 import { ChevronLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -99,6 +101,9 @@ export default function TestCasesPage() {
 
   // 批量删除确认对话框
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = React.useState(false);
+
+  // 批量编辑对话框
+  const [bulkEditDialogOpen, setBulkEditDialogOpen] = React.useState(false);
 
   // 文件夹对话框
   const [folderDialogOpen, setFolderDialogOpen] = React.useState(false);
@@ -234,6 +239,21 @@ export default function TestCasesPage() {
     setBulkDeleteDialogOpen(true);
   };
 
+  // 批量编辑测试用例
+  const handleBulkEdit = () => {
+    if (selectedIds.size === 0) {
+      toast.error(t("testCases.selectToEdit"));
+      return;
+    }
+    setBulkEditDialogOpen(true);
+  };
+
+  const handleBulkEditSuccess = () => {
+    setSelectedIds(new Set());
+    loadTestCases();
+    folderTreeRef.current?.refresh();
+  };
+
   const confirmBulkDelete = async () => {
     try {
       const idsArray = Array.from(selectedIds);
@@ -264,6 +284,7 @@ export default function TestCasesPage() {
 
   // AI聊天面板状态
   const [aiChatOpen, setAiChatOpen] = React.useState(false);
+  const renderAIChat = useDelayedUnmount(aiChatOpen, 300);
   const [aiChatInitialPrompt, setAiChatInitialPrompt] = React.useState<string>("");
   const [aiChatKey, setAiChatKey] = React.useState<number>(0);
   const [assistant, setAssistant] = React.useState<Assistant | null>(null);
@@ -481,6 +502,7 @@ export default function TestCasesPage() {
           {/* 测试用例列表 */}
           <div className="flex-1">
             <TestCaseList
+              projectId={projectId}
               testCases={testCases}
               loading={loading}
               selectedIds={selectedIds}
@@ -503,6 +525,7 @@ export default function TestCasesPage() {
                 setDeleteDialogOpen(true);
               }}
               onBulkDelete={handleBulkDelete}
+              onBulkEdit={handleBulkEdit}
               onViewTestCase={(tc) => {
                 setEditingTestCase(tc);
                 setTestCaseDialogOpen(true);
@@ -542,22 +565,26 @@ export default function TestCasesPage() {
               aiChatOpen ? "translate-x-0 border-l shadow-2xl" : "translate-x-full"
             )}
           >
-            <ClientProvider
-              deploymentUrl={process.env.NEXT_PUBLIC_LANGGRAPH_API_URL || "http://localhost:2025"}
-              apiKey={process.env.NEXT_PUBLIC_LANGSMITH_API_KEY || ""}
-            >
-              <AIChatContainer
-                assistant={assistant}
-                initialPrompt={aiChatInitialPrompt}
-                onClose={() => setAiChatOpen(false)}
-                createNewThread={aiChatKey > 0}
-                onTestCaseCreated={() => {
-                  // AI 生成测试用例后自动刷新列表
-                  loadTestCases();
-                  folderTreeRef.current?.refresh();
-                }}
-              />
-            </ClientProvider>
+            {renderAIChat && (
+              <ClientProvider
+                deploymentUrl={process.env.NEXT_PUBLIC_LANGGRAPH_API_URL || "http://localhost:2025"}
+                apiKey={process.env.NEXT_PUBLIC_LANGSMITH_API_KEY || ""}
+              >
+                <AIChatContainer
+                  assistant={assistant}
+                  initialPrompt={aiChatInitialPrompt}
+                  onClose={() => setAiChatOpen(false)}
+                  createNewThread={aiChatKey > 0}
+                  reconnectOnMount={true}
+                  fetchHistoryOnMount={true}
+                  onTestCaseCreated={() => {
+                    // AI 生成测试用例后自动刷新列表
+                    loadTestCases();
+                    folderTreeRef.current?.refresh();
+                  }}
+                />
+              </ClientProvider>
+            )}
           </div>
         )}
       </div>
@@ -676,6 +703,15 @@ export default function TestCasesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* 批量编辑对话框 */}
+      <BulkEditDialog
+        open={bulkEditDialogOpen}
+        onOpenChange={setBulkEditDialogOpen}
+        projectId={projectId}
+        selectedIds={selectedIds}
+        onSuccess={handleBulkEditSuccess}
+      />
 
       {/* 批量删除确认对话框 */}
       <Dialog

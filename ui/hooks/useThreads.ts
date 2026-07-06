@@ -133,7 +133,7 @@ export function useThreads(props: {
     },
     {
       revalidateFirstPage: true,
-      revalidateOnFocus: true,
+      revalidateOnFocus: false,
     }
   );
 }

@@ -23,6 +23,8 @@ interface AIChatContainerProps {
   createNewThread?: boolean;
   onTestCaseCreated?: () => void; // 测试用例创建后的回调（已废弃）
   onTestCreated?: () => void; // 通用回调：测试创建后调用
+  reconnectOnMount?: boolean;
+  fetchHistoryOnMount?: boolean;
 }
 // eslint-disable  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2VGxWb1NBPT06NDQ4MzJhOGE=
 
@@ -33,6 +35,8 @@ export function AIChatContainer({
   createNewThread = false,
   onTestCaseCreated,
   onTestCreated,
+  reconnectOnMount,
+  fetchHistoryOnMount,
 }: AIChatContainerProps) {
   const [threadId, setThreadId] = useQueryState("threadId");
   const [sidebar, setSidebar] = useQueryState("sidebar");
@@ -45,11 +49,15 @@ export function AIChatContainer({
     onTestCreated?.();
   }, [onTestCaseCreated, onTestCreated]);
 
-  // 如果需要创建新对话，清除 threadId
+  // 如果需要创建新对话，清除 threadId。
+  // 只在 createNewThread 从 false 变为 true 时执行一次，避免 aiChatKey > 0
+  // 后每次重新挂载都清空 threadId，导致历史对话丢失。
+  const prevCreateNewThreadRef = React.useRef(false);
   React.useEffect(() => {
-    if (createNewThread) {
+    if (createNewThread && !prevCreateNewThreadRef.current) {
       setThreadId(null);
     }
+    prevCreateNewThreadRef.current = createNewThread;
   }, [createNewThread, setThreadId]);
 
   return (
@@ -134,6 +142,8 @@ export function AIChatContainer({
               activeAssistant={assistant}
               onHistoryRevalidate={() => mutateThreads?.()}
               onTestCaseCreated={handleTestCreated}
+              reconnectOnMount={reconnectOnMount}
+              fetchHistoryOnMount={fetchHistoryOnMount}
             >
               <ChatInterface
                 assistant={assistant}

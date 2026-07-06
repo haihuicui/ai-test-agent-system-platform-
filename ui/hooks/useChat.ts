@@ -46,29 +46,41 @@ export function useChat({
   onHistoryRevalidate,
   thread,
   onTestCaseCreated,
+  reconnectOnMount = true,
+  fetchHistoryOnMount = true,
 }: {
   activeAssistant: Assistant | null;
   onHistoryRevalidate?: () => void;
   thread?: UseStreamThread<StateType>;
   onTestCaseCreated?: () => void;
+  reconnectOnMount?: boolean;
+  fetchHistoryOnMount?: boolean;
 }) {
   const [threadId, setThreadId] = useQueryState("threadId");
   const [assistantId, setAssistantId] = useQueryState("assistantId");
   const client = useClient();
 
-  // 同步 assistantId 到 URL
+  // 同步 assistantId 到 URL；当 URL 中残留的 assistantId 与当前助手不一致时，
+  // 说明是从其它页面/其它助手带过来的状态，需要清空 threadId 以避免跨页面污染。
   React.useEffect(() => {
-    if (activeAssistant?.assistant_id && assistantId !== activeAssistant.assistant_id) {
+    if (!activeAssistant?.assistant_id) return;
+    if (assistantId !== activeAssistant.assistant_id) {
+      if (assistantId) {
+        setThreadId(null);
+      }
       setAssistantId(activeAssistant.assistant_id);
     }
-  }, [activeAssistant?.assistant_id, assistantId, setAssistantId]);
+  }, [activeAssistant?.assistant_id, assistantId, setAssistantId, setThreadId]);
 
-  // 自定义分页历史：当外部传入 thread 时不启用内部分页
+  // 自定义分页历史：当外部传入 thread 或明确禁用历史加载时不启用内部分页
   const paginatedHistory = usePaginatedThreadHistory(
     client,
-    thread ? null : threadId
+    thread ? null : threadId,
+    fetchHistoryOnMount
   );
 
+  // 稳定传入 useStream 的 thread 对象，避免整个 paginatedHistory 对象每次渲染都重建
+  // 导致 useStream 内部 history 引用频繁变化。
   const threadForStream: UseStreamThread<StateType> = useMemo(
     () => ({
       data: paginatedHistory.data,
@@ -79,7 +91,12 @@ export function useChat({
         return paginatedHistory.data;
       },
     }),
-    [paginatedHistory]
+    [
+      paginatedHistory.data,
+      paginatedHistory.error,
+      paginatedHistory.isLoading,
+      paginatedHistory.mutate,
+    ]
   );
 
   // 处理流完成事件
@@ -91,12 +108,24 @@ export function useChat({
     onTestCaseCreated?.();
   }, [paginatedHistory.mutate, onHistoryRevalidate, onTestCaseCreated]);
 
+  // 包装 onThreadId：stream 在创建新 thread 后回调该函数。
+  // 如果用户在此期间已经手动切换到别的历史对话，忽略这次覆盖，防止 URL 被跳回。
+  const setThreadIdFromStream = useCallback(
+    (newThreadId: string | null) => {
+      if (newThreadId && threadId && newThreadId !== threadId) {
+        return;
+      }
+      setThreadId(newThreadId);
+    },
+    [threadId, setThreadId]
+  );
+
   const stream = useStream<StateType>({
     assistantId: activeAssistant?.assistant_id || "",
     client: client ?? undefined,
-    reconnectOnMount: true,
+    reconnectOnMount,
     threadId: threadId ?? null,
-    onThreadId: setThreadId,
+    onThreadId: setThreadIdFromStream,
     defaultHeaders: { "x-auth-scheme": "langsmith" },
     fetchStateHistory: false,
     // Revalidate thread list when stream finishes, errors, or creates new thread
@@ -202,7 +231,7 @@ export function useChat({
     (
       content: string,
       contentBlocks?: ChatAttachmentBlock[],
-      options?: { enable_rag?: boolean }
+      options?: { enable_rag?: boolean; auto_approve_threshold?: number }
     ) => {
       const imageBlocks = contentBlocks?.filter(isImageBlock) ?? [];
       const pdfBlocks = contentBlocks?.filter(isFileBlock) ?? [];
@@ -230,6 +259,7 @@ export function useChat({
         additional_kwargs: {
           ...(pdfBlocks.length > 0 ? { attachments: pdfBlocks } : {}),
           enable_rag: options?.enable_rag ?? true,
+          auto_approve_threshold: options?.auto_approve_threshold ?? 100,
         },
       };
 
@@ -242,6 +272,7 @@ export function useChat({
         folder_id: context.folder_id || "",
         template_type: context.template_type || "test_case",
         enable_rag: options?.enable_rag ?? true,
+        auto_approve_threshold: options?.auto_approve_threshold ?? 100,
       };
 
       stream.submit(

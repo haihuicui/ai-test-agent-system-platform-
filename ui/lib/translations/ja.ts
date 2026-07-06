@@ -200,7 +200,26 @@ export const translations = {
     bulkDeleteFailed: "一括削除に失敗しました",
     bulkDeleteFailedRetry: "一括削除に失敗しました。後でもう一度お試しください",
     selectToDelete: "削除するテストケースを選択してください",
+    selectToEdit: "編集するテストケースを選択してください",
+    bulkEditTitle: "テストケースを一括編集（{count}件）",
+    bulkEditDescription: "更新するフィールドを選択し、新しい値を設定してください。選択しなかったフィールドは変更されません。",
+    bulkEditNoField: "少なくとも1つのフィールドを選択し、値を入力してください",
+    bulkEditSuccess: "{count}件のテストケースを更新しました",
+    bulkEditFailed: "一括編集に失敗しました",
+    bulkEditFailedRetry: "一括編集に失敗しました。後でもう一度お試しください",
+    selectToExport: "エクスポートするテストケースを選択してください",
     aiGenerateSuccess: "{count}件のテストケースを生成しました",
+
+    // Excel エクスポート
+    downloadExcel: "Excel をダウンロード",
+    exportingExcel: "エクスポート中...",
+    exportExcelSuccess: "Excel のエクスポートに成功しました",
+    exportExcelFailed: "Excel のエクスポートに失敗しました",
+    exportExcelTimeout: "エクスポートがタイムアウトしました。後でもう一度お試しください",
+    exportExcelMissingProject: "プロジェクト情報が不足しているためエクスポートできません",
+    exportExcelNoScope: "エクスポート可能なテストケースが見つかりません",
+    generatedTestCasesCount: "{count}件のテストケースを生成しました",
+    exportCurrentFolder: "現在のフォルダのテストケースをエクスポート",
 
     // フォルダメッセージ
     folderCreateSuccess: "フォルダを作成しました",

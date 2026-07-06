@@ -203,7 +203,26 @@ export const translations = {
     bulkDeleteFailed: "批量删除失败",
     bulkDeleteFailedRetry: "批量删除失败，请稍后重试",
     selectToDelete: "请先选择要删除的测试用例",
+    selectToEdit: "请先选择要编辑的测试用例",
+    bulkEditTitle: "批量编辑测试用例（{count} 项）",
+    bulkEditDescription: "勾选需要修改的字段并设置新值，未勾选的字段将保持不变。",
+    bulkEditNoField: "请至少选择一个字段并填写新值",
+    bulkEditSuccess: "成功更新 {count} 个测试用例",
+    bulkEditFailed: "批量编辑失败",
+    bulkEditFailedRetry: "批量编辑失败，请稍后重试",
+    selectToExport: "请先选择要导出的测试用例",
     aiGenerateSuccess: "成功生成 {count} 个测试用例",
+
+    // Excel 导出
+    downloadExcel: "下载 Excel",
+    exportingExcel: "导出中...",
+    exportExcelSuccess: "Excel 导出成功",
+    exportExcelFailed: "Excel 导出失败",
+    exportExcelTimeout: "导出超时，请稍后重试",
+    exportExcelMissingProject: "缺少项目信息，无法导出",
+    exportExcelNoScope: "未找到可导出的测试用例",
+    generatedTestCasesCount: "已生成 {count} 个测试用例",
+    exportCurrentFolder: "可导出当前文件夹下的测试用例",
 
     // 文件夹消息
     folderCreateSuccess: "文件夹创建成功",

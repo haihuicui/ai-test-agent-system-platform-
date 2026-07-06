@@ -2,6 +2,8 @@
 // FIXME  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2UWtwa1dBPT06NmJhZDM0MjY=
 
 import React, { useMemo, useState, useCallback } from "react";
+import { Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { SubAgentIndicator } from "@/components/langgraph/SubAgentIndicator";
 import { ToolCallBox } from "@/components/langgraph/ToolCallBox";
 import { MarkdownContent } from "@/components/langgraph/MarkdownContent";
@@ -23,6 +25,7 @@ import {
   extractSubAgentContent,
   extractStringFromMessageContent,
 } from "@/lib/langgraph/utils";
+import { downloadAgentFile } from "@/lib/api/agentFiles";
 import { cn } from "@/lib/utils";
 // FIXME  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2UWtwa1dBPT06NmJhZDM0MjY=
 
@@ -61,6 +64,32 @@ function areUiEntriesEqual(prevUi?: any[], nextUi?: any[]) {
   if (prevUi.length !== nextUi.length) return false;
 
   return prevUi.every((entry, index) => entry === nextUi[index]);
+}
+
+function MessageFileDownloads({ content }: { content: string }) {
+  const paths = useMemo(() => {
+    const matches = content.match(/\/[^\s]+\.xlsx/gi) ?? [];
+    return Array.from(new Set(matches));
+  }, [content]);
+
+  if (paths.length === 0) return null;
+
+  return (
+    <div className="mt-3 flex flex-wrap gap-2">
+      {paths.map((path) => (
+        <Button
+          key={path}
+          variant="outline"
+          size="sm"
+          onClick={() => downloadAgentFile(path)}
+          className="gap-1.5"
+        >
+          <Download size={14} />
+          <span>下载 Excel</span>
+        </Button>
+      ))}
+    </div>
+  );
 }
 // NOTE  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2UWtwa1dBPT06NmJhZDM0MjY=
 
@@ -176,6 +205,7 @@ export const ChatMessage = React.memo<ChatMessageProps>(
                   )}
                 >
                   <MarkdownContent content={messageContent} streaming={isStreaming} />
+                  {!isStreaming && <MessageFileDownloads content={messageContent} />}
                 </div>
               )}
             </div>

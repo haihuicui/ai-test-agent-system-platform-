@@ -202,7 +202,26 @@ export const translations = {
     bulkDeleteFailed: "Batch delete failed",
     bulkDeleteFailedRetry: "Batch delete failed, please try again later",
     selectToDelete: "Please select test cases to delete",
+    selectToEdit: "Please select test cases to edit",
+    bulkEditTitle: "Batch Edit Test Cases ({count})",
+    bulkEditDescription: "Select the fields to update and set their new values. Unselected fields will remain unchanged.",
+    bulkEditNoField: "Please select at least one field and provide a value",
+    bulkEditSuccess: "Successfully updated {count} test cases",
+    bulkEditFailed: "Batch edit failed",
+    bulkEditFailedRetry: "Batch edit failed, please try again later",
+    selectToExport: "Please select test cases to export",
     aiGenerateSuccess: "Successfully generated {count} test cases",
+
+    // Excel export
+    downloadExcel: "Download Excel",
+    exportingExcel: "Exporting...",
+    exportExcelSuccess: "Excel exported successfully",
+    exportExcelFailed: "Failed to export Excel",
+    exportExcelTimeout: "Export timed out, please try again later",
+    exportExcelMissingProject: "Missing project information, cannot export",
+    exportExcelNoScope: "No test cases available for export",
+    generatedTestCasesCount: "Generated {count} test cases",
+    exportCurrentFolder: "Export test cases in current folder",
 
     // Folder messages
     folderCreateSuccess: "Folder created successfully",

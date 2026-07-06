@@ -151,6 +151,7 @@ class TestCaseRepository(BaseRepository[TestCase]):
         custom_fields: Optional[dict[str, list[str]]] = None,
         updated_after: Optional[datetime] = None,
         updated_before: Optional[datetime] = None,
+        search: Optional[str] = None,
     ) -> list[TestCase]:
         """
         获取项目下的测试用例列表（支持高级过滤）
@@ -226,6 +227,22 @@ class TestCaseRepository(BaseRepository[TestCase]):
                 if cf_conditions:
                     query = query.where(or_(*cf_conditions))
 
+        # 关键字搜索
+        if search and search.strip():
+            from sqlalchemy import or_
+            search_term = (
+                f"%{search.strip().replace('%', r'\%').replace('_', r'\_')}%"
+            )
+            query = query.where(
+                or_(
+                    TestCase.name.ilike(search_term, escape="\\"),
+                    TestCase.identifier.ilike(search_term, escape="\\"),
+                    TestCase.case_number.ilike(search_term, escape="\\"),
+                    TestCase.module.ilike(search_term, escape="\\"),
+                    TestCase.description.ilike(search_term, escape="\\"),
+                )
+            )
+
         # 时间过滤
         if updated_after:
             query = query.where(TestCase.updated_at >= updated_after)
@@ -254,6 +271,7 @@ class TestCaseRepository(BaseRepository[TestCase]):
         custom_fields: Optional[dict[str, list[str]]] = None,
         updated_after: Optional[datetime] = None,
         updated_before: Optional[datetime] = None,
+        search: Optional[str] = None,
     ) -> int:
         """获取项目下测试用例总数（支持高级过滤）"""
         from ..models.user import User
@@ -311,6 +329,22 @@ class TestCaseRepository(BaseRepository[TestCase]):
                     )
                 if cf_conditions:
                     query = query.where(or_(*cf_conditions))
+
+        # 关键字搜索
+        if search and search.strip():
+            from sqlalchemy import or_
+            search_term = (
+                f"%{search.strip().replace('%', r'\%').replace('_', r'\_')}%"
+            )
+            query = query.where(
+                or_(
+                    TestCase.name.ilike(search_term, escape="\\"),
+                    TestCase.identifier.ilike(search_term, escape="\\"),
+                    TestCase.case_number.ilike(search_term, escape="\\"),
+                    TestCase.module.ilike(search_term, escape="\\"),
+                    TestCase.description.ilike(search_term, escape="\\"),
+                )
+            )
 
         if updated_after:
             query = query.where(TestCase.updated_at >= updated_after)

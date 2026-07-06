@@ -329,6 +329,33 @@ class ExportBDDResponse(BaseResponse):
     status_url: str = Field(..., description="状态查询 URL")
 
 
+class ExportExcelRequest(BaseModel):
+    """导出 Excel 测试用例请求模型"""
+    test_case_ids: Optional[list[str]] = Field(
+        default=None,
+        description="要导出的测试用例标识符列表；与 folder_id 二选一"
+    )
+    folder_id: Optional[str] = Field(
+        default=None,
+        description="文件夹 ID，导出该文件夹下全部测试用例"
+    )
+
+    @model_validator(mode='after')
+    def validate_scope(self):
+        """验证必须提供 test_case_ids 或 folder_id 之一"""
+        if not self.test_case_ids and not self.folder_id:
+            raise ValueError("必须提供 test_case_ids 或 folder_id 之一")
+        return self
+
+
+class ExportExcelResponse(BaseResponse):
+    """导出 Excel 测试用例响应模型"""
+    success: bool = Field(default=True)
+    export_id: str = Field(..., description="导出任务 ID")
+    status: ExportStatus = Field(..., description="导出状态")
+    status_url: str = Field(..., description="状态查询 URL")
+
+
 class ExportStatusResponse(BaseResponse):
     """导出状态响应模型"""
     success: bool = Field(default=True)

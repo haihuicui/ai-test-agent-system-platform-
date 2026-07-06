@@ -51,6 +51,7 @@ import {
 } from "./test-case-filter-panel";
 import { TableRowSkeleton, FilterBarSkeleton } from "./test-case-skeleton";
 import type { TestCaseInfo, Priority, TestCaseState, TestCaseTemplate } from "@/lib/api/types";
+import { downloadTestCasesExcel } from "@/lib/api/testCases";
 import {
   DndContext,
   DragOverlay,
@@ -71,6 +72,7 @@ import { CSS } from "@dnd-kit/utilities";
 // WATERMARK  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2YjJGNVFRPT06OWExMDllNDA=
 
 interface TestCaseListProps {
+  projectId: string;
   testCases: TestCaseInfo[];
   loading: boolean;
   selectedIds: Set<string>;
@@ -85,6 +87,7 @@ interface TestCaseListProps {
   onEditTestCase: (testCase: TestCaseInfo) => void;
   onDeleteTestCase: (testCase: TestCaseInfo) => void;
   onBulkDelete?: () => void;
+  onBulkEdit?: () => void;
   onViewTestCase: (testCase: TestCaseInfo) => void;
   onQuickCreateTestCase?: (title: string, template: TestCaseTemplate) => void;
   onAIGenerate?: () => void;
@@ -112,6 +115,7 @@ const priorityColors: Record<Priority, string> = {
 };
 
 export function TestCaseList({
+  projectId,
   testCases,
   loading,
   selectedIds,
@@ -124,6 +128,7 @@ export function TestCaseList({
   onEditTestCase,
   onDeleteTestCase,
   onBulkDelete,
+  onBulkEdit,
   onViewTestCase,
   onQuickCreateTestCase,
   onAIGenerate,
@@ -144,6 +149,7 @@ export function TestCaseList({
   const [filters, setFilters] = React.useState<TestCaseFilters>({ search: "" });
   const [showQuickCreate, setShowQuickCreate] = React.useState(false);
   const [showFilterBar, setShowFilterBar] = React.useState(false);
+  const [exportingExcel, setExportingExcel] = React.useState(false);
 
   // 优先级标签
   const priorityLabels: Record<Priority, string> = {
@@ -287,6 +293,45 @@ export function TestCaseList({
       }
     }
   }, [searchQuery, onFilterChange, onFilterPriority, onFilterStatus, onSearch]);
+
+  // 导出选中的测试用例为 Excel
+  const handleExportSelected = React.useCallback(async () => {
+    if (selectedIds.size === 0) {
+      toast.error(t("testCases.selectToExport"));
+      return;
+    }
+
+    const identifiers = testCases
+      .filter((tc) => selectedIds.has(tc.id))
+      .map((tc) => tc.identifier)
+      .filter(Boolean);
+
+    if (identifiers.length === 0) {
+      toast.error(t("testCases.exportExcelNoScope"));
+      return;
+    }
+
+    try {
+      setExportingExcel(true);
+      await downloadTestCasesExcel(
+        projectId,
+        { test_case_ids: identifiers },
+        {
+          onCompleted: () => {
+            toast.success(t("testCases.exportExcelSuccess"));
+          },
+          onFailed: (message) => {
+            toast.error(message || t("testCases.exportExcelFailed"));
+          },
+        }
+      );
+    } catch (error) {
+      console.error("Export selected test cases failed:", error);
+      toast.error(t("testCases.exportExcelFailed"));
+    } finally {
+      setExportingExcel(false);
+    }
+  }, [projectId, selectedIds, testCases, t]);
 
   const isAllSelected =
     localTestCases.length > 0 && selectedIds.size === localTestCases.length;
@@ -618,8 +663,21 @@ export function TestCaseList({
           <span className="text-sm text-muted-foreground">
             已选择 {selectedIds.size} 项
           </span>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={onBulkEdit}>
             批量编辑
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportSelected}
+            disabled={exportingExcel}
+          >
+            {exportingExcel ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="mr-2 h-4 w-4" />
+            )}
+            导出 Excel
           </Button>
           <Button
             variant="outline"

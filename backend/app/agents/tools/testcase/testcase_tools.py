@@ -30,6 +30,35 @@ def _resolve_field(data: dict[str, Any], *keys: str) -> Any:
             return data[key]
     return None
 
+
+def _normalize_steps(steps: Any) -> Optional[list[dict[str, str]]]:
+    """标准化测试步骤列表，兼容多种字段别名。
+
+    支持的 step 字段别名：step, action, 操作描述, description, desc
+    支持的 result 字段别名：result, expected_result, expected, 预期结果
+    """
+    if not steps:
+        return None
+    if not isinstance(steps, list):
+        return None
+
+    normalized: list[dict[str, str]] = []
+    for step in steps:
+        if isinstance(step, str):
+            normalized.append({"step": step, "result": ""})
+        elif isinstance(step, dict):
+            action = _resolve_field(
+                step, "step", "action", "操作描述", "description", "desc"
+            )
+            result = _resolve_field(
+                step, "result", "expected_result", "expected", "预期结果"
+            )
+            normalized.append({"step": action or "", "result": result or ""})
+        else:
+            normalized.append({"step": str(step), "result": ""})
+    return normalized
+
+
 # type: ignore  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2YzNOVE5RPT06YjNlZWQyMDc=
 
 async def _make_http_request(
@@ -65,8 +94,8 @@ async def _make_http_request(
 
 async def _create_test_case_impl(
     project_identifier: str,
-    folder_id: str,
     name: str,
+    folder_id: Optional[str] = None,
     description: Optional[str] = None,
     preconditions: Optional[str] = None,
     priority: str = "medium",
@@ -129,7 +158,10 @@ async def _create_test_case_impl(
         if test_case_steps is not None:
             request_data["test_case_steps"] = test_case_steps
 
-    url = _get_api_url(f"/projects/{project_identifier}/folders/{folder_id}/test-cases")
+    if folder_id:
+        url = _get_api_url(f"/projects/{project_identifier}/folders/{folder_id}/test-cases")
+    else:
+        url = _get_api_url(f"/projects/{project_identifier}/test-cases")
     response_data = await _make_http_request(method="POST", url=url, json_data=request_data)
 
     if response_data.get("success"):
@@ -146,8 +178,8 @@ async def _create_test_case_impl(
 @tool
 async def create_test_case_tool(
     project_identifier: str,
-    folder_id: str,
     name: str,
+    folder_id: Optional[str] = None,
     description: Optional[str] = None,
     preconditions: Optional[str] = None,
     priority: str = "medium",
@@ -175,7 +207,7 @@ async def create_test_case_tool(
 
     Args:
         project_identifier: 项目标识符，如 'PROJ-001'
-        folder_id: 文件夹 UUID
+        folder_id: 文件夹 UUID（可选；为空时保存到项目根，对应前端“全部用例”）
         name: 测试用例名称（必填）
         description: 测试用例描述（可选，支持 HTML）
         preconditions: 前置条件（可选，支持 HTML）
@@ -403,8 +435,8 @@ async def update_test_case_tool(
 
 async def _batch_create_test_cases_impl(
     project_identifier: str,
-    folder_id: str,
     test_cases: list[dict[str, Any]],
+    folder_id: Optional[str] = None,
 ) -> dict[str, Any]:
     """批量创建测试用例的内部实现"""
     if not test_cases:
@@ -435,8 +467,8 @@ async def _batch_create_test_cases_impl(
                 project_identifier=project_identifier,
                 folder_id=folder_id,
                 name=name,
-                description=test_case_data.get("description"),
-                preconditions=test_case_data.get("preconditions"),
+                description=_resolve_field(test_case_data, "description", "desc", "描述"),
+                preconditions=_resolve_field(test_case_data, "preconditions", "precondition", "前置条件"),
                 priority=test_case_data.get("priority", "medium"),
                 status=test_case_data.get("status", "new"),
                 case_type=test_case_data.get("case_type", "functional"),
@@ -446,7 +478,9 @@ async def _batch_create_test_cases_impl(
                 automation_status=test_case_data.get("automation_status", "not_automated"),
                 custom_fields=test_case_data.get("custom_fields"),
                 template=test_case_data.get("template", "test_case"),
-                test_case_steps=test_case_data.get("test_case_steps"),
+                test_case_steps=_normalize_steps(
+                    _resolve_field(test_case_data, "test_case_steps", "steps", "测试步骤")
+                ),
                 feature=test_case_data.get("feature"),
                 scenario=test_case_data.get("scenario"),
                 background=test_case_data.get("background"),
@@ -500,8 +534,8 @@ async def _batch_create_test_cases_impl(
 @tool
 async def batch_create_test_cases_tool(
     project_identifier: str,
-    folder_id: str,
     test_cases: list[dict[str, Any]],
+    folder_id: Optional[str] = None,
 ) -> dict[str, Any]:
     """
     批量创建测试用例工具（通过 HTTP 接口调用）。
@@ -510,7 +544,7 @@ async def batch_create_test_cases_tool(
 
     Args:
         project_identifier: 项目标识符，如 'PROJ-001'
-        folder_id: 文件夹 UUID
+        folder_id: 文件夹 UUID（可选；为空时保存到项目根，对应前端“全部用例”）
         test_cases: 测试用例列表，每个元素是一个包含测试用例信息的字典
 
     Returns:
@@ -519,8 +553,8 @@ async def batch_create_test_cases_tool(
     try:
         return await _batch_create_test_cases_impl(
             project_identifier=project_identifier,
-            folder_id=folder_id,
             test_cases=test_cases,
+            folder_id=folder_id,
         )
     except Exception as e:
         return {

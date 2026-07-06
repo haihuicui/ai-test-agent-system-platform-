@@ -141,9 +141,83 @@ export function bulkUpdateTestCases(
   testCaseIds: string[],
   updateData: Partial<TestCaseUpdate>
 ) {
-  return apiClient.post(`/projects/${projectId}/test-cases/bulk/update`, {
-    test_case_ids: testCaseIds,
-    update_data: updateData,
-  });
+  return apiClient.patch<BulkOperationResponse>(
+    `/projects/${projectId}/test-cases`,
+    {
+      test_case_ids: testCaseIds,
+      update_data: updateData,
+    }
+  );
+}
+
+export interface ExportExcelRequest {
+  test_case_ids?: string[];
+  folder_id?: string;
+}
+
+export interface ExportExcelResponse {
+  success: boolean;
+  export_id: string;
+  status: string;
+  status_url: string;
+}
+
+export interface ExportStatusResponse {
+  success: boolean;
+  export_id: string;
+  status: string;
+  download_url?: string;
+  error_message?: string;
+}
+
+export function exportTestCasesToExcel(
+  projectId: string,
+  data: ExportExcelRequest
+) {
+  return apiClient.post<ExportExcelResponse>(
+    `/projects/${projectId}/test-cases/export-excel`,
+    data
+  );
+}
+
+export function getExportStatus(exportId: string) {
+  return apiClient.get<ExportStatusResponse>(`/exports/${exportId}/status`);
+}
+
+export function getExportDownloadUrl(exportId: string) {
+  return `/api/v2/exports/${exportId}/download`;
+}
+
+export async function downloadTestCasesExcel(
+  projectId: string,
+  data: ExportExcelRequest,
+  options?: {
+    onCompleted?: () => void;
+    onFailed?: (errorMessage: string) => void;
+  }
+) {
+  const { export_id: exportId } = await exportTestCasesToExcel(
+    projectId,
+    data
+  );
+
+  const maxAttempts = 30;
+  for (let i = 0; i < maxAttempts; i++) {
+    await new Promise((r) => setTimeout(r, 1000));
+    const status = await getExportStatus(exportId);
+
+    if (status.status === "completed") {
+      window.location.href = getExportDownloadUrl(exportId);
+      options?.onCompleted?.();
+      return;
+    }
+    if (status.status === "failed") {
+      const message = status.error_message || "Excel 导出失败";
+      options?.onFailed?.(message);
+      return;
+    }
+  }
+
+  options?.onFailed?.("导出超时，请稍后重试");
 }
 

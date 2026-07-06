@@ -48,6 +48,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AIChatContainer } from "@/components/langgraph/AIChatContainer";
 import { ClientProvider } from "@/providers/ClientProvider";
+import { useDelayedUnmount } from "@/hooks/useDelayedUnmount";
 import { Assistant } from "@langchain/langgraph-sdk";
 import { cn } from "@/lib/utils";
 import {
@@ -140,6 +141,7 @@ export default function APITestsPage() {
 
   // AI 聊天状态
   const [aiChatOpen, setAiChatOpen] = React.useState(false);
+  const renderAIChat = useDelayedUnmount(aiChatOpen, 300);
   const [aiChatInitialPrompt, setAiChatInitialPrompt] = React.useState<string>("");
   const [aiChatKey, setAiChatKey] = React.useState<number>(0);
   const [assistant, setAssistant] = React.useState<Assistant | null>(null);
@@ -684,26 +686,30 @@ export default function APITestsPage() {
                 aiChatOpen ? "translate-x-0 border-l shadow-2xl" : "translate-x-full"
               )}
             >
-              <ClientProvider
-                deploymentUrl={process.env.NEXT_PUBLIC_LANGGRAPH_API_URL || "http://localhost:2025"}
-                apiKey={process.env.NEXT_PUBLIC_LANGSMITH_API_KEY || ""}
-              >
-                <AIChatContainer
-                  assistant={assistant}
-                  initialPrompt={aiChatInitialPrompt}
-                  onClose={() => setAiChatOpen(false)}
-                  createNewThread={aiChatKey > 0}
-                  onTestCreated={() => {
-                    if (testMode === "endpoint") {
-                      loadAPITests();
-                      folderTreeRef.current?.refresh();
-                      setArtifactsRefreshTrigger(prev => prev + 1);
-                    } else {
-                      setScenarioRefreshTrigger(prev => prev + 1);
-                    }
-                  }}
-                />
-              </ClientProvider>
+              {renderAIChat && (
+                <ClientProvider
+                  deploymentUrl={process.env.NEXT_PUBLIC_LANGGRAPH_API_URL || "http://localhost:2025"}
+                  apiKey={process.env.NEXT_PUBLIC_LANGSMITH_API_KEY || ""}
+                >
+                  <AIChatContainer
+                    assistant={assistant}
+                    initialPrompt={aiChatInitialPrompt}
+                    onClose={() => setAiChatOpen(false)}
+                    createNewThread={aiChatKey > 0}
+                    reconnectOnMount={true}
+                    fetchHistoryOnMount={true}
+                    onTestCreated={() => {
+                      if (testMode === "endpoint") {
+                        loadAPITests();
+                        folderTreeRef.current?.refresh();
+                        setArtifactsRefreshTrigger(prev => prev + 1);
+                      } else {
+                        setScenarioRefreshTrigger(prev => prev + 1);
+                      }
+                    }}
+                  />
+                </ClientProvider>
+              )}
             </div>
           )}
 
