@@ -84,6 +84,11 @@ export function Sidebar({
     //   icon: ClipboardList,
     // },
     // {
+    //   title: t("nav.testPlans"),
+    //   href: "/test-plans",
+    //   icon: ClipboardList,
+    // },
+    // {
     //   title: t("nav.reports"),
     //   href: "/reports",
     //   icon: BarChart3,

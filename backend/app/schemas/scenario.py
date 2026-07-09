@@ -153,6 +153,7 @@ class ScenarioExecuteRequest(BaseModel):
     """执行场景请求"""
     variables: Dict[str, Any] = Field(default_factory=dict, description="运行时变量")
     base_url: str = Field("", description="API 基础 URL")
+    env_id: Optional[UUID] = Field(None, description="执行环境 ID")
     async_mode: bool = Field(False, description="是否异步执行")
 # pragma: no cover  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2VkhCa2FBPT06N2ZjYWUyNTI=
 
@@ -197,10 +198,15 @@ class ScenarioStepResultResponse(BaseModel):
     id: UUID
     run_id: UUID
     step_id: UUID
+    endpoint_id: Optional[UUID]
     step_order: int
+    step_name: Optional[str]
+    full_url: Optional[str]
     status: str
     duration_ms: Optional[int]
     error_message: Optional[str]
+    error_stack: Optional[str]
+    created_at: datetime
     request_data: Optional[Dict[str, Any]]
     response_data: Optional[Dict[str, Any]]
     extracted_data: Dict[str, Any]

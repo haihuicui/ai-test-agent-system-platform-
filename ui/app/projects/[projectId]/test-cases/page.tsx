@@ -573,7 +573,11 @@ export default function TestCasesPage() {
                 <AIChatContainer
                   assistant={assistant}
                   initialPrompt={aiChatInitialPrompt}
-                  onClose={() => setAiChatOpen(false)}
+                  onClose={() => {
+                    setAiChatOpen(false);
+                    setAiChatKey(0);
+                    setAiChatInitialPrompt("");
+                  }}
                   createNewThread={aiChatKey > 0}
                   reconnectOnMount={true}
                   fetchHistoryOnMount={true}
@@ -748,6 +752,7 @@ export default function TestCasesPage() {
         onOpenChange={setMoveFolderDialogOpen}
         projectId={projectId}
         folder={movingFolder}
+        folderType="test_case"
         onMoveSuccess={handleMoveFolderSuccess}
       />
 

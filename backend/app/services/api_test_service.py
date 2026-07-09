@@ -518,6 +518,78 @@ class APITestService:
                     "duration_ms": item.duration_ms,
                     "retry_count": item.retry_count,
                     "error_message": item.error_message,
+                    "request_summary": item.request_summary,
+                    "response_summary": item.response_summary,
+                    "request_data": item.request_data,
+                    "response_data": item.response_data,
+                    "assertion_results": item.assertion_results,
+                    "detail_log_id": item.detail_log_id,
+                    "created_at": item.created_at.isoformat(),
+                }
+                for item in items
+            ],
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+        }
+
+    async def get_endpoint_run_results(
+        self,
+        endpoint_id: str,
+        run_id: str,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> dict:
+        """
+        获取 API 端点某次运行的测试结果明细。
+
+        用于前端“执行结果”面板直接按 endpoint + run 查询。
+        """
+        from app.models.api_endpoint import APIEndpoint
+
+        endpoint_uuid = UUID(endpoint_id)
+        run_uuid = UUID(run_id)
+
+        endpoint = await self.session.get(APIEndpoint, endpoint_uuid)
+        if not endpoint:
+            raise NotFoundException(resource_type="API 端点", resource_id=endpoint_id)
+
+        test_run = await self.api_test_run_repo.get_by_id(run_uuid)
+        if not test_run:
+            raise NotFoundException(resource_type="测试运行", resource_id=run_id)
+
+        # 校验该运行属于 endpoint 关联的某个 api_test
+        api_test_ids = set(UUID(tid) for tid in (endpoint.api_test_ids or []))
+        if test_run.api_test_id not in api_test_ids:
+            raise NotFoundException(
+                resource_type="测试运行",
+                resource_id=f"{run_id} 不属于该 endpoint"
+            )
+
+        offset = (page - 1) * page_size
+        items, total = await self.api_test_result_repo.get_by_test_run(
+            run_uuid,
+            offset=offset,
+            limit=page_size,
+        )
+
+        return {
+            "items": [
+                {
+                    "id": str(item.id),
+                    "scenario_name": item.scenario_name,
+                    "endpoint": item.endpoint,
+                    "method": item.method,
+                    "status": item.status.value,
+                    "duration_ms": item.duration_ms,
+                    "retry_count": item.retry_count,
+                    "error_message": item.error_message,
+                    "request_summary": item.request_summary,
+                    "response_summary": item.response_summary,
+                    "request_data": item.request_data,
+                    "response_data": item.response_data,
+                    "assertion_results": item.assertion_results,
+                    "detail_log_id": item.detail_log_id,
                     "created_at": item.created_at.isoformat(),
                 }
                 for item in items

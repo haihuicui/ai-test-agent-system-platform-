@@ -1,8 +1,5 @@
-/**
- * API 端点相关的 API 客户端函数
- */
-
 import { apiClient } from "./client";
+import type { APITestResult } from "./api-tests";
 
 // ==================== 类型定义 ====================
 // WATERMARK  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2ZWtZMFRRPT06NTVmZGIyMGQ=
@@ -108,6 +105,8 @@ export async function getEndpointTestRuns(
     failed_scenarios: number;
     skipped_scenarios: number;
     duration: number;
+    report_path?: string | null;
+    report_attachment_id?: string | null;
     created_at: string;
   }>;
   total_runs: number;
@@ -121,6 +120,33 @@ export async function getEndpointTestRuns(
   }>(
     `/api-endpoints/${endpointId}/test-runs`,
     { params: { limit } }
+  );
+}
+
+/**
+ * 获取 API 端点某次测试运行的详细结果。
+ */
+export async function getEndpointRunResults(
+  endpointId: string,
+  runId: string,
+  params?: {
+    page?: number;
+    page_size?: number;
+  }
+): Promise<{
+  items: APITestResult[];
+  total: number;
+  page: number;
+  page_size: number;
+}> {
+  return apiClient.get<{
+    items: APITestResult[];
+    total: number;
+    page: number;
+    page_size: number;
+  }>(
+    `/api-endpoints/${endpointId}/runs/${runId}/results`,
+    { params }
   );
 }
 

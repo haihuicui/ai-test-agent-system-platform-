@@ -99,6 +99,10 @@ class Settings(BaseSettings):
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
 
+    # 敏感数据加密密钥（用于加密 ProjectEnvironment 中的 token/api_key 等）
+    # 部署时必须设置为 32 字节以上字符串，建议使用 Fernet.generate_key() 生成
+    testagent_secret_key: Optional[str] = None
+
     # 默认测试用户配置（开发环境使用）
     default_user_id: str = "00000000-0000-0000-0000-000000000001"
     default_user_email: str = "admin@test.com"

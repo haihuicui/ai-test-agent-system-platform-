@@ -232,13 +232,13 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
       messages.length === 0 &&
       !initialPromptSentRef.current
     ) {
-      // 标记为已发送，防止重复
-      initialPromptSentRef.current = true;
-
       // 使用 setTimeout 确保组件完全初始化
       const timer = setTimeout(() => {
-        // 检查组件是否仍然挂载
+        // 检查组件是否仍然挂载，且 sendMessage 已准备好
         if (isMountedRef.current && sendMessageRef.current) {
+          // 真正发送前才标记为已发送，避免上一条 effect 被清理后
+          // ref 被提前置为 true，导致重渲染后不再发送。
+          initialPromptSentRef.current = true;
           sendMessageRef.current(initialPrompt);
         }
       }, 100);

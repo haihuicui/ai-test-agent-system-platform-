@@ -13,8 +13,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from app.api.deps import CurrentUserIdDep, DbSessionDep
+from app.api.deps import CurrentUserIdDep, DbSessionDep, APITestServiceDep
 from app.models.api_endpoint import APIEndpoint
+from app.models.attachment import Attachment, AttachmentEntityType
 from app.models.folder import Folder
 from app.models.folder_type import FolderType
 from app.models.project import Project
@@ -27,6 +28,7 @@ from app.schemas.api_endpoint import (
     OpenAPIUploadRequest
 )
 from app.services.openapi_parser import OpenAPIParser
+from app.services.api_test_service import APITestService
 
 router = APIRouter()
 
@@ -488,6 +490,19 @@ async def get_endpoint_test_runs(
     count_result = await db.execute(count_stmt)
     total_runs = len(count_result.scalars().all())
 
+    # 查询这些运行关联的 HTML 报告附件，按 report_path 映射
+    report_paths = [run.report_path for run in test_runs if run.report_path]
+    attachment_map: dict[str, str] = {}
+    if report_paths:
+        attachment_stmt = select(Attachment).where(
+            Attachment.entity_id == endpoint_id,
+            Attachment.entity_type == AttachmentEntityType.API_TEST_REPORT,
+            Attachment.object_name.in_(report_paths),
+        )
+        attachment_result = await db.execute(attachment_stmt)
+        for att in attachment_result.scalars().all():
+            attachment_map[att.object_name] = str(att.id)
+
     return {
         "endpoint_id": str(endpoint_id),
         "test_runs": [
@@ -499,6 +514,8 @@ async def get_endpoint_test_runs(
                 "failed_scenarios": run.failed_tests,
                 "skipped_scenarios": run.skipped_tests,
                 "duration": (run.duration_ms / 1000) if run.duration_ms else None,
+                "report_path": run.report_path,
+                "report_attachment_id": attachment_map.get(run.report_path),
                 "created_at": run.created_at.isoformat() if run.created_at else None,
             }
             for run in test_runs
@@ -506,6 +523,28 @@ async def get_endpoint_test_runs(
         "total_runs": total_runs,
         "last_run_status": endpoint.last_run_status
     }
+
+
+@router.get("/api-endpoints/{endpoint_id}/runs/{run_id}/results")
+async def get_endpoint_run_results(
+    endpoint_id: UUID,
+    run_id: UUID,
+    service: APITestServiceDep,
+    page: int = 1,
+    page_size: int = 50,
+):
+    """
+    获取 API 端点某次测试运行的详细结果。
+
+    返回每条用例的真实请求/响应/断言明细，供前端“执行结果”面板使用。
+    """
+    result = await service.get_endpoint_run_results(
+        endpoint_id=str(endpoint_id),
+        run_id=str(run_id),
+        page=page,
+        page_size=page_size,
+    )
+    return result
 
 
 @router.get("/api-endpoints/{endpoint_id}/artifacts")
@@ -775,12 +814,34 @@ async def get_report_file(
     """
     获取测试报告中的文件
 
-    从解压后的临时目录中读取文件并返回
+    从解压后的临时目录中读取文件并返回；如果临时文件已被清理，
+    则从 MinIO 重新下载 ZIP 并解压。
     """
     from fastapi.responses import FileResponse, HTMLResponse
     from pathlib import Path
     import tempfile
     import mimetypes
+    import zipfile
+    import io
+    from app.models.attachment import Attachment, AttachmentEntityType
+    from app.config.minio_client import MinIOClient
+
+    # 查询附件
+    stmt = select(Attachment).where(Attachment.id == attachment_id)
+    result = await db.execute(stmt)
+    attachment = result.scalar_one_or_none()
+
+    if not attachment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"附件 {attachment_id} 不存在"
+        )
+
+    if attachment.entity_type not in [AttachmentEntityType.API_TEST_REPORT, AttachmentEntityType.WEB_TEST_REPORT]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="只支持查看测试报告"
+        )
 
     # 构建文件路径
     temp_dir = Path(tempfile.gettempdir()) / "test-reports" / str(attachment_id)
@@ -789,8 +850,8 @@ async def get_report_file(
     # 安全检查：确保文件在临时目录内
     try:
         target_file = target_file.resolve()
-        temp_dir = temp_dir.resolve()
-        if not str(target_file).startswith(str(temp_dir)):
+        temp_dir_resolved = temp_dir.resolve()
+        if not str(target_file).startswith(str(temp_dir_resolved)):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="访问被拒绝"
@@ -801,7 +862,25 @@ async def get_report_file(
             detail="访问被拒绝"
         )
 
-    # 检查文件是否存在
+    # 如果文件不存在，从 MinIO 重新下载并解压
+    if not target_file.exists() or not target_file.is_file():
+        try:
+            zip_bytes = MinIOClient.download_file(attachment.object_name)
+            temp_dir.mkdir(parents=True, exist_ok=True)
+            with zipfile.ZipFile(io.BytesIO(zip_bytes), 'r') as zip_ref:
+                zip_ref.extractall(temp_dir)
+        except zipfile.BadZipFile:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="无效的 ZIP 文件"
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"处理报告失败: {str(e)}"
+            )
+
+    # 再次检查文件是否存在
     if not target_file.exists() or not target_file.is_file():
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

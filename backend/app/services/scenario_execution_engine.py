@@ -24,6 +24,7 @@ from app.models.test_scenario import (
     StepDataMapping,
     TestScenario,
 )
+from app.services.environment_service import EnvironmentService
 
 
 class ExecutionContext:
@@ -331,11 +332,37 @@ class ScenarioExecutionEngine:
         except:
             return []
 
+    def _extract_auth_headers_from_env_vars(self, env_vars: Dict[str, str]) -> Dict[str, str]:
+        """从环境变量中提取应自动注入的认证头"""
+        auth_headers: Dict[str, str] = {}
+
+        # Bearer / OAuth2 / Dynamic Bearer
+        authorization = env_vars.get("Authorization")
+        if authorization:
+            auth_headers["Authorization"] = authorization
+
+        # API Key：从 AUTH_CONFIG_JSON 中读取 header 名称
+        import json
+        auth_config = {}
+        try:
+            auth_config = json.loads(env_vars.get("AUTH_CONFIG_JSON", "{}"))
+        except Exception:
+            pass
+
+        api_key_header = auth_config.get("api_key_header", "X-API-Key")
+        api_key_value = env_vars.get(api_key_header)
+        if api_key_value:
+            auth_headers[api_key_header] = api_key_value
+
+        return auth_headers
+
     async def execute(
         self,
         scenario_id: UUID,
         variables: dict,
         base_url: str = "",
+        project_id: Optional[UUID] = None,
+        env_id: Optional[UUID] = None,
     ) -> ScenarioRun:
         """执行场景"""
         # 初始化异步 HTTP 客户端
@@ -345,13 +372,44 @@ class ScenarioExecutionEngine:
             # 1. 加载场景
             scenario = await self._load_scenario(scenario_id)
 
+            # 使用场景自身的 project_id 作为回退
+            if project_id is None:
+                project_id = scenario.project_id
+
             # 2. 创建执行记录
             run = await self._create_run(scenario, variables)
 
+            # 记录执行环境到 execution_config
+            if env_id:
+                run.execution_config = {"env_id": str(env_id)}
+                await self.session.commit()
+
             # 3. 初始化上下文
             self.context.initialize(scenario.global_variables, variables)
-            if base_url:
-                self.context.set_variable("baseUrl", base_url)
+
+            # 3.1 解析项目环境并注入 baseUrl / 认证信息
+            resolved_base_url = base_url
+            auth_headers: Dict[str, str] = {}
+            if project_id:
+                env_service = EnvironmentService(self.session)
+                try:
+                    env_vars = await env_service.get_execution_env_vars(
+                        project_identifier=str(project_id),
+                        env_id=env_id,
+                        execution_config={"base_url": base_url},
+                    )
+                    resolved_base_url = env_vars.get("API_BASE_URL", base_url)
+                    auth_headers = self._extract_auth_headers_from_env_vars(env_vars)
+                except Exception as e:
+                    import logging
+                    logging.getLogger(__name__).warning(
+                        "解析项目环境失败，将使用传入的 base_url: %s", e
+                    )
+
+            self.context.set_variable("baseUrl", resolved_base_url)
+            self.context.set_variable("authHeaders", auth_headers)
+            for key, value in auth_headers.items():
+                self.context.set_variable(key, value)
 
             # 4. 按顺序执行步骤
             for step in scenario.steps:
@@ -446,6 +504,7 @@ class ScenarioExecutionEngine:
     ) -> ScenarioStepResult:
         """执行单个步骤"""
         start_time = datetime.now(timezone.utc)
+        current_request: dict | None = None
 
         try:
             # 1. 加载端点（如果没有端点ID则创建虚拟端点）
@@ -453,6 +512,7 @@ class ScenarioExecutionEngine:
 
             # 2. 解析数据依赖，构建请求
             request = await self.resolver.resolve_request(step, endpoint, self.session)
+            current_request = request
 
             # 3. 发送 HTTP 请求
             response = await self._send_request(request)
@@ -521,7 +581,7 @@ class ScenarioExecutionEngine:
             error_detail = f"{error_detail}\n\nContext:\n{json.dumps(context_info, indent=2, ensure_ascii=False)}"
 
             result = await self._record_result(
-                step, run, {}, {}, {}, [], "error", duration_ms, error_detail
+                step, run, current_request or {}, {}, {}, [], "error", duration_ms, str(e), error_detail
             )
 
             # 使用 update 语句更新失败计数
@@ -678,6 +738,13 @@ class ScenarioExecutionEngine:
         params = self._ensure_dict(request.get("params"))
         body = request.get("body")
 
+        # 合并环境认证头（步骤级 headers_override 优先级更高）
+        auth_headers = self.context.get_variable("authHeaders") or {}
+        if isinstance(auth_headers, dict):
+            for key, value in auth_headers.items():
+                if key not in headers:
+                    headers[key] = value
+
         # 使用异步 HTTP 客户端发送请求
         response = await self.http_client.request(
             method=request["method"],
@@ -785,21 +852,28 @@ class ScenarioExecutionEngine:
         status: str,
         duration_ms: int,
         error_message: str | None,
+        error_stack: str | None = None,
     ) -> ScenarioStepResult:
         """记录步骤结果"""
+        base_url = self.context.get_variable("baseUrl") or ""
+        full_url = base_url + request.get("url", "")
+
         result = ScenarioStepResult(
             id=uuid4(),
             run_id=run.id,
             step_id=step.id,
             endpoint_id=step.endpoint_id,
             step_order=step.step_order,
+            step_name=step.name,
             status=status,
+            full_url=full_url,
             request_data=request,
             response_data=response,
             extracted_data=extracted,
             assertion_results=assertion_results,
             duration_ms=duration_ms,
             error_message=error_message,
+            error_stack=error_stack or error_message,
         )
         self.session.add(result)
         return result

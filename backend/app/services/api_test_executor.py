@@ -11,6 +11,7 @@ import os
 import subprocess
 import tempfile
 import shutil
+import zipfile
 from pathlib import Path
 from datetime import datetime, timezone
 from typing import Optional, Any, Dict, List
@@ -20,6 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config.settings import settings
 from app.models.api_test import APITest, APITestRun, APITestResult
+from app.models.attachment import Attachment, AttachmentEntityType
 from app.repositories.api_test_repo import (
     APITestRepository,
     APITestRunRepository,
@@ -29,8 +31,173 @@ from app.config.minio_client import MinIOClient
 from app.config.database import async_session_factory
 from app.schemas.enums import TestResultStatus
 from app.models.mongodb.api_test_log import APITestDetailLog
+from app.services.environment_service import EnvironmentService
+from app.utils.exceptions import BadRequestException
+from app.utils.sync_executor import run_sync
 
 logger = logging.getLogger(__name__)
+
+# Playwright trace helper 文件名（放在 workspace 根目录，与测试脚本同级）
+TRACE_HELPER_FILE = "api-trace-helper.ts"
+
+# trace helper 在仓库中的源路径（相对当前模块）
+_TRACE_HELPER_SOURCE = Path(__file__).parent.parent.parent / "workspace" / "api" / TRACE_HELPER_FILE
+
+
+def _ensure_trace_helper(workspace_dir: Path) -> Path:
+    """
+    确保 workspace 根目录存在 api-trace-helper.ts。
+
+    如果目标目录没有该文件，会尝试从仓库模板复制；若模板也不存在，
+    则写入一个最小可用版本，避免执行失败。
+    """
+    target = workspace_dir / TRACE_HELPER_FILE
+    if target.exists():
+        return target
+
+    workspace_dir.mkdir(parents=True, exist_ok=True)
+
+    if _TRACE_HELPER_SOURCE.exists():
+        shutil.copy2(_TRACE_HELPER_SOURCE, target)
+        logger.info("[APITestExecutor] 已复制 trace helper: %s", target)
+        return target
+
+    # 兜底：写入最小可用版本
+    minimal_helper = '''import { test as baseTest, APIRequestContext, APIResponse } from '@playwright/test';
+import * as fs from 'fs';
+import * as path from 'path';
+
+function ensureDir(filePath: string): void {
+  const dir = path.dirname(filePath);
+  if (dir && dir !== '.' && !fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+}
+
+function appendTrace(traceFile: string, entry: any): void {
+  try {
+    ensureDir(traceFile);
+    fs.appendFileSync(traceFile, JSON.stringify(entry) + '\\n', 'utf-8');
+  } catch (e) { /* ignore */ }
+}
+
+function wrapResponse(response: APIResponse, testName: string, testTitle: string, traceFile: string, startTime: number, requestInfo: any): APIResponse {
+  let bodyRecorded = false;
+  const record = (responseBody?: any) => {
+    if (bodyRecorded && responseBody === undefined) return;
+    if (responseBody !== undefined) bodyRecorded = true;
+    let body = responseBody;
+    if (typeof body === 'string') { try { body = JSON.parse(body); } catch { /* keep text */ } }
+    appendTrace(traceFile, {
+      testName, testTitle,
+      method: requestInfo.method, url: requestInfo.url,
+      requestHeaders: requestInfo.headers, requestParams: requestInfo.params, requestBody: requestInfo.body,
+      status: response.status(), statusText: response.statusText(),
+      responseHeaders: response.headers(), responseBody: body,
+      durationMs: Date.now() - startTime, timestamp: new Date().toISOString(),
+    });
+  };
+  return new Proxy(response, {
+    get(target, prop, receiver) {
+      if (prop === 'json') return async () => { const body = await target.json(); record(body); return body; };
+      if (prop === 'text') return async () => { const text = await target.text(); record(text); return text; };
+      if (['status','statusText','headers','ok','url'].includes(prop as string)) record();
+      return Reflect.get(target, prop, receiver);
+    },
+  });
+}
+
+function wrapContext(context: APIRequestContext, testName: string, testTitle: string, traceFile: string): APIRequestContext {
+  const methods = ['get','post','put','delete','patch','head'];
+  return new Proxy(context, {
+    get(target, prop, receiver) {
+      if (typeof prop === 'string' && methods.includes(prop.toLowerCase())) {
+        return async (url: string, options?: any) => {
+          const startTime = Date.now();
+          const response = await target[prop](url, options);
+          return wrapResponse(response, testName, testTitle, traceFile, startTime, {
+            method: prop.toUpperCase(), url,
+            headers: options?.headers, params: options?.params, body: options?.data,
+          });
+        };
+      }
+      if (prop === 'fetch') {
+        return async (urlOrRequest: string | Request, options?: any) => {
+          const url = typeof urlOrRequest === 'string' ? urlOrRequest : urlOrRequest.url;
+          const startTime = Date.now();
+          const response = await target.fetch(urlOrRequest, options);
+          return wrapResponse(response, testName, testTitle, traceFile, startTime, {
+            method: options?.method?.toUpperCase() || 'GET', url,
+            headers: options?.headers, params: options?.params, body: options?.data,
+          });
+        };
+      }
+      return Reflect.get(target, prop, receiver);
+    },
+  });
+}
+
+export const test = baseTest.extend({
+  request: async ({ request }, use, testInfo) => {
+    const traceFile = process.env.API_TRACE_OUTPUT_FILE;
+    if (!traceFile) { await use(request); return; }
+    const wrapped = wrapContext(request, testInfo.titlePath.join(' › '), testInfo.title, traceFile);
+    await use(wrapped as APIRequestContext);
+  },
+});
+
+export { expect } from '@playwright/test';
+export { request, APIRequestContext, APIResponse, Page, BrowserContext, Browser, chromium, firefox, webkit, devices, defineConfig } from '@playwright/test';
+'''
+    target.write_text(minimal_helper, encoding="utf-8")
+    logger.warning("[APITestExecutor] 使用最小 trace helper: %s", target)
+    return target
+
+
+def _rewrite_script_imports(script_content: str) -> str:
+    """
+    把脚本里对 @playwright/test 的 import/require 替换为本地 api-trace-helper。
+
+    测试脚本实际写在 workspace/tests/ 下，而 helper 在 workspace 根目录，
+    因此使用相对路径 ../api-trace-helper。
+    """
+    import re
+
+    # ES Module: import { test, expect } from '@playwright/test'
+    rewritten = re.sub(
+        r"(import\s+\{[^}]*\}\s+from\s+['\"])@playwright/test(['\"])",
+        r"\1../api-trace-helper\2",
+        script_content,
+    )
+    # CommonJS: const { test, expect } = require('@playwright/test')
+    rewritten = re.sub(
+        r"(require\s*\(\s*['\"])@playwright/test(['\"]\s*\))",
+        r"\1../api-trace-helper\2",
+        rewritten,
+    )
+    return rewritten
+
+
+def _parse_api_trace(trace_file: Path) -> List[Dict[str, Any]]:
+    """
+    解析 api-trace.jsonl 文件，返回 trace 条目列表。
+    """
+    if not trace_file.exists():
+        return []
+
+    entries: List[Dict[str, Any]] = []
+    try:
+        with trace_file.open("r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    entries.append(json.loads(line))
+                except json.JSONDecodeError:
+                    logger.warning("[APITestExecutor] 跳过非法 trace 行: %s", line[:200])
+    except Exception as e:
+        logger.error("[APITestExecutor] 解析 trace 文件失败: %s", e)
+
+    return entries
 
 
 def _get_npx_cmd() -> list[str]:
@@ -54,6 +221,55 @@ def _ensure_node_in_path(env: dict[str, str]) -> dict[str, str]:
     if paths_to_add:
         env = {**env, "PATH": os.pathsep.join(paths_to_add + [current_path])}
     return env
+
+
+async def _run_subprocess_with_fallback(
+    cmd: list[str],
+    cwd: str,
+    env: dict[str, str],
+    timeout: float = 300,
+) -> tuple[str, str, int]:
+    """
+    执行外部命令，优先使用 asyncio 子进程。
+
+    Windows 上如果当前 EventLoop 是 SelectorEventLoop（不支持子进程），
+    则降级到线程池执行同步 subprocess.run。
+    """
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            cwd=cwd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            env=env,
+        )
+        stdout_bytes, stderr_bytes = await asyncio.wait_for(
+            proc.communicate(),
+            timeout=timeout,
+        )
+        return (
+            stdout_bytes.decode("utf-8", errors="replace"),
+            stderr_bytes.decode("utf-8", errors="replace"),
+            proc.returncode,
+        )
+    except NotImplementedError:
+        logger.info("[APITestExecutor] 当前 EventLoop 不支持 asyncio 子进程，降级到同步 subprocess")
+        try:
+            result = await run_sync(
+                subprocess.run,
+                cmd,
+                cwd=cwd,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=timeout,
+                env=env,
+            )
+            return result.stdout, result.stderr, result.returncode
+        except subprocess.TimeoutExpired:
+            raise asyncio.TimeoutError
+
 
 # noqa  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2YW1wNk1BPT06ZWUzYTIzYTg=
 
@@ -176,7 +392,9 @@ class APITestExecutor:
                 try:
                     # 5. 执行测试（非阻塞异步子进程）
                     result = await self._run_playwright_test(
+                        run_id=run_id,
                         script_path=script_file,
+                        api_test=api_test,
                         execution_config=execution_config,
                     )
 
@@ -190,7 +408,21 @@ class APITestExecutor:
                     )
                     await session.commit()
 
-                    # 7. 更新为完成状态
+                    # 7. 保存 HTML 测试报告到 MinIO 并创建附件记录
+                    report_path = result.get("report_path")
+                    if report_path:
+                        try:
+                            await self._save_html_report(
+                                session=session,
+                                run_record=run_record,
+                                api_test=api_test,
+                                report_path=report_path,
+                            )
+                            await session.commit()
+                        except Exception as report_e:
+                            logger.error("[APITestExecutor] 保存测试报告失败: %s", report_e)
+
+                    # 8. 更新为完成状态
                     run_record = await run_repo.get_by_id(run_id)
                     if run_record:
                         await run_repo.update(
@@ -225,14 +457,18 @@ class APITestExecutor:
 
     async def _run_playwright_test(
         self,
+        run_id: UUID,
         script_path: Path,
+        api_test: APITest,
         execution_config: Dict[str, Any],
     ) -> Dict[str, Any]:
         """
         运行 Playwright 测试（非阻塞异步子进程）
 
         Args:
+            run_id: 测试运行 ID（用于生成独立的报告目录）
             script_path: 测试脚本路径
+            api_test: API 测试对象
             execution_config: 执行配置
 
         Returns:
@@ -244,53 +480,81 @@ class APITestExecutor:
         try:
             # 准备环境变量：确保 PATH 包含 Node.js
             env = _ensure_node_in_path({**os.environ})
-            env_vars = execution_config.get("env") or execution_config.get("environment_variables")
-            if env_vars:
-                env.update(env_vars)
-            if execution_config.get("base_url"):
-                env["API_BASE_URL"] = execution_config["base_url"]
+
+            # 通过 EnvironmentService 解析环境变量（支持 execution_config + 项目环境 fallback）
+            env_service = EnvironmentService(self.session)
+            try:
+                env_id = execution_config.get("env_id") if execution_config else None
+                env_vars = await env_service.get_execution_env_vars(
+                    project_identifier=api_test.project_id,
+                    execution_config=execution_config,
+                    endpoint_id=None,
+                    env_id=env_id if env_id else None,
+                )
+            except BadRequestException as e:
+                return {
+                    "status": "failed",
+                    "error": f"环境配置错误: {e.message}",
+                }
+
+            # 注入环境变量
+            env.update(env_vars)
+            if "API_BASE_URL" in env_vars:
+                print(f"[APITestExecutor] 注入 API_BASE_URL: {env_vars['API_BASE_URL']}")
             env["CI"] = "1"
+
+            # 为每次运行使用独立的 HTML 报告目录，避免并发执行互相覆盖
+            report_dir = workspace_dir / f"playwright-report-{run_id}"
+            env["PLAYWRIGHT_HTML_OUTPUT_DIR"] = str(report_dir)
+            env["PLAYWRIGHT_HTML_OUTPUT_FILE"] = "index.html"
+
+            # 确保 trace helper 存在，并生成独立 trace 文件
+            _ensure_trace_helper(workspace_dir)
+            trace_file = workspace_dir / f"api-trace-{run_id}.jsonl"
+            env["API_TRACE_OUTPUT_FILE"] = str(trace_file)
+
+            # 把脚本中对 @playwright/test 的导入替换为本地 helper，以捕获真实请求/响应
+            try:
+                original_script = script_path.read_text(encoding="utf-8")
+                rewritten_script = _rewrite_script_imports(original_script)
+                if rewritten_script != original_script:
+                    script_path.write_text(rewritten_script, encoding="utf-8")
+                    logger.info("[APITestExecutor] 已重写脚本导入以启用 trace: %s", script_path)
+            except Exception as e:
+                logger.warning("[APITestExecutor] 重写脚本导入失败，继续执行原脚本: %s", e)
 
             npx_cmd = _get_npx_cmd()
 
             # 检查 npx 是否可用
-            npx_proc = await asyncio.create_subprocess_exec(
-                *npx_cmd, "--version",
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
+            npx_stdout, npx_stderr, npx_rc = await _run_subprocess_with_fallback(
+                [*npx_cmd, "--version"],
+                cwd=str(workspace_dir),
                 env=env,
+                timeout=10,
             )
-            stdout, stderr = await asyncio.wait_for(npx_proc.communicate(), timeout=10)
-            if npx_proc.returncode != 0:
-                raise Exception(f"npx 不可用: {stderr.decode('utf-8', errors='replace')}")
+            if npx_rc != 0:
+                raise Exception(f"npx 不可用: {npx_stderr}")
 
             # 计算相对路径
             relative_path = script_path.relative_to(workspace_dir)
 
-            # 运行 Playwright 测试
-            proc = await asyncio.create_subprocess_exec(
-                *npx_cmd, "playwright", "test",
-                relative_path.as_posix(),
-                "--reporter=list",
+            # 运行 Playwright 测试：同时输出 list reporter 到 stdout 并生成 HTML 报告
+            stdout, stderr, returncode = await _run_subprocess_with_fallback(
+                [*npx_cmd, "playwright", "test", relative_path.as_posix(), "--reporter=list,html"],
                 cwd=str(workspace_dir),
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
                 env=env,
-            )
-
-            stdout_bytes, stderr_bytes = await asyncio.wait_for(
-                proc.communicate(),
                 timeout=execution_config.get("timeout", 300),
             )
 
-            stdout = stdout_bytes.decode("utf-8", errors="replace")
-            stderr = stderr_bytes.decode("utf-8", errors="replace")
+            report_path = str(report_dir) if report_dir.exists() else None
 
             return {
-                "status": "passed" if proc.returncode == 0 else "failed",
-                "error": stderr if proc.returncode != 0 else None,
+                "status": "passed" if returncode == 0 else "failed",
+                "error": stderr if returncode != 0 else None,
                 "stdout": stdout,
-                "returncode": proc.returncode,
+                "returncode": returncode,
+                "report_path": report_path,
+                "trace_file": str(trace_file),
             }
 # noqa  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2YW1wNk1BPT06ZWUzYTIzYTg=
 
@@ -327,39 +591,47 @@ class APITestExecutor:
         Args:
             run_id: 测试运行 ID
             api_test: API 测试
-            test_result: Playwright 测试结果
+            test_result: Playwright 测试结果（包含 stdout、trace_file）
         """
         try:
-            # 解析 Playwright 结果
-            suites = test_result.get("suites", [])
+            stdout = test_result.get("stdout", "")
+            parsed = self._parse_playwright_list_output(stdout)
+
+            # 解析真实请求/响应 trace
+            trace_file = test_result.get("trace_file")
+            trace_entries = _parse_api_trace(Path(trace_file)) if trace_file else []
+
             total_tests = 0
             passed_tests = 0
             failed_tests = 0
             skipped_tests = 0
 
-            for suite in suites:
-                specs = suite.get("specs", [])
-                for spec in specs:
-                    tests = spec.get("tests", [])
-                    for test in tests:
-                        total_tests += 1
+            for item in parsed:
+                total_tests += 1
+                if item["status"] == "passed":
+                    passed_tests += 1
+                elif item["status"] == "failed":
+                    failed_tests += 1
+                elif item["status"] == "skipped":
+                    skipped_tests += 1
 
-                        status = TestResultStatus.PASSED
-                        if test.get("ok", False):
-                            passed_tests += 1
-                        else:
-                            failed_tests += 1
-                            status = TestResultStatus.FAILED
+                status = TestResultStatus.PASSED
+                if item["status"] == "failed":
+                    status = TestResultStatus.FAILED
+                elif item["status"] == "skipped":
+                    status = TestResultStatus.SKIPPED
 
-                        # 保存测试结果
-                        await self._save_test_result(
-                            run_id=run_id,
-                            api_test=api_test,
-                            test_name=test.get("title", ""),
-                            status=status,
-                            results=test.get("results", []),
-                            result_repo=result_repo,
-                        )
+                # 匹配当前用例的 trace 条目
+                matched_traces = self._match_trace_entries(item["title"], trace_entries)
+
+                await self._save_test_result(
+                    run_id=run_id,
+                    api_test=api_test,
+                    test_name=item["title"],
+                    status=status,
+                    results=matched_traces,
+                    result_repo=result_repo,
+                )
 
             # 更新运行统计
             _run_repo = run_repo or self.api_test_run_repo
@@ -376,13 +648,75 @@ class APITestExecutor:
         except Exception as e:
             logger.error("[APITestExecutor] 处理测试结果失败: %s", e)
 
+    def _match_trace_entries(
+        self,
+        test_title: str,
+        trace_entries: List[Dict[str, Any]],
+    ) -> List[Dict[str, Any]]:
+        """
+        根据用例标题匹配 trace 条目。
+
+        Playwright list reporter 解析出的 title 是叶子标题（如 "GET /api/users"），
+        而 trace 里 testTitle 也是叶子标题，testName 是完整路径。
+        优先按 testTitle 精确匹配，再按 testName 结尾匹配。
+        """
+        matched: List[Dict[str, Any]] = []
+        for entry in trace_entries:
+            entry_title = entry.get("testTitle") or ""
+            entry_name = entry.get("testName") or ""
+            if entry_title == test_title:
+                matched.append(entry)
+            elif entry_name == test_title:
+                matched.append(entry)
+            elif entry_name.endswith(f" › {test_title}"):
+                matched.append(entry)
+        return matched
+
+    def _parse_playwright_list_output(self, stdout: str) -> List[Dict[str, str]]:
+        """
+        从 Playwright list reporter 输出中解析每个测试用例的状态和标题。
+
+        示例行：
+          ✓  1 [chromium] › example.spec.ts:3:1 › GET /api/users (125ms)
+          ✗  2 [chromium] › example.spec.ts:4:1 › POST /api/users (234ms)
+          -  3 [chromium] › example.spec.ts:5:1 › PUT /api/users/1
+        """
+        import re
+
+        results: List[Dict[str, str]] = []
+        # 匹配行首状态符号、序号、项目信息、文件名位置、标题和可选耗时
+        # Playwright 在不同终端/系统下可能输出 ok/x 或 ✓/✗
+        pattern = re.compile(
+            r"^\s*(ok|x|[✓✗\-+×])\s+\d+\s+\[[^\]]+\]\s+›\s+[^›]+›\s+(.+?)(?:\s+\(\d+ms\))?\s*$",
+            re.MULTILINE,
+        )
+        status_map = {
+            "ok": "passed",
+            "✓": "passed",
+            "x": "failed",
+            "✗": "failed",
+            "×": "failed",
+            "-": "skipped",
+            "+": "skipped",
+        }
+
+        for match in pattern.finditer(stdout):
+            symbol = match.group(1)
+            title = match.group(2).strip()
+            results.append({
+                "status": status_map.get(symbol, "failed"),
+                "title": title,
+            })
+
+        return results
+
     async def _save_test_result(
         self,
         run_id: UUID,
         api_test: APITest,
         test_name: str,
         status: TestResultStatus,
-        _results: List[Dict[str, Any]],
+        trace_entries: List[Dict[str, Any]],
         *,
         result_repo: Optional[APITestResultRepository] = None,
     ):
@@ -394,36 +728,136 @@ class APITestExecutor:
             api_test: API 测试
             test_name: 测试名称
             status: 测试状态
-            _results: 测试结果详情（预留，用于提取断言和执行时间）
+            trace_entries: 匹配到的真实请求/响应 trace 条目
             result_repo: 可选的结果仓储（后台任务使用新 session）
         """
         try:
             # 提取端点和 HTTP 方法（从测试名称中解析）
             endpoint, method = self._parse_endpoint_from_test_name(test_name)
 
+            # 从 trace 中聚合真实请求/响应/断言
+            request_data, response_data, assertion_results, duration_ms = self._build_trace_summary(
+                trace_entries, status
+            )
+
             # 创建测试结果记录
             _result_repo = result_repo or self.api_test_result_repo
-            await _result_repo.create(
+            result = await _result_repo.create(
                 test_run_id=run_id,
                 api_test_id=api_test.id,
                 scenario_name=test_name,
                 endpoint=endpoint,
                 method=method,
                 status=status,
-                request_summary={
+                request_summary=request_data or {
                     "url": api_test.test_config.get("base_url", ""),
                     "method": method,
                 },
-                response_summary={
+                response_summary=response_data or {
                     "status_code": 200 if status == TestResultStatus.PASSED else 500,
                 },
+                request_data=request_data,
+                response_data=response_data,
+                assertion_results=assertion_results,
                 error_message=None if status == TestResultStatus.PASSED else "测试失败",
-                duration_ms=0,  # TODO: 从测试结果中提取
+                duration_ms=duration_ms,
                 retry_count=0,
             )
 
+            # 保存 MongoDB 详细日志（如果可用）
+            detail_log_id = None
+            if self.mongodb:
+                detail_log_id = await self.save_detail_log(
+                    test_result_id=result.id,
+                    test_run_id=run_id,
+                    api_test_id=api_test.id,
+                    scenario_name=test_name,
+                    endpoint=endpoint,
+                    method=method,
+                    request=request_data or {},
+                    response=response_data or {},
+                    status=status.value,
+                    duration_ms=duration_ms or 0,
+                    assertions=assertion_results or [],
+                )
+                if detail_log_id:
+                    result.detail_log_id = detail_log_id
+
         except Exception as e:
             logger.error("[APITestExecutor] 保存测试结果失败: %s", e)
+
+    def _build_trace_summary(
+        self,
+        trace_entries: List[Dict[str, Any]],
+        status: TestResultStatus,
+    ) -> tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]], Optional[List[Dict[str, Any]]], Optional[int]]:
+        """
+        从 trace 条目中构建请求/响应/断言摘要。
+
+        策略：
+        - 如果一个用例有多个 trace 条目，优先使用带有 responseBody 的条目；
+          若都没有 body，则使用最后一条。
+        - duration_ms 取所有条目 duration 的最大值（近似整个用例耗时）。
+        - 断言结果至少包含一个对 status 的隐式断言。
+        """
+        if not trace_entries:
+            return None, None, None, None
+
+        # 优先选择有 responseBody 的条目
+        chosen = None
+        for entry in trace_entries:
+            if entry.get("responseBody") is not None:
+                chosen = entry
+                break
+        if chosen is None:
+            chosen = trace_entries[-1]
+
+        request_data = {
+            "method": chosen.get("method", "GET"),
+            "url": chosen.get("url", ""),
+            "headers": chosen.get("requestHeaders") or {},
+            "params": chosen.get("requestParams") or {},
+            "body": chosen.get("requestBody"),
+        }
+
+        response_status = chosen.get("status")
+        response_data = {
+            "status": response_status,
+            "statusText": chosen.get("statusText", ""),
+            "headers": chosen.get("responseHeaders") or {},
+            "body": chosen.get("responseBody"),
+            "timing": chosen.get("durationMs"),
+        }
+
+        # 生成断言结果：status 断言
+        assertions: List[Dict[str, Any]] = []
+        if response_status is not None:
+            passed = 200 <= response_status < 300
+            assertions.append({
+                "assertion": {"type": "status", "expected": "2xx"},
+                "passed": passed,
+                "actual": response_status,
+                "expected": "2xx",
+                "message": f"HTTP 状态码断言{'通过' if passed else '失败'}: 实际 {response_status}",
+            })
+
+        # 如果 Playwright 测试本身失败，追加一个通用失败断言
+        if status == TestResultStatus.FAILED:
+            assertions.append({
+                "assertion": {"type": "test"},
+                "passed": False,
+                "actual": status.value,
+                "expected": TestResultStatus.PASSED.value,
+                "message": "Playwright 测试执行失败",
+            })
+
+        # 计算总耗时：取各请求耗时的最大值作为用例耗时近似
+        duration_ms = max(
+            (entry.get("durationMs") or 0 for entry in trace_entries),
+            default=0,
+        ) or None
+
+        return request_data, response_data, assertions, duration_ms
 
     def _parse_endpoint_from_test_name(self, test_name: str) -> tuple[str, str]:
         """
@@ -443,6 +877,109 @@ class APITestExecutor:
 
         # Default to GET if no explicit method found
         return test_name, "GET"
+
+    async def _save_html_report(
+        self,
+        session: AsyncSession,
+        run_record: APITestRun,
+        api_test: APITest,
+        report_path: str,
+    ) -> Optional[str]:
+        """
+        将 Playwright HTML 报告打包上传到 MinIO，并创建附件记录。
+
+        Args:
+            session: 数据库会话
+            run_record: 测试运行记录
+            api_test: API 测试对象
+            report_path: 本地 HTML 报告目录路径
+
+        Returns:
+            str: MinIO 对象路径
+        """
+        report_dir = Path(report_path)
+        if not report_dir.exists() or not report_dir.is_dir():
+            logger.warning("[APITestExecutor] HTML 报告目录不存在: %s", report_path)
+            return None
+
+        # 1. 查找关联的 endpoint
+        from app.models.api_endpoint import APIEndpoint
+        from sqlalchemy import select as sa_select
+
+        endpoint_id: Optional[UUID] = None
+        endpoint_display_name = api_test.name or f"API Test {api_test.identifier}"
+        try:
+            stmt = sa_select(APIEndpoint).where(
+                APIEndpoint.api_test_ids.contains([str(api_test.id)])
+            )
+            ep_result = await session.execute(stmt)
+            endpoint = ep_result.scalar_one_or_none()
+            if endpoint:
+                endpoint_id = endpoint.id
+                endpoint_display_name = endpoint.display_name or endpoint_display_name
+        except Exception as e:
+            logger.warning("[APITestExecutor] 查找关联 endpoint 失败: %s", e)
+
+        # 2. 打包报告为 ZIP
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        zip_filename = f"api_test_report_{timestamp}.zip"
+        workspace_dir = Path(settings.api_workspace_root).resolve()
+        zip_path = workspace_dir / zip_filename
+
+        def _create_zip() -> None:
+            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                for file_path in report_dir.rglob('*'):
+                    if file_path.is_file():
+                        arcname = file_path.relative_to(report_dir)
+                        zipf.write(file_path, arcname)
+
+        await run_sync(_create_zip)
+
+        # 3. 上传到 MinIO
+        zip_bytes = await run_sync(lambda p: open(p, 'rb').read(), zip_path)
+        object_name = f"api-tests/{api_test.project_id}/runs/{run_record.id}/test-report-{timestamp}.zip"
+        await run_sync(
+            MinIOClient.upload_bytes,
+            object_name=object_name,
+            data=zip_bytes,
+            content_type="application/zip",
+        )
+        logger.info("[APITestExecutor] 测试报告已上传: %s", object_name)
+
+        # 4. 更新测试运行记录
+        run_record.report_path = object_name
+
+        # 5. 创建附件记录（只有找到 endpoint 时才创建，否则前端无法展示）
+        if endpoint_id:
+            description = f"API 测试报告 - {endpoint_display_name}\n"
+            description += f"运行标识: {run_record.identifier}\n"
+            description += f"通过: {run_record.passed_tests} | 失败: {run_record.failed_tests} | 跳过: {run_record.skipped_tests}"
+
+            attachment = Attachment(
+                entity_type=AttachmentEntityType.API_TEST_REPORT,
+                entity_id=endpoint_id,
+                project_id=api_test.project_id,
+                file_name=zip_filename,
+                file_size=len(zip_bytes),
+                content_type="application/zip",
+                object_name=object_name,
+                description=description,
+                created_by="api-agent",
+            )
+            session.add(attachment)
+            logger.info("[APITestExecutor] 测试报告附件已创建，endpoint_id=%s", endpoint_id)
+
+        # 6. 清理临时 ZIP 文件和报告目录
+        try:
+            await run_sync(zip_path.unlink)
+        except Exception as e:
+            logger.warning("[APITestExecutor] 清理临时 ZIP 失败: %s", e)
+        try:
+            await run_sync(shutil.rmtree, report_path)
+        except Exception as e:
+            logger.warning("[APITestExecutor] 清理报告目录失败: %s", e)
+
+        return object_name
 
     async def _generate_allure_report(
         self,
@@ -513,6 +1050,7 @@ class APITestExecutor:
         response: Dict[str, Any],
         status: str,
         duration_ms: int,
+        assertions: Optional[List[Dict[str, Any]]] = None,
     ) -> str:
         """
         保存详细日志到 MongoDB
@@ -528,6 +1066,7 @@ class APITestExecutor:
             response: 响应数据
             status: 状态
             duration_ms: 执行时长
+            assertions: 断言结果列表
 
         Returns:
             str: MongoDB 日志 ID
@@ -546,7 +1085,7 @@ class APITestExecutor:
                 method=method,
                 request=request,
                 response=response,
-                assertions=[],  # TODO: 从测试结果中提取断言
+                assertions=assertions or [],
                 started_at=datetime.now(timezone.utc),
                 completed_at=datetime.now(timezone.utc),
                 duration_ms=duration_ms,

@@ -36,6 +36,7 @@ export type StateType = {
     project_identifier?: string;
     folder_id?: string;
     template_type?: string;
+    environment_id?: string;
     enable_rag?: boolean;
   };
 };
@@ -78,6 +79,20 @@ export function useChat({
     thread ? null : threadId,
     fetchHistoryOnMount
   );
+
+  // 兜底：首次挂载时 threadId 可能为 null（nuqs 水合或异步选中），key 变为有效值后
+  // SWRInfinite 不一定会自动拉取首屏历史，导致重新打开 AI 助手后对话记录空白。
+  // 在 threadId 首次变为有效且历史尚未加载时主动触发一次重校验。
+  const prevThreadIdRef = useRef<string | null | undefined>(threadId);
+  useEffect(() => {
+    const prev = prevThreadIdRef.current;
+    prevThreadIdRef.current = threadId;
+    if (!fetchHistoryOnMount) return;
+    if (!threadId) return;
+    if (prev) return;
+    if (paginatedHistory.data && paginatedHistory.data.length > 0) return;
+    paginatedHistory.mutate();
+  }, [fetchHistoryOnMount, threadId, paginatedHistory.data, paginatedHistory.mutate]);
 
   // 稳定传入 useStream 的 thread 对象，避免整个 paginatedHistory 对象每次渲染都重建
   // 导致 useStream 内部 history 引用频繁变化。
@@ -271,6 +286,7 @@ export function useChat({
         project_identifier: context.project_identifier || "",
         folder_id: context.folder_id || "",
         template_type: context.template_type || "test_case",
+        environment_id: context.environment_id || "",
         enable_rag: options?.enable_rag ?? true,
         auto_approve_threshold: options?.auto_approve_threshold ?? 100,
       };

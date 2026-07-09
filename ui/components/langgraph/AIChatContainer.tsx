@@ -1,7 +1,7 @@
 "use client";
 // eslint-disable  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2VGxWb1NBPT06NDQ4MzJhOGE=
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import { useQueryState } from "nuqs";
 import { Button } from "@/components/ui/button";
 import { Assistant } from "@langchain/langgraph-sdk";
@@ -14,6 +14,7 @@ import {
 import { ThreadList } from "./ThreadList";
 import { ChatProvider } from "@/providers/ChatProvider";
 import { ChatInterface } from "./ChatInterface";
+import { useThreads } from "@/hooks/useThreads";
 // eslint-disable  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2VGxWb1NBPT06NDQ4MzJhOGE=
 
 interface AIChatContainerProps {
@@ -43,6 +44,27 @@ export function AIChatContainer({
   const [mutateThreads, setMutateThreads] = useState<(() => void) | null>(null);
   const [interruptCount, setInterruptCount] = useState(0);
 
+  // 打开 AI 助手且当前没有 threadId 时，自动选中最近一条对话，避免右侧空白。
+  const threads = useThreads({
+    assistantId: assistant.assistant_id,
+    limit: 1,
+  });
+  const autoSelectedRef = useRef(false);
+  useEffect(() => {
+    // 明确要新建对话时，不自动选中历史对话
+    if (createNewThread) return;
+    if (autoSelectedRef.current) return;
+    if (threadId) {
+      autoSelectedRef.current = true;
+      return;
+    }
+    const firstPage = threads.data?.[0];
+    if (firstPage && firstPage.length > 0) {
+      setThreadId(firstPage[0].id);
+      autoSelectedRef.current = true;
+    }
+  }, [createNewThread, threadId, threads.data, setThreadId]);
+
   // 合并回调函数
   const handleTestCreated = useCallback(() => {
     onTestCaseCreated?.();
@@ -52,8 +74,10 @@ export function AIChatContainer({
   // 如果需要创建新对话，清除 threadId。
   // 只在 createNewThread 从 false 变为 true 时执行一次，避免 aiChatKey > 0
   // 后每次重新挂载都清空 threadId，导致历史对话丢失。
+  // 使用 useLayoutEffect 确保在子组件（ChatInterface）的自动发送 effect 运行前
+  // 就已经清空 URL 中的 threadId，避免子组件因看到旧线程而提前标记“已发送”。
   const prevCreateNewThreadRef = React.useRef(false);
-  React.useEffect(() => {
+  React.useLayoutEffect(() => {
     if (createNewThread && !prevCreateNewThreadRef.current) {
       setThreadId(null);
     }
@@ -122,6 +146,7 @@ export function AIChatContainer({
                 className="relative"
               >
                 <ThreadList
+                  assistantId={assistant.assistant_id}
                   onThreadSelect={async (id) => {
                     await setThreadId(id);
                   }}

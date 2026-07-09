@@ -391,6 +391,7 @@ async def execute_scenario(
             variables=execute_request.variables,
             base_url=execute_request.base_url,
             executed_by=current_user_id,
+            env_id=execute_request.env_id,
         )
         return ScenarioExecuteResponse(
             run_id=run_id,
@@ -405,6 +406,7 @@ async def execute_scenario(
             variables=execute_request.variables,
             base_url=execute_request.base_url,
             executed_by=current_user_id,
+            env_id=execute_request.env_id,
         )
         return ScenarioExecuteResponse(
             run_id=run.id,

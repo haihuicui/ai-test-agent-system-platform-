@@ -27,7 +27,8 @@ import {
   listScenarioRuns,
   getStepResults,
 } from "@/lib/api/scenarios";
-import type { Scenario, ScenarioRun } from "@/types/scenario";
+import type { Scenario, ScenarioRun, StepResult } from "@/types/scenario";
+import { HttpTraceViewer, getMethodColor, getStatusVariant } from "./http-trace-viewer";
 // eslint-disable  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2T0VZNVdBPT06MDQyNmViMWE=
 
 interface ScenarioExecutionMonitorProps {
@@ -41,7 +42,7 @@ export function ScenarioExecutionMonitor({
   const [scenario, setScenario] = React.useState<Scenario | null>(null);
   const [runs, setRuns] = React.useState<ScenarioRun[]>([]);
   const [selectedRunId, setSelectedRunId] = React.useState<string | null>(null);
-  const [stepResults, setStepResults] = React.useState<any[]>([]);
+  const [stepResults, setStepResults] = React.useState<StepResult[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [expandedSteps, setExpandedSteps] = React.useState<Set<string>>(new Set());
 
@@ -147,6 +148,25 @@ export function ScenarioExecutionMonitor({
         return <Badge variant="outline">{status}</Badge>;
     }
   };
+
+  function CollapsibleErrorStack({ stack }: { stack: string }) {
+    const [expanded, setExpanded] = React.useState(false);
+    return (
+      <div className="border rounded-md overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setExpanded(!expanded)}
+          className="w-full flex items-center justify-between px-3 py-2 bg-red-50 hover:bg-red-100 dark:bg-red-950 dark:hover:bg-red-900 text-xs font-medium text-red-700 dark:text-red-300 transition-colors"
+        >
+          <span>查看堆栈</span>
+          {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+        </button>
+        {expanded && (
+          <pre className="text-xs bg-muted p-3 overflow-x-auto max-h-80">{stack}</pre>
+        )}
+      </div>
+    );
+  }
 
   if (!scenarioId) {
     return (
@@ -262,14 +282,25 @@ export function ScenarioExecutionMonitor({
                           className="border rounded-lg p-4 hover:bg-muted/50 transition-colors"
                         >
                           <div
-                            className="flex items-start justify-between cursor-pointer"
+                            className="flex items-start justify-between cursor-pointer gap-3"
                             onClick={() => toggleExpand(result.id)}
                           >
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex flex-wrap items-center gap-2 mb-1">
                                 <span className="text-sm font-semibold">
                                   步骤 {result.step_order}
+                                  {result.step_name ? ` · ${result.step_name}` : ""}
                                 </span>
+                                {result.request_data?.method && (
+                                  <Badge variant="outline" className={getMethodColor(result.request_data.method)}>
+                                    {result.request_data.method.toUpperCase()}
+                                  </Badge>
+                                )}
+                                {typeof result.response_data?.status === "number" && (
+                                  <Badge variant={getStatusVariant(result.response_data.status)}>
+                                    {result.response_data.status}
+                                  </Badge>
+                                )}
                                 {getStepStatusBadge(result.status)}
                                 {result.duration_ms && (
                                   <span className="text-xs text-muted-foreground">
@@ -277,8 +308,13 @@ export function ScenarioExecutionMonitor({
                                   </span>
                                 )}
                               </div>
+                              {(result.full_url || result.request_data?.url) && (
+                                <code className="text-xs text-muted-foreground block truncate">
+                                  {result.full_url || result.request_data?.url}
+                                </code>
+                              )}
                               {result.error_message && (
-                                <div className="text-xs text-red-600 mt-1">
+                                <div className="text-xs text-red-600 mt-1 line-clamp-2">
                                   {result.error_message}
                                 </div>
                               )}
@@ -286,7 +322,7 @@ export function ScenarioExecutionMonitor({
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-6 w-6 p-0"
+                              className="h-6 w-6 p-0 shrink-0"
                             >
                               {expandedSteps.has(result.id) ? (
                                 <ChevronDown className="h-4 w-4" />
@@ -299,24 +335,20 @@ export function ScenarioExecutionMonitor({
                           {/* 展开的详细信息 */}
                           {expandedSteps.has(result.id) && (
                             <div className="mt-4 pt-4 border-t space-y-3">
-                              {/* 请求数据 */}
-                              {result.request_data && (
-                                <div>
-                                  <h5 className="text-xs font-semibold mb-2">请求数据</h5>
-                                  <pre className="text-xs bg-muted p-3 rounded overflow-x-auto">
-                                    {JSON.stringify(result.request_data, null, 2)}
-                                  </pre>
-                                </div>
-                              )}
+                              <HttpTraceViewer
+                                request={{
+                                  method: result.request_data?.method,
+                                  url: result.full_url || result.request_data?.url,
+                                  headers: result.request_data?.headers,
+                                  params: result.request_data?.params,
+                                  body: result.request_data?.body,
+                                }}
+                                response={result.response_data}
+                              />
 
-                              {/* 响应数据 */}
-                              {result.response_data && (
-                                <div>
-                                  <h5 className="text-xs font-semibold mb-2">响应数据</h5>
-                                  <pre className="text-xs bg-muted p-3 rounded overflow-x-auto">
-                                    {JSON.stringify(result.response_data, null, 2)}
-                                  </pre>
-                                </div>
+                              {/* 错误堆栈 */}
+                              {result.error_stack && (
+                                <CollapsibleErrorStack stack={result.error_stack} />
                               )}
 
                               {/* 提取的数据 */}

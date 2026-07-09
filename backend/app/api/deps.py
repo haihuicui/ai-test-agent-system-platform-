@@ -21,6 +21,7 @@ from app.services.test_run_service import TestRunService
 from app.services.test_result_service import TestResultService
 from app.services.test_plan_service import TestPlanService
 from app.services.api_test_service import APITestService
+from app.services.environment_service import EnvironmentService
 from app.services.web_function_service import WebFunctionService
 from app.services.pentest_service import PentestService
 from app.schemas.pagination import PaginationParams
@@ -88,6 +89,13 @@ async def get_api_test_service(
     return APITestService(db, mongodb)
 
 
+async def get_environment_service(
+    db: AsyncSession = Depends(get_db),
+) -> EnvironmentService:
+    """获取项目环境配置服务实例"""
+    return EnvironmentService(db)
+
+
 async def get_web_function_service(
     db: AsyncSession = Depends(get_db),
 ) -> WebFunctionService:
@@ -136,6 +144,7 @@ TestRunServiceDep = Annotated[TestRunService, Depends(get_test_run_service)]
 TestResultServiceDep = Annotated[TestResultService, Depends(get_test_result_service)]
 TestPlanServiceDep = Annotated[TestPlanService, Depends(get_test_plan_service)]
 APITestServiceDep = Annotated[APITestService, Depends(get_api_test_service)]
+EnvironmentServiceDep = Annotated[EnvironmentService, Depends(get_environment_service)]
 WebFunctionServiceDep = Annotated[WebFunctionService, Depends(get_web_function_service)]
 PentestServiceDep = Annotated[PentestService, Depends(get_pentest_service)]
 PaginationDep = Annotated[PaginationParams, Depends(get_pagination_params)]

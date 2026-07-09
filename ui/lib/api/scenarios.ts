@@ -3,7 +3,7 @@
  */
 // NOTE  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2VWxkTk13PT06ZmQ0NzU4YmU=
 
-import { Scenario, ScenarioStep, ScenarioRun } from '@/types/scenario';
+import { Scenario, ScenarioStep, ScenarioRun, StepResult } from '@/types/scenario';
 
 const API_BASE = '/api/v2/scenarios';
 
@@ -296,6 +296,7 @@ export async function executeScenario(
     variables?: Record<string, any>;
     base_url?: string;
     async_mode?: boolean;
+    environment_id?: string;
     custom_requirements?: string;
   }
 ): Promise<{
@@ -360,19 +361,7 @@ export async function getScenarioRun(
 export async function getStepResults(
   scenarioId: string,
   runId: string
-): Promise<Array<{
-  id: string;
-  run_id: string;
-  step_id: string;
-  step_order: number;
-  status: string;
-  duration_ms: number | null;
-  error_message: string | null;
-  request_data: Record<string, any> | null;
-  response_data: Record<string, any> | null;
-  extracted_data: Record<string, any>;
-  assertion_results: Array<any>;
-}>> {
+): Promise<StepResult[]> {
   const response = await fetch(
     `${API_BASE}/${scenarioId}/runs/${runId}/results`
   );

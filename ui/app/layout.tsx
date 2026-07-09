@@ -28,7 +28,7 @@ export default function RootLayout({
       <body className={inter.className} suppressHydrationWarning>
         <LanguageProvider>
           <NuqsAdapter>{children}</NuqsAdapter>
-          <Toaster />
+          <Toaster position="top-right" />
         </LanguageProvider>
       </body>
     </html>

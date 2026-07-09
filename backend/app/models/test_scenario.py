@@ -226,9 +226,11 @@ class ScenarioStepResult(Base):
 
     # 执行信息
     step_order: Mapped[int] = mapped_column(Integer, nullable=False)
+    step_name: Mapped[Optional[str]] = mapped_column(String(500))
     status: Mapped[str] = mapped_column(String(50), nullable=False)  # passed, failed, skipped, error
 
     # 请求/响应数据
+    full_url: Mapped[Optional[str]] = mapped_column(Text)
     request_data: Mapped[Optional[dict]] = mapped_column(JSONB)
     response_data: Mapped[Optional[dict]] = mapped_column(JSONB)
 

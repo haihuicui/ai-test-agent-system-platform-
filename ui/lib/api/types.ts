@@ -695,3 +695,43 @@ export interface WebFunctionSummary {
   total_sub_functions: number;
   total_test_cases: number;
 }
+
+// =========================================================
+// 项目环境配置
+// =========================================================
+
+export type AuthType = "none" | "bearer" | "dynamic_bearer" | "api_key" | "oauth2";
+
+export interface EnvironmentInfo {
+  id: string;
+  name: string;
+  base_url: string;
+  auth_type: AuthType;
+  auth_config: Record<string, unknown>;
+  timeout_ms: number;
+  is_default: boolean;
+  has_auth_secret: boolean;
+  auth_secret?: string | null;
+  created_at: string;
+  updated_at?: string | null;
+}
+
+export interface EnvironmentCreate {
+  name: string;
+  base_url: string;
+  auth_type?: AuthType;
+  auth_secret?: string;
+  auth_config?: Record<string, unknown>;
+  timeout_ms?: number;
+  is_default?: boolean;
+}
+
+export interface EnvironmentUpdate {
+  name?: string;
+  base_url?: string;
+  auth_type?: AuthType;
+  auth_secret?: string;
+  auth_config?: Record<string, unknown>;
+  timeout_ms?: number;
+  is_default?: boolean;
+}

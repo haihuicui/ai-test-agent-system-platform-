@@ -37,7 +37,8 @@ function getKey(
     // 上一页没有数据，说明已经到尽头
     if (previousPageData && previousPageData.length === 0) return null;
     const before =
-      previousPageData?.[previousPageData.length - 1]?.checkpoint?.checkpoint_id;
+      previousPageData?.[previousPageData.length - 1]?.checkpoint?.checkpoint_id ??
+      undefined;
     return { kind: "thread-history", threadId, limit: PAGE_SIZE, before };
   };
 }
@@ -72,8 +73,9 @@ export function usePaginatedThreadHistory(
       return fetcher(client, key);
     },
     {
+      initialSize: 1,
+      revalidateOnMount: true,
       revalidateOnFocus: false,
-      revalidateFirstPage: false,
     }
   );
 

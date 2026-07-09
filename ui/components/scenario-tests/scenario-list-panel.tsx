@@ -16,6 +16,7 @@ import {
   MoreVertical,
   Trash2,
   Edit,
+  Activity,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -43,6 +44,8 @@ interface ScenarioListPanelProps {
   projectId: string;
   selectedScenarioId: string | null;
   onSelectScenario: (scenarioId: string) => void;
+  onEditScenario?: (scenarioId: string) => void;
+  onViewExecutionHistory?: (scenarioId: string) => void;
   refreshTrigger?: number;
 }
 // eslint-disable  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2UzNaSFpBPT06NzRkZmI1M2M=
@@ -51,6 +54,8 @@ export function ScenarioListPanel({
   projectId,
   selectedScenarioId,
   onSelectScenario,
+  onEditScenario,
+  onViewExecutionHistory,
   refreshTrigger,
 }: ScenarioListPanelProps) {
   const { t } = useLanguage();
@@ -207,11 +212,24 @@ export function ScenarioListPanel({
                   <DropdownMenuItem
                     onClick={(e) => {
                       e.stopPropagation();
-                      onSelectScenario(scenario.id);
+                      if (onEditScenario) {
+                        onEditScenario(scenario.id);
+                      } else {
+                        onSelectScenario(scenario.id);
+                      }
                     }}
                   >
                     <Edit className="mr-2 h-4 w-4" />
                     {t("scenarioTests.edit")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onViewExecutionHistory?.(scenario.id);
+                    }}
+                  >
+                    <Activity className="mr-2 h-4 w-4" />
+                    {t("scenarioTests.executionHistory")}
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     className="text-destructive"

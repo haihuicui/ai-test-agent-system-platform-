@@ -35,7 +35,9 @@ LightRAG/docling-models/
 LightRAG/lightrag_webui/node_modules/
 
 # Claude Code local files
-.claude/
+.claude/*
+!.claude/skills/
+!.claude/skills/**
 ._hist*.json
 ._threads.json
 
