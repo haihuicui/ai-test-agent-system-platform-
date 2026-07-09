@@ -5,7 +5,7 @@ API 测试管理 API
 """
 
 from typing import Optional
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Query, UploadFile, File, Form
 from fastapi.responses import Response, StreamingResponse
@@ -215,6 +215,7 @@ async def generate_from_schema(
     include_auth: bool = Form(default=True, description="包含认证场景"),
     include_security: bool = Form(default=False, description="包含安全测试"),
     include_error_handling: bool = Form(default=True, description="包含错误处理"),
+    conversation_id: Optional[str] = Form(None, description="AI 会话 ID（同一会话内报告去重）"),
 ):
     """
     从 Schema 生成 API 测试（调用 api_agent）
@@ -224,8 +225,7 @@ async def generate_from_schema(
     2. 调用 api_agent.generator 生成测试脚本
     3. 返回生成的计划和脚本
     """
-    import asyncio
-    from app.agents.api.agent import agent
+    from app.agents.api.agent import agent, APIAgentContext
 
     # 准备参数
     params = {
@@ -250,11 +250,20 @@ async def generate_from_schema(
             message="请提供 schema_url 或 schema_path"
         )
 
+    # 确保有会话 ID；请求未传时生成一个
+    if not conversation_id:
+        conversation_id = str(uuid4())
+
     try:
         # 调用 agent 生成测试计划
-        planner_result = await agent.ainvoke({
-            "messages": [user_message]
-        })
+        planner_result = await agent.ainvoke(
+            {"messages": [user_message]},
+            context=APIAgentContext(
+                project_identifier=project_identifier,
+                conversation_id=conversation_id,
+            ),
+            config={"configurable": {"conversation_id": conversation_id}},
+        )
 
         # 提取生成的测试计划内容
         # 注意: 实际实现需要解析 agent 的返回结果

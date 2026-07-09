@@ -5,11 +5,12 @@ API Agent 的场景测试工具
 """
 
 import json
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import datetime, timedelta, timezone
+from typing import Annotated, Any, Optional
 from uuid import UUID, uuid4
 
-from langchain_core.tools import tool
+from langchain_core.runnables import RunnableConfig
+from langchain_core.tools import InjectedToolArg, tool
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -24,12 +25,82 @@ from app.models.test_scenario import (
 )
 
 
+# 同一次 AI 对话（thread）内创建场景的去重缓存。
+# key: (thread_id, project_id), value: (scenario_id, created_at)
+# 用于在同一次对话中重新生成时，覆盖/替换旧场景。
+SCENARIO_THREAD_CACHE_TTL_MINUTES = 60
+_scenario_thread_cache: dict[tuple[str | None, UUID], tuple[UUID, datetime]] = {}
+
+
+def _cache_key(thread_id: str | None, project_id: UUID) -> tuple[str | None, UUID]:
+    return (thread_id, project_id)
+
+
+def _get_thread_scenario_id(
+    thread_id: str | None,
+    project_id: UUID,
+) -> UUID | None:
+    """
+    获取指定 thread + project 最近创建的场景 ID。
+
+    如果缓存中的场景已超过 TTL，则清理并返回 None。
+    """
+    key = _cache_key(thread_id, project_id)
+    entry = _scenario_thread_cache.get(key)
+    if not entry:
+        return None
+    scenario_id, created_at = entry
+    if datetime.now(timezone.utc) - created_at > timedelta(
+        minutes=SCENARIO_THREAD_CACHE_TTL_MINUTES
+    ):
+        _scenario_thread_cache.pop(key, None)
+        return None
+    return scenario_id
+
+
+def _set_thread_scenario_id(
+    thread_id: str | None,
+    project_id: UUID,
+    scenario_id: UUID,
+) -> None:
+    """记录指定 thread + project 已创建的场景 ID。"""
+    key = _cache_key(thread_id, project_id)
+    _scenario_thread_cache[key] = (scenario_id, datetime.now(timezone.utc))
+
+
+def _clear_thread_scenario_id(thread_id: str | None, project_id: UUID) -> None:
+    """清除指定 thread + project 的缓存记录。"""
+    _scenario_thread_cache.pop(_cache_key(thread_id, project_id), None)
+
+
+async def _replace_thread_scenario(
+    session: AsyncSession,
+    thread_id: str | None,
+    project_id: UUID,
+) -> None:
+    """
+    删除当前 thread + project 下已创建的场景，以便重新生成。
+
+    通过级联删除清理关联的步骤、变量、执行记录等。
+    """
+    existing_id = _get_thread_scenario_id(thread_id, project_id)
+    if not existing_id:
+        return
+
+    scenario = await session.get(TestScenario, existing_id)
+    if scenario:
+        await session.delete(scenario)
+        await session.commit()
+    _clear_thread_scenario_id(thread_id, project_id)
+
+
 @tool
 async def create_test_scenario(
     project_identifier: str,
     name: str,
     description: str = "",
     folder_id: str | None = None,
+    config: Annotated[RunnableConfig, InjectedToolArg()] = None,
 ) -> str:
     """
     创建一个新的测试场景
@@ -37,6 +108,10 @@ async def create_test_scenario(
     测试场景用于编排多个 API 接口的业务流测试，例如：
     - 用户登录 → 创建订单 → 支付 → 查询订单状态
     - 注册用户 → 验证邮箱 → 完善资料 → 上传头像
+
+    注意：同一次 AI 对话中最终只保留一个场景。如果 AI 在同一次对话中
+    再次调用本工具，会先删除该对话下已创建的旧场景，然后创建新场景，
+    实现覆盖/替换。
 
     Args:
         project_identifier: 项目标识符（如 "PR-1234"）
@@ -54,6 +129,11 @@ async def create_test_scenario(
         ...     description="测试从登录到支付的完整业务流"
         ... )
     """
+    # 从 LangGraph 运行时配置中获取当前对话的 thread_id
+    thread_id = None
+    if config and isinstance(config.get("configurable"), dict):
+        thread_id = config["configurable"].get("thread_id")
+
     async with async_session_factory() as session:
         try:
             # 1. 查询项目
@@ -69,7 +149,10 @@ async def create_test_scenario(
                     "error": f"项目 {project_identifier} 不存在"
                 }, ensure_ascii=False, indent=2)
 
-            # 2. 生成场景标识符
+            # 2. 同一次对话（thread）内如果已创建过场景，先删除旧场景以便重新生成
+            await _replace_thread_scenario(thread_id, project.id)
+
+            # 3. 生成场景标识符
             # 查询当前项目的场景数量
             count_stmt = select(TestScenario).where(
                 TestScenario.project_id == project.id
@@ -80,7 +163,7 @@ async def create_test_scenario(
             
             identifier = f"TS-{scenario_count + 1:04d}"
 
-            # 3. 创建场景
+            # 4. 创建场景
             scenario = TestScenario(
                 id=uuid4(),
                 project_id=project.id,
@@ -94,6 +177,9 @@ async def create_test_scenario(
             session.add(scenario)
             await session.commit()
             await session.refresh(scenario)
+
+            # 记录当前 thread 已创建的场景，用于同对话去重
+            _set_thread_scenario_id(thread_id, project.id, scenario.id)
 
             return json.dumps({
                 "success": True,

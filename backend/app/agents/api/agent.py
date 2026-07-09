@@ -17,6 +17,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import AsyncIterator, Callable, TYPE_CHECKING
+from uuid import uuid4
 # pylint: disable  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2YlZsVldBPT06YzRiOTU0ZTI=
 
 from deepagents import create_deep_agent as create_agent
@@ -27,6 +28,7 @@ from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_mcp_adapters.tools import load_mcp_tools
 from langgraph.pregel import Pregel
 
+from app.agents.api.runtime_context import conversation_id_ctx
 from app.agents.tools.api import get_local_tools
 from app.config.settings import settings
 from app.core.llms import text_model as model
@@ -71,6 +73,7 @@ class APIAgentContext:
     folder_id: str = ""
     environment_id: str = ""
     current_user_id: str = "00000000-0000-0000-0000-000000000001"
+    conversation_id: str = ""
 
 
 # =============================================================================
@@ -89,7 +92,20 @@ class APIContextInjectionMiddleware(AgentMiddleware):
         folder_id = request.runtime.context.folder_id
         environment_id = request.runtime.context.environment_id
 
-        context_info = f"""
+        # 从 runtime config 读取 conversation_id；未提供时为当前调用生成一个，
+        # 保证同一次 agent 调用内的多次工具调用共享同一个会话 ID。
+        conversation_id = ""
+        if request.runtime.configurable:
+            conversation_id = request.runtime.configurable.get("conversation_id", "") or ""
+        if not conversation_id:
+            conversation_id = str(uuid4())
+        request.runtime.context.conversation_id = conversation_id
+
+        # 将 conversation_id 写入 contextvar，供工具函数直接读取
+        ctx_token = conversation_id_ctx.set(conversation_id)
+
+        try:
+            context_info = f"""
 
 ---
 ## 🎯 运行时上下文
@@ -98,21 +114,28 @@ class APIContextInjectionMiddleware(AgentMiddleware):
 - `project_identifier`: `{project_identifier}`
 - `folder_id`: `{folder_id}`
 - `environment_id`: `{environment_id}`
+- `conversation_id`: `{conversation_id}`
 
 **环境选择规则：**
 1. 如果 `environment_id` 已提供，优先使用该环境。
 2. 如果未提供，调用 `get_project_environments` 获取项目环境列表，选择 `is_default=true` 的默认环境。
 3. 如果项目没有任何环境，生成脚本时必须使用环境变量占位（`process.env.API_BASE_URL`），执行前提示用户配置环境。
 
+**会话去重规则：**
+- 同一次对话（conversation_id 相同）中，无论执行/重试多少次测试脚本，
+  同一 API 端点只保留一份最终测试报告。
+
 **重要提示：** 这些参数由系统自动注入，不要询问用户提供。
 ---
 """
-        # 如果 content 是列表，需要将字符串包装成正确的内容块格式
-        if isinstance(request.system_message.content, list):
-            request.system_message.content = request.system_message.content + [{"type": "text", "text": context_info}]
-        else:
-            request.system_message.content = request.system_message.content + context_info
-        return await handler(request)
+            # 如果 content 是列表，需要将字符串包装成正确的内容块格式
+            if isinstance(request.system_message.content, list):
+                request.system_message.content = request.system_message.content + [{"type": "text", "text": context_info}]
+            else:
+                request.system_message.content = request.system_message.content + context_info
+            return await handler(request)
+        finally:
+            conversation_id_ctx.reset(ctx_token)
 # pragma: no cover  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2YlZsVldBPT06YzRiOTU0ZTI=
 
 SYSTEM_PROMPT = """# API 自动化测试专家
@@ -273,12 +296,33 @@ SYSTEM_PROMPT = """# API 自动化测试专家
 3. `batch_run_tests` 批量执行
 
 ### 流程 D：场景测试（多接口业务流程）
+
+**重要原则：一次对话最终只保留一个测试场景。**
+如果 AI 在同一次对话中再次调用 `create_test_scenario`，系统会自动删除该对话下之前创建的场景，并创建新场景（覆盖/替换）。
+除非用户明确要求保留多个，否则不要同时保留多个场景。
+
 1. `create_test_scenario` 创建测试场景
 2. `add_scenario_step` 添加多个步骤（每个步骤对应一个 API 调用）
 3. `add_step_extractor` 为步骤添加数据提取器（提取 token、ID 等）
 4. `add_data_mapping` 配置步骤间数据依赖（token、ID 传递）
 5. `add_step_assertion` 为每个步骤添加断言验证
 6. `execute_scenario` 执行场景测试
+7. **自动生成场景时必须自动执行并修复**：
+   - 场景生成完成后，必须调用 `execute_scenario` 执行验证（建议开启 `debug=true`）
+   - 如果执行失败，分析失败步骤的 `error_message`、`assertion_results`、`request_data`、`response_data`
+   - 常见修复方向：
+     - 数据依赖缺失：补充 `add_data_mapping` 或 `add_step_extractor`
+     - 断言不准确：调整 `add_step_assertion` 的 `expected` 值或 `operator`
+     - 请求参数错误：使用 `update_scenario_step` 修正 `request_override` / `headers_override`
+     - 认证问题：检查环境 token 配置或数据映射中的 Authorization
+   - 修复后再次执行，最多重试 3 次
+   - 如果多次修复仍失败，向用户说明失败原因和已尝试的修复，不要无限重试
+
+**场景测试执行规范：**
+- 执行前必须获取项目环境配置，使用默认环境的 `base_url`
+- 执行时传入合理的场景变量（如测试账号、商品 ID 等）
+- 调试模式（`debug=true`）会返回请求/响应详情，便于定位问题
+- 修复时禁止放宽核心断言（如 401/403 安全断言、必填参数校验等）
 
 **场景测试核心概念**：
 - **场景**：由多个 API 调用组成的完整业务流程
@@ -353,6 +397,13 @@ AI：
 - 生成测试代码后，必须使用 `save_test_script(script_content=...)` 保存
 - **修复测试时，`save_test_script` 会更新已有记录，不会新建。只需传入相同的 `endpoint_id` 和修复后的 `script_content` 即可**
 - 使用上下文中的 `project_identifier`，不要询问用户
+
+**场景测试数量控制：**
+- **一次对话最终只保留一个测试场景**
+- 如果 AI 在同一次对话中再次调用 `create_test_scenario`，系统会自动覆盖/替换旧场景
+- 如果多个接口可以组成不同业务流程，优先选择最核心的一个场景创建
+- 除非用户明确要求，否则不要同时保留多个场景
+- **场景生成后必须自动执行并修复，确保生成的场景是可运行的**
 
 **路径处理：**
 - 优先使用 `plan_content` 或 `script_content` 参数直接传递内容

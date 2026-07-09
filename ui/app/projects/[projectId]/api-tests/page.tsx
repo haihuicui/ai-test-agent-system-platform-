@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { MainLayout } from "@/components/layout";
 import { useLanguage } from "@/providers/LanguageProvider";
-import { APITestList, APITestDialog } from "@/components/api-tests";
+import { APITestList, APITestDialog, AIGenerateAPITestDialog } from "@/components/api-tests";
 import { MoveFolderDialog } from "@/components/test-cases";
 import { APIEndpointSidebar } from "@/components/api-tests/api-endpoint-sidebar";
 import { APIParseDialog } from "@/components/api-tests/api-parse-dialog";
@@ -497,6 +497,10 @@ export default function APITestsPage() {
                   selectedScenarioId={selectedScenarioId}
                   onSelectScenario={handleSelectScenario}
                   onEditScenario={handleEditScenario}
+                  onViewExecutionHistory={(scenarioId) => {
+                    setSelectedScenarioId(scenarioId);
+                    setScenarioViewMode("monitor");
+                  }}
                 />
               )}
             </div>
@@ -878,6 +882,23 @@ export default function APITestsPage() {
             toast.success(t("apiTests.apiDocParseSuccess"));
             loadAPITests();
             folderTreeRef.current?.refresh();
+          }}
+        />
+
+        {/* AI生成测试对话框 */}
+        <AIGenerateAPITestDialog
+          open={aiGenerateDialogOpen}
+          onOpenChange={setAiGenerateDialogOpen}
+          projectIdentifier={projectId}
+          onSuccess={() => {
+            loadAPITests();
+            folderTreeRef.current?.refresh();
+          }}
+          onOpenChat={(prompt) => {
+            setAiChatInitialPrompt(prompt);
+            setAiChatKey(prev => prev + 1);
+            setAiGenerateDialogOpen(false);
+            setAiChatOpen(true);
           }}
         />
 

@@ -24,8 +24,10 @@ from uuid import UUID
 logger = logging.getLogger(__name__)
 
 from langchain_core.tools import tool
-from sqlalchemy import select
+from sqlalchemy import func, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 
+from app.agents.api.runtime_context import get_conversation_id
 from app.utils.sync_executor import run_sync
 from app.config import settings
 from app.config.database import async_session_factory
@@ -155,6 +157,10 @@ async def execute_api_script(
             "command": None,
         }
 
+        # 读取当前 AI 会话 ID（由中间件通过 contextvar 注入）
+        conversation_id = get_conversation_id()
+        diagnostics["conversation_id"] = conversation_id
+
         # 1. 解析脚本路径
         # 清理路径：去除开头的斜杠或反斜杠，标准化分隔符
         cleaned_path = local_script_path.strip().strip('/').strip('\\')
@@ -259,7 +265,8 @@ async def execute_api_script(
                         endpoint=endpoint,
                         report_path=execution_result["report_path"],
                         execution_result=execution_result,
-                        project_root=str(project_root)
+                        project_root=str(project_root),
+                        conversation_id=conversation_id,
                     )
             except Exception as e:
                 logger.exception("[execute_api_script] 保存测试报告失败: %s", e)
@@ -806,12 +813,14 @@ async def _save_test_report(
     endpoint: APIEndpoint,
     report_path: str,
     execution_result: Dict[str, Any],
-    project_root: str
+    project_root: str,
+    conversation_id: Optional[str] = None,
 ) -> Optional[str]:
     """
-    保存测试报告到 MinIO 并创建附件记录
+    保存测试报告到 MinIO 并创建/更新附件记录
 
-    每次执行都会创建一份新的报告附件，保留历史版本。
+    在同一 AI 对话（conversation_id）内，同一端点的报告使用固定对象名，
+    多次执行只保留一条附件记录；没有会话上下文时保留历史版本行为。
 
     Args:
         endpoint_id: 端点 ID
@@ -820,12 +829,16 @@ async def _save_test_report(
         report_path: 报告目录路径
         execution_result: 执行结果
         project_root: 项目根目录
+        conversation_id: AI 会话 ID（可选，未提供时尝试从 contextvar 读取）
 
     Returns:
         附件 ID，如果保存失败则返回 None
     """
     try:
-        # 1. 将报告目录打包成 ZIP
+        # 优先使用显式传入的 conversation_id，否则从上下文变量读取
+        conversation_id = conversation_id or get_conversation_id()
+
+        # 1. 将报告目录打包成 ZIP（本地临时文件名仍使用时间戳，避免并发冲突）
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         zip_filename = f"api_test_report_{timestamp}.zip"
         zip_path = Path(project_root) / zip_filename
@@ -849,7 +862,16 @@ async def _save_test_report(
         )
 
         # 3. 上传到 MinIO
-        object_name = f"api-tests/{project_identifier}/endpoints/{endpoint_id}/test-report-{timestamp}.zip"
+        if conversation_id:
+            # 同一会话内使用固定对象名，多次执行只保留一份报告
+            object_name = (
+                f"api-tests/{project_identifier}/endpoints/{endpoint_id}"
+                f"/conversations/{conversation_id}/test-report.zip"
+            )
+        else:
+            # 没有会话上下文时，按时间戳生成独立报告（保留历史版本）
+            object_name = f"api-tests/{project_identifier}/endpoints/{endpoint_id}/test-report-{timestamp}.zip"
+
         await run_sync(
             MinIOClient.upload_bytes,
             object_name=object_name,
@@ -860,7 +882,7 @@ async def _save_test_report(
 
         print(f"[API Report] 报告已上传到 MinIO: {object_name}")
 
-        # 4. 创建附件记录
+        # 4. 创建或更新附件记录
         async with async_session_factory() as session:
             # 生成报告描述
             duration = execution_result.get("duration", 0)
@@ -876,24 +898,59 @@ async def _save_test_report(
             description += f"执行时间: {duration:.2f}秒\n"
             description += f"通过: {passed_count} | 失败: {failed_count} | 跳过: {skipped_count}"
 
-            # 创建附件
-            attachment = Attachment(
-                entity_type=AttachmentEntityType.API_TEST_REPORT,
-                entity_id=UUID(endpoint_id),
-                project_id=endpoint.project_id,
-                file_name=f"api-test-report-{timestamp}.zip",
-                file_size=len(zip_bytes),
-                content_type="application/zip",
-                object_name=object_name,
-                description=description,
-                created_by="api-agent"
-            )
+            file_name = f"api-test-report-{timestamp}.zip"
 
-            session.add(attachment)
-            await session.commit()
-            await session.refresh(attachment)
+            if conversation_id:
+                # 同一 conversation_id 内 upsert，保证只保留一条报告附件
+                upsert_stmt = pg_insert(Attachment).values(
+                    entity_type=AttachmentEntityType.API_TEST_REPORT,
+                    entity_id=UUID(endpoint_id),
+                    project_id=endpoint.project_id,
+                    file_name=file_name,
+                    file_size=len(zip_bytes),
+                    content_type="application/zip",
+                    object_name=object_name,
+                    description=description,
+                    created_by="api-agent",
+                    updated_at=func.now(),
+                ).on_conflict_do_update(
+                    index_elements=["object_name"],
+                    set_=dict(
+                        file_size=len(zip_bytes),
+                        content_type="application/zip",
+                        file_name=file_name,
+                        description=description,
+                        updated_at=func.now(),
+                    ),
+                )
+                await session.execute(upsert_stmt)
+                await session.commit()
 
-            print(f"[API Report] 附件记录已创建: {attachment.id}")
+                # 查询并返回附件 ID
+                result = await session.execute(
+                    select(Attachment).where(Attachment.object_name == object_name)
+                )
+                attachment = result.scalar_one()
+                await session.refresh(attachment)
+                print(f"[API Report] 附件记录已创建/更新: {attachment.id}")
+            else:
+                # 无会话上下文时，创建新附件记录
+                attachment = Attachment(
+                    entity_type=AttachmentEntityType.API_TEST_REPORT,
+                    entity_id=UUID(endpoint_id),
+                    project_id=endpoint.project_id,
+                    file_name=file_name,
+                    file_size=len(zip_bytes),
+                    content_type="application/zip",
+                    object_name=object_name,
+                    description=description,
+                    created_by="api-agent"
+                )
+
+                session.add(attachment)
+                await session.commit()
+                await session.refresh(attachment)
+                print(f"[API Report] 附件记录已创建: {attachment.id}")
 
             # 5. 清理临时 ZIP 文件
             try:
@@ -955,6 +1012,10 @@ async def execute_api_script_by_artifact_id(
             "project_identifier": project_identifier,
             "execution_config": execution_config,
         }
+
+        # 读取当前 AI 会话 ID（由中间件通过 contextvar 注入）
+        conversation_id = get_conversation_id()
+        diagnostics["conversation_id"] = conversation_id
 
         # 1. 查询附件
         async with async_session_factory() as db:
@@ -1049,6 +1110,7 @@ async def execute_api_script_by_artifact_id(
                         report_path=execution_result["report_path"],
                         execution_result=execution_result,
                         project_root=str(project_root),
+                        conversation_id=conversation_id,
                     )
                 except Exception as e:
                     logger.exception("[execute_api_script_by_artifact_id] 保存测试报告失败: %s", e)

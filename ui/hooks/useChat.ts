@@ -77,6 +77,7 @@ export function useChat({
   const paginatedHistory = usePaginatedThreadHistory(
     client,
     thread ? null : threadId,
+    fetchHistoryOnMount,
     fetchHistoryOnMount
   );
 
@@ -156,18 +157,23 @@ export function useChat({
       stream.messages.map((m) => m.id).filter((id): id is string => !!id)
     );
     const seen = new Set<string>(streamIds);
-    const older: Message[] = [];
+    const newestFirst: Message[] = [];
 
-    // checkpoints 按 newest-first 返回，反向遍历得到 chronological order
-    for (let i = paginatedHistory.data.length - 1; i >= 0; i--) {
-      const stateMessages = paginatedHistory.data[i].values?.messages ?? [];
-      for (const msg of stateMessages) {
+    // checkpoints 按 newest-first 返回；checkpoint 内部消息按时间顺序排列。
+    // 为了保留同一 message id 的最新版本（例如 DeltaChannel 下同一消息被多次更新、
+    // 或 tool 结果在后续 checkpoint 中被压缩），先从最新的 checkpoint、最后一条消息
+    // 开始遍历，收集未见过的 id，最后再反转为 chronological order。
+    for (const state of paginatedHistory.data) {
+      const stateMessages = state.values?.messages ?? [];
+      for (let i = stateMessages.length - 1; i >= 0; i--) {
+        const msg = stateMessages[i];
         if (!msg.id || seen.has(msg.id)) continue;
         seen.add(msg.id);
-        older.push(msg);
+        newestFirst.push(msg);
       }
     }
 
+    const older = newestFirst.reverse();
     return [...older, ...stream.messages];
   }, [stream.messages, paginatedHistory.data]);
 

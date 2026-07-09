@@ -1,7 +1,7 @@
 "use client";
 
 import useSWRInfinite from "swr/infinite";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import type { Client, Config, ThreadState } from "@langchain/langgraph-sdk";
 import type { StateType } from "./useChat";
 
@@ -11,11 +11,15 @@ import type { StateType } from "./useChat";
 //
 // 这里采用「先 head、再按需回溯」的策略：
 // - 首屏只拉 1 个 checkpoint，保证打开会话时立即渲染。
-// - 用户向上滚动时，通过 before 参数逐页拉取更早的 checkpoint。
+// - 组件挂载后在后台自动继续拉取更早的 checkpoint，直到没有新消息或到达安全上限；
+//   用户无需手动滚动即可看到完整历史。
+// - 用户向上滚动时，也会通过 before 参数逐页拉取更早的 checkpoint。
 // - hasMore 不仅看是否还有 checkpoint，还会检查上一页是否带来了新消息；
 //   对累积型 checkpoint 来说， older checkpoint 不会增加新消息，因此翻页会自然停止，
 //   避免无意义请求。
 const PAGE_SIZE = 1;
+// 自动加载历史时的安全上限，防止极端 checkpoint 数量导致无限请求
+const MAX_AUTO_LOAD_PAGES = 50;
 
 interface HistoryKey {
   kind: "thread-history";
@@ -64,7 +68,8 @@ async function fetcher(
 export function usePaginatedThreadHistory(
   client: Client | null,
   threadId: string | null | undefined,
-  enabled: boolean = true
+  enabled: boolean = true,
+  autoLoadAll: boolean = true
 ) {
   const swr = useSWRInfinite(
     getKey(client, enabled, threadId),
@@ -107,15 +112,39 @@ export function usePaginatedThreadHistory(
     return false;
   }, [swr.data]);
 
+  // 正在拉取更多历史（size 已增加但对应页数据尚未返回）
+  const isLoadingMore =
+    swr.isValidating && swr.data != null && swr.size > swr.data.length;
+
+  // 挂载或切换 thread 后，在后台自动加载更早的 checkpoint，直到历史完整或到达安全上限。
+  // 这样关闭并重新打开 AI 助手时，无需用户手动滚动即可看到全部历史对话。
+  useEffect(() => {
+    if (!enabled || !autoLoadAll || !threadId) return;
+    if (!hasMore) return;
+    if (isLoadingMore) return;
+    if ((swr.data?.length ?? 0) >= MAX_AUTO_LOAD_PAGES) return;
+
+    const timer = setTimeout(() => {
+      swr.setSize((size) => size + 1);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [
+    enabled,
+    autoLoadAll,
+    threadId,
+    hasMore,
+    isLoadingMore,
+    swr.data?.length,
+    swr.setSize,
+  ]);
+
   return {
     data: flattened,
     pages: swr.data,
     error: swr.error,
     isLoading: enabled && swr.isLoading && swr.data == null,
     mutate: swr.mutate,
-    // 正在拉取更多历史（size 已增加但对应页数据尚未返回）
-    isLoadingMore:
-      swr.isValidating && swr.data != null && swr.size > swr.data.length,
+    isLoadingMore,
     setSize: swr.setSize,
     hasMore,
     loadMore: () => swr.setSize((size) => size + 1),

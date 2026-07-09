@@ -49,6 +49,8 @@ export function ScenarioExecutionMonitor({
   // 加载数据
   React.useEffect(() => {
     if (scenarioId) {
+      setSelectedRunId(null);
+      setStepResults([]);
       loadScenario();
       loadRuns();
     } else {
@@ -86,8 +88,10 @@ export function ScenarioExecutionMonitor({
       setRuns(result.items);
 
       // 自动选择最新的执行记录
-      if (result.items.length > 0 && !selectedRunId) {
+      if (result.items.length > 0) {
         setSelectedRunId(result.items[0].id);
+      } else {
+        setSelectedRunId(null);
       }
     } catch (error) {
       console.error("Failed to load runs:", error);

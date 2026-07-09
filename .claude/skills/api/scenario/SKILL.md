@@ -9,6 +9,17 @@ description: API 场景测试专家 - 编排多接口业务流测试，实现端
 
 ## 核心工作流
 
+### 0. 创建数量原则
+
+**一次对话最终只保留一个测试场景。**
+
+在同一次 AI 对话中，无论调用多少次 `create_test_scenario`，系统都会自动用最新创建的场景覆盖之前的旧场景。因此：
+
+- 你应该围绕一个核心业务流程完成步骤编排、数据依赖、断言配置。
+- **场景创建完成后必须立即执行，并根据结果自动修复，确保最终场景可运行。**
+- 如果第一次生成的场景有错误，可以在同一次对话中直接重新生成或修复，系统会替换旧场景。
+- 如需同时保留多个场景，必须得到用户明确授权，并且建议开启新的 AI 对话。
+
 ### 1. 理解业务需求
 
 首先理解用户想要测试的业务流程，分析涉及的 API 接口及其调用顺序：
@@ -513,6 +524,97 @@ const result = await tools.execute_scenario({
   debug: true
 })
 ```
+
+## 生成后自动验证与修复
+
+**场景生成不是终点，必须通过执行验证其正确性。**
+
+完成场景编排后，必须立即执行场景测试，并根据执行结果进行修复：
+
+```javascript
+// 1. 执行场景（开启 debug 获取详细信息）
+const result = await tools.execute_scenario({
+  scenario_id: scenarioId,
+  variables: { username: "testuser", password: "password123", productId: "12345" },
+  base_url: "{base_url_from_project_environment}",
+  debug: true
+})
+
+// 2. 检查执行结果
+if (result.data.status !== "completed" || result.data.failed_steps > 0) {
+  // 分析失败步骤
+  for (const stepResult of result.data.step_results) {
+    if (stepResult.status === "failed" || stepResult.status === "error") {
+      console.log(`步骤 ${stepResult.step_order} 失败:`, stepResult.error_message)
+      console.log("断言结果:", stepResult.assertion_results)
+      console.log("提取数据:", stepResult.extracted_data)
+      
+      if (result.data.debug_info) {
+        console.log("请求:", stepResult.request_data)
+        console.log("响应:", stepResult.response_data)
+      }
+    }
+  }
+
+  // 3. 根据失败原因修复
+  // 示例：数据映射缺失
+  await tools.add_data_mapping({
+    step_id: "{failed_step_id}",
+    source_type: "previous_response",
+    source_step_id: "{source_step_id}",
+    source_path: "$.data.token",
+    target_path: "headers.Authorization",
+    transform_expression: "'Bearer ' + value"
+  })
+
+  // 示例：断言预期值调整
+  await tools.add_step_assertion({
+    step_id: "{failed_step_id}",
+    assertion_type: "jsonpath",
+    path: "$.data.status",
+    expected: "pending",  // 根据实际响应调整
+    operator: "eq"
+  })
+
+  // 示例：修正请求参数
+  await tools.update_scenario_step({
+    step_id: "{failed_step_id}",
+    request_override: {
+      body: { productId: "{{productId}}", quantity: 1 }
+    }
+  })
+
+  // 4. 重新执行，最多重试 3 次
+  const retryResult = await tools.execute_scenario({
+    scenario_id: scenarioId,
+    variables: { username: "testuser", password: "password123", productId: "12345" },
+    base_url: "{base_url_from_project_environment}",
+    debug: true
+  })
+}
+```
+
+### 常见失败原因与修复策略
+
+| 失败现象 | 可能原因 | 修复方法 |
+|----------|----------|----------|
+| 401/403 未授权 | token 未传递或已过期 | 检查前序步骤是否提取 token，数据映射是否传递到 `headers.Authorization` |
+| 404 接口不存在 | URL 路径错误或环境 base_url 不对 | 核对 endpoint path 和环境配置 |
+| 422 参数校验失败 | 必填参数缺失或类型错误 | 使用 `update_scenario_step` 修正 `request_override` |
+| 断言失败 | 预期值与实际响应不符 | 用 debug 模式查看实际响应，调整 `expected` 或 `operator` |
+| 数据提取为空 | JSONPath 路径错误 | 检查响应结构，修正 `source_path` |
+| 步骤间数据未传递 | 缺少数据映射 | 补充 `add_data_mapping` |
+
+### 自动修复原则
+
+- **必须执行**：场景创建完成后必须调用 `execute_scenario`，不能跳过。
+- **开启 debug**：执行时使用 `debug: true`，获取请求/响应详情用于定位问题。
+- **有限重试**：修复后最多再执行 3 次，避免无限循环。
+- **不放宽核心断言**：
+  - 认证失败必须保留 401/403 预期
+  - 缺少必填参数不能改成 `toBe(200)`
+  - 只能调整因业务语义变化导致的非核心断言
+- **说明失败**：如果多次修复仍失败，向用户清楚说明失败原因和已尝试的修复。
 
 ## 调试和问题排查
 
