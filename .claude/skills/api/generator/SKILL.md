@@ -71,7 +71,7 @@ const testPlan = planResult.content
 import { test, expect } from '@playwright/test';
 
 // 配置：API_BASE_URL 由执行环境注入，禁止硬编码 fallback
-const BASE_URL = process.env.API_BASE_URL;
+const BASE_URL = (process.env.API_BASE_URL || '').trim();
 if (!BASE_URL) {
   throw new Error(
     'API_BASE_URL is not set. ' +
@@ -95,15 +95,17 @@ const authHeaders = {
 
 test.describe('{endpoint_display_name}', () => {
 
-  test('成功场景 - {scenario_name}', async ({ request }) => {
-    const response = await request.post(`${BASE_URL}{path}`, {
+  test('成功场景 - {scenario_name}', async () => {
+    const url = `${BASE_URL.replace(/\/$/, '')}{path}`;
+    const response = await fetch(url, {
+      method: 'POST',
       headers: authHeaders,
-      data: {
+      body: JSON.stringify({
         // 请求数据
-      }
+      })
     });
 
-    expect(response.status()).toBe(200);
+    expect(response.status).toBe(200);
     const data = await response.json();
 
     // 验证响应结构
@@ -111,52 +113,60 @@ test.describe('{endpoint_display_name}', () => {
     expect(data).toHaveProperty('name');
   });
 
-  test('边界测试 - {boundary_name}', async ({ request }) => {
-    const response = await request.post(`${BASE_URL}{path}`, {
+  test('边界测试 - {boundary_name}', async () => {
+    const url = `${BASE_URL.replace(/\/$/, '')}{path}`;
+    const response = await fetch(url, {
+      method: 'POST',
       headers: authHeaders,
-      data: {
+      body: JSON.stringify({
         // 边界测试数据
-      }
+      })
     });
 
-    expect(response.status()).toBe(200);
+    expect(response.status).toBe(200);
   });
 
-  test('异常测试 - 缺少必填参数', async ({ request }) => {
-    const response = await request.post(`${BASE_URL}{path}`, {
+  test('异常测试 - 缺少必填参数', async () => {
+    const url = `${BASE_URL.replace(/\/$/, '')}{path}`;
+    const response = await fetch(url, {
+      method: 'POST',
       headers: authHeaders,
-      data: {
+      body: JSON.stringify({
         // 故意缺少必填参数
-      }
+      })
     });
 
-    expect(response.status()).toBe(400);
+    expect(response.status).toBe(400);
     const error = await response.json();
     expect(error).toHaveProperty('error');
   });
 
-  test('安全测试 - SQL注入', async ({ request }) => {
-    const response = await request.post(`${BASE_URL}{path}`, {
+  test('安全测试 - SQL注入', async () => {
+    const url = `${BASE_URL.replace(/\/$/, '')}{path}`;
+    const response = await fetch(url, {
+      method: 'POST',
       headers: authHeaders,
-      data: {
+      body: JSON.stringify({
         name: "'; DROP TABLE users; --"
-      }
+      })
     });
 
     // 应该被拒绝或返回错误，不应该影响服务器
-    expect([200, 400, 422]).toContain(response.status());
+    expect([200, 400, 422]).toContain(response.status);
   });
 
-  test('安全测试 - 认证失败', async ({ request }) => {
-    const response = await request.post(`${BASE_URL}{path}`, {
+  test('安全测试 - 认证失败', async () => {
+    const url = `${BASE_URL.replace(/\/$/, '')}{path}`;
+    const response = await fetch(url, {
+      method: 'POST',
       headers: {
         'Authorization': 'Bearer invalid-token',
         'Content-Type': 'application/json'
       },
-      data: {}
+      body: JSON.stringify({})
     });
 
-    expect([401, 403]).toContain(response.status());
+    expect([401, 403]).toContain(response.status);
   });
 });
 ```
@@ -167,7 +177,7 @@ test.describe('{endpoint_display_name}', () => {
 import axios from 'axios';
 
 // 配置：API_BASE_URL 由执行环境注入，禁止硬编码 fallback
-const BASE_URL = process.env.API_BASE_URL;
+const BASE_URL = (process.env.API_BASE_URL || '').trim();
 if (!BASE_URL) {
   throw new Error(
     'API_BASE_URL is not set. ' +
@@ -433,7 +443,7 @@ test('check error')
 使用 AAA 模式（Arrange-Act-Assert）：
 
 ```typescript
-test('should create user successfully', async ({ request }) => {
+test('should create user successfully', async () => {
   // Arrange - 准备测试数据
   const userData = {
     name: 'John Doe',
@@ -441,12 +451,15 @@ test('should create user successfully', async ({ request }) => {
   };
 
   // Act - 执行操作
-  const response = await request.post(`${BASE_URL}/users`, {
-    data: userData
+  const url = `${BASE_URL.replace(/\/$/, '')}/users`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(userData)
   });
 
   // Assert - 验证结果
-  expect(response.status()).toBe(200);
+  expect(response.status).toBe(200);
   const data = await response.json();
   expect(data.name).toBe(userData.name);
 });
@@ -456,7 +469,7 @@ test('should create user successfully', async ({ request }) => {
 
 ```typescript
 // 具体的断言
-expect(response.status()).toBe(200);
+expect(response.status).toBe(200);
 expect(data.id).toBeDefined();
 expect(data.name).toBe('John Doe');
 expect(data.email).toMatch(/^[^@]+@[^@]+\.[^@]+$/);
@@ -507,9 +520,12 @@ function getAuthHeaders(token?: string) {
 };
 
 // 方式 3：fixture（Playwright）
-test.beforeAll(async ({ request }) => {
-  const response = await request.post(`${BASE_URL}/auth/login`, {
-    data: { username: 'admin', password: 'password' }
+test.beforeAll(async () => {
+  const url = `${BASE_URL.replace(/\/$/, '')}/auth/login`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: 'admin', password: 'password' })
   });
   const { token } = await response.json();
   process.env.AUTH_TOKEN = token;
@@ -519,12 +535,15 @@ test.beforeAll(async ({ request }) => {
 ### 6. 错误处理测试
 
 ```typescript
-test('should handle 400 error gracefully', async ({ request }) => {
-  const response = await request.post(`${BASE_URL}/users`, {
-    data: {} // 缺少必填字段
+test('should handle 400 error gracefully', async () => {
+  const url = `${BASE_URL.replace(/\/$/, '')}/users`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({}) // 缺少必填字段
   });
 
-  expect(response.status()).toBe(400);
+  expect(response.status).toBe(400);
 
   const error = await response.json();
   expect(error).toHaveProperty('error');
@@ -543,27 +562,31 @@ test('should handle 400 error gracefully', async ({ request }) => {
 ### 场景 1：GET 请求（查询）
 
 ```typescript
-test('should return user list', async ({ request }) => {
-  const response = await request.get(`${BASE_URL}/users`, {
+test('should return user list', async () => {
+  const url = `${BASE_URL.replace(/\/$/, '')}/users`;
+  const response = await fetch(url, {
+    method: 'GET',
     headers: authHeaders
   });
 
-  expect(response.status()).toBe(200);
+  expect(response.status).toBe(200);
   const data = await response.json();
   expect(data.items).toBeInstanceOf(Array);
   expect(data.total).toBeGreaterThanOrEqual(0);
 });
 
-test('should support pagination', async ({ request }) => {
-  const response = await request.get(`${BASE_URL}/users`, {
-    headers: authHeaders,
-    params: {
-      page: 1,
-      page_size: 10
-    }
+test('should support pagination', async () => {
+  const queryParams = new URLSearchParams({
+    page: String(1),
+    page_size: String(10)
+  }).toString();
+  const url = `${BASE_URL.replace(/\/$/, '')}/users?${queryParams}`;
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: authHeaders
   });
 
-  expect(response.status()).toBe(200);
+  expect(response.status).toBe(200);
   const data = await response.json();
   expect(data.items.length).toBeLessThanOrEqual(10);
 });
@@ -572,19 +595,21 @@ test('should support pagination', async ({ request }) => {
 ### 场景 2：POST 请求（创建）
 
 ```typescript
-test('should create new user', async ({ request }) => {
+test('should create new user', async () => {
   const newUser = {
     name: 'John Doe',
     email: `john${Date.now()}@example.com`,
     age: 30
   };
 
-  const response = await request.post(`${BASE_URL}/users`, {
+  const url = `${BASE_URL.replace(/\/$/, '')}/users`;
+  const response = await fetch(url, {
+    method: 'POST',
     headers: authHeaders,
-    data: newUser
+    body: JSON.stringify(newUser)
   });
 
-  expect(response.status()).toBe(201);
+  expect(response.status).toBe(201);
   const data = await response.json();
   expect(data.id).toBeDefined();
   expect(data.name).toBe(newUser.name);
@@ -595,17 +620,19 @@ test('should create new user', async ({ request }) => {
 ### 场景 3：PUT/PATCH 请求（更新）
 
 ```typescript
-test('should update user data', async ({ request }) => {
+test('should update user data', async () => {
   const updates = {
     name: 'Jane Doe'
   };
 
-  const response = await request.patch(`${BASE_URL}/users/123`, {
+  const url = `${BASE_URL.replace(/\/$/, '')}/users/123`;
+  const response = await fetch(url, {
+    method: 'PATCH',
     headers: authHeaders,
-    data: updates
+    body: JSON.stringify(updates)
   });
 
-  expect(response.status()).toBe(200);
+  expect(response.status).toBe(200);
   const data = await response.json();
   expect(data.name).toBe(updates.name);
 });
@@ -614,41 +641,41 @@ test('should update user data', async ({ request }) => {
 ### 场景 4：DELETE 请求（删除）
 
 ```typescript
-test('should delete user', async ({ request }) => {
-  const response = await request.delete(`${BASE_URL}/users/123`, {
+test('should delete user', async () => {
+  const url = `${BASE_URL.replace(/\/$/, '')}/users/123`;
+  const response = await fetch(url, {
+    method: 'DELETE',
     headers: authHeaders
   });
 
-  expect(response.status()).toBe(204);
+  expect(response.status).toBe(204);
 
   // 验证资源已被删除
-  const getResponse = await request.get(`${BASE_URL}/users/123`, {
+  const verifyUrl = `${BASE_URL.replace(/\/$/, '')}/users/123`;
+  const getResponse = await fetch(verifyUrl, {
+    method: 'GET',
     headers: authHeaders
   });
-  expect(getResponse.status()).toBe(404);
+  expect(getResponse.status).toBe(404);
 });
 ```
 
 ### 场景 5：文件上传
 
 ```typescript
-test('should upload file', async ({ request }) => {
-  const file = Buffer.from('file content');
-
-  const response = await request.post(`${BASE_URL}/upload`, {
+test('should upload file', async () => {
+  const formData = new FormData();
+  formData.append('file', new Blob(['file content'], { type: 'text/plain' }), 'test.txt');
+  const url = `${BASE_URL.replace(/\/$/, '')}/upload`;
+  const response = await fetch(url, {
+    method: 'POST',
     headers: {
       'Authorization': `Bearer ${AUTH_TOKEN}`
     },
-    multipart: {
-      file: {
-        name: 'test.txt',
-        mimeType: 'text/plain',
-        buffer: file
-      }
-    }
+    body: formData
   });
 
-  expect(response.status()).toBe(200);
+  expect(response.status).toBe(200);
   const data = await response.json();
   expect(data.fileUrl).toBeDefined();
 });
@@ -698,7 +725,7 @@ const content = await tools.get_artifact_content({
 // 步骤 3: 解析并生成测试代码
 const testScript = `import { test, expect } from '@playwright/test';
 
-const BASE_URL = process.env.API_BASE_URL;
+const BASE_URL = (process.env.API_BASE_URL || '').trim();
 if (!BASE_URL) {
   throw new Error(
     'API_BASE_URL is not set. ' +
@@ -716,45 +743,37 @@ if (AUTH_TOKEN) {
 }
 
 test.describe('User Login API', () => {
-  test('should login with valid credentials', async ({ request }) => {
-    const response = await request.post(\`\${BASE_URL}/auth/login\`, {
+  test('should login with valid credentials', async () => {
+    const url = `${BASE_URL.replace(/\/$/, '')}/auth/login`;
+    const response = await fetch(url, {
+      method: 'POST',
       headers: authHeaders,
-      data: {
-        username: 'testuser',
-        password: 'password123'
-      }
+      body: JSON.stringify({ username: 'testuser', password: 'password123' })
     });
-
-    expect(response.status()).toBe(200);
+    expect(response.status).toBe(200);
     const data = await response.json();
     expect(data).toHaveProperty('token');
     expect(data).toHaveProperty('userId');
   });
 
-  test('should return 401 with invalid credentials', async ({ request }) => {
-    const response = await request.post(\`\${BASE_URL}/auth/login\`, {
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer invalid-token'
-      },
-      data: {
-        username: 'testuser',
-        password: 'wrongpassword'
-      }
+  test('should return 401 with invalid credentials', async () => {
+    const url = `${BASE_URL.replace(/\/$/, '')}/auth/login`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: authHeaders,
+      body: JSON.stringify({ username: 'testuser', password: 'wrongpassword' })
     });
-
-    expect(response.status()).toBe(401);
+    expect(response.status).toBe(401);
   });
 
-  test('should return 400 when missing password', async ({ request }) => {
-    const response = await request.post(\`\${BASE_URL}/auth/login\`, {
+  test('should return 400 when missing password', async () => {
+    const url = `${BASE_URL.replace(/\/$/, '')}/auth/login`;
+    const response = await fetch(url, {
+      method: 'POST',
       headers: authHeaders,
-      data: {
-        username: 'testuser'
-      }
+      body: JSON.stringify({ username: 'testuser' })
     });
-
-    expect(response.status()).toBe(400);
+    expect(response.status).toBe(400);
   });
 });`
 

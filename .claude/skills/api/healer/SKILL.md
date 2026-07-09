@@ -91,42 +91,66 @@ Error: Expected status 200, but got 401
 
 **原代码：**
 ```typescript
-test('should get user data', async ({ request }) => {
-  const response = await request.get(`${BASE_URL}/users/123`, {
+test('should get user data', async () => {
+  const BASE_URL = (process.env.API_BASE_URL || '').trim();
+  const path = '/users/123';
+  const url = `${BASE_URL.replace(/\/$/, '')}${path}`;
+  const response = await fetch(url, {
+    method: 'GET',
     headers: {
-      'Authorization': `Bearer ${AUTH_TOKEN}`
+      'Authorization': `Bearer ${AUTH_TOKEN}`,
+      'Content-Type': 'application/json'
     }
   });
-  expect(response.status()).toBe(200);
+  expect(response.status).toBe(200);
 });
 ```
 
 **修复后：**
 ```typescript
 // 方法 1：动态获取 token
-test.beforeAll(async ({ request }) => {
-  const response = await request.post(`${BASE_URL}/auth/login`, {
-    data: { username: 'admin', password: 'password' }
+test.beforeAll(async () => {
+  const BASE_URL = (process.env.API_BASE_URL || '').trim();
+  const path = '/auth/login';
+  const url = `${BASE_URL.replace(/\/$/, '')}${path}`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ username: 'admin', password: 'password' })
   });
   const { token } = await response.json();
   process.env.AUTH_TOKEN = token;
 });
 
-test('should get user data', async ({ request }) => {
-  const response = await request.get(`${BASE_URL}/users/123`, {
+test('should get user data', async () => {
+  const BASE_URL = (process.env.API_BASE_URL || '').trim();
+  const path = '/users/123';
+  const url = `${BASE_URL.replace(/\/$/, '')}${path}`;
+  const response = await fetch(url, {
+    method: 'GET',
     headers: {
-      'Authorization': `Bearer ${process.env.AUTH_TOKEN}`
+      'Authorization': `Bearer ${process.env.AUTH_TOKEN}`,
+      'Content-Type': 'application/json'
     }
   });
-  expect(response.status()).toBe(200);
+  expect(response.status).toBe(200);
 });
 
 // 方法 2：添加 token 刷新逻辑
 async function getAuthToken() {
   const token = process.env.AUTH_TOKEN;
   if (!token || isTokenExpired(token)) {
-    const response = await request.post(`${BASE_URL}/auth/login`, {
-      data: { username: 'admin', password: 'password' }
+    const BASE_URL = (process.env.API_BASE_URL || '').trim();
+    const path = '/auth/login';
+    const url = `${BASE_URL.replace(/\/$/, '')}${path}`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ username: 'admin', password: 'password' })
     });
     const { token: newToken } = await response.json();
     process.env.AUTH_TOKEN = newToken;
@@ -135,14 +159,19 @@ async function getAuthToken() {
   return token;
 }
 
-test('should get user data', async ({ request }) => {
+test('should get user data', async () => {
   const token = await getAuthToken();
-  const response = await request.get(`${BASE_URL}/users/123`, {
+  const BASE_URL = (process.env.API_BASE_URL || '').trim();
+  const path = '/users/123';
+  const url = `${BASE_URL.replace(/\/$/, '')}${path}`;
+  const response = await fetch(url, {
+    method: 'GET',
     headers: {
-      'Authorization': `Bearer ${token}`
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
     }
   });
-  expect(response.status()).toBe(200);
+  expect(response.status).toBe(200);
 });
 ```
 
@@ -162,30 +191,54 @@ Error: Expected status 200, but got 404
 
 **原代码：**
 ```typescript
-test('should get user data', async ({ request }) => {
-  const response = await request.get(`${BASE_URL}/api/v1/users/123`, {
-    headers: authHeaders
+test('should get user data', async () => {
+  const authHeaders = { 'Authorization': `Bearer ${process.env.AUTH_TOKEN}` };
+  const BASE_URL = (process.env.API_BASE_URL || '').trim();
+  const path = '/api/v1/users/123';
+  const url = `${BASE_URL.replace(/\/$/, '')}${path}`;
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      ...authHeaders,
+      'Content-Type': 'application/json'
+    }
   });
-  expect(response.status()).toBe(200);
+  expect(response.status).toBe(200);
 });
 ```
 
 **修复后：**
 ```typescript
 // API 版本变更
-test('should get user data', async ({ request }) => {
-  const response = await request.get(`${BASE_URL}/api/v2/users/123`, {  // v1 → v2
-    headers: authHeaders
+test('should get user data', async () => {
+  const authHeaders = { 'Authorization': `Bearer ${process.env.AUTH_TOKEN}` };
+  const BASE_URL = (process.env.API_BASE_URL || '').trim();
+  const path = '/api/v2/users/123';
+  const url = `${BASE_URL.replace(/\/$/, '')}${path}`;
+  const response = await fetch(url, {  // v1 → v2
+    method: 'GET',
+    headers: {
+      ...authHeaders,
+      'Content-Type': 'application/json'
+    }
   });
-  expect(response.status()).toBe(200);
+  expect(response.status).toBe(200);
 });
 
 // 或者路径变更
-test('should get user data', async ({ request }) => {
-  const response = await request.get(`${BASE_URL}/api/v1/user/123`, {  // users → user
-    headers: authHeaders
+test('should get user data', async () => {
+  const authHeaders = { 'Authorization': `Bearer ${process.env.AUTH_TOKEN}` };
+  const BASE_URL = (process.env.API_BASE_URL || '').trim();
+  const path = '/api/v1/user/123';
+  const url = `${BASE_URL.replace(/\/$/, '')}${path}`;
+  const response = await fetch(url, {  // users → user
+    method: 'GET',
+    headers: {
+      ...authHeaders,
+      'Content-Type': 'application/json'
+    }
   });
-  expect(response.status()).toBe(200);
+  expect(response.status).toBe(200);
 });
 ```
 
@@ -206,29 +259,45 @@ Response: {"error": "field 'email' is required"}
 
 **原代码：**
 ```typescript
-test('should create user', async ({ request }) => {
-  const response = await request.post(`${BASE_URL}/users`, {
-    headers: authHeaders,
-    data: {
+test('should create user', async () => {
+  const authHeaders = { 'Authorization': `Bearer ${process.env.AUTH_TOKEN}` };
+  const BASE_URL = (process.env.API_BASE_URL || '').trim();
+  const path = '/users';
+  const url = `${BASE_URL.replace(/\/$/, '')}${path}`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      ...authHeaders,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
       name: 'John Doe'
       // 缺少 email 字段
-    }
+    })
   });
-  expect(response.status()).toBe(200);
+  expect(response.status).toBe(200);
 });
 ```
 
 **修复后：**
 ```typescript
-test('should create user', async ({ request }) => {
-  const response = await request.post(`${BASE_URL}/users`, {
-    headers: authHeaders,
-    data: {
+test('should create user', async () => {
+  const authHeaders = { 'Authorization': `Bearer ${process.env.AUTH_TOKEN}` };
+  const BASE_URL = (process.env.API_BASE_URL || '').trim();
+  const path = '/users';
+  const url = `${BASE_URL.replace(/\/$/, '')}${path}`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      ...authHeaders,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
       name: 'John Doe',
       email: 'john.doe@example.com'  // 添加必填字段
-    }
+    })
   });
-  expect(response.status()).toBe(201);  // 也可能是 201 而不是 200
+  expect(response.status).toBe(201);  // 也可能是 201 而不是 200
 });
 ```
 
@@ -248,12 +317,20 @@ Error: Expected object to have property 'data'
 
 **原代码：**
 ```typescript
-test('should get user data', async ({ request }) => {
-  const response = await request.get(`${BASE_URL}/users/123`, {
-    headers: authHeaders
+test('should get user data', async () => {
+  const authHeaders = { 'Authorization': `Bearer ${process.env.AUTH_TOKEN}` };
+  const BASE_URL = (process.env.API_BASE_URL || '').trim();
+  const path = '/users/123';
+  const url = `${BASE_URL.replace(/\/$/, '')}${path}`;
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      ...authHeaders,
+      'Content-Type': 'application/json'
+    }
   });
 
-  expect(response.status()).toBe(200);
+  expect(response.status).toBe(200);
   const data = await response.json();
 
   // 旧的响应结构
@@ -265,12 +342,20 @@ test('should get user data', async ({ request }) => {
 
 **修复后：**
 ```typescript
-test('should get user data', async ({ request }) => {
-  const response = await request.get(`${BASE_URL}/users/123`, {
-    headers: authHeaders
+test('should get user data', async () => {
+  const authHeaders = { 'Authorization': `Bearer ${process.env.AUTH_TOKEN}` };
+  const BASE_URL = (process.env.API_BASE_URL || '').trim();
+  const path = '/users/123';
+  const url = `${BASE_URL.replace(/\/$/, '')}${path}`;
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      ...authHeaders,
+      'Content-Type': 'application/json'
+    }
   });
 
-  expect(response.status()).toBe(200);
+  expect(response.status).toBe(200);
   const data = await response.json();
 
   // 新的响应结构（直接返回用户对象）
@@ -301,24 +386,40 @@ Error: Expected status 200, but got 201
 
 **原代码：**
 ```typescript
-test('should create user', async ({ request }) => {
-  const response = await request.post(`${BASE_URL}/users`, {
-    headers: authHeaders,
-    data: userData
+test('should create user', async () => {
+  const authHeaders = { 'Authorization': `Bearer ${process.env.AUTH_TOKEN}` };
+  const BASE_URL = (process.env.API_BASE_URL || '').trim();
+  const path = '/users';
+  const url = `${BASE_URL.replace(/\/$/, '')}${path}`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      ...authHeaders,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(userData)
   });
-  expect(response.status()).toBe(200);  // 错误：POST 创建应该返回 201
+  expect(response.status).toBe(200);  // 错误：POST 创建应该返回 201
 });
 ```
 
 **修复后：**
 ```typescript
-test('should create user', async ({ request }) => {
-  const response = await request.post(`${BASE_URL}/users`, {
-    headers: authHeaders,
-    data: userData
+test('should create user', async () => {
+  const authHeaders = { 'Authorization': `Bearer ${process.env.AUTH_TOKEN}` };
+  const BASE_URL = (process.env.API_BASE_URL || '').trim();
+  const path = '/users';
+  const url = `${BASE_URL.replace(/\/$/, '')}${path}`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      ...authHeaders,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(userData)
   });
-  expect(response.status()).toBe(201);  // 正确：创建成功返回 201
-  expect(response.headers()['content-type']).toContain('application/json');
+  expect(response.status).toBe(201);  // 正确：创建成功返回 201
+  expect(response.headers.get('content-type')).toContain('application/json');
 });
 ```
 
@@ -338,9 +439,17 @@ Error: Request timed out after 30000ms
 
 **原代码：**
 ```typescript
-test('should get user data', async ({ request }) => {
-  const response = await request.get(`${BASE_URL}/users/123`, {
-    headers: authHeaders
+test('should get user data', async () => {
+  const authHeaders = { 'Authorization': `Bearer ${process.env.AUTH_TOKEN}` };
+  const BASE_URL = (process.env.API_BASE_URL || '').trim();
+  const path = '/users/123';
+  const url = `${BASE_URL.replace(/\/$/, '')}${path}`;
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      ...authHeaders,
+      'Content-Type': 'application/json'
+    }
   });
   // 默认超时可能不够
 });
@@ -348,12 +457,23 @@ test('should get user data', async ({ request }) => {
 
 **修复后：**
 ```typescript
-test('should get user data', async ({ request }) => {
-  const response = await request.get(`${BASE_URL}/users/123`, {
-    headers: authHeaders,
-    timeout: 60000  // 增加超时到 60 秒
+test('should get user data', async () => {
+  const authHeaders = { 'Authorization': `Bearer ${process.env.AUTH_TOKEN}` };
+  const BASE_URL = (process.env.API_BASE_URL || '').trim();
+  const path = '/users/123';
+  const url = `${BASE_URL.replace(/\/$/, '')}${path}`;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 60000);  // 增加超时到 60 秒
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      ...authHeaders,
+      'Content-Type': 'application/json'
+    },
+    signal: controller.signal
   });
-  expect(response.status()).toBe(200);
+  clearTimeout(timeoutId);
+  expect(response.status).toBe(200);
 });
 
 // 或者在测试配置中设置全局超时
