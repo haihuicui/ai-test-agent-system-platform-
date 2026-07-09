@@ -53,6 +53,8 @@ Thumbs.db
 
 # Agent runtime workspaces (agent-generated artifacts: exports, tool results,
 # conversation history, scratch scripts, node_modules — not source)
-backend/workspace/
+backend/workspace/**
+!backend/workspace/api/
+!backend/workspace/api/api-trace-helper.ts
 backend/test-results/
 .langgraph_api/

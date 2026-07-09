@@ -60,6 +60,13 @@ export interface APITestResult {
     headers?: Record<string, unknown> | null;
     params?: Record<string, unknown> | null;
     body?: unknown;
+    body_meta?: {
+      original_size?: number;
+      truncated?: boolean;
+      storage_path?: string | null;
+      storage_error?: string | null;
+      preview_length?: number;
+    };
   };
   response_data?: {
     status?: number;
@@ -67,6 +74,13 @@ export interface APITestResult {
     headers?: Record<string, unknown> | null;
     body?: unknown;
     timing?: number;
+    body_meta?: {
+      original_size?: number;
+      truncated?: boolean;
+      storage_path?: string | null;
+      storage_error?: string | null;
+      preview_length?: number;
+    };
   };
   assertion_results?: Array<{
     assertion: Record<string, unknown>;

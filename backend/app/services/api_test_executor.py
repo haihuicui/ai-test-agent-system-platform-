@@ -79,6 +79,73 @@ function appendTrace(traceFile: string, entry: any): void {
   } catch (e) { /* ignore */ }
 }
 
+// ---------------------------------------------------------------------------
+// 脱敏与大小配置（支持环境变量覆盖）
+// ---------------------------------------------------------------------------
+const DEFAULT_SENSITIVE_HEADERS = ['authorization', 'cookie', 'x-api-key', 'x-auth-token'];
+const DEFAULT_SENSITIVE_BODY_FIELDS = [
+  'password', 'token', 'secret', 'apikey', 'api_key',
+  'accesstoken', 'refreshtoken', 'auth_token',
+];
+const DEFAULT_TRUNCATE_THRESHOLD = 50_000;
+const DEFAULT_PREVIEW_LENGTH = 2_000;
+
+function parseEnvList(name: string, defaults: string[]): string[] {
+  const raw = process.env[name];
+  if (!raw) return defaults;
+  return raw.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
+}
+
+function parseEnvInt(name: string, defaultValue: number): number {
+  const raw = process.env[name];
+  if (!raw) return defaultValue;
+  const parsed = parseInt(raw, 10);
+  return Number.isNaN(parsed) ? defaultValue : parsed;
+}
+
+const SENSITIVE_HEADERS = new Set(parseEnvList('API_TEST_SENSITIVE_HEADERS', DEFAULT_SENSITIVE_HEADERS));
+const SENSITIVE_BODY_FIELDS = new Set(parseEnvList('API_TEST_SENSITIVE_BODY_FIELDS', DEFAULT_SENSITIVE_BODY_FIELDS));
+const BODY_TRUNCATE_THRESHOLD = parseEnvInt('API_TEST_BODY_TRUNCATE_THRESHOLD', DEFAULT_TRUNCATE_THRESHOLD);
+const BODY_PREVIEW_LENGTH = parseEnvInt('API_TEST_BODY_PREVIEW_LENGTH', DEFAULT_PREVIEW_LENGTH);
+
+function sanitizeHeaders(headers: Record<string, string> | undefined): Record<string, string> | undefined {
+  if (!headers) return headers;
+  const result: Record<string, string> = {};
+  for (const [key, value] of Object.entries(headers)) {
+    result[key] = SENSITIVE_HEADERS.has(key.toLowerCase()) ? '***' : value;
+  }
+  return result;
+}
+
+function sanitizeBody(body: any): any {
+  if (body === null || body === undefined) return body;
+  if (typeof body === 'string') {
+    try {
+      const parsed = JSON.parse(body);
+      const sanitized = sanitizeBody(parsed);
+      return JSON.stringify(sanitized);
+    } catch {
+      return body;
+    }
+  }
+  if (Array.isArray(body)) return body.map(sanitizeBody);
+  if (typeof body !== 'object') return body;
+  const result: any = {};
+  for (const [key, value] of Object.entries(body)) {
+    result[key] = SENSITIVE_BODY_FIELDS.has(key.toLowerCase()) ? '***' : sanitizeBody(value);
+  }
+  return result;
+}
+
+function getBodyMeta(body: any): { originalSize: number; truncated: boolean } {
+  if (body === null || body === undefined) {
+    return { originalSize: 0, truncated: false };
+  }
+  const serialized = typeof body === 'string' ? body : JSON.stringify(body);
+  const originalSize = Buffer.byteLength(serialized, 'utf8');
+  return { originalSize, truncated: originalSize > BODY_TRUNCATE_THRESHOLD };
+}
+
 function wrapResponse(response: APIResponse, testName: string, testTitle: string, traceFile: string, startTime: number, requestInfo: any): APIResponse {
   let bodyRecorded = false;
   const record = (responseBody?: any) => {
@@ -86,12 +153,27 @@ function wrapResponse(response: APIResponse, testName: string, testTitle: string
     if (responseBody !== undefined) bodyRecorded = true;
     let body = responseBody;
     if (typeof body === 'string') { try { body = JSON.parse(body); } catch { /* keep text */ } }
+
+    const sanitizedReqHeaders = sanitizeHeaders(requestInfo.headers);
+    const sanitizedRespHeaders = sanitizeHeaders(response.headers());
+    const sanitizedReqBody = sanitizeBody(requestInfo.body);
+    const sanitizedRespBody = sanitizeBody(body);
+    const reqBodyMeta = getBodyMeta(sanitizedReqBody);
+    const respBodyMeta = getBodyMeta(sanitizedRespBody);
+
     appendTrace(traceFile, {
       testName, testTitle,
       method: requestInfo.method, url: requestInfo.url,
-      requestHeaders: requestInfo.headers, requestParams: requestInfo.params, requestBody: requestInfo.body,
+      requestHeaders: sanitizedReqHeaders,
+      requestParams: requestInfo.params,
+      requestBody: sanitizedReqBody,
+      requestBodyOriginalSize: reqBodyMeta.originalSize,
+      requestBodyTruncated: reqBodyMeta.truncated,
       status: response.status(), statusText: response.statusText(),
-      responseHeaders: response.headers(), responseBody: body,
+      responseHeaders: sanitizedRespHeaders,
+      responseBody: sanitizedRespBody,
+      responseBodyOriginalSize: respBodyMeta.originalSize,
+      responseBodyTruncated: respBodyMeta.truncated,
       durationMs: Date.now() - startTime, timestamp: new Date().toISOString(),
     });
   };
@@ -107,27 +189,62 @@ function wrapResponse(response: APIResponse, testName: string, testTitle: string
 
 function wrapContext(context: APIRequestContext, testName: string, testTitle: string, traceFile: string): APIRequestContext {
   const methods = ['get','post','put','delete','patch','head'];
+  const recordRequest = (method: string, url: string, options: any, startTime: number, extra: any = {}) => {
+    const sanitizedReqHeaders = sanitizeHeaders(options?.headers);
+    const sanitizedReqBody = sanitizeBody(options?.data);
+    const reqBodyMeta = getBodyMeta(sanitizedReqBody);
+
+    appendTrace(traceFile, {
+      testName, testTitle,
+      method, url,
+      requestHeaders: sanitizedReqHeaders,
+      requestParams: options?.params,
+      requestBody: sanitizedReqBody,
+      requestBodyOriginalSize: reqBodyMeta.originalSize,
+      requestBodyTruncated: reqBodyMeta.truncated,
+      ...extra,
+      durationMs: Date.now() - startTime, timestamp: new Date().toISOString(),
+    });
+  };
   return new Proxy(context, {
     get(target, prop, receiver) {
       if (typeof prop === 'string' && methods.includes(prop.toLowerCase())) {
         return async (url: string, options?: any) => {
           const startTime = Date.now();
-          const response = await target[prop](url, options);
-          return wrapResponse(response, testName, testTitle, traceFile, startTime, {
-            method: prop.toUpperCase(), url,
-            headers: options?.headers, params: options?.params, body: options?.data,
-          });
+          try {
+            const response = await target[prop](url, options);
+            return wrapResponse(response, testName, testTitle, traceFile, startTime, {
+              method: prop.toUpperCase(), url,
+              headers: options?.headers, params: options?.params, body: options?.data,
+            });
+          } catch (error) {
+            recordRequest(prop.toUpperCase(), url, options, startTime, {
+              status: null, statusText: String(error),
+              responseHeaders: {}, responseBody: null,
+              error: String(error),
+            });
+            throw error;
+          }
         };
       }
       if (prop === 'fetch') {
         return async (urlOrRequest: string | Request, options?: any) => {
           const url = typeof urlOrRequest === 'string' ? urlOrRequest : urlOrRequest.url;
           const startTime = Date.now();
-          const response = await target.fetch(urlOrRequest, options);
-          return wrapResponse(response, testName, testTitle, traceFile, startTime, {
-            method: options?.method?.toUpperCase() || 'GET', url,
-            headers: options?.headers, params: options?.params, body: options?.data,
-          });
+          try {
+            const response = await target.fetch(urlOrRequest, options);
+            return wrapResponse(response, testName, testTitle, traceFile, startTime, {
+              method: options?.method?.toUpperCase() || 'GET', url,
+              headers: options?.headers, params: options?.params, body: options?.data,
+            });
+          } catch (error) {
+            recordRequest(options?.method?.toUpperCase() || 'GET', url, options, startTime, {
+              status: null, statusText: String(error),
+              responseHeaders: {}, responseBody: null,
+              error: String(error),
+            });
+            throw error;
+          }
         };
       }
       return Reflect.get(target, prop, receiver);
@@ -503,6 +620,12 @@ class APITestExecutor:
                 print(f"[APITestExecutor] 注入 API_BASE_URL: {env_vars['API_BASE_URL']}")
             env["CI"] = "1"
 
+            # 注入 trace 脱敏与截断配置（供 api-trace-helper.ts 读取）
+            env["API_TEST_SENSITIVE_HEADERS"] = ",".join(settings.api_test_sensitive_headers)
+            env["API_TEST_SENSITIVE_BODY_FIELDS"] = ",".join(settings.api_test_sensitive_body_fields)
+            env["API_TEST_BODY_TRUNCATE_THRESHOLD"] = str(settings.api_test_body_truncate_threshold)
+            env["API_TEST_BODY_PREVIEW_LENGTH"] = str(settings.api_test_body_preview_length)
+
             # 为每次运行使用独立的 HTML 报告目录，避免并发执行互相覆盖
             report_dir = workspace_dir / f"playwright-report-{run_id}"
             env["PLAYWRIGHT_HTML_OUTPUT_DIR"] = str(report_dir)
@@ -648,17 +771,21 @@ class APITestExecutor:
         except Exception as e:
             logger.error("[APITestExecutor] 处理测试结果失败: %s", e)
 
+    @staticmethod
     def _match_trace_entries(
-        self,
         test_title: str,
         trace_entries: List[Dict[str, Any]],
     ) -> List[Dict[str, Any]]:
         """
         根据用例标题匹配 trace 条目。
 
-        Playwright list reporter 解析出的 title 是叶子标题（如 "GET /api/users"），
-        而 trace 里 testTitle 也是叶子标题，testName 是完整路径。
-        优先按 testTitle 精确匹配，再按 testName 结尾匹配。
+        Playwright list reporter 解析出的 title 是完整路径（包含 describe 与叶子标题），
+        而 trace 里 testTitle 是叶子标题，testName 是包含文件名的完整路径。
+        因此需要多策略匹配：
+        - 叶子标题相等
+        - 完整路径相等
+        - 完整路径以 list reporter 解析出的 title 结尾
+        - list reporter 解析出的 title 以叶子标题结尾
         """
         matched: List[Dict[str, Any]] = []
         for entry in trace_entries:
@@ -668,11 +795,16 @@ class APITestExecutor:
                 matched.append(entry)
             elif entry_name == test_title:
                 matched.append(entry)
+            elif entry_name.endswith(test_title):
+                matched.append(entry)
+            elif test_title.endswith(entry_title) and entry_title:
+                matched.append(entry)
             elif entry_name.endswith(f" › {test_title}"):
                 matched.append(entry)
         return matched
 
-    def _parse_playwright_list_output(self, stdout: str) -> List[Dict[str, str]]:
+    @staticmethod
+    def _parse_playwright_list_output(stdout: str) -> List[Dict[str, str]]:
         """
         从 Playwright list reporter 输出中解析每个测试用例的状态和标题。
 
@@ -740,6 +872,23 @@ class APITestExecutor:
                 trace_entries, status
             )
 
+            # 处理大响应体：完整 body 上传 MinIO，DB 只存截断预览
+            if response_data and response_data.get("body_meta", {}).get("truncated"):
+                try:
+                    full_body = response_data["body"]
+                    storage_path = f"api-test-bodies/{run_id}/{uuid4().hex}/response_body.json"
+                    body_bytes = json.dumps(full_body).encode("utf-8")
+                    MinIOClient.upload_bytes(storage_path, body_bytes, "application/json")
+                    response_data["body_meta"]["storage_path"] = storage_path
+                    logger.info("[APITestExecutor] 大响应体已上传 MinIO: %s", storage_path)
+                except Exception as e:
+                    logger.warning("[APITestExecutor] 上传响应体到 MinIO 失败: %s", e)
+                    response_data["body_meta"]["storage_error"] = str(e)
+
+            # 截断落库的 body（避免 JSONB 行过大）
+            request_data = self._truncate_body_in_data(request_data)
+            response_data = self._truncate_body_in_data(response_data)
+
             # 创建测试结果记录
             _result_repo = result_repo or self.api_test_result_repo
             result = await _result_repo.create(
@@ -786,8 +935,8 @@ class APITestExecutor:
         except Exception as e:
             logger.error("[APITestExecutor] 保存测试结果失败: %s", e)
 
+    @staticmethod
     def _build_trace_summary(
-        self,
         trace_entries: List[Dict[str, Any]],
         status: TestResultStatus,
     ) -> tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]], Optional[List[Dict[str, Any]]], Optional[int]]:
@@ -818,6 +967,10 @@ class APITestExecutor:
             "headers": chosen.get("requestHeaders") or {},
             "params": chosen.get("requestParams") or {},
             "body": chosen.get("requestBody"),
+            "body_meta": {
+                "original_size": chosen.get("requestBodyOriginalSize", 0),
+                "truncated": chosen.get("requestBodyTruncated", False),
+            },
         }
 
         response_status = chosen.get("status")
@@ -826,12 +979,16 @@ class APITestExecutor:
             "statusText": chosen.get("statusText", ""),
             "headers": chosen.get("responseHeaders") or {},
             "body": chosen.get("responseBody"),
+            "body_meta": {
+                "original_size": chosen.get("responseBodyOriginalSize", 0),
+                "truncated": chosen.get("responseBodyTruncated", False),
+            },
             "timing": chosen.get("durationMs"),
         }
 
         # 生成断言结果：status 断言
         assertions: List[Dict[str, Any]] = []
-        if response_status is not None:
+        if response_status is not None and isinstance(response_status, int):
             passed = 200 <= response_status < 300
             assertions.append({
                 "assertion": {"type": "status", "expected": "2xx"},
@@ -859,19 +1016,62 @@ class APITestExecutor:
 
         return request_data, response_data, assertions, duration_ms
 
-    def _parse_endpoint_from_test_name(self, test_name: str) -> tuple[str, str]:
+    @staticmethod
+    def _truncate_body_in_data(
+        data: Optional[Dict[str, Any]],
+    ) -> Optional[Dict[str, Any]]:
+        """
+        对请求/响应数据中的 body 进行截断，避免 JSONB 行过大。
+
+        - 如果 body 未超过阈值，保持原样
+        - 如果 body 超过阈值，保留前 preview_length 字符，并添加截断标记
+        """
+        if not data:
+            return data
+
+        body = data.get("body")
+        body_meta = data.get("body_meta") or {}
+        if not body_meta.get("truncated") or body is None:
+            return data
+
+        preview_length = settings.api_test_body_preview_length
+        try:
+            serialized = body if isinstance(body, str) else json.dumps(body, ensure_ascii=False)
+            if len(serialized) > preview_length:
+                truncated = serialized[:preview_length] + "\n...[truncated]"
+                data["body"] = truncated
+                body_meta["preview_length"] = preview_length
+        except Exception as e:
+            logger.warning("[APITestExecutor] 截断 body 失败: %s", e)
+
+        return data
+
+    @staticmethod
+    def _parse_endpoint_from_test_name(test_name: str) -> tuple[str, str]:
         """
         Parse endpoint and HTTP method from test name.
 
+        Supports both simple titles like "GET /api/v1/users" and full Playwright
+        title paths like "GET /api/v1/users › should return list".
+
         Input:  "GET /api/v1/users"
+        Output: ("/api/v1/users", "GET")
+
+        Input:  "GET /api/v1/users › should return list"
         Output: ("/api/v1/users", "GET")
         """
         import re
 
-        # Try to match pattern: "METHOD /path" or "METHOD path"
-        match = re.match(r'^(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS)\s+(.+)$', test_name)
+        # Try to match pattern: "METHOD /path" or "METHOD path" at the start.
+        # The path stops at the first whitespace to avoid swallowing describe
+        # text like "POST /api/users - create user".
+        match = re.match(
+            r'^(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS)\s+(/[^\s]+)',
+            test_name,
+            re.IGNORECASE,
+        )
         if match:
-            method = match.group(1)
+            method = match.group(1).upper()
             endpoint = match.group(2)
             return endpoint, method
 

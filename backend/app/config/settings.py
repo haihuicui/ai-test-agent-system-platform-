@@ -151,6 +151,26 @@ class Settings(BaseSettings):
     # api_mcp_root: str = "backend/mcp/api"
     api_skills_root: str
 
+    # 接口测试 trace 配置
+    api_test_sensitive_headers: list[str] = [
+        "authorization",
+        "cookie",
+        "x-api-key",
+        "x-auth-token",
+    ]
+    api_test_sensitive_body_fields: list[str] = [
+        "password",
+        "token",
+        "secret",
+        "apikey",
+        "api_key",
+        "accesstoken",
+        "refreshtoken",
+        "auth_token",
+    ]
+    api_test_body_truncate_threshold: int = 50_000
+    api_test_body_preview_length: int = 2_000
+
     # Web 测试工作目录配置
     web_mcp_workspace_root: str
     web_mcp_root: str

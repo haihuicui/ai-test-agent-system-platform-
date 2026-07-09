@@ -956,3 +956,53 @@ async def update_attachment_content_api(
             detail=f"更新附件失败: {str(e)}"
         )
 
+
+@router.get("/api-test-results/{result_id}/response-body")
+async def download_api_test_response_body(
+    result_id: UUID,
+    current_user_id: CurrentUserIdDep,
+    db: DbSessionDep,
+):
+    """
+    下载 API 测试执行结果的完整响应体。
+
+    当响应体超过截断阈值时，完整内容会被上传到 MinIO，本接口用于下载该完整内容。
+    """
+    from fastapi.responses import StreamingResponse
+    from app.models.api_test import APITestResult
+    from app.config.minio_client import MinIOClient
+    import io
+
+    result = await db.get(APITestResult, result_id)
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"测试结果 {result_id} 不存在"
+        )
+
+    response_data = result.response_data or {}
+    body_meta = response_data.get("body_meta") or {}
+    storage_path = body_meta.get("storage_path")
+
+    if not storage_path:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="该测试结果没有上传的完整响应体"
+        )
+
+    try:
+        content_bytes = MinIOClient.download_file(storage_path)
+        return StreamingResponse(
+            io.BytesIO(content_bytes),
+            media_type="application/json",
+            headers={
+                "Content-Disposition": f'attachment; filename="response_body_{result_id}.json"',
+                "Content-Length": str(len(content_bytes)),
+            }
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"下载响应体失败: {str(e)}"
+        )
+

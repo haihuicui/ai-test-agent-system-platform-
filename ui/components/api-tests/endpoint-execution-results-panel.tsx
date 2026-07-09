@@ -356,18 +356,21 @@ export function EndpointExecutionResultsPanel({
                           <div className="mt-4 pt-4 border-t space-y-3">
                             {(result.request_data || result.response_data) ? (
                               <HttpTraceViewer
+                                resultId={result.id}
                                 request={{
                                   method: result.request_data?.method,
                                   url: result.request_data?.url,
                                   headers: result.request_data?.headers as Record<string, string> | null | undefined,
                                   params: result.request_data?.params,
                                   body: result.request_data?.body,
+                                  body_meta: result.request_data?.body_meta,
                                 }}
                                 response={result.response_data ? {
                                   status: result.response_data.status,
                                   statusText: result.response_data.statusText,
                                   headers: result.response_data.headers as Record<string, string> | null | undefined,
                                   body: result.response_data.body,
+                                  body_meta: result.response_data.body_meta,
                                   timing: result.response_data.timing,
                                 } : null}
                               />
