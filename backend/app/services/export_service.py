@@ -7,19 +7,55 @@ BDD 测试用例导出服务
 import io
 import zipfile
 from datetime import datetime
-from typing import Optional, Tuple
+from typing import Any, Optional, Tuple
 from uuid import uuid4
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.schemas.test_case import (
-    ExportBDDRequest, ExportBDDResponse, ExportStatusResponse
+    ExportBDDRequest, ExportBDDResponse, ExportStatusResponse,
+    ExportExcelRequest, ExportExcelResponse, TestCaseInfo
 )
-from app.schemas.enums import ExportStatus
+from app.schemas.enums import ExportStatus, TestCaseTemplate
 from app.utils.exceptions import NotFoundException, BadRequestException
 from app.config.settings import settings
+from app.agents.tools.testcase.excel_tools import generate_test_cases_excel_bytes
 # fmt: off  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2T1ZNeVNRPT06MGUyODlmMTE=
+
+
+def _test_case_info_to_excel_dict(tc: TestCaseInfo) -> dict[str, Any]:
+    """将 TestCaseInfo 转为 Excel 工具可识别的字典"""
+    # 用例编号优先使用 AI 自定义的 case_number，没有则使用系统自动生成的 identifier
+    case_id = tc.case_number if tc.case_number else tc.identifier
+
+    if tc.template == TestCaseTemplate.TEST_CASE_BDD:
+        return {
+            "id": case_id,
+            "title": tc.name,
+            "module": tc.module,
+            "type": tc.case_type.value if tc.case_type else "",
+            "priority": tc.priority.value if tc.priority else "",
+            "preconditions": tc.background or tc.preconditions,
+            "steps": tc.scenario,
+            "test_data": tc.test_data,
+            "expected_results": "",
+            "remarks": tc.feature,
+        }
+
+    steps = tc.test_case_steps or []
+    return {
+        "id": case_id,
+        "title": tc.name,
+        "module": tc.module,
+        "type": tc.case_type.value if tc.case_type else "",
+        "priority": tc.priority.value if tc.priority else "",
+        "preconditions": tc.preconditions,
+        "steps": [{"seq": s.order, "action": s.step} for s in steps],
+        "test_data": tc.test_data,
+        "expected_results": [s.result for s in steps if s.result],
+        "remarks": tc.description,
+    }
 
 
 class ExportService:
@@ -69,7 +105,10 @@ class ExportService:
             "created_at": datetime.utcnow(),
             "completed_at": None,
         }
-        
+
+        if self.mongodb is None:
+            raise BadRequestException("MongoDB 未连接，无法创建导出任务")
+
         await self.mongodb[self.COLLECTION_NAME].insert_one(export_job)
         
         # 异步处理导出任务（这里简化为同步处理）
@@ -84,7 +123,129 @@ class ExportService:
             status=ExportStatus.PENDING,
             status_url=status_url
         )
-    
+
+    async def start_excel_export(
+        self,
+        project_identifier: str,
+        data: ExportExcelRequest,
+        test_case_service: "TestCaseService",
+    ) -> ExportExcelResponse:
+        """
+        启动 Excel 测试用例导出任务
+
+        Args:
+            project_identifier: 项目标识符
+            data: 导出请求数据
+            test_case_service: 测试用例服务实例
+
+        Returns:
+            ExportExcelResponse: 导出任务信息
+        """
+        export_id = str(uuid4())
+
+        # 创建导出任务记录
+        export_job = {
+            "_id": export_id,
+            "project_identifier": project_identifier,
+            "test_case_ids": data.test_case_ids,
+            "folder_id": data.folder_id,
+            "export_type": "excel",
+            "status": ExportStatus.PENDING.value,
+            "download_url": None,
+            "file_content": None,
+            "filename": None,
+            "content_type": None,
+            "error_message": None,
+            "created_at": datetime.utcnow(),
+            "completed_at": None,
+        }
+
+        if self.mongodb is None:
+            raise BadRequestException("MongoDB 未连接，无法创建导出任务")
+
+        await self.mongodb[self.COLLECTION_NAME].insert_one(export_job)
+
+        # 异步处理导出任务（这里简化为同步处理）
+        await self._process_excel_export(export_id, test_case_service)
+
+        status_url = f"{settings.api_prefix}/exports/{export_id}/status"
+
+        return ExportExcelResponse(
+            success=True,
+            export_id=export_id,
+            status=ExportStatus.PENDING,
+            status_url=status_url
+        )
+
+    async def _process_excel_export(
+        self,
+        export_id: str,
+        test_case_service: "TestCaseService",
+    ) -> None:
+        """
+        处理 Excel 导出任务
+
+        Args:
+            export_id: 导出任务 ID
+            test_case_service: 测试用例服务实例
+        """
+        try:
+            # 更新状态为处理中
+            await self.mongodb[self.COLLECTION_NAME].update_one(
+                {"_id": export_id},
+                {"$set": {"status": ExportStatus.PROCESSING.value}}
+            )
+
+            # 获取导出任务信息
+            job = await self.mongodb[self.COLLECTION_NAME].find_one({"_id": export_id})
+            if not job:
+                return
+
+            folder_ids = [job["folder_id"]] if job.get("folder_id") else None
+            test_cases = await test_case_service.get_test_cases_for_export(
+                project_identifier=job["project_identifier"],
+                test_case_ids=job.get("test_case_ids"),
+                folder_ids=folder_ids,
+            )
+
+            if not test_cases:
+                raise ValueError("未找到可导出的测试用例")
+
+            case_dicts = [_test_case_info_to_excel_dict(tc) for tc in test_cases]
+            file_content = generate_test_cases_excel_bytes(case_dicts, sheet_name="测试用例")
+
+            filename = f"test_cases_{export_id[:8]}.xlsx"
+            content_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            download_url = f"{settings.api_prefix}/exports/{export_id}/download"
+
+            # 更新任务状态为完成
+            await self.mongodb[self.COLLECTION_NAME].update_one(
+                {"_id": export_id},
+                {
+                    "$set": {
+                        "status": ExportStatus.COMPLETED.value,
+                        "download_url": download_url,
+                        "file_content": file_content,
+                        "filename": filename,
+                        "content_type": content_type,
+                        "completed_at": datetime.utcnow(),
+                    }
+                }
+            )
+
+        except Exception as e:
+            # 更新任务状态为失败
+            await self.mongodb[self.COLLECTION_NAME].update_one(
+                {"_id": export_id},
+                {
+                    "$set": {
+                        "status": ExportStatus.FAILED.value,
+                        "error_message": str(e),
+                        "completed_at": datetime.utcnow(),
+                    }
+                }
+            )
+
     async def _process_export(self, export_id: str) -> None:
         """
         处理导出任务

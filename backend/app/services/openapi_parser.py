@@ -50,9 +50,10 @@ class OpenAPIParser:
 
         # 提取所有路径
         paths = openapi_spec.get("paths", {})
+        top_servers = openapi_spec.get("servers", [])
 
         # 按标签分组端点
-        endpoints_by_tag = self._group_endpoints_by_tag(paths)
+        endpoints_by_tag = self._group_endpoints_by_tag(paths, top_servers)
 # pylint: disable  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2Y0ZwV1p3PT06MDg1MGI4ODg=
 
         # 创建文件夹结构
@@ -113,27 +114,43 @@ class OpenAPIParser:
 
         return result
 
-    def _group_endpoints_by_tag(self, paths: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
+    def _group_endpoints_by_tag(
+        self,
+        paths: dict[str, Any],
+        top_servers: list[dict[str, str]] | None = None
+    ) -> dict[str, list[dict[str, Any]]]:
         """
         按标签分组端点
 
         Args:
             paths: OpenAPI paths 对象
+            top_servers: 顶层 servers 配置
 
         Returns:
             {tag_name: [endpoint_data, ...]}
         """
         endpoints_by_tag: dict[str, list[dict[str, Any]]] = {}
+        top_servers = top_servers or []
 
         for path, path_item in paths.items():
+            # 路径级 servers
+            path_servers = path_item.get("servers", []) if isinstance(path_item, dict) else []
+
             # 遍历该路径的所有 HTTP 方法
             for method, method_spec in path_item.items():
                 if method.lower() not in ["get", "post", "put", "delete", "patch", "options", "head", "trace"]:
                     continue
 
+                if not isinstance(method_spec, dict):
+                    continue
+
                 # 提取标签（如果没有标签，则使用 "Other"）
                 tags = method_spec.get("tags", ["Other"])
                 primary_tag = tags[0] if tags else "Other"
+
+                # 方法级 servers 优先级最高，其次是路径级，最后是顶层
+                operation_servers = method_spec.get("servers", [])
+                servers = operation_servers or path_servers or top_servers
 
                 # 构建端点数据
                 endpoint_data = {
@@ -147,7 +164,8 @@ class OpenAPIParser:
                     "security": method_spec.get("security"),
                     "tags": tags,
                     "deprecated": method_spec.get("deprecated", False),
-                    "operation_id": method_spec.get("operationId")
+                    "operation_id": method_spec.get("operationId"),
+                    "servers": servers
                 }
 
                 # 添加到分组
@@ -262,7 +280,8 @@ class OpenAPIParser:
                 "deprecated": endpoint_data.get("deprecated", False),
                 "operation_id": endpoint_data.get("operation_id"),
                 "resource_name": resource_name,
-                "folder_name": folder_name
+                "folder_name": folder_name,
+                "servers": endpoint_data.get("servers", [])
             },
             sort_order=self._get_method_sort_order(method)
         )

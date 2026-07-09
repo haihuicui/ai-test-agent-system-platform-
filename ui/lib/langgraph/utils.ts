@@ -1,6 +1,7 @@
 import { Message } from "@langchain/langgraph-sdk";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { type ToolCall } from "@/lib/langgraph/types";
 // eslint-disable  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2Y25jNWFRPT06MmJjNDZlNDk=
 
 export function cn(...inputs: ClassValue[]) {
@@ -158,4 +159,42 @@ export function formatMessageForLLM(message: Message): string {
 export function formatConversationForLLM(messages: Message[]): string {
   const formattedMessages = messages.map(formatMessageForLLM);
   return formattedMessages.join("\n\n---\n\n");
+}
+
+export function extractCreatedTestCaseIds(toolCalls: ToolCall[]): string[] {
+  const ids: string[] = [];
+
+  for (const tc of toolCalls) {
+    if (tc.status !== "completed" || !tc.result) continue;
+    if (
+      tc.name !== "create_test_case_tool" &&
+      tc.name !== "batch_create_test_cases_tool"
+    ) {
+      continue;
+    }
+
+    try {
+      const result =
+        typeof tc.result === "string" ? JSON.parse(tc.result) : tc.result;
+
+      if (tc.name === "create_test_case_tool") {
+        if (result?.success && result?.data?.identifier) {
+          ids.push(String(result.data.identifier));
+        }
+      } else if (tc.name === "batch_create_test_cases_tool") {
+        const results = result?.data?.results;
+        if (Array.isArray(results)) {
+          for (const item of results) {
+            if (item?.success && item?.identifier) {
+              ids.push(String(item.identifier));
+            }
+          }
+        }
+      }
+    } catch {
+      // 忽略解析失败的工具结果
+    }
+  }
+
+  return Array.from(new Set(ids));
 }

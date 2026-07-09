@@ -52,6 +52,30 @@ export interface APITestResult {
   duration_ms?: number;
   retry_count: number;
   error_message?: string;
+  request_summary?: Record<string, unknown>;
+  response_summary?: Record<string, unknown>;
+  request_data?: {
+    method?: string;
+    url?: string;
+    headers?: Record<string, unknown> | null;
+    params?: Record<string, unknown> | null;
+    body?: unknown;
+  };
+  response_data?: {
+    status?: number;
+    statusText?: string;
+    headers?: Record<string, unknown> | null;
+    body?: unknown;
+    timing?: number;
+  };
+  assertion_results?: Array<{
+    assertion: Record<string, unknown>;
+    passed: boolean;
+    actual: unknown;
+    expected: unknown;
+    message: string;
+  }>;
+  detail_log_id?: string | null;
   created_at: string;
 }
 // TODO  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2ZUVVd05nPT06N2MwYzNhYjc=
@@ -273,11 +297,13 @@ export async function updateTestScript(
 export async function runAPITest(
   projectIdentifier: string,
   apiTestId: string,
-  executionConfig?: Record<string, unknown>
+  executionConfig?: Record<string, unknown>,
+  envId?: string
 ): Promise<{ run_id: string; status: string }> {
+  const config = envId ? { ...executionConfig, env_id: envId } : executionConfig;
   const response = await apiClient.post<{ data: { run_id: string; status: string } }>(
     `/projects/${projectIdentifier}/api-tests/${apiTestId}/run`,
-    { execution_config: executionConfig }
+    { execution_config: config }
   );
   return response.data;
 }

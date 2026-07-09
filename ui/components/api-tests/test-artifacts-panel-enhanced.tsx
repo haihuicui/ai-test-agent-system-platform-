@@ -54,7 +54,7 @@ interface EnhancedTestArtifactsPanelProps {
   projectId: string;
   onRefresh?: () => void;
   onTestCasesCountChange?: (count: number, endpointId?: string) => void;
-  onExecuteScript?: (artifactId: string, fileName: string) => void; // 新增：执行脚本回调（只传递 ID 和文件名）
+  onExecuteScript?: (artifactId: string, fileName: string, endpointId: string) => void; // 新增：执行脚本回调（传递 ID、文件名和 endpointId）
   refreshTrigger?: number; // 新增：刷新触发器，当这个值变化时重新加载数据
 }
 // eslint-disable  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2VUdSaVFRPT06ZGI0NjBkNDk=
@@ -154,6 +154,13 @@ export function EnhancedTestArtifactsPanel({
       console.log('[Enhanced Panel] Response data keys:', Object.keys(data));
       console.log('[Enhanced Panel] Full response data:', data);
 
+      if (data.success === false) {
+        console.error('[Enhanced Panel] Server returned error:', data.detail || data.message);
+        toast.error(data.detail || data.message || '加载测试成果物失败');
+        setArtifacts([]);
+        return;
+      }
+
       const artifacts = data.artifacts || [];
       console.log('[Enhanced Panel] Total artifacts found:', artifacts.length);
       console.log('[Enhanced Panel] Artifacts:', artifacts);
@@ -175,30 +182,35 @@ export function EnhancedTestArtifactsPanel({
             console.log('[Enhanced Panel] Content response status:', contentResponse.status);
 
             if (contentResponse.ok) {
-              const contentData = await contentResponse.json();
-              console.log('[Enhanced Panel] Content data type:', typeof contentData.content);
-              console.log('[Enhanced Panel] Content preview:', contentData.content?.substring(0, 300));
+              const contentType = contentResponse.headers.get('content-type') || '';
+              if (!contentType.includes('application/json')) {
+                console.error('[Enhanced Panel] Content response is not JSON:', contentType);
+              } else {
+                const contentData = await contentResponse.json();
+                console.log('[Enhanced Panel] Content data type:', typeof contentData.content);
+                console.log('[Enhanced Panel] Content preview:', contentData.content?.substring(0, 300));
 
-              const testCasesData = JSON.parse(contentData.content);
-              console.log('[Enhanced Panel] Parsed testCasesData type:', typeof testCasesData);
-              console.log('[Enhanced Panel] Is array?', Array.isArray(testCasesData));
+                const testCasesData = JSON.parse(contentData.content);
+                console.log('[Enhanced Panel] Parsed testCasesData type:', typeof testCasesData);
+                console.log('[Enhanced Panel] Is array?', Array.isArray(testCasesData));
 
-              // 处理不同的数据格式
-              let count = 0;
-              if (Array.isArray(testCasesData)) {
-                count = testCasesData.length;
-              } else if (typeof testCasesData === 'object' && testCasesData !== null) {
-                if (testCasesData.test_cases && Array.isArray(testCasesData.test_cases)) {
-                  count = testCasesData.test_cases.length;
-                } else if (testCasesData.cases && Array.isArray(testCasesData.cases)) {
-                  count = testCasesData.cases.length;
-                } else {
-                  count = Object.keys(testCasesData).length;
+                // 处理不同的数据格式
+                let count = 0;
+                if (Array.isArray(testCasesData)) {
+                  count = testCasesData.length;
+                } else if (typeof testCasesData === 'object' && testCasesData !== null) {
+                  if (testCasesData.test_cases && Array.isArray(testCasesData.test_cases)) {
+                    count = testCasesData.test_cases.length;
+                  } else if (testCasesData.cases && Array.isArray(testCasesData.cases)) {
+                    count = testCasesData.cases.length;
+                  } else {
+                    count = Object.keys(testCasesData).length;
+                  }
                 }
-              }
 
-              console.log('[Enhanced Panel] Final test cases count:', count);
-              onTestCasesCountChange(count, endpointId);
+                console.log('[Enhanced Panel] Final test cases count:', count);
+                onTestCasesCountChange(count, endpointId);
+              }
             } else {
               console.error('[Enhanced Panel] Failed to load content:', contentResponse.status);
             }
@@ -208,11 +220,10 @@ export function EnhancedTestArtifactsPanel({
         }
       }
 
-      if (artifacts.length > 0 && onRefresh) {
-        onRefresh();
-      }
+      // 注意：这里不再调用 onRefresh()，避免触发父组件重新加载导致重复请求或组件重挂载
     } catch (error) {
       console.error("[Enhanced Panel] Failed to load artifacts:", error);
+      toast.error('加载测试成果物失败');
       setArtifacts([]);
     } finally {
       setLoading(false);
@@ -304,8 +315,8 @@ export function EnhancedTestArtifactsPanel({
       console.log('[测试成果物] Artifact ID:', targetArtifact.id);
       console.log('[测试成果物] Artifact 文件名:', targetArtifact.file_name);
       console.log('[测试成果物] Artifact 完整对象:', targetArtifact);
-      // 只传递脚本 ID 和文件名，后端会自己下载和执行
-      onExecuteScript(targetArtifact.id, targetArtifact.file_name);
+      // 只传递脚本 ID、文件名和 endpointId，后端会自己下载和执行
+      onExecuteScript(targetArtifact.id, targetArtifact.file_name, endpointId);
       // 关闭编辑器弹窗
       setEditingArtifact(null);
       setExecutionResult({ status: null, output: '' });
@@ -626,7 +637,7 @@ export function EnhancedTestArtifactsPanel({
                               className="h-9 px-3 gap-2 hover:bg-slate-50 hover:text-slate-600"
                               onClick={() => {
                                 // 下载 ZIP 文件
-                                window.open(`/api/v2/attachments/${artifact.id}/download`, '_blank');
+                                window.open(`/api/v2/projects/${projectId}/attachments/${artifact.id}/download`, '_blank');
                               }}
                               title="下载 ZIP"
                             >

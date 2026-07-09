@@ -38,6 +38,7 @@ interface MoveFolderDialogProps {
   onOpenChange: (open: boolean) => void;
   projectId: string;
   folder: FolderInfo | null;
+  folderType?: string;
   onMoveSuccess: (folderId: string, newParentId: string | null, updatedFolder: FolderInfo) => void;
 }
 // NOTE  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2VDI1b2FRPT06OTE3NmMxMDA=
@@ -47,6 +48,7 @@ export function MoveFolderDialog({
   onOpenChange,
   projectId,
   folder,
+  folderType,
   onMoveSuccess,
 }: MoveFolderDialogProps) {
   const [moveType, setMoveType] = React.useState<"specific" | "root">("specific");
@@ -60,7 +62,7 @@ export function MoveFolderDialog({
   const loadRootFolders = React.useCallback(async () => {
     try {
       setLoading(true);
-      const response = await getFolders(projectId);
+      const response = await getFolders(projectId, folderType);
       if (response.success && response.data) {
         const rootFolders = response.data.filter(
           (f) => f.parent_id === null || f.parent_id === undefined
@@ -79,12 +81,12 @@ export function MoveFolderDialog({
     } finally {
       setLoading(false);
     }
-  }, [projectId]);
+  }, [projectId, folderType]);
 
   // 加载子文件夹
   const loadChildren = async (folderId: string) => {
     try {
-      const response = await getFolders(projectId, folderId);
+      const response = await getFolders(projectId, folderType, folderId);
       if (response.success && response.data) {
         setFolders((prev) => updateFolderChildren(prev, folderId, response.data));
       }

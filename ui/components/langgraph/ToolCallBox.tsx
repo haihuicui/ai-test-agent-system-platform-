@@ -7,6 +7,7 @@ import React, {
   useCallback,
   memo,
   useDeferredValue,
+  useEffect,
 } from "react";
 import {
   ChevronDown,
@@ -16,12 +17,14 @@ import {
   Loader2,
   CircleCheckBigIcon,
   StopCircle,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ToolCall, ActionRequest, ReviewConfig } from "@/lib/langgraph/types";
 import { cn } from "@/lib/utils";
 import { LoadExternalComponent } from "@langchain/langgraph-sdk/react-ui";
 import { ToolApprovalInterrupt } from "@/components/langgraph/ToolApprovalInterrupt";
+import { downloadAgentFile } from "@/lib/api/agentFiles";
 
 interface ArgItemProps {
   argKey: string;
@@ -93,13 +96,6 @@ export const ToolCallBox = React.memo<ToolCallBoxProps>(
     onResume,
     isLoading,
   }) => {
-    const [isExpanded, setIsExpanded] = useState(
-      () => !!uiComponent || !!actionRequest
-    );
-    const [expandedArgs, setExpandedArgs] = useState<Record<string, boolean>>(
-      {}
-    );
-
     const { name, args, result, status } = useMemo(() => {
       return {
         name: toolCall.name || "Unknown Tool",
@@ -108,6 +104,27 @@ export const ToolCallBox = React.memo<ToolCallBoxProps>(
         status: toolCall.status || "completed",
       };
     }, [toolCall.name, toolCall.args, toolCall.result, toolCall.status]);
+
+    const isExcelExport = name === "export_test_cases_to_excel";
+    const hasDownloadableResult =
+      typeof result === "string" && result.startsWith("/");
+
+    const [isExpanded, setIsExpanded] = useState(
+      () =>
+        !!uiComponent ||
+        !!actionRequest ||
+        (isExcelExport && hasDownloadableResult)
+    );
+
+    // 当 Excel 导出结果到达后自动展开工具调用框，方便用户看到下载按钮
+    useEffect(() => {
+      if (isExcelExport && hasDownloadableResult) {
+        setIsExpanded(true);
+      }
+    }, [isExcelExport, hasDownloadableResult]);
+    const [expandedArgs, setExpandedArgs] = useState<Record<string, boolean>>(
+      {}
+    );
 
     const argsKeys = useMemo(() => Object.keys(args), [args]);
     const argsEntries = useMemo(() => Object.entries(args), [args]);
@@ -262,6 +279,21 @@ export const ToolCallBox = React.memo<ToolCallBoxProps>(
                     <h4 className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                       结果
                     </h4>
+                    {name === "export_test_cases_to_excel" &&
+                      typeof result === "string" &&
+                      result.startsWith("/") && (
+                        <div className="mb-2">
+                          <Button
+                            onClick={() => downloadAgentFile(result)}
+                            variant="outline"
+                            size="sm"
+                            className="gap-1.5"
+                          >
+                            <Download size={14} />
+                            <span>下载 Excel</span>
+                          </Button>
+                        </div>
+                      )}
                     <div className="max-h-96 overflow-y-auto rounded-sm border border-border bg-muted/40">
                       <pre className="m-0 overflow-x-auto whitespace-pre p-2 font-mono text-xs leading-7 text-foreground">
                         {serializedResult}

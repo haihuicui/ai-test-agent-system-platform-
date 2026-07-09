@@ -24,6 +24,7 @@ import type { AndroidFunctionFolderTreeRef } from "@/components/android-tests/fo
 import { AndroidFunctionList, AndroidSubFunctionList } from "@/components/android-tests";
 import { CreateAndroidFunctionDialog, AIGenerateDialog } from "@/components/android-tests";
 import { EnhancedTestArtifactsPanel, DevicePanel } from "@/components/android-tests";
+import { MoveFolderDialog } from "@/components/test-cases";
 import {
   Dialog,
   DialogContent,
@@ -46,6 +47,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { AIChatContainer } from "@/components/langgraph/AIChatContainer";
 import { ClientProvider } from "@/providers/ClientProvider";
+import { useDelayedUnmount } from "@/hooks/useDelayedUnmount";
 import { Assistant } from "@langchain/langgraph-sdk";
 import { cn } from "@/lib/utils";
 import {
@@ -118,11 +120,14 @@ export default function AndroidTestsPage() {
   });
   const [deleteFolderDialogOpen, setDeleteFolderDialogOpen] = React.useState(false);
   const [deletingFolder, setDeletingFolder] = React.useState<FolderInfo | null>(null);
+  const [moveFolderDialogOpen, setMoveFolderDialogOpen] = React.useState(false);
+  const [movingFolder, setMovingFolder] = React.useState<FolderInfo | null>(null);
   const [createFunctionDialogOpen, setCreateFunctionDialogOpen] = React.useState(false);
   const [aiGenerateDialogOpen, setAiGenerateDialogOpen] = React.useState(false);
 
   // AI 聊天状态
   const [aiChatOpen, setAiChatOpen] = React.useState(false);
+  const renderAIChat = useDelayedUnmount(aiChatOpen, 300);
   const [aiChatInitialPrompt, setAiChatInitialPrompt] = React.useState<string>("");
   const [aiChatKey, setAiChatKey] = React.useState<number>(0);
   const [assistant, setAssistant] = React.useState<Assistant | null>(null);
@@ -338,6 +343,11 @@ ${selectedDevice ? `**Device UDID**: ${selectedDevice.udid}` : ""}
     }
   };
 
+  // 移动文件夹成功回调 - 本地更新树
+  const handleMoveFolderSuccess = (folderId: string, newParentId: string | null, updatedFolder: FolderInfo) => {
+    folderTreeRef.current?.moveFolderLocally(folderId, newParentId, updatedFolder);
+  };
+
   const handleAIGenerate = (prompt: string) => {
     setAiChatInitialPrompt(prompt);
     setAiChatKey(prev => prev + 1);
@@ -431,7 +441,8 @@ ${selectedDevice ? `**Device UDID**: ${selectedDevice.udid}` : ""}
                   setDeleteFolderDialogOpen(true);
                 }}
                 onMoveFolder={(folder) => {
-                  // TODO: 实现移动文件夹
+                  setMovingFolder(folder);
+                  setMoveFolderDialogOpen(true);
                 }}
                 onCreateAndroidFunction={handleCreateAndroidFunction}
                 onSelectAndroidFunction={(functionId) => {
@@ -646,28 +657,35 @@ ${selectedDevice ? `**Device UDID**: ${selectedDevice.udid}` : ""}
           {/* 右侧悬浮 AI 聊天面板 */}
           {assistant && (
             <div
-              key={aiChatKey}
               className={cn(
                 "absolute right-0 top-0 z-50 h-full w-[1200px] bg-background transition-transform duration-300 ease-in-out",
                 aiChatOpen ? "translate-x-0 border-l shadow-2xl" : "translate-x-full"
               )}
             >
-              <ClientProvider
-                deploymentUrl={process.env.NEXT_PUBLIC_LANGGRAPH_API_URL || "http://localhost:2025"}
-                apiKey={process.env.NEXT_PUBLIC_LANGSMITH_API_KEY || ""}
-              >
-                <AIChatContainer
-                  assistant={assistant}
-                  initialPrompt={aiChatInitialPrompt}
-                  onClose={() => setAiChatOpen(false)}
-                  createNewThread={aiChatKey > 0}
-                  onTestCreated={() => {
-                    loadAndroidFunctions();
-                    folderTreeRef.current?.refresh();
-                    setArtifactsRefreshTrigger(prev => prev + 1);
-                  }}
-                />
-              </ClientProvider>
+              {renderAIChat && (
+                <ClientProvider
+                  deploymentUrl={process.env.NEXT_PUBLIC_LANGGRAPH_API_URL || "http://localhost:2025"}
+                  apiKey={process.env.NEXT_PUBLIC_LANGSMITH_API_KEY || ""}
+                >
+                  <AIChatContainer
+                    assistant={assistant}
+                    initialPrompt={aiChatInitialPrompt}
+                    onClose={() => {
+                      setAiChatOpen(false);
+                      setAiChatKey(0);
+                      setAiChatInitialPrompt("");
+                    }}
+                    createNewThread={aiChatKey > 0}
+                    reconnectOnMount={true}
+                    fetchHistoryOnMount={true}
+                    onTestCreated={() => {
+                      loadAndroidFunctions();
+                      folderTreeRef.current?.refresh();
+                      setArtifactsRefreshTrigger(prev => prev + 1);
+                    }}
+                  />
+                </ClientProvider>
+              )}
             </div>
           )}
 
@@ -858,7 +876,16 @@ ${selectedDevice ? `**Device UDID**: ${selectedDevice.udid}` : ""}
           </div>
         </DrawerContent>
       </Drawer>
-    </MainLayout>
+      {/* 移动文件夹对话框 */}
+    <MoveFolderDialog
+      open={moveFolderDialogOpen}
+      onOpenChange={setMoveFolderDialogOpen}
+      projectId={projectId}
+      folder={movingFolder}
+      folderType="android_test"
+      onMoveSuccess={handleMoveFolderSuccess}
+    />
+  </MainLayout>
   );
 }
 // WATERMARK  My80OmFIVnBZMlhsdEpUbXRiZm92b2s2U1d4Q1NnPT06MDc4YTc2NTA=

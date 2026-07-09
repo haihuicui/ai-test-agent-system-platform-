@@ -5,6 +5,7 @@ import * as React from "react";
 import { Plus, Trash2, GripVertical, Folder, Sparkles, Settings2, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
@@ -56,6 +57,9 @@ const defaultFormData: TestCaseCreate = {
   template: "test_case",
   test_case_steps: [],
   tags: [],
+  module: "",
+  test_data: "",
+  case_number: "",
 };
 // TODO  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2Tm1SNU1BPT06ZWVkNmNmYjM=
 
@@ -72,7 +76,6 @@ export function TestCaseDialog({
   const [steps, setSteps] = React.useState<TestStepCreate[]>([{ step: "", result: "" }]);
   const [template, setTemplate] = React.useState<TestCaseTemplate>("test_case");
   const [createAnother, setCreateAnother] = React.useState(false);
-  const [tagInput, setTagInput] = React.useState("");
   const [automationStatus, setAutomationStatus] = React.useState<AutomationStatus>("not_automated");
   const [owner, setOwner] = React.useState("Myself");
   const [aiAssisting, setAiAssisting] = React.useState<string | null>(null);
@@ -93,6 +96,13 @@ export function TestCaseDialog({
         feature: testCase.feature || "",
         scenario: testCase.scenario || "",
         background: testCase.background || "",
+        module: testCase.module || "",
+        case_number: testCase.case_number || "",
+        test_data: testCase.test_data
+          ? typeof testCase.test_data === "string"
+            ? testCase.test_data
+            : JSON.stringify(testCase.test_data, null, 2)
+          : "",
       });
       setSteps(
         testCase.test_case_steps?.map((s) => ({
@@ -129,20 +139,6 @@ export function TestCaseDialog({
     const newSteps = [...steps];
     newSteps[index] = { ...newSteps[index], [field]: value };
     setSteps(newSteps);
-  };
-
-  // 添加标签
-  const addTag = (tag: string) => {
-    const trimmed = tag.trim();
-    if (trimmed && !formData.tags?.includes(trimmed)) {
-      setFormData({ ...formData, tags: [...(formData.tags || []), trimmed] });
-    }
-    setTagInput("");
-  };
-
-  // 删除标签
-  const removeTag = (tag: string) => {
-    setFormData({ ...formData, tags: formData.tags?.filter((t) => t !== tag) });
   };
 
   // AI辅助填充字段
@@ -194,12 +190,25 @@ export function TestCaseDialog({
 
   // 提交表单
   const handleSubmit = async () => {
+    let parsedTestData: Record<string, unknown> | undefined = undefined;
+    if (typeof formData.test_data === "string" && formData.test_data.trim()) {
+      try {
+        parsedTestData = JSON.parse(formData.test_data);
+      } catch {
+        toast.error("测试数据不是合法的 JSON");
+        return;
+      }
+    }
+
     const data: TestCaseCreate = {
       ...formData,
       template,
       owner: owner === "Myself" ? undefined : owner,
       automation_status: automationStatus,
       test_case_steps: template === "test_case" ? steps.filter(s => s.step.trim()) : undefined,
+      test_data: parsedTestData,
+      module: formData.module?.trim() || undefined,
+      case_number: formData.case_number?.trim() || undefined,
     };
     await onSubmit(data);
     if (createAnother && !testCase) {
@@ -212,7 +221,7 @@ export function TestCaseDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[90vh] p-0 gap-0">
+      <DialogContent className="max-w-7xl max-h-[90vh] p-0 gap-0">
         {/* 头部 */}
         <div className="flex items-center justify-between border-b px-6 py-4">
           <h2 className="text-lg font-semibold">
@@ -380,6 +389,17 @@ export function TestCaseDialog({
                           )}
                         </Button>
                       )}
+                    </div>
+
+                    {/* 测试数据 */}
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">测试数据</Label>
+                      <Textarea
+                        value={typeof formData.test_data === "string" ? formData.test_data : ""}
+                        onChange={(e) => setFormData({ ...formData, test_data: e.target.value })}
+                        placeholder='{"username": "test", "password": "123456"}'
+                        className="min-h-[80px] resize-none font-mono text-xs"
+                      />
                     </div>
 
                     {steps.map((step, index) => (
@@ -683,40 +703,30 @@ export function TestCaseDialog({
                     </Select>
                   </div>
 
-                  {/* Tags */}
+                  {/* 用例编号 */}
                   <div className="space-y-1.5">
-                    <Label className="text-sm">标签</Label>
+                    <Label className="text-sm">用例编号</Label>
                     <Input
-                      placeholder="添加标签后回车"
-                      value={tagInput}
-                      onChange={(e) => setTagInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          addTag(tagInput);
-                        }
-                      }}
+                      placeholder="如 TC-2025-001"
+                      value={formData.case_number || ""}
+                      onChange={(e) =>
+                        setFormData({ ...formData, case_number: e.target.value })
+                      }
                       className="h-9"
                     />
-                    {formData.tags && formData.tags.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        {formData.tags.map((tag) => (
-                          <Badge
-                            key={tag}
-                            variant="secondary"
-                            className="gap-1 pr-1"
-                          >
-                            {tag}
-                            <button
-                              onClick={() => removeTag(tag)}
-                              className="ml-1 rounded-full hover:bg-muted"
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
+                  </div>
+
+                  {/* 所属模块 */}
+                  <div className="space-y-1.5">
+                    <Label className="text-sm">所属模块</Label>
+                    <Input
+                      placeholder="如 用户管理"
+                      value={formData.module || ""}
+                      onChange={(e) =>
+                        setFormData({ ...formData, module: e.target.value })
+                      }
+                      className="h-9"
+                    />
                   </div>
                 </div>
               </div>

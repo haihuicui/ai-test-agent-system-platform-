@@ -13,6 +13,7 @@ from sqlalchemy.orm import selectinload
 
 from app.repositories.base import BaseRepository
 from app.models.folder import Folder
+from app.models.folder_type import FolderType
 from app.models.test_case import TestCase
 
 
@@ -239,19 +240,20 @@ class FolderRepository(BaseRepository[Folder]):
         Returns:
             Folder: 新创建的文件夹
         """
-        # 创建新文件夹
+        # 创建新文件夹，保留原文件夹类型
         new_folder = Folder(
             name=new_name,
             description=folder.description,
             project_id=folder.project_id,
             parent_id=folder.parent_id,
+            folder_type=folder.folder_type,
         )
         self.session.add(new_folder)
         await self.session.flush()
         await self.session.refresh(new_folder)
 
         # 递归复制子文件夹
-        await self._copy_children(folder.id, new_folder.id, folder.project_id)
+        await self._copy_children(folder.id, new_folder.id, folder.project_id, folder.folder_type)
 
         return new_folder
 
@@ -260,9 +262,10 @@ class FolderRepository(BaseRepository[Folder]):
         source_parent_id: UUID,
         target_parent_id: UUID,
         project_id: UUID,
+        folder_type: FolderType,
     ) -> None:
         """
-        递归复制子文件夹和测试用例
+        递归复制子文件夹和内容
         """
         # 获取源文件夹的子文件夹
         result = await self.session.execute(
@@ -271,23 +274,37 @@ class FolderRepository(BaseRepository[Folder]):
         child_folders = result.scalars().all()
 
         for child in child_folders:
-            # 复制子文件夹
+            # 复制子文件夹，保留原文件夹类型
             new_child = Folder(
                 name=child.name,
                 description=child.description,
                 project_id=project_id,
                 parent_id=target_parent_id,
+                folder_type=child.folder_type,
             )
             self.session.add(new_child)
             await self.session.flush()
 
             # 递归复制子文件夹的内容
-            await self._copy_children(child.id, new_child.id, project_id)
+            await self._copy_children(child.id, new_child.id, project_id, child.folder_type)
 
         # 复制测试用例
+        await self._copy_test_cases(source_parent_id, target_parent_id)
+
+        # 根据文件夹类型复制对应的内容
+        if folder_type == FolderType.API_TEST:
+            await self._copy_api_endpoints(source_parent_id, target_parent_id)
+
+    async def _copy_test_cases(
+        self,
+        source_parent_id: UUID,
+        target_parent_id: UUID,
+    ) -> None:
+        """
+        复制源文件夹中的测试用例及其步骤
+        """
         from app.models.test_case import TestCase, TestStep
         from app.utils.identifier import generate_test_case_identifier
-# type: ignore  My80OmFIVnBZMlhsdEpUbXRiZm92b2s2VTAweVJBPT06OGNjMmM5YjE=
 
         result = await self.session.execute(
             select(TestCase)
@@ -344,3 +361,46 @@ class FolderRepository(BaseRepository[Folder]):
                     expected_result=step.expected_result,
                 )
                 self.session.add(new_step)
+
+    async def _copy_api_endpoints(
+        self,
+        source_parent_id: UUID,
+        target_parent_id: UUID,
+    ) -> None:
+        """
+        复制源文件夹中的 API 端点定义
+        """
+        from app.models.api_endpoint import APIEndpoint
+
+        result = await self.session.execute(
+            select(APIEndpoint).where(APIEndpoint.folder_id == source_parent_id)
+        )
+        endpoints = result.scalars().all()
+
+        for ep in endpoints:
+            new_ep = APIEndpoint(
+                project_id=ep.project_id,
+                folder_id=target_parent_id,
+                display_name=ep.display_name,
+                path=ep.path,
+                method=ep.method,
+                summary=ep.summary,
+                description=ep.description,
+                schema_file_id=ep.schema_file_id,
+                parameters=ep.parameters,
+                request_body=ep.request_body,
+                responses=ep.responses,
+                security=ep.security,
+                tags=ep.tags,
+                tag_group=ep.tag_group,
+                # 关联的测试用例和脚本未复制，清空旧引用
+                test_case_ids=[],
+                api_test_ids=[],
+                custom_config=ep.custom_config,
+                # 统计信息归零
+                total_test_cases=0,
+                total_test_runs=0,
+                last_run_status=None,
+                sort_order=ep.sort_order,
+            )
+            self.session.add(new_ep)

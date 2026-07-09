@@ -12,6 +12,8 @@ interface ChatProviderProps {
   onHistoryRevalidate?: () => void;
   thread?: UseStreamThread<StateType>;
   onTestCaseCreated?: () => void; // 测试用例创建后的回调
+  reconnectOnMount?: boolean;
+  fetchHistoryOnMount?: boolean;
 }
 
 export function ChatProvider({
@@ -20,8 +22,17 @@ export function ChatProvider({
   onHistoryRevalidate,
   thread,
   onTestCaseCreated,
+  reconnectOnMount,
+  fetchHistoryOnMount,
 }: ChatProviderProps) {
-  const chat = useChat({ activeAssistant, onHistoryRevalidate, thread, onTestCaseCreated });
+  const chat = useChat({
+    activeAssistant,
+    onHistoryRevalidate,
+    thread,
+    onTestCaseCreated,
+    reconnectOnMount,
+    fetchHistoryOnMount,
+  });
   return <ChatContext.Provider value={chat}>{children}</ChatContext.Provider>;
 }
 // TODO  MS8yOmFIVnBZMlhsdEpUbXRiZm92b2s2VFRCc2N3PT06MjgzZDI3OWM=

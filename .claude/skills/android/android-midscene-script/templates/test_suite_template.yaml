@@ -1,0 +1,34 @@
+# test_suite_template.yaml
+# Midscene.js Android YAML 批量测试模板
+# 使用: agent.runYaml(fs.readFileSync('test_suite.yaml', 'utf8'))
+
+web:
+  url: ""
+
+android:
+  deviceId: ""
+  # keyboardDismissStrategy: "back-first"
+
+ios: {}
+
+computer: {}
+
+tasks:
+  # 每个 task 是一个独立的测试用例
+  - name: "<用例标题1>"
+    flow:
+      - aiAct: "<多步操作描述>"
+      - sleep: 2000
+      - aiAssert: "<断言描述>"
+
+  - name: "<用例标题2>"
+    flow:
+      - aiWaitFor: "<等待条件>"
+      - aiTap: "<点击描述>"
+      - sleep: 1000
+      - aiQuery: "<提取数据描述>"
+
+  - name: "<用例标题3>"
+    flow:
+      - aiAct: "<操作描述>"
+      - aiAssert: "<断言描述>"

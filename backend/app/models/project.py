@@ -87,6 +87,11 @@ class Project(Base, UUIDMixin, TimestampMixin):
         back_populates="project",
         cascade="all, delete-orphan"
     )
+    environments: Mapped[list["ProjectEnvironment"]] = relationship(
+        "ProjectEnvironment",
+        back_populates="project",
+        cascade="all, delete-orphan"
+    )
     api_endpoints: Mapped[list["APIEndpoint"]] = relationship(
         "APIEndpoint",
         back_populates="project",

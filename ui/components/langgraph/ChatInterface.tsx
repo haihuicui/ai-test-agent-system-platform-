@@ -21,8 +21,12 @@ import {
   FileIcon,
   Loader2,
   Plus,
+  Download,
 } from "lucide-react";
 import { ChatMessage } from "@/components/langgraph/ChatMessage";
+import { OutputFormatInterrupt } from "@/components/langgraph/OutputFormatInterrupt";
+import { PhaseReviewInterrupt } from "@/components/langgraph/PhaseReviewInterrupt";
+import { ReviewHistoryTimeline } from "@/components/langgraph/ReviewHistoryTimeline";
 import type {
   TodoItem,
   ToolCall,
@@ -39,6 +43,13 @@ import { useFileUpload } from "@/hooks/useFileUpload";
 import { ContentBlocksPreview } from "@/components/langgraph/ContentBlocksPreview";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
+import { useLanguage } from "@/providers/LanguageProvider";
+import { extractCreatedTestCaseIds } from "@/lib/langgraph/utils";
+import {
+  downloadTestCasesExcel,
+} from "@/lib/api/testCases";
 
 interface ChatInterfaceProps {
   assistant: Assistant | null;
@@ -74,12 +85,25 @@ const getStatusIcon = (status: TodoItem["status"], className?: string) => {
 // FIXME  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2Tm5obVRnPT06Njg2NGJhMDY=
 
 export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initialPrompt }) => {
+  const { t } = useLanguage();
   const [metaOpen, setMetaOpen] = useState<"tasks" | "files" | null>(null);
   const tasksContainerRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const [input, setInput] = useState("");
   const [enableRag, setEnableRag] = useState(true);
+  const [autoApproveEnabled, setAutoApproveEnabled] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const raw = window.localStorage.getItem("chat_auto_approve_enabled");
+    return raw === "true";
+  });
+  const [autoApproveThreshold, setAutoApproveThreshold] = useState(() => {
+    if (typeof window === "undefined") return 80;
+    const raw = window.localStorage.getItem("chat_auto_approve_threshold");
+    const num = raw ? parseInt(raw, 10) : 80;
+    return Number.isNaN(num) ? 80 : Math.max(0, Math.min(100, num));
+  });
+  const [exportingExcel, setExportingExcel] = useState(false);
   const {
     contentBlocks,
     handleFileUpload,
@@ -115,10 +139,15 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
     historyPages,
   } = useChatContext();
 
-  // 保持 sendMessage 的最新引用
+  // 保持 sendMessage 的最新引用，并自动带上当前 RAG / 自动审批设置
   React.useEffect(() => {
-    sendMessageRef.current = sendMessage;
-  }, [sendMessage]);
+    sendMessageRef.current = (content: string) => {
+      sendMessage(content, [], {
+        enable_rag: enableRag,
+        auto_approve_threshold: autoApproveEnabled ? autoApproveThreshold : 100,
+      });
+    };
+  }, [sendMessage, enableRag, autoApproveEnabled, autoApproveThreshold]);
 
   // 组件挂载/卸载标记
   React.useEffect(() => {
@@ -127,6 +156,20 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
       isMountedRef.current = false;
     };
   }, []);
+
+  // 持久化自动审批阈值设置
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(
+      "chat_auto_approve_enabled",
+      String(autoApproveEnabled)
+    );
+  }, [autoApproveEnabled]);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem("chat_auto_approve_threshold", String(autoApproveThreshold));
+  }, [autoApproveThreshold]);
 
   const submitDisabled = isLoading || !assistant;
 
@@ -142,7 +185,10 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
         submitDisabled
       )
         return;
-      sendMessage(messageText, contentBlocks, { enable_rag: enableRag });
+      sendMessage(messageText, contentBlocks, {
+        enable_rag: enableRag,
+        auto_approve_threshold: autoApproveEnabled ? autoApproveThreshold : 100,
+      });
       setInput("");
       resetBlocks();
     },
@@ -154,6 +200,8 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
       setInput,
       submitDisabled,
       enableRag,
+      autoApproveEnabled,
+      autoApproveThreshold,
       resetBlocks,
     ]
   );
@@ -184,13 +232,13 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
       messages.length === 0 &&
       !initialPromptSentRef.current
     ) {
-      // 标记为已发送，防止重复
-      initialPromptSentRef.current = true;
-
       // 使用 setTimeout 确保组件完全初始化
       const timer = setTimeout(() => {
-        // 检查组件是否仍然挂载
+        // 检查组件是否仍然挂载，且 sendMessage 已准备好
         if (isMountedRef.current && sendMessageRef.current) {
+          // 真正发送前才标记为已发送，避免上一条 effect 被清理后
+          // ref 被提前置为 true，导致重渲染后不再发送。
+          initialPromptSentRef.current = true;
           sendMessageRef.current(initialPrompt);
         }
       }, 100);
@@ -421,6 +469,50 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
     });
   }, [messages, interrupt]);
 
+  const generatedTestCaseIds = useMemo(() => {
+    const allToolCalls = processedMessages.flatMap((m) => m.toolCalls);
+    return extractCreatedTestCaseIds(allToolCalls);
+  }, [processedMessages]);
+
+  const handleDownloadExcel = useCallback(async () => {
+    const projectId = assistant?.config?.configurable
+      ?.project_identifier as string | undefined;
+    if (!projectId) {
+      toast.error(t("testCases.exportExcelMissingProject"));
+      return;
+    }
+
+    if (generatedTestCaseIds.length === 0) {
+      toast.error(t("testCases.exportExcelNoScope"));
+      return;
+    }
+
+    try {
+      setExportingExcel(true);
+      await downloadTestCasesExcel(
+        projectId,
+        { test_case_ids: generatedTestCaseIds },
+        {
+          onCompleted: () => {
+            toast.success(t("testCases.exportExcelSuccess"));
+          },
+          onFailed: (message) => {
+            toast.error(message || t("testCases.exportExcelFailed"));
+          },
+        }
+      );
+    } catch (error) {
+      console.error("Export excel failed:", error);
+      toast.error(t("testCases.exportExcelFailed"));
+    } finally {
+      setExportingExcel(false);
+    }
+  }, [
+    assistant?.config?.configurable?.project_identifier,
+    generatedTestCaseIds,
+    t,
+  ]);
+
   const groupedTodos = {
     in_progress: todos.filter((t) => t.status === "in_progress"),
     pending: todos.filter((t) => t.status === "pending"),
@@ -446,6 +538,50 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
       reviewConfigs.map((rc: ReviewConfig) => [rc.actionName, rc])
     );
   }, [interrupt]);
+
+  // 阶段评审中断：存在 interrupt 但当前中断不是针对最后一条消息里工具调用的
+  const isPhaseReviewInterrupt = useMemo(() => {
+    if (!interrupt || !actionRequestsMap || actionRequestsMap.size === 0) {
+      return false;
+    }
+    const lastMessage = processedMessages[processedMessages.length - 1];
+    if (!lastMessage) return true;
+    return !lastMessage.toolCalls.some((tc) => actionRequestsMap.has(tc.name));
+  }, [interrupt, actionRequestsMap, processedMessages]);
+
+  // 输出格式选择中断
+  const isFormatSelectionInterrupt = useMemo(() => {
+    return (interrupt?.value as any)?.type === "format_selection";
+  }, [interrupt]);
+
+  // 从历史消息中提取评审轮次元数据
+  const reviewRounds = useMemo(() => {
+    const rounds: any[] = [];
+    for (const msg of messages) {
+      if (msg.type !== "human") continue;
+      const ak = (msg.additional_kwargs as Record<string, any>) || {};
+      const reviewRound = ak._review_round;
+      if (reviewRound && typeof reviewRound === "object") {
+        rounds.push({
+          phase: String(reviewRound.phase || ""),
+          round: Number(reviewRound.round || 1),
+          decision: String(reviewRound.decision || ""),
+          comment: reviewRound.comment ? String(reviewRound.comment) : undefined,
+          timestamp: reviewRound.timestamp ? String(reviewRound.timestamp) : undefined,
+        });
+      }
+    }
+    return rounds;
+  }, [messages]);
+
+  // 当前阶段评审历史（传给 PhaseReviewInterrupt 显示上一轮意见）
+  const currentPhaseReviewRounds = useMemo(() => {
+    if (!isPhaseReviewInterrupt || !actionRequestsMap) return [];
+    const actionRequest = Array.from(actionRequestsMap.values())[0];
+    const phase = actionRequest?.args?.phase as string;
+    if (!phase) return [];
+    return reviewRounds.filter((r) => r.phase === phase);
+  }, [isPhaseReviewInterrupt, actionRequestsMap, reviewRounds]);
 
   // 滚动完全交由 useStickToBottom 处理（初次加载/发送/流式输出会自动滚到底部，
   // 用户主动上滑查看历史时停止跟随）。
@@ -517,6 +653,28 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
                   />
                 );
               })}
+              {isFormatSelectionInterrupt && interrupt && (
+                <div className="mt-4">
+                  <OutputFormatInterrupt
+                    formats={(interrupt.value as any).formats || []}
+                    description={(interrupt.value as any).description}
+                    onResume={resumeInterrupt}
+                    isLoading={isLoading}
+                  />
+                </div>
+              )}
+              {isPhaseReviewInterrupt && interrupt && (
+                <div className="mt-4">
+                  <PhaseReviewInterrupt
+                    actionRequest={Array.from(actionRequestsMap!.values())[0]}
+                    reviewConfig={Array.from(reviewConfigsMap!.values())[0]}
+                    reviewRounds={currentPhaseReviewRounds}
+                    onResume={resumeInterrupt}
+                    isLoading={isLoading}
+                  />
+                </div>
+              )}
+              <ReviewHistoryTimeline messages={messages} />
             </>
           )}
         </div>
@@ -738,6 +896,29 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
               )}
             </div>
           )}
+          {generatedTestCaseIds.length > 0 && !isLoading && (
+            <div className="flex items-center justify-between gap-2 border-b border-border bg-muted px-4 py-2 text-sm">
+              <span className="text-muted-foreground">
+                {t("testCases.generatedTestCasesCount", {
+                  count: generatedTestCaseIds.length.toString(),
+                })}
+              </span>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={handleDownloadExcel}
+                disabled={exportingExcel}
+              >
+                {exportingExcel ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="mr-2 h-4 w-4" />
+                )}
+                {t("testCases.downloadExcel")}
+              </Button>
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="flex flex-col">
             <ContentBlocksPreview
               blocks={contentBlocks}
@@ -784,6 +965,45 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
                   >
                     开启 RAG
                   </Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="auto-approve-switch"
+                    checked={autoApproveEnabled}
+                    onCheckedChange={setAutoApproveEnabled}
+                    disabled={isLoading}
+                  />
+                  <Label
+                    htmlFor="auto-approve-switch"
+                    className="cursor-pointer text-sm text-muted-foreground"
+                  >
+                    自动审批
+                  </Label>
+                  {autoApproveEnabled && (
+                    <div className="flex items-center gap-1">
+                      <Input
+                        id="auto-approve-threshold"
+                        type="number"
+                        min={0}
+                        max={100}
+                        value={autoApproveThreshold}
+                        onChange={(e) => {
+                          const num = parseInt(e.target.value, 10);
+                          if (!Number.isNaN(num)) {
+                            setAutoApproveThreshold(Math.max(0, Math.min(100, num)));
+                          }
+                        }}
+                        disabled={isLoading}
+                        className="h-6 w-14 px-1 text-xs"
+                      />
+                      <Label
+                        htmlFor="auto-approve-threshold"
+                        className="cursor-pointer text-xs text-muted-foreground"
+                      >
+                        分
+                      </Label>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="flex justify-end gap-2">

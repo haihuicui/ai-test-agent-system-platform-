@@ -20,6 +20,7 @@ const DEFAULT_PAGE_SIZE = 20;
 export function useThreads(props: {
   status?: Thread["status"];
   limit?: number;
+  assistantId?: string;
 }) {
   const pageSize = props.limit || DEFAULT_PAGE_SIZE;
 
@@ -30,6 +31,7 @@ export function useThreads(props: {
         config?.langsmithApiKey ||
         process.env.NEXT_PUBLIC_LANGSMITH_API_KEY ||
         "";
+      const assistantId = props.assistantId ?? config?.assistantId;
 
       if (!config) {
         return null;
@@ -45,7 +47,7 @@ export function useThreads(props: {
         pageIndex,
         pageSize,
         deploymentUrl: config.deploymentUrl,
-        assistantId: config.assistantId,
+        assistantId,
         apiKey,
         status: props?.status,
       };
@@ -83,9 +85,13 @@ export function useThreads(props: {
         sortBy: "updated_at" as const,
         sortOrder: "desc" as const,
         status,
-        // Only filter by assistant_id metadata for deployed graphs (UUIDs)
-        // Local dev graphs don't set this metadata
-        ...(isUUID ? { metadata: { assistant_id: assistantId } } : {}),
+        // 已部署的 assistant 使用 UUID，LangGraph 会把 assistant_id 写入 metadata；
+        // 本地 dev graph 使用 graph name，metadata 中对应的是 graph_id。
+        ...(isUUID
+          ? { metadata: { assistant_id: assistantId } }
+          : assistantId
+          ? { metadata: { graph_id: assistantId } }
+          : {}),
       });
 
       return threads.map((thread): ThreadItem => {
@@ -133,7 +139,7 @@ export function useThreads(props: {
     },
     {
       revalidateFirstPage: true,
-      revalidateOnFocus: true,
+      revalidateOnFocus: false,
     }
   );
 }

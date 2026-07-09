@@ -93,7 +93,7 @@ async def lifespan(app: FastAPI):
     """
     # 启动时
     # 连接 MongoDB
-    # await MongoDB.connect()
+    await MongoDB.connect()
 
     # 创建数据库表（开发环境）
     if settings.debug:
@@ -113,7 +113,7 @@ async def lifespan(app: FastAPI):
 
     # 关闭时
     # 断开 MongoDB 连接
-    # await MongoDB.disconnect()
+    await MongoDB.disconnect()
 
     # 关闭定时调度器
     scheduler.shutdown()

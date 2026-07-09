@@ -101,6 +101,9 @@ class TestCaseCreate(BaseModel):
     issues: Optional[list[str]] = Field(default=None, description="关联的 Jira issues")
     automation_status: AutomationStatus = Field(default=AutomationStatus.NOT_AUTOMATED, description="自动化状态")
     custom_fields: Optional[dict[str, Any]] = Field(default=None, description="自定义字段")
+    module: Optional[str] = Field(default=None, max_length=255, description="所属模块")
+    test_data: Optional[dict[str, Any]] = Field(default=None, description="测试数据")
+    case_number: Optional[str] = Field(default=None, max_length=50, description="用例编号")
     # 普通测试用例字段
     test_case_steps: Optional[list[TestStepCreate]] = Field(default=None, description="测试步骤列表")
     # BDD 测试用例字段
@@ -141,6 +144,9 @@ class TestCaseUpdate(BaseModel):
     issues: Optional[list[str]] = Field(default=None, description="关联的 Jira issues")
     automation_status: Optional[AutomationStatus] = Field(default=None, description="自动化状态")
     custom_fields: Optional[dict[str, Any]] = Field(default=None, description="自定义字段")
+    module: Optional[str] = Field(default=None, max_length=255, description="所属模块")
+    test_data: Optional[dict[str, Any]] = Field(default=None, description="测试数据")
+    case_number: Optional[str] = Field(default=None, max_length=50, description="用例编号")
     test_case_steps: Optional[list[TestStepCreate]] = Field(default=None, description="测试步骤列表")
     # BDD 字段
     feature: Optional[str] = Field(default=None, description="BDD Feature 描述")
@@ -174,6 +180,9 @@ class TestCaseInfo(BaseModel):
     tags: list[str] = Field(default_factory=list, description="标签列表")
     issues: list[str] = Field(default_factory=list, description="关联的 Jira issues")
     custom_fields: Optional[dict[str, Any]] = Field(default=None, description="自定义字段")
+    module: Optional[str] = Field(default=None, description="所属模块")
+    test_data: Optional[dict[str, Any]] = Field(default=None, description="测试数据")
+    case_number: Optional[str] = Field(default=None, description="用例编号")
     test_case_steps: list[TestStepInfo] = Field(default_factory=list, description="测试步骤")
     # BDD 字段
     feature: Optional[str] = Field(default=None, description="BDD Feature 描述")
@@ -197,6 +206,8 @@ class TestCaseMinifiedInfo(BaseModel):
     folder_id: Optional[UUID] = Field(default=None, description="所属文件夹 ID")
     owner: Optional[str] = Field(default=None, description="负责人邮箱")
     tags: list[str] = Field(default_factory=list, description="标签列表")
+    module: Optional[str] = Field(default=None, description="所属模块")
+    case_number: Optional[str] = Field(default=None, description="用例编号")
 
     model_config = {"from_attributes": True}
 
@@ -312,6 +323,33 @@ class ExportBDDRequest(BaseModel):
 
 class ExportBDDResponse(BaseResponse):
     """导出 BDD 测试用例响应模型"""
+    success: bool = Field(default=True)
+    export_id: str = Field(..., description="导出任务 ID")
+    status: ExportStatus = Field(..., description="导出状态")
+    status_url: str = Field(..., description="状态查询 URL")
+
+
+class ExportExcelRequest(BaseModel):
+    """导出 Excel 测试用例请求模型"""
+    test_case_ids: Optional[list[str]] = Field(
+        default=None,
+        description="要导出的测试用例标识符列表；与 folder_id 二选一"
+    )
+    folder_id: Optional[str] = Field(
+        default=None,
+        description="文件夹 ID，导出该文件夹下全部测试用例"
+    )
+
+    @model_validator(mode='after')
+    def validate_scope(self):
+        """验证必须提供 test_case_ids 或 folder_id 之一"""
+        if not self.test_case_ids and not self.folder_id:
+            raise ValueError("必须提供 test_case_ids 或 folder_id 之一")
+        return self
+
+
+class ExportExcelResponse(BaseResponse):
+    """导出 Excel 测试用例响应模型"""
     success: bool = Field(default=True)
     export_id: str = Field(..., description="导出任务 ID")
     status: ExportStatus = Field(..., description="导出状态")

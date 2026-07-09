@@ -2,7 +2,8 @@
 // NOTE  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2TlVSaVdBPT06MmUzZDY0N2Y=
 
 import * as React from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
+import { useQueryState } from "nuqs";
 import { toast } from "sonner";
 import {
   Zap,
@@ -20,6 +21,7 @@ import {
 import { MainLayout } from "@/components/layout";
 import { useLanguage } from "@/providers/LanguageProvider";
 import { APITestList, APITestDialog } from "@/components/api-tests";
+import { MoveFolderDialog } from "@/components/test-cases";
 import { APIEndpointSidebar } from "@/components/api-tests/api-endpoint-sidebar";
 import { APIParseDialog } from "@/components/api-tests/api-parse-dialog";
 import { APIEndpointList } from "@/components/api-tests/APIEndpointList";
@@ -27,6 +29,7 @@ import { EnhancedTestArtifactsPanel } from "@/components/api-tests/test-artifact
 import { CreateEndpointDialog } from "@/components/api-tests/create-endpoint-dialog";
 import { APIFolderTree } from "@/components/api-tests/folder-tree";
 import type { APIFolderTreeRef } from "@/components/api-tests/folder-tree";
+import { EndpointExecutionResultsPanel } from "@/components/api-tests/endpoint-execution-results-panel";
 import { ScenarioListPanel } from "@/components/scenario-tests/scenario-list-panel";
 import { ScenarioOrchestrationView } from "@/components/scenario-tests/scenario-orchestration-view";
 import { ScenarioExecutionMonitor } from "@/components/scenario-tests/scenario-execution-monitor";
@@ -48,6 +51,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AIChatContainer } from "@/components/langgraph/AIChatContainer";
 import { ClientProvider } from "@/providers/ClientProvider";
+import { EnvironmentSheet } from "@/components/api-tests/environment-sheet";
+import { EnvironmentSelector } from "@/components/api-tests/environment-selector";
+import { useProjectEnvironment } from "@/providers/ProjectEnvironmentProvider";
+import { useDelayedUnmount } from "@/hooks/useDelayedUnmount";
 import { Assistant } from "@langchain/langgraph-sdk";
 import { cn } from "@/lib/utils";
 import {
@@ -77,12 +84,17 @@ import type { Scenario } from "@/types/scenario";
 
 type TestMode = "endpoint" | "scenario";
 type ScenarioViewMode = "orchestrate" | "monitor";
-// TODO  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2TlVSaVdBPT06MmUzZDY0N2Y=
+type EndpointTab = "artifacts" | "execution";
 
 export default function APITestsPage() {
   const params = useParams();
   const projectId = params.projectId as string;
   const { t } = useLanguage();
+  const {
+    selectedEnvironmentId,
+    selectedEnvironment,
+    refreshEnvironments,
+  } = useProjectEnvironment();
 
   // 文件夹树 ref
   const folderTreeRef = React.useRef<APIFolderTreeRef>(null);
@@ -97,9 +109,13 @@ export default function APITestsPage() {
   const [actualTestCasesCounts, setActualTestCasesCounts] = React.useState<Record<string, number>>({});
   const [selectedFolderId, setSelectedFolderId] = React.useState<string | null>(null);
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
-  const [selectedEndpointId, setSelectedEndpointId] = React.useState<string | null>(null);
+  const [selectedEndpointId, setSelectedEndpointId] = useQueryState("endpointId");
   const [showEndpointSidebar, setShowEndpointSidebar] = React.useState(false);
   const [artifactsRefreshTrigger, setArtifactsRefreshTrigger] = React.useState(0);
+  const [endpointTab, setEndpointTab] = React.useState<EndpointTab>("artifacts");
+
+  // 环境配置 Sheet
+  const [environmentSheetOpen, setEnvironmentSheetOpen] = React.useState(false);
 
   // 场景测试相关状态
   const [scenarios, setScenarios] = React.useState<Scenario[]>([]);
@@ -108,6 +124,8 @@ export default function APITestsPage() {
   const [showScenarioSidebar, setShowScenarioSidebar] = React.useState(false);
   const [scenarioDialogOpen, setScenarioDialogOpen] = React.useState(false);
   const [scenarioRefreshTrigger, setScenarioRefreshTrigger] = React.useState(0);
+  const [scenarioSidebarEditing, setScenarioSidebarEditing] = React.useState(false);
+  const [scenarioEditTrigger, setScenarioEditTrigger] = React.useState(0);
 
   // 分页和筛选
   const [page, setPage] = React.useState(1);
@@ -131,6 +149,8 @@ export default function APITestsPage() {
   });
   const [deleteFolderDialogOpen, setDeleteFolderDialogOpen] = React.useState(false);
   const [deletingFolder, setDeletingFolder] = React.useState<FolderInfo | null>(null);
+  const [moveFolderDialogOpen, setMoveFolderDialogOpen] = React.useState(false);
+  const [movingFolder, setMovingFolder] = React.useState<FolderInfo | null>(null);
   const [createAPITestFolder, setCreateAPITestFolder] = React.useState<FolderInfo | null>(null);
   const [selectedFolderName, setSelectedFolderName] = React.useState<string | undefined>();
   const [aiGenerateDialogOpen, setAiGenerateDialogOpen] = React.useState(false);
@@ -140,6 +160,7 @@ export default function APITestsPage() {
 
   // AI 聊天状态
   const [aiChatOpen, setAiChatOpen] = React.useState(false);
+  const renderAIChat = useDelayedUnmount(aiChatOpen, 300);
   const [aiChatInitialPrompt, setAiChatInitialPrompt] = React.useState<string>("");
   const [aiChatKey, setAiChatKey] = React.useState<number>(0);
   const [assistant, setAssistant] = React.useState<Assistant | null>(null);
@@ -157,6 +178,7 @@ export default function APITestsPage() {
               project_identifier: projectId,
               folder_id: selectedFolderId || "",
               template_type: testMode === "endpoint" ? "api_test" : "scenario_test",
+              environment_id: selectedEnvironmentId || "",
             }
           },
           created_at: new Date().toISOString(),
@@ -172,7 +194,7 @@ export default function APITestsPage() {
       }
     };
     initAssistant();
-  }, [projectId, selectedFolderId, testMode]);
+  }, [projectId, selectedFolderId, testMode, selectedEnvironmentId]);
 
   // 加载 API 测试数据
   const loadAPITests = React.useCallback(async () => {
@@ -252,6 +274,8 @@ export default function APITestsPage() {
   const handleSelectFolder = (folder: FolderInfo | null) => {
     setSelectedFolderId(folder?.id || null);
     setSelectedFolderName(folder?.name);
+    // 切换文件夹时清除选中的 endpoint，避免旧 endpoint 在新文件夹下不存在
+    setSelectedEndpointId(null);
     setPage(1);
     setSelectedIds(new Set());
   };
@@ -284,13 +308,21 @@ export default function APITestsPage() {
     }));
   };
 
-  const handleExecuteScript = (artifactId: string, fileName: string) => {
+  const handleExecuteScript = (artifactId: string, fileName: string, endpointId: string) => {
+    const envHint = selectedEnvironment
+      ? `\n**Environment ID**: ${selectedEnvironment.id}\n**Environment Name**: ${selectedEnvironment.name}`
+      : selectedEnvironmentId
+      ? `\n**Environment ID**: ${selectedEnvironmentId}`
+      : "";
+
     const prompt = `${t("apiTests.executeTestPrompt")}:
 
-**Script ID**: ${artifactId}
+**Script ID (Attachment ID)**: ${artifactId}
 **Script File**: ${fileName}
-**Project ID**: ${projectId}
-`;
+**Endpoint ID**: ${endpointId}
+**Project ID**: ${projectId}${envHint}
+
+请使用 execute_api_script_by_artifact_id 工具执行此脚本，并确保生成 HTML 测试报告。`;
 
     setAiChatInitialPrompt(prompt);
     setAiChatKey(prev => prev + 1);
@@ -301,6 +333,15 @@ export default function APITestsPage() {
   const handleSelectScenario = (scenarioId: string) => {
     setSelectedScenarioId(scenarioId);
     setShowScenarioSidebar(false); // 不自动打开详情侧边栏，避免遮挡编辑按钮
+    setScenarioSidebarEditing(false);
+    setScenarioViewMode("orchestrate");
+  };
+
+  const handleEditScenario = (scenarioId: string) => {
+    setSelectedScenarioId(scenarioId);
+    setShowScenarioSidebar(true); // 点击编辑时打开详情侧边栏
+    setScenarioSidebarEditing(true); // 并自动进入编辑模式
+    setScenarioEditTrigger(prev => prev + 1); // 触发编辑模式（支持重复编辑同一场景）
     setScenarioViewMode("orchestrate");
   };
 
@@ -384,6 +425,11 @@ export default function APITestsPage() {
     }
   };
 
+  // 移动文件夹成功回调 - 本地更新树
+  const handleMoveFolderSuccess = (folderId: string, newParentId: string | null, updatedFolder: FolderInfo) => {
+    folderTreeRef.current?.moveFolderLocally(folderId, newParentId, updatedFolder);
+  };
+
   return (
     <MainLayout title={t("apiTests.title")}>
       <div className="relative flex h-[calc(100vh-8rem)] rounded-lg border bg-card overflow-hidden">
@@ -434,7 +480,8 @@ export default function APITestsPage() {
                     setDeleteFolderDialogOpen(true);
                   }}
                   onMoveFolder={(folder) => {
-                    // TODO: 实现移动文件夹
+                    setMovingFolder(folder);
+                    setMoveFolderDialogOpen(true);
                   }}
                   onCreateAPIEndpoint={handleCreateAPIEndpoint}
                   onSelectAPIEndpoint={(endpointId) => {
@@ -449,6 +496,7 @@ export default function APITestsPage() {
                   projectId={projectId}
                   selectedScenarioId={selectedScenarioId}
                   onSelectScenario={handleSelectScenario}
+                  onEditScenario={handleEditScenario}
                 />
               )}
             </div>
@@ -512,6 +560,11 @@ export default function APITestsPage() {
               </div>
 
               <div className="flex items-center gap-2">
+                {/* 环境选择器 */}
+                <div className="mr-2">
+                  <EnvironmentSelector onManage={() => setEnvironmentSheetOpen(true)} />
+                </div>
+
                 {testMode === "endpoint" ? (
                   <>
                     <Button
@@ -607,47 +660,65 @@ export default function APITestsPage() {
                     />
                   </div>
 
-                  {/* 测试成果物 - 下半部分 */}
-                  <div className="flex-1 min-h-0 overflow-y-auto bg-gradient-to-b from-muted/20 to-background p-6">
-                    <div className="max-w-7xl mx-auto">
-                      <div className="flex items-center justify-between mb-6">
-                        <div>
-                          <h2 className="text-xl font-bold flex items-center gap-2">
-                            <Zap className="h-5 w-5 text-purple-500" />
+                  {/* 测试成果物 / 执行结果 - 下半部分 */}
+                  <div className="flex-1 min-h-0 overflow-hidden bg-gradient-to-b from-muted/20 to-background p-6 flex flex-col">
+                    <div className="max-w-7xl mx-auto w-full flex-1 flex flex-col min-h-0">
+                      <Tabs
+                        value={endpointTab}
+                        onValueChange={(v) => setEndpointTab(v as EndpointTab)}
+                        className="flex flex-col h-full"
+                      >
+                        <TabsList className="w-fit mb-4">
+                          <TabsTrigger value="artifacts" className="gap-1.5">
+                            <Zap className="h-4 w-4" />
                             {t("apiTests.testArtifacts")}
-                          </h2>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {selectedEndpointId
-                              ? t("apiTests.testArtifactsDesc")
-                              : apiEndpoints.length > 0
-                              ? t("apiTests.testArtifactsForEndpoint", { name: apiEndpoints[0].display_name })
-                              : t("apiTests.noEndpointData")
-                            }
-                          </p>
-                        </div>
-                      </div>
+                          </TabsTrigger>
+                          <TabsTrigger value="execution" className="gap-1.5">
+                            <Play className="h-4 w-4" />
+                            {t("apiTests.executionResults") || "执行结果"}
+                          </TabsTrigger>
+                        </TabsList>
 
-                      {apiEndpoints.length === 0 && (
-                        <div className="text-center py-12 border-2 border-dashed rounded-lg bg-muted/10">
-                          <FileCode className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                          <p className="text-lg font-medium mb-2">{t("apiTests.noEndpointData")}</p>
-                          <p className="text-sm text-muted-foreground mb-4">
-                            {t("apiTests.selectFolderOrImportAPI")}
-                          </p>
-                        </div>
-                      )}
+                        <TabsContent value="artifacts" className="flex-1 min-h-0 overflow-y-auto mt-0">
+                          {apiEndpoints.length === 0 ? (
+                            <div className="text-center py-12 border-2 border-dashed rounded-lg bg-muted/10">
+                              <FileCode className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                              <p className="text-lg font-medium mb-2">{t("apiTests.noEndpointData")}</p>
+                              <p className="text-sm text-muted-foreground mb-4">
+                                {t("apiTests.selectFolderOrImportAPI")}
+                              </p>
+                            </div>
+                          ) : (
+                            <EnhancedTestArtifactsPanel
+                              key={`artifacts-${selectedEndpointId || apiEndpoints[0]?.id}`}
+                              endpointId={selectedEndpointId || apiEndpoints[0]?.id}
+                              projectId={projectId}
+                              onRefresh={loadAPITests}
+                              onTestCasesCountChange={handleTestCasesCountChange}
+                              onExecuteScript={handleExecuteScript}
+                              refreshTrigger={artifactsRefreshTrigger}
+                            />
+                          )}
+                        </TabsContent>
 
-                      {apiEndpoints.length > 0 && (
-                        <EnhancedTestArtifactsPanel
-                          key={`artifacts-${selectedEndpointId || apiEndpoints[0]?.id}`}
-                          endpointId={selectedEndpointId || apiEndpoints[0]?.id}
-                          projectId={projectId}
-                          onRefresh={loadAPITests}
-                          onTestCasesCountChange={handleTestCasesCountChange}
-                          onExecuteScript={handleExecuteScript}
-                          refreshTrigger={artifactsRefreshTrigger}
-                        />
-                      )}
+                        <TabsContent value="execution" className="flex-1 min-h-0 overflow-hidden mt-0">
+                          {apiEndpoints.length === 0 ? (
+                            <div className="text-center py-12 border-2 border-dashed rounded-lg bg-muted/10">
+                              <Play className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                              <p className="text-lg font-medium mb-2">{t("apiTests.noEndpointData")}</p>
+                              <p className="text-sm text-muted-foreground mb-4">
+                                {t("apiTests.selectFolderOrImportAPI")}
+                              </p>
+                            </div>
+                          ) : (
+                            <EndpointExecutionResultsPanel
+                              endpointId={selectedEndpointId || apiEndpoints[0]?.id}
+                              projectId={projectId}
+                              refreshTrigger={artifactsRefreshTrigger}
+                            />
+                          )}
+                        </TabsContent>
+                      </Tabs>
                     </div>
                   </div>
                 </>
@@ -659,6 +730,7 @@ export default function APITestsPage() {
                       <ScenarioOrchestrationView
                         projectId={projectId}
                         scenarioId={selectedScenarioId}
+                        selectedEnvironmentId={selectedEnvironmentId}
                         onScenarioUpdate={() => setScenarioRefreshTrigger(prev => prev + 1)}
                         onOpenSidebar={handleOpenScenarioSidebar}
                       />
@@ -684,26 +756,34 @@ export default function APITestsPage() {
                 aiChatOpen ? "translate-x-0 border-l shadow-2xl" : "translate-x-full"
               )}
             >
-              <ClientProvider
-                deploymentUrl={process.env.NEXT_PUBLIC_LANGGRAPH_API_URL || "http://localhost:2025"}
-                apiKey={process.env.NEXT_PUBLIC_LANGSMITH_API_KEY || ""}
-              >
-                <AIChatContainer
-                  assistant={assistant}
-                  initialPrompt={aiChatInitialPrompt}
-                  onClose={() => setAiChatOpen(false)}
-                  createNewThread={aiChatKey > 0}
-                  onTestCreated={() => {
-                    if (testMode === "endpoint") {
-                      loadAPITests();
-                      folderTreeRef.current?.refresh();
-                      setArtifactsRefreshTrigger(prev => prev + 1);
-                    } else {
-                      setScenarioRefreshTrigger(prev => prev + 1);
-                    }
-                  }}
-                />
-              </ClientProvider>
+              {renderAIChat && (
+                <ClientProvider
+                  deploymentUrl={process.env.NEXT_PUBLIC_LANGGRAPH_API_URL || "http://localhost:2025"}
+                  apiKey={process.env.NEXT_PUBLIC_LANGSMITH_API_KEY || ""}
+                >
+                  <AIChatContainer
+                    assistant={assistant}
+                    initialPrompt={aiChatInitialPrompt}
+                    onClose={() => {
+                      setAiChatOpen(false);
+                      setAiChatKey(0);
+                      setAiChatInitialPrompt("");
+                    }}
+                    createNewThread={aiChatKey > 0}
+                    reconnectOnMount={true}
+                    fetchHistoryOnMount={true}
+                    onTestCreated={() => {
+                      if (testMode === "endpoint") {
+                        loadAPITests();
+                        folderTreeRef.current?.refresh();
+                        setArtifactsRefreshTrigger(prev => prev + 1);
+                      } else {
+                        setScenarioRefreshTrigger(prev => prev + 1);
+                      }
+                    }}
+                  />
+                </ClientProvider>
+              )}
             </div>
           )}
 
@@ -752,16 +832,21 @@ export default function APITestsPage() {
               <ScenarioDetailSidebar
                 scenarioId={selectedScenarioId}
                 projectId={projectId}
+                selectedEnvironmentId={selectedEnvironmentId}
+                defaultEditing={scenarioSidebarEditing}
+                editTrigger={scenarioEditTrigger}
                 onClose={() => {
                   setShowScenarioSidebar(false);
-                  // 不要 setSelectedScenarioId(null)，保持场景选中状态
+                  setScenarioSidebarEditing(false);
                 }}
                 onScenarioUpdated={() => {
                   setScenarioRefreshTrigger(prev => prev + 1);
+                  setScenarioSidebarEditing(false);
                 }}
                 onOpenAIChat={(prompt) => {
                   // 关闭侧边栏
                   setShowScenarioSidebar(false);
+                  setScenarioSidebarEditing(false);
                   // 打开 AI 助手
                   setAiChatInitialPrompt(prompt);
                   setAiChatKey(prev => prev + 1);
@@ -772,6 +857,16 @@ export default function APITestsPage() {
           )}
         </div>
       </div>
+
+      {/* 环境配置 Sheet */}
+      <EnvironmentSheet
+        projectId={projectId}
+        open={environmentSheetOpen}
+        onOpenChange={setEnvironmentSheetOpen}
+        onEnvironmentsChange={() => {
+          refreshEnvironments();
+        }}
+      />
 
       {/* 各种对话框 */}
         {/* API解析对话框 */}
@@ -893,6 +988,15 @@ export default function APITestsPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        {/* 移动文件夹对话框 */}
+        <MoveFolderDialog
+          open={moveFolderDialogOpen}
+          onOpenChange={setMoveFolderDialogOpen}
+          projectId={projectId}
+          folder={movingFolder}
+          folderType="api_test"
+          onMoveSuccess={handleMoveFolderSuccess}
+        />
       </MainLayout>
     );
 }

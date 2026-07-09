@@ -27,40 +27,68 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   getScenario,
   updateScenario,
   executeScenario,
 } from "@/lib/api/scenarios";
 import { MessageSquare } from "lucide-react";
+import { useLanguage } from "@/providers/LanguageProvider";
 import type { Scenario } from "@/types/scenario";
 // FIXME  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2ZVVkbFN3PT06MWVmMGUyNjM=
 
 interface ScenarioDetailSidebarProps {
   scenarioId: string;
   projectId: string;
+  selectedEnvironmentId?: string | null;
   onClose: () => void;
   onScenarioUpdated: () => void;
   onOpenAIChat?: (prompt: string) => void;
   onSwitchToMonitor?: () => void;
+  defaultEditing?: boolean;
+  editTrigger?: number;
 }
 // FIXME  My80OmFIVnBZMlhsdEpUbXRiZm92b2s2ZVVkbFN3PT06MWVmMGUyNjM=
 
 export function ScenarioDetailSidebar({
   scenarioId,
   projectId,
+  selectedEnvironmentId,
   onClose,
   onScenarioUpdated,
   onOpenAIChat,
   onSwitchToMonitor,
+  defaultEditing = false,
+  editTrigger = 0,
 }: ScenarioDetailSidebarProps) {
+  const { t } = useLanguage();
   const [scenario, setScenario] = React.useState<Scenario | null>(null);
   const [loading, setLoading] = React.useState(true);
-  const [editing, setEditing] = React.useState(false);
+  const [editing, setEditing] = React.useState(defaultEditing);
   const [name, setName] = React.useState("");
   const [description, setDescription] = React.useState("");
+  const [status, setStatus] = React.useState<Scenario["status"]>("draft");
   const [saving, setSaving] = React.useState(false);
   const [executing, setExecuting] = React.useState(false);
   const [customRequirements, setCustomRequirements] = React.useState("");
+
+  // 当外部传入 defaultEditing 变化时同步编辑状态（切换场景时重置）
+  React.useEffect(() => {
+    setEditing(defaultEditing);
+  }, [scenarioId, defaultEditing]);
+
+  // 每次收到明确的编辑触发命令时进入编辑模式（支持重复编辑同一场景）
+  React.useEffect(() => {
+    if (editTrigger > 0) {
+      setEditing(true);
+    }
+  }, [editTrigger]);
 
   // 加载场景详情
   React.useEffect(() => {
@@ -74,6 +102,7 @@ export function ScenarioDetailSidebar({
       setScenario(data);
       setName(data.name);
       setDescription(data.description || "");
+      setStatus(data.status);
     } catch (error) {
       console.error("Failed to load scenario:", error);
       toast.error("加载场景详情失败");
@@ -95,6 +124,7 @@ export function ScenarioDetailSidebar({
       await updateScenario(scenarioId, {
         name: name.trim(),
         description: description.trim() || undefined,
+        status,
       });
 
       await loadScenario();
@@ -146,6 +176,7 @@ ${customRequirements.trim()}
         variables: {},
         base_url: "",
         async_mode: false,
+        environment_id: selectedEnvironmentId || undefined,
         custom_requirements: customRequirements.trim() || undefined,
       });
 
@@ -282,6 +313,23 @@ ${customRequirements.trim()}
                   rows={3}
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-status">场景状态</Label>
+                <Select
+                  value={status}
+                  onValueChange={(value) => setStatus(value as Scenario["status"])}
+                  disabled={saving}
+                >
+                  <SelectTrigger id="edit-status">
+                    <SelectValue placeholder="选择状态" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="draft">{t("status.draft")}</SelectItem>
+                    <SelectItem value="active">{t("status.active")}</SelectItem>
+                    <SelectItem value="archived">{t("status.archived")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="flex gap-2">
                 <Button
                   size="sm"
@@ -299,6 +347,7 @@ ${customRequirements.trim()}
                     setEditing(false);
                     setName(scenario.name);
                     setDescription(scenario.description || "");
+                    setStatus(scenario.status);
                   }}
                   disabled={saving}
                 >
@@ -309,6 +358,20 @@ ${customRequirements.trim()}
           ) : (
             <>
               <div className="space-y-3">
+                <div>
+                  <div className="text-xs text-muted-foreground mb-1">场景状态</div>
+                  <Badge
+                    variant={
+                      scenario.status === "active"
+                        ? "default"
+                        : scenario.status === "archived"
+                        ? "secondary"
+                        : "outline"
+                    }
+                  >
+                    {t(`status.${scenario.status}`)}
+                  </Badge>
+                </div>
                 <div>
                   <div className="text-xs text-muted-foreground mb-1">场景描述</div>
                   <p className="text-sm">

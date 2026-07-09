@@ -33,6 +33,13 @@ async def _patched_structured_ainvoke(self, input, config=None, **kwargs):
 StructuredTool.ainvoke = _patched_structured_ainvoke
 
 
+# 记录已包装的工具 id，避免对同一个（模块级单例）工具实例重复包装。
+# 工具实例在多次 make_agent() 调用间复用，重复包装会让 functools.wraps 在
+# _arun/_run 上不断叠加 __wrapped__ 链，最终触发 inspect.unwrap 的
+# "wrapper loop when unwrapping ..." 错误。
+_wrapped_tool_ids: set[int] = set()
+
+
 def _is_sync_tool(tool: BaseTool, original_arun) -> bool:
     """判断工具是否实际没有 async 实现，需要在线程池中运行 sync 版本。
 
@@ -62,6 +69,12 @@ def wrap_tool_with_error_handling(tool: BaseTool) -> BaseTool:
     Returns:
         包装后的工具
     """
+    # 幂等保护：同一工具实例只包装一次。工具是模块级单例，会在多次
+    # make_agent() 调用间复用，重复包装会累积 __wrapped__ 链并最终导致
+    # inspect.unwrap 检测到 wrapper loop。
+    if id(tool) in _wrapped_tool_ids:
+        return tool
+
     original_run = tool._run
     original_arun = tool._arun
 # type: ignore  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2UWxCc1ZnPT06YWViYjkxMzU=
@@ -139,6 +152,8 @@ def wrap_tool_with_error_handling(tool: BaseTool) -> BaseTool:
     # 替换工具的运行方法
     tool._run = wrapped_run
     tool._arun = wrapped_arun
+
+    _wrapped_tool_ids.add(id(tool))
 
     return tool
 

@@ -380,15 +380,23 @@ class ScenarioService:
         variables: Dict[str, Any],
         base_url: str,
         executed_by: Optional[UUID],
+        env_id: Optional[UUID] = None,
     ) -> ScenarioRun:
         """执行场景"""
         from app.services.scenario_execution_engine import ScenarioExecutionEngine
+
+        # 提前加载场景以获取 project_id
+        scenario = await self.get_scenario(scenario_id)
+        if not scenario:
+            raise ValueError(f"场景 {scenario_id} 不存在")
 
         engine = ScenarioExecutionEngine(self.db)
         run = await engine.execute(
             scenario_id=scenario_id,
             variables=variables,
             base_url=base_url,
+            project_id=scenario.project_id,
+            env_id=env_id,
         )
 # pylint: disable  My80OmFIVnBZMlhsdEpUbXRiZm92b2s2Y0doM09BPT06NDNmN2JhNDc=
 
@@ -405,6 +413,7 @@ class ScenarioService:
         variables: Dict[str, Any],
         base_url: str,
         executed_by: Optional[UUID],
+        env_id: Optional[UUID] = None,
     ) -> UUID:
         """异步执行场景（使用后台任务）"""
         # TODO: 集成 Celery 或 FastAPI BackgroundTasks
@@ -414,6 +423,7 @@ class ScenarioService:
             variables=variables,
             base_url=base_url,
             executed_by=executed_by,
+            env_id=env_id,
         )
         return run.id
 

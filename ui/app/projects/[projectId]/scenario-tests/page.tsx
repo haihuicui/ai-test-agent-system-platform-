@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { MainLayout } from "@/components/layout";
 import { useLanguage } from "@/providers/LanguageProvider";
+import { useProjectEnvironment } from "@/providers/ProjectEnvironmentProvider";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScenarioListPanel } from "@/components/scenario-tests/scenario-list-panel";
@@ -22,6 +23,9 @@ import { ScenarioOrchestrationView } from "@/components/scenario-tests/scenario-
 import { ScenarioExecutionMonitor } from "@/components/scenario-tests/scenario-execution-monitor";
 import { ScenarioCreateDialog } from "@/components/scenario-tests/scenario-create-dialog";
 import { ScenarioDetailSidebar } from "@/components/scenario-tests/scenario-detail-sidebar";
+import { EnvironmentSelector } from "@/components/api-tests/environment-selector";
+import { EnvironmentSheet } from "@/components/api-tests/environment-sheet";
+import { executeScenario } from "@/lib/api/scenarios";
 // eslint-disable  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2UjNObFR3PT06ZTM4ZjQxMzQ=
 
 type ViewMode = "list" | "orchestrate" | "monitor";
@@ -31,12 +35,17 @@ export default function ScenarioTestsPage() {
   const params = useParams();
   const projectId = params.projectId as string;
   const { t } = useLanguage();
+  const { selectedEnvironmentId } = useProjectEnvironment();
 
   const [viewMode, setViewMode] = React.useState<ViewMode>("list");
   const [selectedScenarioId, setSelectedScenarioId] = React.useState<string | null>(null);
   const [showDetailSidebar, setShowDetailSidebar] = React.useState(false);
   const [createDialogOpen, setCreateDialogOpen] = React.useState(false);
   const [refreshTrigger, setRefreshTrigger] = React.useState(0);
+  const [detailSidebarEditing, setDetailSidebarEditing] = React.useState(false);
+  const [detailEditTrigger, setDetailEditTrigger] = React.useState(0);
+  const [environmentSheetOpen, setEnvironmentSheetOpen] = React.useState(false);
+  const [running, setRunning] = React.useState(false);
 
   const handleScenarioCreated = (scenarioId: string) => {
     setSelectedScenarioId(scenarioId);
@@ -49,7 +58,38 @@ export default function ScenarioTestsPage() {
   const handleSelectScenario = (scenarioId: string) => {
     setSelectedScenarioId(scenarioId);
     setShowDetailSidebar(true);
+    setDetailSidebarEditing(false);
     setViewMode("orchestrate");
+  };
+
+  const handleEditScenario = (scenarioId: string) => {
+    setSelectedScenarioId(scenarioId);
+    setShowDetailSidebar(true);
+    setDetailSidebarEditing(true);
+    setDetailEditTrigger((prev) => prev + 1);
+    setViewMode("orchestrate");
+  };
+
+  const handleRunScenario = async () => {
+    if (!selectedScenarioId) return;
+    setRunning(true);
+    try {
+      const result = await executeScenario(selectedScenarioId, {
+        environment_id: selectedEnvironmentId || undefined,
+      });
+      if (result.status === "completed") {
+        toast.success(t("apiTests.scenarioRunSuccess") || "场景执行成功");
+      } else {
+        toast.warning(result.message || "场景执行完成");
+      }
+      setRefreshTrigger((prev) => prev + 1);
+      setViewMode("monitor");
+    } catch (error) {
+      console.error("Failed to run scenario:", error);
+      toast.error(t("apiTests.scenarioRunFailed") || "场景执行失败");
+    } finally {
+      setRunning(false);
+    }
   };
 
   return (
@@ -104,6 +144,11 @@ export default function ScenarioTestsPage() {
               projectId={projectId}
               selectedScenarioId={selectedScenarioId}
               onSelectScenario={handleSelectScenario}
+              onEditScenario={handleEditScenario}
+              onViewExecutionHistory={(scenarioId) => {
+                setSelectedScenarioId(scenarioId);
+                setViewMode("monitor");
+              }}
             />
           </div>
         </div>
@@ -141,18 +186,26 @@ export default function ScenarioTestsPage() {
             </div>
 
             <div className="flex items-center gap-2">
+              <EnvironmentSelector onManage={() => setEnvironmentSheetOpen(true)} />
               {selectedScenarioId && (
                 <>
-                  <Button variant="outline" size="sm" className="gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => setViewMode("monitor")}
+                  >
                     <Clock className="h-4 w-4" />
                     {t("apiTests.executionHistory")}
                   </Button>
                   <Button
                     size="sm"
                     className="gap-2 bg-gradient-to-r from-blue-600 to-purple-600"
+                    onClick={handleRunScenario}
+                    disabled={running}
                   >
                     <Zap className="h-4 w-4" />
-                    {t("apiTests.runScenario")}
+                    {running ? t("common.running") : t("apiTests.runScenario")}
                   </Button>
                 </>
               )}
@@ -172,6 +225,7 @@ export default function ScenarioTestsPage() {
               <ScenarioOrchestrationView
                 projectId={projectId}
                 scenarioId={selectedScenarioId}
+                selectedEnvironmentId={selectedEnvironmentId}
                 onScenarioUpdate={() => setRefreshTrigger((prev) => prev + 1)}
                 onOpenSidebar={() => setShowDetailSidebar(true)}
               />
@@ -190,8 +244,17 @@ export default function ScenarioTestsPage() {
             <ScenarioDetailSidebar
               scenarioId={selectedScenarioId}
               projectId={projectId}
-              onClose={() => setShowDetailSidebar(false)}
-              onScenarioUpdated={() => setRefreshTrigger((prev) => prev + 1)}
+              selectedEnvironmentId={selectedEnvironmentId}
+              defaultEditing={detailSidebarEditing}
+              editTrigger={detailEditTrigger}
+              onClose={() => {
+                setShowDetailSidebar(false);
+                setDetailSidebarEditing(false);
+              }}
+              onScenarioUpdated={() => {
+                setRefreshTrigger((prev) => prev + 1);
+                setDetailSidebarEditing(false);
+              }}
               onOpenAIChat={() => {}}
               onSwitchToMonitor={() => {
                 setViewMode("monitor");
@@ -200,6 +263,13 @@ export default function ScenarioTestsPage() {
           </div>
         )}
       </div>
+
+      {/* 环境配置 Sheet */}
+      <EnvironmentSheet
+        projectId={projectId}
+        open={environmentSheetOpen}
+        onOpenChange={setEnvironmentSheetOpen}
+      />
 
       {/* 场景创建对话框 */}
       <ScenarioCreateDialog

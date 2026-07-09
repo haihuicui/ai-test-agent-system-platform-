@@ -120,6 +120,20 @@ export function AIGenerateResultDialog({
                       <input type="checkbox" defaultChecked className="mt-1" />
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm">{testCase.name}</p>
+                        {(testCase.case_number || testCase.module) && (
+                          <div className="flex flex-wrap gap-2 mt-1">
+                            {testCase.case_number && (
+                              <span className="text-xs text-muted-foreground">
+                                编号: {testCase.case_number}
+                              </span>
+                            )}
+                            {testCase.module && (
+                              <span className="text-xs text-muted-foreground">
+                                模块: {testCase.module}
+                              </span>
+                            )}
+                          </div>
+                        )}
                         {testCase.description && (
                           <p className="text-xs text-muted-foreground mt-1">
                             {testCase.description}

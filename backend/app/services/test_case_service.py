@@ -21,7 +21,10 @@ from app.schemas.test_case import (
     TestCaseHistoryItem, ModifiedFieldInfo
 )
 from app.schemas.common import LinkInfo
-from app.schemas.enums import TestCaseTemplate, BulkEditOperation
+from app.schemas.enums import (
+    Priority, TestCaseState, TestCaseType, AutomationStatus,
+    TestCaseTemplate, BulkEditOperation,
+)
 from app.utils.exceptions import NotFoundException, BadRequestException
 from app.utils.identifier import generate_test_case_identifier
 from app.config.settings import settings
@@ -71,9 +74,11 @@ class TestCaseService:
         return TestCaseInfo(
             id=tc.id,
             identifier=tc.identifier,
+            case_number=tc.case_number,
             name=tc.name,
             description=tc.description,
             preconditions=tc.preconditions,
+            module=tc.module,
             priority=tc.priority,
             status=tc.state,
             case_type=tc.test_case_type,
@@ -89,6 +94,7 @@ class TestCaseService:
             tags=tags,
             issues=issues,
             custom_fields=tc.custom_fields,
+            test_data=tc.test_data,
             test_case_steps=steps,
             feature=tc.feature,
             scenario=tc.scenario,
@@ -110,7 +116,9 @@ class TestCaseService:
         return TestCaseMinifiedInfo(
             id=tc.id,
             identifier=tc.identifier,
+            case_number=tc.case_number,
             name=tc.name,
+            module=tc.module,
             priority=tc.priority,
             status=tc.state,
             case_type=tc.test_case_type,
@@ -138,6 +146,7 @@ class TestCaseService:
         custom_fields: Optional[dict[str, list[str]]] = None,
         updated_after: Optional[datetime] = None,
         updated_before: Optional[datetime] = None,
+        search: Optional[str] = None,
     ) -> tuple[list[Union[TestCaseInfo, TestCaseMinifiedInfo]], int]:
         """
         获取测试用例列表
@@ -160,6 +169,7 @@ class TestCaseService:
             "custom_fields": custom_fields,
             "updated_after": updated_after,
             "updated_before": updated_before,
+            "search": search,
         }
 
         test_cases = await self.repo.get_by_project_with_filters(
@@ -176,7 +186,44 @@ class TestCaseService:
             result.append(info)
 
         return result, total
-    
+
+    async def get_test_cases_for_export(
+        self,
+        project_identifier: str,
+        test_case_ids: Optional[list[str]] = None,
+        folder_ids: Optional[list[str]] = None,
+    ) -> list[TestCaseInfo]:
+        """
+        获取用于导出的测试用例列表（不分页）
+
+        支持按测试用例标识符列表或文件夹列表过滤。
+        """
+        project = await self._get_project_by_identifier(project_identifier)
+
+        filters = {
+            "test_case_ids": test_case_ids,
+            "folder_ids": folder_ids,
+            "statuses": None,
+            "priorities": None,
+            "case_types": None,
+            "owners": None,
+            "tags": None,
+            "issue_ids": None,
+            "issue_type": None,
+            "custom_fields": None,
+            "updated_after": None,
+            "updated_before": None,
+        }
+
+        test_cases = await self.repo.get_by_project_with_filters(
+            project.id, offset=0, limit=100_000, **filters
+        )
+
+        return [
+            await self._test_case_to_info(tc, project_identifier)
+            for tc in test_cases
+        ]
+
     async def get_test_case(
         self,
         project_identifier: str,
@@ -238,9 +285,11 @@ class TestCaseService:
             project_id=project.id,
             folder_id=folder_id,
             identifier=identifier,
+            case_number=data.case_number,
             name=data.name,
             description=data.description,
             preconditions=data.preconditions,
+            module=data.module,
             priority=data.priority,
             state=data.state,
             test_case_type=data.test_case_type,
@@ -250,6 +299,7 @@ class TestCaseService:
             background=data.background,
             automation_status=data.automation_status,
             custom_fields=data.custom_fields,
+            test_data=data.test_data,
             issues=data.issues,
             owner_id=owner_id,
             created_by=created_by,
@@ -299,6 +349,13 @@ class TestCaseService:
         update_data = data.model_dump(exclude_unset=True, exclude={"steps", "tags"})
         tc = await self.repo.update(tc, **update_data)
 
+        # 更新标签
+        if data.tags is not None:
+            await self.repo.clear_test_case_tags(tc.id)
+            for tag_name in data.tags:
+                tag = await self.repo.get_or_create_tag(project.id, tag_name)
+                await self.repo.add_tag_to_test_case(tc.id, tag)
+
         # 更新版本号
         tc.version = (tc.version or 1) + 1
 
@@ -337,13 +394,54 @@ class TestCaseService:
         if not update_data:
             return 0
 
+        # 统一字段名：前端使用别名，模型使用真实列名
+        normalized = dict(update_data)
+        if "status" in normalized:
+            normalized["state"] = normalized.pop("status")
+        if "case_type" in normalized:
+            normalized["test_case_type"] = normalized.pop("case_type")
+
+        # 负责人邮箱转换为 owner_id
+        owner_email = normalized.pop("owner", None)
+        if owner_email is not None:
+            if owner_email:
+                user_repo = UserRepository(self.session)
+                owner = await user_repo.get_by_email(owner_email)
+                if owner:
+                    normalized["owner_id"] = owner.id
+            else:
+                normalized["owner_id"] = None
+
+        # 将字符串转换为对应的枚举成员，避免 SQLAlchemy 对字符串/枚举的兼容性问题
+        enum_converters = {
+            "state": TestCaseState,
+            "priority": Priority,
+            "test_case_type": TestCaseType,
+            "automation_status": AutomationStatus,
+        }
+        for key, enum_cls in enum_converters.items():
+            value = normalized.get(key)
+            if value is not None:
+                try:
+                    normalized[key] = enum_cls(value)
+                except ValueError:
+                    # 非法枚举值时直接跳过，不更新该字段
+                    normalized.pop(key, None)
+
         updated_count = 0
         for tc_identifier in test_case_ids:
             tc = await self.repo.get_by_identifier(tc_identifier)
-            if tc and tc.project_id == project.id:
-                await self.repo.update(tc, **update_data)
-                updated_count += 1
+            if not tc or tc.project_id != project.id:
+                continue
 
+            for key, value in normalized.items():
+                if hasattr(tc, key):
+                    setattr(tc, key, value)
+
+            tc.version = (tc.version or 1) + 1
+            updated_count += 1
+
+        await self.session.flush()
         return updated_count
 
     async def bulk_update_with_operations(

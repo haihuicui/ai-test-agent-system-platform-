@@ -59,14 +59,15 @@ import { StepCreateDialog } from "./step-create-dialog";
 interface ScenarioOrchestrationViewProps {
   projectId: string;
   scenarioId: string | null;
+  selectedEnvironmentId?: string | null;
   onScenarioUpdate: () => void;
   onOpenSidebar?: () => void;
 }
-// eslint-disable  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2VUhacU9BPT06ZTY1NjFiM2Q=
 
 export function ScenarioOrchestrationView({
   projectId,
   scenarioId,
+  selectedEnvironmentId,
   onScenarioUpdate,
   onOpenSidebar,
 }: ScenarioOrchestrationViewProps) {

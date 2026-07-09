@@ -328,7 +328,7 @@ class APITestResult(Base, UUIDMixin, TimestampMixin):
         comment="测试状态: passed, failed, skipped, blocked"
     )
 
-    # 请求/响应摘要 (JSONB)
+    # 请求/响应摘要 (JSONB) - 保留向后兼容
     request_summary: Mapped[dict | None] = mapped_column(
         JSONB,
         nullable=True,
@@ -338,6 +338,23 @@ class APITestResult(Base, UUIDMixin, TimestampMixin):
         JSONB,
         nullable=True,
         comment="响应摘要 {status_code, duration_ms, size}"
+    )
+
+    # 完整请求/响应明细 (JSONB) - 新增
+    request_data: Mapped[dict | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment="完整请求数据 {method, url, headers, params, body}"
+    )
+    response_data: Mapped[dict | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment="完整响应数据 {status, statusText, headers, body, timing}"
+    )
+    assertion_results: Mapped[list | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment="断言结果列表 [{assertion, passed, actual, expected, message}]"
     )
 
     error_message: Mapped[str | None] = mapped_column(

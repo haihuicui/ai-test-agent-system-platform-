@@ -14,6 +14,11 @@ from app.agents.tools.api.openapi_tools import (
     get_folder_structure,
 )
 
+from app.agents.tools.api.environment_tools import (
+    get_project_environments,
+    get_environment_details,
+)
+
 from app.agents.tools.api.artifacts_tools import (
     save_test_plan,
     save_test_cases,
@@ -31,6 +36,7 @@ from app.agents.tools.api.script_tools import (
 
 from app.agents.tools.api.execution_tools import (
     execute_api_script,
+    execute_api_script_by_artifact_id,
     get_test_execution_status,
 )
 
@@ -67,6 +73,11 @@ OPENAPI_TOOLS = [
     get_folder_structure,
 ]
 
+ENVIRONMENT_TOOLS = [
+    get_project_environments,
+    get_environment_details,
+]
+
 ARTIFACT_TOOLS = [
     save_test_plan,
     save_test_cases,
@@ -83,6 +94,7 @@ SCRIPT_TOOLS = [
 
 EXECUTION_TOOLS = [
     execute_api_script,
+    execute_api_script_by_artifact_id,
     get_test_execution_status,
 ]
 # type: ignore  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2UVZkTVF3PT06MjJlNmJjMTM=
@@ -113,6 +125,7 @@ SCENARIO_TOOLS = [
 
 ALL_API_TOOLS = (
     OPENAPI_TOOLS
+    + ENVIRONMENT_TOOLS
     + ARTIFACT_TOOLS
     + SCRIPT_TOOLS
     + EXECUTION_TOOLS
@@ -138,6 +151,9 @@ __all__ = [
     "get_endpoint_details",
     "get_multiple_endpoints_details",
     "get_folder_structure",
+    # Environment
+    "get_project_environments",
+    "get_environment_details",
     # 成果物
     "save_test_plan",
     "save_test_cases",
@@ -150,6 +166,7 @@ __all__ = [
     "delete_api_script",
     # 执行
     "execute_api_script",
+    "execute_api_script_by_artifact_id",
     "get_test_execution_status",
     # 运行器
     "run_tests",

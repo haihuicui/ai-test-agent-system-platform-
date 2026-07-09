@@ -100,8 +100,10 @@ export interface StepResult {
   run_id: string;
   step_id: string;
   endpoint_id: string | null;
+  step_name: string | null;
   step_order: number;
   status: 'passed' | 'failed' | 'skipped' | 'error';
+  full_url: string | null;
   request_data: Record<string, any> | null;
   response_data: Record<string, any> | null;
   extracted_data: Record<string, any>;
