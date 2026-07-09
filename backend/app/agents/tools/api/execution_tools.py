@@ -24,10 +24,11 @@ from uuid import UUID
 logger = logging.getLogger(__name__)
 
 from langchain_core.tools import tool
+from langgraph.config import get_config
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-from app.agents.api.runtime_context import get_conversation_id
+from app.agents.api.runtime_context import get_conversation_id as get_ctx_conversation_id
 from app.utils.sync_executor import run_sync
 from app.config import settings
 from app.config.database import async_session_factory
@@ -36,6 +37,24 @@ from app.models.api_endpoint import APIEndpoint
 from app.config.minio_client import MinIOClient
 from app.services.environment_service import EnvironmentService
 from app.utils.exceptions import BadRequestException
+
+
+def _get_conversation_id() -> Optional[str]:
+    """
+    获取当前 AI 会话 ID。
+
+    优先从 LangGraph 运行配置读取（工具调用上下文内最可靠），
+    读取不到时回退到 contextvar。
+    """
+    try:
+        config = get_config()
+        if config and isinstance(config.get("configurable"), dict):
+            conversation_id = config["configurable"].get("conversation_id")
+            if conversation_id:
+                return conversation_id
+    except Exception:
+        pass
+    return get_ctx_conversation_id()
 
 
 # ============================================================================
@@ -157,8 +176,8 @@ async def execute_api_script(
             "command": None,
         }
 
-        # 读取当前 AI 会话 ID（由中间件通过 contextvar 注入）
-        conversation_id = get_conversation_id()
+        # 读取当前 AI 会话 ID（优先从 LangGraph 运行配置读取）
+        conversation_id = _get_conversation_id()
         diagnostics["conversation_id"] = conversation_id
 
         # 1. 解析脚本路径
@@ -835,8 +854,8 @@ async def _save_test_report(
         附件 ID，如果保存失败则返回 None
     """
     try:
-        # 优先使用显式传入的 conversation_id，否则从上下文变量读取
-        conversation_id = conversation_id or get_conversation_id()
+        # 优先使用显式传入的 conversation_id，否则从 LangGraph 配置/contextvar 读取
+        conversation_id = conversation_id or _get_conversation_id()
 
         # 1. 将报告目录打包成 ZIP（本地临时文件名仍使用时间戳，避免并发冲突）
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -1013,8 +1032,8 @@ async def execute_api_script_by_artifact_id(
             "execution_config": execution_config,
         }
 
-        # 读取当前 AI 会话 ID（由中间件通过 contextvar 注入）
-        conversation_id = get_conversation_id()
+        # 读取当前 AI 会话 ID（优先从 LangGraph 运行配置读取）
+        conversation_id = _get_conversation_id()
         diagnostics["conversation_id"] = conversation_id
 
         # 1. 查询附件

@@ -26,6 +26,7 @@ from deepagents.middleware import SkillsMiddleware
 from langchain.agents.middleware import AgentMiddleware, ModelRequest, ModelResponse
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_mcp_adapters.tools import load_mcp_tools
+from langgraph.config import get_config
 from langgraph.pregel import Pregel
 
 from app.agents.api.runtime_context import conversation_id_ctx
@@ -92,13 +93,18 @@ class APIContextInjectionMiddleware(AgentMiddleware):
         folder_id = request.runtime.context.folder_id
         environment_id = request.runtime.context.environment_id
 
-        # 从 runtime config 读取 conversation_id；未提供时为当前调用生成一个，
-        # 保证同一次 agent 调用内的多次工具调用共享同一个会话 ID。
+        # 从 LangGraph 运行配置中读取 conversation_id；未提供时为当前调用生成一个，
+        # 并写回 config，保证同一次 agent 调用内的多次工具调用共享同一个会话 ID。
         conversation_id = ""
-        if request.runtime.configurable:
-            conversation_id = request.runtime.configurable.get("conversation_id", "") or ""
+        config = get_config()
+        if config and isinstance(config.get("configurable"), dict):
+            conversation_id = config["configurable"].get("conversation_id", "") or ""
         if not conversation_id:
             conversation_id = str(uuid4())
+        if config is not None:
+            if "configurable" not in config or config["configurable"] is None:
+                config["configurable"] = {}
+            config["configurable"]["conversation_id"] = conversation_id
         request.runtime.context.conversation_id = conversation_id
 
         # 将 conversation_id 写入 contextvar，供工具函数直接读取
@@ -196,33 +202,36 @@ SYSTEM_PROMPT = """# API 自动化测试专家
 - ⚠️ 若项目无任何环境，脚本仍应使用环境变量占位，执行时会明确报错提示配置环境
 - ⚠️ **执行测试时必须设置 `reporter: "html"`，确保生成 HTML 测试报告并保存到 MinIO，便于前端展示**
 
-### 脚本生成规范（避免 405/请求异常）
+### 脚本生成规范（避免 URL 丢失 /api 路径、避免网关拦截）
 
-生成 Playwright 测试脚本时，请严格遵守以下规范。HTTP 请求**优先使用 Playwright 的 `request` fixture**，只有在确认 Playwright request 被网关拦截且无法通过调整 headers 解决时，才允许回退到 Node.js 原生 `fetch`。
+生成 Playwright 测试脚本时，请严格遵守以下规范。当前网关会拦截 Playwright 的 `request` fixture，因此 **HTTP 请求统一使用 Node.js 原生 `fetch`**，不要再使用 Playwright 的 `request`。
 
-1. **URL 构造必须使用 `new URL()`，并对环境变量 trim()**
+1. **URL 构造使用字符串拼接，并对环境变量 trim()**
    ```typescript
    const BASE_URL = (process.env.API_BASE_URL || '').trim();
    if (!BASE_URL) throw new Error('API_BASE_URL is not set');
    const API_PATH = '/xmetrix-data/customer/page';
-   const url = new URL(API_PATH, BASE_URL).toString();
+   // 注意：new URL(API_PATH, BASE_URL) 在 API_PATH 以 / 开头时会替换掉 BASE_URL 的路径，
+   // 导致 base_url 中的 /api 等前缀丢失，因此必须手动拼接。
+   const url = `${BASE_URL.replace(/\/$/, '')}${API_PATH}`;
    ```
-   禁止直接字符串拼接：`const url = BASE_URL + API_PATH`，因为这可能在边界产生空格或双斜杠。
+   拼接规则：去掉 `BASE_URL` 末尾的斜杠，保留 `API_PATH` 开头的斜杠，避免双斜杠；同时检查最终 url 没有多余空格。
 
-2. **使用 Playwright request 时必须显式设置 headers**
+2. **使用 Node.js 原生 `fetch` 发送请求**
    ```typescript
-   const response = await request.post(url, {
+   const response = await fetch(url, {
+     method: 'POST',
      headers: {
        'Authorization': `Bearer ${AUTH_TOKEN}`,
        'Content-Type': 'application/json',
        'Accept': 'application/json',
      },
-     data: payload,  // Playwright 会自动序列化为 JSON
+     body: JSON.stringify(payload),
    });
    ```
-   注意：Playwright 的 `request.post` 使用 `data` 字段传对象，不是 `body`，也不是 JSON.stringify 后的字符串。
+   注意：`fetch` 的 `body` 必须是 `JSON.stringify(payload)` 后的字符串，且需要显式设置 `'Content-Type': 'application/json'`。
 
-3. **请求体必须是普通对象**
+3. **请求体使用普通对象，发送前 JSON.stringify**
    ```typescript
    const payload = {
      current: 1,
@@ -233,20 +242,13 @@ SYSTEM_PROMPT = """# API 自动化测试专家
      filters: [],
    };
    ```
-   禁止传 `JSON.stringify(payload)` 给 Playwright 的 `data`。
+   禁止直接把对象传给 `fetch` 的 `body`。
 
-4. **如果 Playwright request 持续返回 405/被网关拦截**：
-   - 先用 `curl` 验证相同 URL、相同 token 是否通
-   - 检查 `new URL(API_PATH, BASE_URL).toString()` 的输出是否有多余空格
-   - 尝试添加 `'Accept': 'application/json'` 或 `'User-Agent': 'API-Test-Agent'`
-   - 仍无法解决时，才允许改用 Node.js 原生 `fetch`：
-     ```typescript
-     const response = await fetch(url, {
-       method: 'POST',
-       headers: { 'Authorization': `Bearer ${AUTH_TOKEN}`, 'Content-Type': 'application/json' },
-       body: JSON.stringify(payload),
-     });
-     ```
+4. **获取响应状态与 JSON**
+   ```typescript
+   expect(response.status).toBe(200);
+   const data = await response.json();
+   ```
 
 5. **禁止写 fallback token**：`const token = process.env.AUTH_TOKEN || 'test'` 严格禁止。
 
