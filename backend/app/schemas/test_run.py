@@ -136,6 +136,9 @@ class TestRunCreate(BaseModel):
     max_concurrency: Optional[int] = Field(
         default=5, ge=1, le=50, description="最大并发数"
     )
+    environment_id: Optional[str] = Field(
+        default=None, description="执行环境 ID，未指定时使用项目默认环境"
+    )
 
     @model_validator(mode="after")
     def _check_mutual_exclusion(self) -> "TestRunCreate":
@@ -172,6 +175,9 @@ class TestRunPatchUpdate(BaseModel):
     )
     filter_test_cases: Optional[TestCaseFilter] = Field(
         default=None, description="测试用例过滤条件"
+    )
+    environment_id: Optional[str] = Field(
+        default=None, description="执行环境 ID，未指定时使用项目默认环境"
     )
 
 
@@ -424,6 +430,9 @@ class TestRunInfo(BaseModel):
     script_jobs: Optional[list[TestRunScriptJobInfo]] = Field(
         default=None, description="脚本作业列表"
     )
+    environment_id: Optional[str] = Field(
+        default=None, description="执行环境 ID"
+    )
     created_at: datetime = Field(..., description="创建时间")
     updated_at: Optional[datetime] = Field(default=None, description="更新时间")
     closed_at: Optional[datetime] = Field(default=None, description="关闭时间")
@@ -479,6 +488,9 @@ class TestRunListInfo(BaseModel):
     max_concurrency: int = Field(default=5, description="最大并发数")
     trigger_type: TriggerType = Field(
         default=TriggerType.MANUAL, description="触发方式"
+    )
+    environment_id: Optional[str] = Field(
+        default=None, description="执行环境 ID"
     )
 
 

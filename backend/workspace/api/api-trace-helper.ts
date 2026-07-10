@@ -1,3 +1,6 @@
+// NOTE: Keep this helper in sync with backend/app/services/api_test_executor.py.
+// The `minimal_helper` string in that file is the embedded fallback used when
+// this standalone template is not available.
 import { test as baseTest, APIRequestContext, APIResponse } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -79,6 +82,17 @@ function getBodyMeta(body: any): { originalSize: number; truncated: boolean } {
   const serialized = typeof body === 'string' ? body : JSON.stringify(body);
   const originalSize = Buffer.byteLength(serialized, 'utf8');
   return { originalSize, truncated: originalSize > BODY_TRUNCATE_THRESHOLD };
+}
+
+function parseHeaders(h: HeadersInit | undefined): Record<string, string> | undefined {
+  if (!h) return undefined;
+  if (h instanceof Headers) {
+    const result: Record<string, string> = {};
+    h.forEach((v, k) => { result[k] = v; });
+    return result;
+  }
+  if (Array.isArray(h)) return Object.fromEntries(h);
+  return h as Record<string, string>;
 }
 
 function wrapResponse(response: APIResponse, testName: string, testTitle: string, traceFile: string, startTime: number, requestInfo: any): APIResponse {
@@ -187,6 +201,97 @@ function wrapContext(context: APIRequestContext, testName: string, testTitle: st
   });
 }
 
+// ---------------------------------------------------------------------------
+// 全局 fetch 拦截：兼容使用原生 fetch 的测试脚本
+// ---------------------------------------------------------------------------
+let currentTestName = '';
+let currentTestTitle = '';
+
+function parseUrlParams(url: string): Record<string, string> | undefined {
+  try {
+    const parsed = new URL(url, 'http://localhost');
+    const params: Record<string, string> = {};
+    parsed.searchParams.forEach((value, key) => {
+      params[key] = value;
+    });
+    return Object.keys(params).length > 0 ? params : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+const originalFetch = globalThis.fetch;
+console.error('[api-trace-helper] global fetch patch installed, API_TRACE_OUTPUT_FILE=', process.env.API_TRACE_OUTPUT_FILE);
+globalThis.fetch = async function fetch(input: RequestInfo | URL, init?: RequestInit) {
+  const traceFile = process.env.API_TRACE_OUTPUT_FILE;
+  console.error('[api-trace-helper] fetch intercepted, currentTestName=', currentTestName, 'url=', typeof input === 'string' ? input : (input as any).url);
+  if (!traceFile || !currentTestName) {
+    return originalFetch(input, init);
+  }
+
+  const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+  const method = init?.method?.toUpperCase() || 'GET';
+  const startTime = Date.now();
+
+  try {
+    const response = await originalFetch(input, init);
+    const cloned = response.clone();
+    let responseBody: any;
+    try {
+      const contentType = cloned.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        responseBody = await cloned.json();
+      } else {
+        responseBody = await cloned.text();
+      }
+    } catch { /* ignore body parse errors */ }
+
+    const sanitizedReqHeaders = sanitizeHeaders(parseHeaders(init?.headers));
+    const sanitizedRespHeaders = sanitizeHeaders(Object.fromEntries(response.headers.entries()));
+    const sanitizedReqBody = sanitizeBody(init?.body);
+    const sanitizedRespBody = sanitizeBody(responseBody);
+    const reqBodyMeta = getBodyMeta(sanitizedReqBody);
+    const respBodyMeta = getBodyMeta(sanitizedRespBody);
+
+    appendTrace(traceFile, {
+      testName: currentTestName,
+      testTitle: currentTestTitle,
+      method, url,
+      requestHeaders: sanitizedReqHeaders,
+      requestParams: parseUrlParams(url),
+      requestBody: sanitizedReqBody,
+      requestBodyOriginalSize: reqBodyMeta.originalSize,
+      requestBodyTruncated: reqBodyMeta.truncated,
+      status: response.status,
+      statusText: response.statusText,
+      responseHeaders: sanitizedRespHeaders,
+      responseBody: sanitizedRespBody,
+      responseBodyOriginalSize: respBodyMeta.originalSize,
+      responseBodyTruncated: respBodyMeta.truncated,
+      durationMs: Date.now() - startTime,
+      timestamp: new Date().toISOString(),
+    });
+
+    return response;
+  } catch (error) {
+    appendTrace(traceFile, {
+      testName: currentTestName,
+      testTitle: currentTestTitle,
+      method, url,
+      requestHeaders: sanitizeHeaders(parseHeaders(init?.headers)),
+      requestBody: sanitizeBody(init?.body),
+      status: null,
+      statusText: String(error),
+      responseHeaders: {},
+      responseBody: null,
+      error: String(error),
+      durationMs: Date.now() - startTime,
+      timestamp: new Date().toISOString(),
+    });
+    throw error;
+  }
+};
+
 export const test = baseTest.extend({
   request: async ({ request }, use, testInfo) => {
     const traceFile = process.env.API_TRACE_OUTPUT_FILE;
@@ -196,5 +301,19 @@ export const test = baseTest.extend({
   },
 });
 
+// 记录当前用例标题，供全局 fetch 拦截使用
+test.beforeEach(async ({}, testInfo) => {
+  currentTestName = testInfo.titlePath.join(' › ');
+  currentTestTitle = testInfo.title;
+  console.error('[api-trace-helper] beforeEach set currentTestName=', currentTestName);
+});
+
+test.afterEach(() => {
+  currentTestName = '';
+  currentTestTitle = '';
+});
+
 export { expect } from '@playwright/test';
 export { request, APIRequestContext, APIResponse, Page, BrowserContext, Browser, chromium, firefox, webkit, devices, defineConfig } from '@playwright/test';
+
+

@@ -157,19 +157,43 @@ export function useChat({
       stream.messages.map((m) => m.id).filter((id): id is string => !!id)
     );
     const seen = new Set<string>(streamIds);
-    const newestFirst: Message[] = [];
+
+    // 辅助：计算消息内容的近似长度，用于同一 id 多版本时择优。
+    const contentLength = (msg: Message): number => {
+      const c = msg.content;
+      if (typeof c === "string") return c.length;
+      if (Array.isArray(c)) {
+        // 直接序列化后比较长度，避免 MessageContent 联合类型推断问题。
+        return JSON.stringify(c).length;
+      }
+      return 0;
+    };
 
     // checkpoints 按 newest-first 返回；checkpoint 内部消息按时间顺序排列。
-    // 为了保留同一 message id 的最新版本（例如 DeltaChannel 下同一消息被多次更新、
-    // 或 tool 结果在后续 checkpoint 中被压缩），先从最新的 checkpoint、最后一条消息
-    // 开始遍历，收集未见过的 id，最后再反转为 chronological order。
+    // 这里从最新 checkpoint 的末尾开始遍历，保证最后反转为 chronological order 时
+    // 消息顺序正确。对于同一 message id 的多个版本（例如 DeltaChannel 重放、
+    // summarization / compaction 把旧工具结果改写为 pointer），优先保留内容更完整的
+    // 版本，避免 head checkpoint 中已被压缩的消息覆盖掉 older checkpoint 里的完整内容。
+    const newestFirst: Message[] = [];
+    const indexById = new Map<string, number>();
+
     for (const state of paginatedHistory.data) {
       const stateMessages = state.values?.messages ?? [];
       for (let i = stateMessages.length - 1; i >= 0; i--) {
         const msg = stateMessages[i];
-        if (!msg.id || seen.has(msg.id)) continue;
-        seen.add(msg.id);
-        newestFirst.push(msg);
+        if (!msg.id) {
+          // 没有 id 的消息无法去重，直接保留；通常不应出现。
+          newestFirst.push(msg);
+          continue;
+        }
+        if (seen.has(msg.id)) continue;
+        const existingIndex = indexById.get(msg.id);
+        if (existingIndex == null) {
+          indexById.set(msg.id, newestFirst.length);
+          newestFirst.push(msg);
+        } else if (contentLength(msg) > contentLength(newestFirst[existingIndex])) {
+          newestFirst[existingIndex] = msg;
+        }
       }
     }
 
@@ -413,6 +437,7 @@ export function useChat({
     loadMoreHistory,
     isLoadingMoreHistory: paginatedHistory.isLoadingMore,
     historyPages: paginatedHistory.pages,
+    historyHasNewMessages: paginatedHistory.hasNewMessages,
   };
 }
 // TODO  My80OmFIVnBZMlhsdEpUbXRiZm92b2s2WjFsNVp3PT06NmUwNGM4MzQ=

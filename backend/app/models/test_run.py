@@ -177,6 +177,13 @@ class TestRun(Base, UUIDMixin, TimestampMixin):
         index=True,
         comment="关联的定时调度任务 ID"
     )
+    environment_id: Mapped[UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("project_environments.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        comment="执行环境 ID，未指定时使用项目默认环境"
+    )
 
     # 统计字段 - 冗余存储以提高查询性能
     test_cases_count: Mapped[int] = mapped_column(

@@ -161,7 +161,7 @@ SYSTEM_PROMPT = """# API 自动化测试专家
 
 ```
 单接口测试：获取端点 → 生成测试计划 → 生成测试代码 → 保存 → 执行测试
-场景测试：  创建场景 → 添加步骤 → 配置数据依赖 → 添加断言 → 执行场景
+场景测试：  创建场景 → 添加步骤 → 配置数据依赖 → 添加断言 → 添加 teardown 清理 → 执行场景
 ```
 
 ### 🎯 当用户要求"生成测试"时（最常见场景）
@@ -194,6 +194,7 @@ SYSTEM_PROMPT = """# API 自动化测试专家
 - ⚠️ `get_endpoint_details` 返回的信息包含：method、path、summary、description、parameters、request_body、responses
 - ⚠️ 根据这些信息自动设计测试场景，不需要用户重复提供
 - ⚠️ 生成脚本时**禁止硬编码任何域名、URL 或 token**；必须依赖 `process.env.API_BASE_URL` / `process.env.AUTH_TOKEN` 等环境变量
+- ⚠️ **禁止硬编码业务唯一字段值**（`customerName`、`phone`、`email`、`orderNo` 等）。单接口脚本使用 `Date.now()`、`uuid` 或 `@faker-js/faker` 生成动态值；场景步骤的 `request_override` 中使用 `{{$uuid}}`、`{{$timestamp}}`、`{{$faker.name}}` 等动态占位符
 - ⚠️ **禁止在脚本里写 fallback token**，例如 `const token = process.env.AUTH_TOKEN || 'test'` 是严格禁止的。必须使用 `const token = process.env.AUTH_TOKEN!`
 - ⚠️ `dynamic_bearer` 类型环境的 `has_auth_secret` 为 false 是正常的，因为它通过 `auth_config.token_url` 动态获取 token。只要 `auth_config.token_url` 存在，环境就是已配置的
 - ⚠️ 执行脚本时只要传入正确的 `env_id`，后端会自动调用 `token_url` 获取 token 并注入 `AUTH_TOKEN`。脚本里不需要自己实现登录逻辑
@@ -383,6 +384,7 @@ AI：
 | 🔗 数据映射 | `add_data_mapping` | 配置步骤间数据依赖传递 |
 | 🎯 添加断言 | `add_step_assertion` | 为步骤添加验证断言 |
 | 📤 数据提取 | `add_step_extractor` | 从响应中提取数据供后续使用 |
+| 🧹 清理步骤 | `add_teardown_step` | 场景执行后清理创建的资源（如删除客户） |
 | ▶️ 执行场景 | `execute_scenario` | 执行场景测试并获取结果 |
 
 ## 💡 重要原则

@@ -54,6 +54,13 @@ class TestParsePlaywrightListOutput:
         assert result[1]["status"] == "failed"
         assert result[2]["status"] == "skipped"
 
+    def test_parses_seconds_duration_line(self):
+        stdout = "  ok  1 [api-tests] › tests/example.spec.ts:3:7 › GET /users › should work (3.9s)"
+        result = APITestExecutor._parse_playwright_list_output(stdout)
+        assert len(result) == 1
+        assert result[0]["status"] == "passed"
+        assert result[0]["title"] == "GET /users › should work"
+
     def test_returns_empty_for_invalid_output(self):
         stdout = "some random output without test results"
         result = APITestExecutor._parse_playwright_list_output(stdout)

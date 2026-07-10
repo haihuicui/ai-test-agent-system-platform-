@@ -38,6 +38,7 @@ interface EndpointExecutionResultsPanelProps {
 
 interface TestRun {
   id: string;
+  api_test_id: string;
   status: string;
   total_scenarios: number;
   passed_scenarios: number;
@@ -62,13 +63,22 @@ export function EndpointExecutionResultsPanel({
   const [loadingResults, setLoadingResults] = React.useState(false);
   const [expandedResults, setExpandedResults] = React.useState<Set<string>>(new Set());
 
+  // endpoint 切换时重置执行历史与选中运行，避免旧 run_id 被带到新 endpoint 上
+  // 造成 404: 测试运行不属于该 endpoint
+  React.useEffect(() => {
+    setSelectedRunId(null);
+    setRuns([]);
+    setResults([]);
+    setExpandedResults(new Set());
+  }, [endpointId]);
+
   const loadRuns = React.useCallback(async () => {
     if (!endpointId) return;
     try {
       setLoadingRuns(true);
       const data = await getEndpointTestRuns(endpointId, 20);
       setRuns(data.test_runs);
-      if (data.test_runs.length > 0 && !selectedRunId) {
+      if (data.test_runs.length > 0) {
         setSelectedRunId(data.test_runs[0].id);
       }
     } catch (error) {
@@ -77,16 +87,21 @@ export function EndpointExecutionResultsPanel({
     } finally {
       setLoadingRuns(false);
     }
-  }, [endpointId, selectedRunId, t]);
+  }, [endpointId, t]);
 
   const loadResults = React.useCallback(async () => {
     if (!selectedRunId || !endpointId) return;
+    const selectedRun = runs.find((r) => r.id === selectedRunId);
+    // 防御：只请求确实属于当前 endpoint 运行列表的 run，避免脏 state 触发无效请求
+    if (!selectedRun) return;
     try {
       setLoadingResults(true);
-      const data = await getEndpointRunResults(endpointId, selectedRunId, {
-        page: 1,
-        page_size: 100,
-      });
+      const data = await getEndpointRunResults(
+        endpointId,
+        selectedRunId,
+        selectedRun.api_test_id,
+        { page: 1, page_size: 100 }
+      );
       setResults(data.items);
     } catch (error) {
       console.error("Failed to load run results:", error);
@@ -94,7 +109,7 @@ export function EndpointExecutionResultsPanel({
     } finally {
       setLoadingResults(false);
     }
-  }, [endpointId, selectedRunId, t]);
+  }, [endpointId, selectedRunId, runs, t]);
 
   React.useEffect(() => {
     loadRuns();

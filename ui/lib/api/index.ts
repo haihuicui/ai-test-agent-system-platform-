@@ -10,4 +10,5 @@ export * from "./web-functions";
 export * from "./scenarios";
 export * from "./testRuns";
 export * from "./documents";
+export * from "./environments";
 // eslint-disable  MC8yOmFIVnBZMlhsdEpUbXRiZm92b2s2YzBWaFZ3PT06Y2MyM2ZmMTc=

@@ -17,8 +17,8 @@ import logging
 import subprocess
 from urllib.parse import urlparse
 from pathlib import Path
-from typing import Optional, Dict, Any
-from datetime import datetime
+from typing import Optional, Dict, Any, Tuple, List
+from datetime import datetime, timezone
 from uuid import UUID
 
 logger = logging.getLogger(__name__)
@@ -27,6 +27,7 @@ from langchain_core.tools import tool
 from langgraph.config import get_config
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.api.runtime_context import get_conversation_id as get_ctx_conversation_id
 from app.utils.sync_executor import run_sync
@@ -34,9 +35,24 @@ from app.config import settings
 from app.config.database import async_session_factory
 from app.models.attachment import Attachment, AttachmentEntityType
 from app.models.api_endpoint import APIEndpoint
+from app.models.api_test import APITest, APITestRun, APITestResult
+from app.repositories.api_test_repo import (
+    APITestRepository,
+    APITestRunRepository,
+    APITestResultRepository,
+)
+from app.schemas.enums import TestResultStatus
+from app.services.api_test_executor import (
+    APITestExecutor,
+    _ensure_trace_helper,
+    _parse_api_trace,
+    _rewrite_script_imports,
+)
 from app.config.minio_client import MinIOClient
 from app.services.environment_service import EnvironmentService
 from app.utils.exceptions import BadRequestException
+
+print(f"[TRACE-DEBUG] execution_tools loaded from {__file__}")
 
 
 def _get_conversation_id() -> Optional[str]:
@@ -257,7 +273,8 @@ async def execute_api_script(
             reporter=reporter,
             project_root=str(project_root),
             base_url=resolved_base_url,
-            env_vars=resolved_env
+            env_vars=resolved_env,
+            script_abs_path=str(script_path),
         )
 
         diagnostics["command"] = execution_result.get("command")
@@ -268,6 +285,7 @@ async def execute_api_script(
 
         # 6. 保存测试报告到 MinIO（如果生成了 HTML 报告）
         report_attachment_id = None
+        report_object_name = None
         if endpoint_id and reporter == "html" and execution_result.get("report_path"):
             try:
                 # 获取端点信息
@@ -278,7 +296,7 @@ async def execute_api_script(
                     endpoint = endpoint_result.scalar_one_or_none()
 
                 if endpoint:
-                    report_attachment_id = await _save_test_report(
+                    save_result = await _save_test_report(
                         endpoint_id=endpoint_id,
                         project_identifier=project_identifier,
                         endpoint=endpoint,
@@ -287,14 +305,16 @@ async def execute_api_script(
                         project_root=str(project_root),
                         conversation_id=conversation_id,
                     )
+                    if save_result:
+                        report_attachment_id, report_object_name = save_result
             except Exception as e:
                 logger.exception("[execute_api_script] 保存测试报告失败: %s", e)
                 execution_result["stderr"] = (
                     execution_result.get("stderr", "") + f"\n[警告] 保存测试报告失败: {e}"
                 ).strip()
-# pylint: disable  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2TkUxcll3PT06ZGQyYmExYzM=
 
-            # 7. 更新端点的测试运行次数
+        # 7. 写入 api_test_runs / api_test_results（执行历史核心修复）
+        if endpoint_id:
             try:
                 async with async_session_factory() as db:
                     endpoint_result = await db.execute(
@@ -303,19 +323,41 @@ async def execute_api_script(
                     endpoint = endpoint_result.scalar_one_or_none()
 
                     if endpoint:
-                        # 递增测试运行次数
-                        endpoint.total_test_runs = (endpoint.total_test_runs or 0) + 1
+                        script_language = _infer_script_language(script_path)
+                        api_test = await _find_or_create_api_test_for_endpoint(
+                            session=db,
+                            endpoint_id=endpoint_id,
+                            endpoint=endpoint,
+                            project_identifier=project_identifier,
+                            script_format=framework,
+                            script_language=script_language,
+                        )
+                        if api_test:
+                            test_run = await _create_test_run(
+                                session=db,
+                                api_test=api_test,
+                                execution_result=execution_result,
+                                execution_config=execution_config,
+                                report_object_name=report_object_name,
+                            )
+                            await _create_test_results(
+                                session=db,
+                                test_run_id=test_run.id,
+                                api_test=api_test,
+                                execution_result=execution_result,
+                            )
 
-                        # 更新最后运行状态
-                        if execution_result.get("success"):
-                            endpoint.last_run_status = "success"
-                        else:
-                            endpoint.last_run_status = "failed"
+                            # 更新端点统计
+                            endpoint.total_test_runs = (endpoint.total_test_runs or 0) + 1
+                            endpoint.last_run_status = "success" if execution_result.get("success") else "failed"
 
-                        await db.commit()
-                        print(f"[API Script Execution] 已更新端点 {endpoint_id} 的测试运行次数")
+                            await db.commit()
+                            print(f"[API Script Execution] 已创建测试运行记录: {test_run.id}")
             except Exception as e:
-                print(f"[API Script Execution] 更新端点测试运行次数失败: {e}")
+                logger.exception("[execute_api_script] 写入测试运行记录失败: %s", e)
+                execution_result["stderr"] = (
+                    execution_result.get("stderr", "") + f"\n[警告] 写入测试运行记录失败: {e}"
+                ).strip()
 
         # 8. 返回结果
         result = {
@@ -438,7 +480,8 @@ async def _execute_script_internal(
     reporter: str,
     project_root: str,
     base_url: Optional[str] = None,
-    env_vars: Optional[Dict[str, str]] = None
+    env_vars: Optional[Dict[str, str]] = None,
+    script_abs_path: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     内部执行脚本函数
@@ -451,6 +494,7 @@ async def _execute_script_internal(
         project_root: 项目根目录
         base_url: 已解析的 API Base URL
         env_vars: 已解析的环境变量字典
+        script_abs_path: 脚本文件绝对路径（用于注入 trace helper）
 
     Returns:
         执行结果字典
@@ -481,54 +525,7 @@ async def _execute_script_internal(
         }
 
     try:
-        # 确定测试命令
         is_windows = sys.platform == "win32"
-
-        if framework == "playwright":
-            if reporter == "html":
-                # HTML 报告需要指定输出目录
-                if is_windows:
-                    cmd = f'npx playwright test "{script_path}" --reporter=html'
-                else:
-                    cmd = ["npx", "playwright", "test", script_path, "--reporter=html"]
-            else:
-                if is_windows:
-                    cmd = f'npx playwright test "{script_path}" --reporter={reporter}'
-                else:
-                    cmd = ["npx", "playwright", "test", script_path, f"--reporter={reporter}"]
-        elif framework == "jest":
-            if reporter == "html":
-                if is_windows:
-                    cmd = f'npm test -- "{script_path}" --reporter=html'
-                else:
-                    cmd = ["npm", "test", "--", script_path, "--reporter=html"]
-            else:
-                if is_windows:
-                    cmd = f'npm test -- "{script_path}" --reporter={reporter}'
-                else:
-                    cmd = ["npm", "test", "--", script_path, f"--reporter={reporter}"]
-        elif framework == "pytest":
-            if is_windows:
-                cmd = f'pytest "{script_path}" --reporter={reporter}'
-            else:
-                cmd = ["pytest", script_path, f"--reporter={reporter}"]
-        else:
-            return {
-                "success": False,
-                "exit_code": 4,
-                "preflight_status": "ok",
-                "error": f"不支持的测试框架: {framework}",
-                "duration": 0,
-                "stdout": "",
-                "stderr": "",
-                "report_path": None,
-                "start_time": start_time.isoformat(),
-                "end_time": datetime.now().isoformat(),
-                "result_summary": {"total": 0, "passed": 0, "failed": 0, "skipped": 0}
-            }
-
-        print(f"[API Script Execution] 执行命令: {cmd if is_windows else ' '.join(cmd)}")
-        print(f"[API Script Execution] 工作目录: {project_root}")
 
         # 准备环境变量（设置 CI=1 禁用 Playwright HTML reporter 自动打开浏览器）
         env = _ensure_node_in_path(os.environ.copy())
@@ -547,6 +544,108 @@ async def _execute_script_internal(
             for key, value in env_vars.items():
                 env[key] = str(value)
             print(f"[API Script Execution] 注入环境变量: {list(env_vars.keys())}")
+
+        # 为 Playwright 注入 trace helper，捕获真实请求/响应明细
+        actual_script_path: Optional[Path] = None
+        executed_script_path: Optional[Path] = None
+        trace_file: Optional[Path] = None
+        if framework == "playwright":
+            try:
+                project_root_path = Path(project_root)
+                helper_file = _ensure_trace_helper(project_root_path)
+                trace_file = project_root_path / f"api-trace-{uuid.uuid4().hex}.jsonl"
+                env["API_TRACE_OUTPUT_FILE"] = str(trace_file)
+
+                # 确定脚本的绝对路径
+                if script_abs_path:
+                    actual_script_path = Path(script_abs_path).resolve()
+                else:
+                    candidate = project_root_path / script_path
+                    if await run_sync(candidate.exists):
+                        actual_script_path = candidate
+                    else:
+                        candidate = project_root_path / "tests" / script_path
+                        if await run_sync(candidate.exists):
+                            actual_script_path = candidate
+
+                # 将 @playwright/test 导入替换为相对路径的 api-trace-helper
+                if actual_script_path and await run_sync(actual_script_path.exists):
+                    # Windows 下原文件常被占用，先复制到临时文件再修改，避免读写原文件
+                    temp_script_path = project_root_path / "tests" / f"tmp-trace-{uuid.uuid4().hex}.spec.ts"
+                    await run_sync(shutil.copy2, actual_script_path, temp_script_path)
+                    helper_relpath = os.path.relpath(
+                        helper_file.parent, temp_script_path.parent
+                    ).replace(os.sep, "/")
+                    helper_path = f"{helper_relpath}/{helper_file.stem}"
+                    original_script = await run_sync(
+                        temp_script_path.read_text, encoding="utf-8"
+                    )
+                    rewritten_script = _rewrite_script_imports(
+                        original_script, helper_path=helper_path
+                    )
+                    if rewritten_script != original_script:
+                        await run_sync(temp_script_path.write_text, rewritten_script, encoding="utf-8")
+                        executed_script_path = temp_script_path
+                        print(f"[API Script Execution] 已注入 trace helper（临时副本）: {temp_script_path}")
+                    else:
+                        executed_script_path = temp_script_path
+                        print(f"[API Script Execution] 无需替换 import，使用临时副本执行: {temp_script_path}")
+            except Exception as e:
+                print(f"[API Script Execution] 注入 trace helper 失败，继续执行原脚本: {e}")
+
+        # 确定实际执行的脚本路径（可能是临时副本）
+        if executed_script_path:
+            run_script_path = executed_script_path.relative_to(Path(project_root)).as_posix()
+        else:
+            run_script_path = script_path
+
+        # 确定测试命令
+        if framework == "playwright":
+            if reporter == "html":
+                # HTML 报告需要指定输出目录；同时使用 list reporter 输出到 stdout，
+                # 便于后续解析每个用例的通过/失败状态。
+                if is_windows:
+                    cmd = f'npx playwright test "{run_script_path}" --reporter=list,html'
+                else:
+                    cmd = ["npx", "playwright", "test", run_script_path, "--reporter=list,html"]
+            else:
+                if is_windows:
+                    cmd = f'npx playwright test "{run_script_path}" --reporter={reporter}'
+                else:
+                    cmd = ["npx", "playwright", "test", run_script_path, f"--reporter={reporter}"]
+        elif framework == "jest":
+            if reporter == "html":
+                if is_windows:
+                    cmd = f'npm test -- "{run_script_path}" --reporter=html'
+                else:
+                    cmd = ["npm", "test", "--", run_script_path, "--reporter=html"]
+            else:
+                if is_windows:
+                    cmd = f'npm test -- "{run_script_path}" --reporter={reporter}'
+                else:
+                    cmd = ["npm", "test", "--", run_script_path, f"--reporter={reporter}"]
+        elif framework == "pytest":
+            if is_windows:
+                cmd = f'pytest "{run_script_path}" --reporter={reporter}'
+            else:
+                cmd = ["pytest", run_script_path, f"--reporter={reporter}"]
+        else:
+            return {
+                "success": False,
+                "exit_code": 4,
+                "preflight_status": "ok",
+                "error": f"不支持的测试框架: {framework}",
+                "duration": 0,
+                "stdout": "",
+                "stderr": "",
+                "report_path": None,
+                "start_time": start_time.isoformat(),
+                "end_time": datetime.now().isoformat(),
+                "result_summary": {"total": 0, "passed": 0, "failed": 0, "skipped": 0}
+            }
+
+        print(f"[API Script Execution] 执行命令: {cmd if is_windows else ' '.join(cmd)}")
+        print(f"[API Script Execution] 工作目录: {project_root}")
 
         # 执行测试（优先 asyncio 子进程；Windows SelectorEventLoop 不支持子进程，降级到线程池同步执行）
         stdout = ""
@@ -690,6 +789,27 @@ async def _execute_script_internal(
         # 解析测试结果摘要
         result_summary = _parse_test_summary(stdout)
 
+        # 解析真实请求/响应 trace，并清理临时 trace 文件和临时脚本文件
+        trace_entries: List[Dict[str, Any]] = []
+        if trace_file and await run_sync(trace_file.exists):
+            try:
+                trace_entries = _parse_api_trace(trace_file)
+                print(f"[API Script Execution] 已解析 trace 条目: {len(trace_entries)}")
+            except Exception as e:
+                print(f"[API Script Execution] 解析 trace 文件失败: {e}")
+            finally:
+                try:
+                    await run_sync(trace_file.unlink)
+                except Exception:
+                    pass
+        if executed_script_path and executed_script_path != actual_script_path:
+            try:
+                if await run_sync(executed_script_path.exists):
+                    await run_sync(executed_script_path.unlink)
+                    print(f"[API Script Execution] 已清理临时脚本: {executed_script_path}")
+            except Exception:
+                pass
+
         return {
             "success": return_code == 0,
             "exit_code": 0 if return_code == 0 else 1,
@@ -702,6 +822,7 @@ async def _execute_script_internal(
             "start_time": start_time.isoformat(),
             "end_time": end_time.isoformat(),
             "result_summary": result_summary,
+            "trace_entries": trace_entries,
             "command": cmd if is_windows else ' '.join(cmd),
         }
 
@@ -834,7 +955,7 @@ async def _save_test_report(
     execution_result: Dict[str, Any],
     project_root: str,
     conversation_id: Optional[str] = None,
-) -> Optional[str]:
+) -> Optional[Tuple[str, str]]:
     """
     保存测试报告到 MinIO 并创建/更新附件记录
 
@@ -848,10 +969,10 @@ async def _save_test_report(
         report_path: 报告目录路径
         execution_result: 执行结果
         project_root: 项目根目录
-        conversation_id: AI 会话 ID（可选，未提供时尝试从 contextvar 读取）
+        conversation_id: AI 会话 ID（可选，未提供时尝试从 LangGraph 配置/contextvar 读取）
 
     Returns:
-        附件 ID，如果保存失败则返回 None
+        (附件 ID, MinIO 对象名)，如果保存失败则返回 None
     """
     try:
         # 优先使用显式传入的 conversation_id，否则从 LangGraph 配置/contextvar 读取
@@ -985,13 +1106,236 @@ async def _save_test_report(
             except Exception as e:
                 print(f"[API Report] 清理报告目录失败: {e}")
 
-            return str(attachment.id)
+            return str(attachment.id), object_name
 
     except Exception as e:
         print(f"[API Report] 保存测试报告失败: {e}")
         import traceback
         traceback.print_exc()
         return None
+
+
+def _infer_script_language(path: Path) -> str:
+    """
+    根据脚本文件扩展名推断脚本语言
+    """
+    ext = path.suffix.lower().lstrip(".")
+    return {"ts": "typescript", "js": "javascript", "py": "python"}.get(ext, "typescript")
+
+
+async def _find_or_create_api_test_for_endpoint(
+    session: AsyncSession,
+    endpoint_id: str,
+    endpoint: APIEndpoint,
+    project_identifier: str,
+    script_format: str = "playwright",
+    script_language: str = "typescript",
+    script_object_name: Optional[str] = None,
+) -> Optional[APITest]:
+    """
+    查找或创建与端点关联的 APITest 记录
+
+    逻辑复用 save_test_script 中的 find-or-create 模式：
+    1. 先验证 endpoint.api_test_ids 中现有的 APITest；
+    2. 兜底通过 script_path 中的 endpoint_id 匹配；
+    3. 仍找不到则新建一个 APITest。
+    """
+    api_test_repo = APITestRepository(session)
+    api_test: Optional[APITest] = None
+
+    # 1. 清理并验证 endpoint.api_test_ids
+    valid_test_ids: list[str] = []
+    if endpoint.api_test_ids:
+        parsed_ids: list[UUID] = []
+        for tid in endpoint.api_test_ids:
+            try:
+                parsed_ids.append(UUID(tid))
+            except ValueError:
+                continue
+        if parsed_ids:
+            stmt = select(APITest).where(APITest.id.in_(parsed_ids))
+            result = await session.execute(stmt)
+            existing_tests = result.scalars().all()
+            valid_test_ids = [str(t.id) for t in existing_tests]
+            api_test = existing_tests[0] if existing_tests else None
+
+    # 2. 兜底查找：通过 script_path 中的 endpoint_id 匹配
+    if api_test is None:
+        fallback_stmt = select(APITest).where(
+            APITest.project_id == endpoint.project_id,
+            APITest.script_path.like(f"%/endpoints/{endpoint_id}/test-script.%"),
+        )
+        fallback_result = await session.execute(fallback_stmt)
+        api_test = fallback_result.scalar_one_or_none()
+        if api_test:
+            valid_test_ids = [str(api_test.id)]
+
+    # 3. 仍找不到则创建新的 APITest
+    if api_test is None:
+        extension = {"typescript": "ts", "javascript": "js", "python": "py"}.get(script_language, "ts")
+        object_name = script_object_name or f"api-tests/{project_identifier}/endpoints/{endpoint_id}/test-script.{extension}"
+        identifier = await api_test_repo.get_next_identifier(endpoint.project_id)
+        api_test = APITest(
+            project_id=endpoint.project_id,
+            folder_id=endpoint.folder_id,
+            identifier=identifier,
+            name=endpoint.display_name or f"API Test {identifier}",
+            script_path=object_name,
+            script_format=script_format,
+            script_language=script_language,
+            schema_type="openapi",
+            generated_by_agent="api_agent",
+        )
+        session.add(api_test)
+        valid_test_ids = []
+
+    # 4. 同步 endpoint.api_test_ids
+    current_ids = set(valid_test_ids)
+    current_ids.add(str(api_test.id))
+    endpoint.api_test_ids = list(current_ids)
+    endpoint.updated_at = datetime.now(timezone.utc)
+
+    return api_test
+
+
+async def _create_test_run(
+    session: AsyncSession,
+    api_test: APITest,
+    execution_result: Dict[str, Any],
+    execution_config: Optional[Dict[str, Any]],
+    report_object_name: Optional[str],
+) -> APITestRun:
+    """
+    根据执行结果创建 APITestRun 记录
+    """
+    run_repo = APITestRunRepository(session)
+    identifier = await run_repo.get_next_identifier(api_test.id)
+
+    # 规范化执行配置
+    config = execution_config
+    if isinstance(config, str):
+        try:
+            config = json.loads(config)
+        except json.JSONDecodeError:
+            config = None
+
+    # 状态映射
+    preflight_status = execution_result.get("preflight_status", "ok")
+    if preflight_status != "ok":
+        status = "failed"
+    elif execution_result.get("success"):
+        status = "completed"
+    else:
+        status = "failed"
+
+    # 统计
+    result_summary = execution_result.get("result_summary", {})
+    total_tests = result_summary.get("total", 0)
+    passed_tests = result_summary.get("passed", 0)
+    failed_tests = result_summary.get("failed", 0)
+    skipped_tests = result_summary.get("skipped", 0)
+
+    # 时长
+    duration = execution_result.get("duration")
+    duration_ms = int(duration * 1000) if isinstance(duration, (int, float)) else None
+
+    error_message = execution_result.get("error") if status == "failed" else None
+
+    test_run = await run_repo.create(
+        project_id=api_test.project_id,
+        api_test_id=api_test.id,
+        identifier=identifier,
+        status=status,
+        execution_config=config,
+        total_tests=total_tests,
+        passed_tests=passed_tests,
+        failed_tests=failed_tests,
+        skipped_tests=skipped_tests,
+        duration_ms=duration_ms,
+        report_path=report_object_name,
+        error_message=error_message,
+    )
+    return test_run
+
+
+async def _create_test_results(
+    session: AsyncSession,
+    test_run_id: UUID,
+    api_test: APITest,
+    execution_result: Dict[str, Any],
+) -> None:
+    """
+    从 Playwright list reporter stdout 解析用例结果并写入 APITestResult。
+
+    如果执行过程中通过 trace helper 捕获到真实请求/响应，会一并回填到
+    request_summary / response_summary / request_data / response_data /
+    assertion_results / duration_ms 字段；否则仅保留从用例标题推断的信息。
+    """
+    stdout = execution_result.get("stdout", "")
+    if not stdout:
+        return
+
+    try:
+        parsed_items = APITestExecutor._parse_playwright_list_output(stdout)
+    except Exception as e:
+        logger.warning("[execute_api_script] 解析 Playwright stdout 失败: %s", e)
+        return
+
+    if not parsed_items:
+        return
+
+    result_repo = APITestResultRepository(session)
+    status_map = {
+        "passed": TestResultStatus.PASSED,
+        "failed": TestResultStatus.FAILED,
+        "skipped": TestResultStatus.SKIPPED,
+    }
+
+    trace_entries = execution_result.get("trace_entries", [])
+
+    for item in parsed_items:
+        status = status_map.get(item["status"], TestResultStatus.FAILED)
+        title = item["title"]
+        endpoint, method = APITestExecutor._parse_endpoint_from_test_name(title)
+
+        # 匹配当前用例的 trace 条目并构建请求/响应摘要
+        matched_traces = APITestExecutor._match_trace_entries(title, trace_entries)
+        request_data, response_data, assertion_results, duration_ms = APITestExecutor._build_trace_summary(
+            matched_traces, status
+        )
+
+        # trace 未命中时回退到简单推断
+        if request_data is None:
+            request_data = {"method": method, "url": endpoint}
+        if response_data is None:
+            response_data = {"status": 200 if status == TestResultStatus.PASSED else 500}
+        if assertion_results is None:
+            assertion_results = [
+                {
+                    "assertion": {"type": "test"},
+                    "passed": status == TestResultStatus.PASSED,
+                    "actual": status.value,
+                    "expected": TestResultStatus.PASSED.value,
+                    "message": f"测试执行{'通过' if status == TestResultStatus.PASSED else '失败'}: {title}",
+                }
+            ]
+
+        await result_repo.create(
+            test_run_id=test_run_id,
+            api_test_id=api_test.id,
+            scenario_name=title,
+            endpoint=endpoint,
+            method=method,
+            status=status,
+            request_summary=request_data,
+            response_summary=response_data,
+            request_data=request_data,
+            response_data=response_data,
+            assertion_results=assertion_results,
+            error_message=None if status == TestResultStatus.PASSED else "测试失败",
+            duration_ms=duration_ms,
+            retry_count=0,
+        )
 
 
 @tool
@@ -1083,6 +1427,12 @@ async def execute_api_script_by_artifact_id(
         tests_dir.mkdir(parents=True, exist_ok=True)
 
         script_filename = attachment.file_name or f"script_{attachment_id}.spec.ts"
+        # Playwright 配置 testMatch 只识别 *.spec.ts；如果附件名不符合，强制修正扩展名
+        if framework == "playwright" and not script_filename.endswith(".spec.ts"):
+            if script_filename.endswith(".ts") or script_filename.endswith(".js"):
+                script_filename = script_filename[:-3]
+            script_filename = f"{script_filename}.spec.ts"
+
         # 使用唯一本地文件名，避免并发执行冲突
         local_filename = f"{attachment_id}_{script_filename}"
         local_script_path = tests_dir / local_filename
@@ -1110,6 +1460,7 @@ async def execute_api_script_by_artifact_id(
                 project_root=str(project_root),
                 base_url=resolved_base_url,
                 env_vars=resolved_env,
+                script_abs_path=str(local_script_path),
             )
 
             # 把内部错误暴露到 stderr
@@ -1120,9 +1471,10 @@ async def execute_api_script_by_artifact_id(
 
             # 7. 保存测试报告
             report_attachment_id = None
+            report_object_name = None
             if execution_result.get("report_path"):
                 try:
-                    report_attachment_id = await _save_test_report(
+                    save_result = await _save_test_report(
                         endpoint_id=endpoint_id,
                         project_identifier=project_identifier,
                         endpoint=endpoint,
@@ -1131,13 +1483,61 @@ async def execute_api_script_by_artifact_id(
                         project_root=str(project_root),
                         conversation_id=conversation_id,
                     )
+                    if save_result:
+                        report_attachment_id, report_object_name = save_result
                 except Exception as e:
                     logger.exception("[execute_api_script_by_artifact_id] 保存测试报告失败: %s", e)
                     execution_result["stderr"] = (
                         execution_result.get("stderr", "") + f"\n[警告] 保存测试报告失败: {e}"
                     ).strip()
 
-            # 8. 返回结果
+            # 8. 写入 api_test_runs / api_test_results（执行历史核心修复）
+            try:
+                async with async_session_factory() as db:
+                    endpoint_result = await db.execute(
+                        select(APIEndpoint).where(APIEndpoint.id == UUID(endpoint_id))
+                    )
+                    endpoint_for_run = endpoint_result.scalar_one_or_none()
+
+                    if endpoint_for_run:
+                        script_language = _infer_script_language(Path(attachment.file_name))
+                        api_test = await _find_or_create_api_test_for_endpoint(
+                            session=db,
+                            endpoint_id=endpoint_id,
+                            endpoint=endpoint_for_run,
+                            project_identifier=project_identifier,
+                            script_format=framework,
+                            script_language=script_language,
+                            script_object_name=attachment.object_name,
+                        )
+                        if api_test:
+                            test_run = await _create_test_run(
+                                session=db,
+                                api_test=api_test,
+                                execution_result=execution_result,
+                                execution_config=execution_config,
+                                report_object_name=report_object_name,
+                            )
+                            await _create_test_results(
+                                session=db,
+                                test_run_id=test_run.id,
+                                api_test=api_test,
+                                execution_result=execution_result,
+                            )
+
+                            # 更新端点统计
+                            endpoint_for_run.total_test_runs = (endpoint_for_run.total_test_runs or 0) + 1
+                            endpoint_for_run.last_run_status = "success" if execution_result.get("success") else "failed"
+
+                            await db.commit()
+                            print(f"[execute_api_script_by_artifact_id] 已创建测试运行记录: {test_run.id}")
+            except Exception as e:
+                logger.exception("[execute_api_script_by_artifact_id] 写入测试运行记录失败: %s", e)
+                execution_result["stderr"] = (
+                    execution_result.get("stderr", "") + f"\n[警告] 写入测试运行记录失败: {e}"
+                ).strip()
+
+            # 9. 返回结果
             result = {
                 "success": execution_result.get("success", False),
                 "exit_code": execution_result.get("exit_code", 4),

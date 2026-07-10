@@ -537,6 +537,7 @@ class APITestService:
         self,
         endpoint_id: str,
         run_id: str,
+        api_test_id: Optional[str] = None,
         page: int = 1,
         page_size: int = 50,
     ) -> dict:
@@ -558,13 +559,26 @@ class APITestService:
         if not test_run:
             raise NotFoundException(resource_type="测试运行", resource_id=run_id)
 
-        # 校验该运行属于 endpoint 关联的某个 api_test
-        api_test_ids = set(UUID(tid) for tid in (endpoint.api_test_ids or []))
-        if test_run.api_test_id not in api_test_ids:
-            raise NotFoundException(
-                resource_type="测试运行",
-                resource_id=f"{run_id} 不属于该 endpoint"
-            )
+        if api_test_id is not None:
+            # 优先使用前端传入的 api_test_id 直接校验，绕开 endpoint.api_test_ids
+            # 这个 JSONB 反规范化字段在并发写入下可能被覆盖，导致左右两侧快照不一致
+            if test_run.api_test_id != UUID(api_test_id):
+                raise NotFoundException(
+                    message=f"测试运行 '{run_id}' 不属于该 api_test"
+                )
+        else:
+            # 向后兼容：旧调用未传 api_test_id 时，仍按 endpoint.api_test_ids 兜底
+            api_test_ids: set[UUID] = set()
+            for tid in (endpoint.api_test_ids or []):
+                try:
+                    api_test_ids.add(UUID(tid))
+                except (ValueError, TypeError):
+                    continue
+
+            if test_run.api_test_id not in api_test_ids:
+                raise NotFoundException(
+                    message=f"测试运行 '{run_id}' 不属于该 endpoint"
+                )
 
         offset = (page - 1) * page_size
         items, total = await self.api_test_result_repo.get_by_test_run(

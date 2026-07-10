@@ -134,6 +134,101 @@ async def list_test_runs(
     )
 
 
+# =============== 定时调度子资源 ===============
+
+
+@router.get(
+    "/schedules",
+    response_model=SuccessResponse,
+    summary="获取定时调度列表",
+    description="获取项目下的所有测试运行定时调度",
+)
+async def list_schedules(
+    project_identifier: str,
+    service: TestRunServiceDep,
+    pagination: PaginationDep,
+) -> SuccessResponse:
+    result = await service.get_schedules(
+        project_identifier,
+        page=pagination.page,
+        page_size=pagination.limit,
+    )
+    return SuccessResponse(success=True, data=result)
+
+
+@router.get(
+    "/schedules/{schedule_id}",
+    response_model=SuccessResponse[TestRunScheduleInfo],
+    summary="获取定时调度详情",
+    description="获取指定定时调度的详细信息",
+)
+async def get_schedule(
+    project_identifier: str,
+    schedule_id: str,
+    service: TestRunServiceDep,
+) -> SuccessResponse:
+    schedule = await service.get_schedule(project_identifier, schedule_id)
+    return SuccessResponse(success=True, data=schedule)
+
+
+@router.post(
+    "/schedules",
+    response_model=SuccessResponse[TestRunScheduleInfo],
+    status_code=status.HTTP_201_CREATED,
+    summary="创建定时调度",
+    description="创建新的测试运行定时调度",
+)
+async def create_schedule(
+    project_identifier: str,
+    data: TestRunScheduleCreate,
+    service: TestRunServiceDep,
+    db: DbSessionDep,
+) -> SuccessResponse:
+    schedule = await service.create_schedule(project_identifier, data)
+    await db.commit()
+    return SuccessResponse(success=True, data=schedule)
+
+
+@router.patch(
+    "/schedules/{schedule_id}",
+    response_model=SuccessResponse[TestRunScheduleInfo],
+    summary="更新定时调度",
+    description="更新定时调度的配置",
+)
+async def update_schedule(
+    project_identifier: str,
+    schedule_id: str,
+    data: TestRunScheduleUpdate,
+    service: TestRunServiceDep,
+    db: DbSessionDep,
+) -> SuccessResponse:
+    schedule = await service.update_schedule(
+        project_identifier, schedule_id, data
+    )
+    await db.commit()
+    return SuccessResponse(success=True, data=schedule)
+
+
+@router.delete(
+    "/schedules/{schedule_id}",
+    response_model=MessageResponse,
+    summary="删除定时调度",
+    description="删除指定的定时调度",
+)
+async def delete_schedule(
+    project_identifier: str,
+    schedule_id: str,
+    service: TestRunServiceDep,
+    db: DbSessionDep,
+) -> MessageResponse:
+    await service.delete_schedule(project_identifier, schedule_id)
+    await db.commit()
+    return MessageResponse(
+        success=True,
+        message=f"Schedule {schedule_id} has been deleted successfully",
+    )
+
+
 @router.get(
     "/{test_run_identifier}",
     response_model=SuccessResponse[Union[TestRunInfo, TestRunMinifiedInfo]],
@@ -773,97 +868,3 @@ async def map_jobs_to_test_cases(
     await db.commit()
     return SuccessResponse(success=True, data=test_run)
 
-
-# =============== 定时调度子资源 ===============
-
-
-@router.get(
-    "/schedules",
-    response_model=SuccessResponse,
-    summary="获取定时调度列表",
-    description="获取项目下的所有测试运行定时调度",
-)
-async def list_schedules(
-    project_identifier: str,
-    service: TestRunServiceDep,
-    pagination: PaginationDep,
-) -> SuccessResponse:
-    result = await service.get_schedules(
-        project_identifier,
-        page=pagination.page,
-        page_size=pagination.limit,
-    )
-    return SuccessResponse(success=True, data=result)
-
-
-@router.get(
-    "/schedules/{schedule_id}",
-    response_model=SuccessResponse[TestRunScheduleInfo],
-    summary="获取定时调度详情",
-    description="获取指定定时调度的详细信息",
-)
-async def get_schedule(
-    project_identifier: str,
-    schedule_id: str,
-    service: TestRunServiceDep,
-) -> SuccessResponse:
-    schedule = await service.get_schedule(project_identifier, schedule_id)
-    return SuccessResponse(success=True, data=schedule)
-
-
-@router.post(
-    "/schedules",
-    response_model=SuccessResponse[TestRunScheduleInfo],
-    status_code=status.HTTP_201_CREATED,
-    summary="创建定时调度",
-    description="创建新的测试运行定时调度",
-)
-async def create_schedule(
-    project_identifier: str,
-    data: TestRunScheduleCreate,
-    service: TestRunServiceDep,
-    db: DbSessionDep,
-) -> SuccessResponse:
-    schedule = await service.create_schedule(project_identifier, data)
-    await db.commit()
-    return SuccessResponse(success=True, data=schedule)
-
-
-@router.patch(
-    "/schedules/{schedule_id}",
-    response_model=SuccessResponse[TestRunScheduleInfo],
-    summary="更新定时调度",
-    description="更新定时调度的配置",
-)
-async def update_schedule(
-    project_identifier: str,
-    schedule_id: str,
-    data: TestRunScheduleUpdate,
-    service: TestRunServiceDep,
-    db: DbSessionDep,
-) -> SuccessResponse:
-    schedule = await service.update_schedule(
-        project_identifier, schedule_id, data
-    )
-    await db.commit()
-    return SuccessResponse(success=True, data=schedule)
-
-
-@router.delete(
-    "/schedules/{schedule_id}",
-    response_model=MessageResponse,
-    summary="删除定时调度",
-    description="删除指定的定时调度",
-)
-async def delete_schedule(
-    project_identifier: str,
-    schedule_id: str,
-    service: TestRunServiceDep,
-    db: DbSessionDep,
-) -> MessageResponse:
-    await service.delete_schedule(project_identifier, schedule_id)
-    await db.commit()
-    return MessageResponse(
-        success=True,
-        message=f"Schedule {schedule_id} has been deleted successfully",
-    )

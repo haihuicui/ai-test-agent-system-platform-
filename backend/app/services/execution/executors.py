@@ -5,7 +5,6 @@
 """
 
 import logging
-import uuid
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from pathlib import Path
@@ -14,11 +13,9 @@ from uuid import UUID
 
 from app.config.database import async_session_factory
 from app.config.minio_client import MinIOClient
-from app.config.settings import settings
-from app.repositories.api_test_repo import APITestRepository, APITestRunRepository
+from app.repositories.api_test_repo import APITestRunRepository
 from app.schemas.enums import JobStatus
 from app.services.execution.models import ExecutionResult
-from app.services.execution.runner import PlaywrightRunner
 
 import asyncio
 import tempfile
@@ -52,258 +49,96 @@ class PlaywrightExecutor(ScriptExecutor):
     def __init__(self, mongodb=None):
         self.mongodb = mongodb
         self._cancelled = False
-        self.workspace_dir = Path(settings.api_workspace_root).resolve()
-        self.runner = PlaywrightRunner(self.workspace_dir)
 
     async def execute(self, script_id: UUID, config: Dict[str, Any]) -> ExecutionResult:
         """
         执行 Playwright API 测试脚本。
 
-        流程：
-        1. 加载 APITest 并创建 APITestRun
-        2. 从 MinIO 下载脚本到 workspace/tests/
-        3. 使用 PlaywrightRunner 异步执行
-        4. 更新 APITestRun 状态并返回结果
+        不再自己下载脚本、拼 npx 命令，而是复用已经成熟的
+        APITestExecutor，以获得：
+        - 项目环境变量 / auth token 注入
+        - api-trace-helper 捕获真实请求/响应
+        - 脱敏、大响应体截断与 MinIO 上传
+        - 按用例生成 APITestResult
+        - 独立的 per-run 报告目录（避免并发覆盖）
         """
+        from app.services.api_test_executor import APITestExecutor
+        from app.repositories.api_test_repo import APITestRunRepository
+
         start_time = datetime.now(timezone.utc)
         run_id: Optional[UUID] = None
 
-        # 1. 加载 APITest 并创建运行记录
-        async with async_session_factory() as session:
-            api_test_repo = APITestRepository(session)
-            run_repo = APITestRunRepository(session)
-
-            api_test = await api_test_repo.get_by_id(script_id)
-            if not api_test:
-                return ExecutionResult(
-                    success=False,
-                    status=JobStatus.FAILED.value,
-                    error_message=f"API 测试不存在: {script_id}",
-                )
-
-            identifier = await run_repo.get_next_identifier(script_id)
-            test_run = await run_repo.create(
-                project_id=api_test.project_id,
-                api_test_id=script_id,
-                identifier=identifier,
-                status="pending",
-                execution_config=config,
-                total_tests=0,
-                passed_tests=0,
-                failed_tests=0,
-                skipped_tests=0,
-            )
-            run_id = test_run.id
-            await session.commit()
-
-        # 2. 更新为 RUNNING（独立 session，避免长事务）
-        if run_id:
-            try:
-                async with async_session_factory() as session:
-                    run_repo = APITestRunRepository(session)
-                    run_record = await run_repo.get_by_id(run_id)
-                    if run_record:
-                        await run_repo.update(run_record, status="running")
-                        await session.commit()
-            except Exception as e:
-                logger.warning("[PlaywrightExecutor] 更新运行状态为 running 失败: %s", e)
-
-        # 3. 下载脚本
-        script_file_path: Optional[Path] = None
+        # 1. 复用 APITestExecutor 启动执行（内部会解析环境、复制 trace helper、
+        #    重写 import、生成报告并创建 APITestResult）
         try:
-            script_content = MinIOClient.download_file(api_test.script_path)
-            script_content = script_content.decode("utf-8")
-# type: ignore  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2VFZZMk53PT06N2NmYjQwOGI=
-
-            # 写入 workspace/tests/，使用唯一文件名避免冲突
-            safe_name = f"run_{run_id}_{uuid.uuid4().hex[:8]}.spec.ts"
-            script_file_path = self.workspace_dir / "tests" / safe_name
-            script_file_path.write_text(script_content, encoding="utf-8")
-            logger.info(
-                "[PlaywrightExecutor] 脚本已下载: %s", script_file_path
-            )
+            async with async_session_factory() as session:
+                executor = APITestExecutor(session, self.mongodb)
+                run_id_str = await executor.execute_test(script_id, config or {})
+                run_id = UUID(run_id_str)
         except Exception as e:
-            logger.exception("[PlaywrightExecutor] 下载脚本失败")
-            await self._update_run_failed(run_id, f"下载脚本失败: {e}")
+            logger.exception("[PlaywrightExecutor] 启动 API 测试执行失败")
             return ExecutionResult(
                 success=False,
                 status=JobStatus.FAILED.value,
-                error_message=f"下载脚本失败: {e}",
+                error_message=f"启动 API 测试执行失败: {e}",
             )
 
-        # 4. 执行测试（同时生成 list + html 报告）
-        config_with_reporter = {**config, "reporter": "list,html"}
-        runner_result = await self.runner.run(
-            script_path=script_file_path,
-            config=config_with_reporter,
-            timeout=config.get("timeout", 300),
-        )
-
-        # 5. 将 HTML 报告打包上传到 MinIO
-        report_path = runner_result.report_path
-        if report_path and Path(report_path).exists():
-            try:
-                import zipfile
-                report_dir = Path(report_path)
-                zip_path = report_dir.parent / f"report-{run_id}.zip"
-                with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-                    for file in report_dir.rglob('*'):
-                        if file.is_file():
-                            zipf.write(file, file.relative_to(report_dir))
-                minio_path = f"playwright-reports/{run_id}/report.zip"
-                with open(zip_path, 'rb') as f:
-                    MinIOClient.upload_bytes(
-                        object_name=minio_path,
-                        data=f.read(),
-                        content_type="application/zip",
+        # 2. 轮询等待后台执行完成
+        timeout = (config or {}).get("timeout", 300)
+        interval = 2.0
+        try:
+            async with async_session_factory() as session:
+                run_repo = APITestRunRepository(session)
+                for _ in range(int(timeout / interval)):
+                    if self._cancelled:
+                        return ExecutionResult(
+                            success=False,
+                            status=JobStatus.CANCELLED.value,
+                            error_message="执行已被取消",
+                        )
+                    run = await run_repo.get_by_id(run_id)
+                    if run and run.status in ("completed", "failed", "cancelled"):
+                        break
+                    await asyncio.sleep(interval)
+                else:
+                    return ExecutionResult(
+                        success=False,
+                        status=JobStatus.FAILED.value,
+                        error_message=f"API 测试执行超时（超过 {timeout} 秒）",
                     )
-                report_path = minio_path
-                try:
-                    zip_path.unlink()
-                except Exception:
-                    pass
-            except Exception as e:
-                logger.warning("[PlaywrightExecutor] 上传报告失败: %s", e)
 
-        # 6. 清理临时脚本文件
-        if script_file_path and script_file_path.exists():
-            try:
-                script_file_path.unlink()
-            except Exception as e:
-                logger.warning("[PlaywrightExecutor] 清理临时脚本失败: %s", e)
+                duration_ms = int(
+                    (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
+                )
+                success = run.status == "completed"
+                result_summary = {
+                    "total": run.total_tests or 0,
+                    "passed": run.passed_tests or 0,
+                    "failed": run.failed_tests or 0,
+                    "skipped": run.skipped_tests or 0,
+                }
 
-        # 7. 更新 APITestRun 结果
-        duration_ms = runner_result.duration_ms
-        if self._cancelled:
-            await self._update_run_status(
-                run_id, "cancelled", duration_ms=duration_ms
-            )
-            return ExecutionResult(
-                success=False,
-                status=JobStatus.CANCELLED.value,
-                duration_ms=duration_ms,
-                error_message="执行已被取消",
-            )
-
-        if runner_result.success:
-            await self._update_run_completed(
-                run_id,
-                duration_ms=duration_ms,
-                total=runner_result.result_summary.get("total", 0),
-                passed=runner_result.result_summary.get("passed", 0),
-                failed=runner_result.result_summary.get("failed", 0),
-                skipped=runner_result.result_summary.get("skipped", 0),
-                report_path=report_path,
-            )
-            return ExecutionResult(
-                success=True,
-                status=JobStatus.COMPLETED.value,
-                duration_ms=duration_ms,
-                stdout=runner_result.stdout[:50000] if runner_result.stdout else "",
-                stderr=runner_result.stderr[:50000] if runner_result.stderr else "",
-                report_path=report_path,
-                result_summary=runner_result.result_summary,
-                detail_run_id=str(run_id),
-            )
-        else:
-            await self._update_run_failed(
-                run_id,
-                error_message=runner_result.error_message,
-                duration_ms=duration_ms,
-                report_path=report_path,
-            )
+                return ExecutionResult(
+                    success=success,
+                    status=JobStatus.COMPLETED.value
+                    if success
+                    else JobStatus.FAILED.value,
+                    duration_ms=duration_ms,
+                    error_message=run.error_message if not success else None,
+                    report_path=run.report_path,
+                    result_summary=result_summary,
+                    detail_run_id=str(run_id),
+                )
+        except Exception as e:
+            logger.exception("[PlaywrightExecutor] 等待 API 测试执行结果失败")
             return ExecutionResult(
                 success=False,
                 status=JobStatus.FAILED.value,
-                duration_ms=duration_ms,
-                error_message=runner_result.error_message,
-                stdout=runner_result.stdout[:50000] if runner_result.stdout else "",
-                stderr=runner_result.stderr[:50000] if runner_result.stderr else "",
-                report_path=report_path,
-                detail_run_id=str(run_id),
+                error_message=f"等待 API 测试执行结果失败: {e}",
             )
 
     async def cancel(self) -> None:
         self._cancelled = True
-
-    async def _update_run_status(
-        self,
-        run_id: Optional[UUID],
-        status: str,
-        duration_ms: Optional[int] = None,
-    ) -> None:
-        if not run_id:
-            return
-        try:
-            async with async_session_factory() as session:
-                run_repo = APITestRunRepository(session)
-                run_record = await run_repo.get_by_id(run_id)
-                if run_record:
-                    kwargs: Dict[str, Any] = {"status": status}
-                    if duration_ms is not None:
-                        kwargs["duration_ms"] = duration_ms
-                    await run_repo.update(run_record, **kwargs)
-                    await session.commit()
-        except Exception as e:
-            logger.warning("[PlaywrightExecutor] 更新运行状态失败: %s", e)
-
-    async def _update_run_completed(
-        self,
-        run_id: Optional[UUID],
-        duration_ms: int,
-        total: int,
-        passed: int,
-        failed: int,
-        skipped: int,
-        report_path: Optional[str] = None,
-    ) -> None:
-        if not run_id:
-            return
-        try:
-            async with async_session_factory() as session:
-                run_repo = APITestRunRepository(session)
-                run_record = await run_repo.get_by_id(run_id)
-                if run_record:
-                    await run_repo.update(
-                        run_record,
-                        status="completed",
-                        duration_ms=duration_ms,
-                        total_tests=total,
-                        passed_tests=passed,
-                        failed_tests=failed,
-                        skipped_tests=skipped,
-                        report_path=report_path,
-                    )
-                    await session.commit()
-        except Exception as e:
-            logger.warning("[PlaywrightExecutor] 更新运行完成状态失败: %s", e)
-
-    async def _update_run_failed(
-        self,
-        run_id: Optional[UUID],
-        error_message: Optional[str],
-        duration_ms: Optional[int] = None,
-        report_path: Optional[str] = None,
-    ) -> None:
-        if not run_id:
-            return
-        try:
-            async with async_session_factory() as session:
-                run_repo = APITestRunRepository(session)
-                run_record = await run_repo.get_by_id(run_id)
-                if run_record:
-                    kwargs: Dict[str, Any] = {
-                        "status": "failed",
-                        "error_message": error_message,
-                    }
-                    if duration_ms is not None:
-                        kwargs["duration_ms"] = duration_ms
-                    if report_path is not None:
-                        kwargs["report_path"] = report_path
-                    await run_repo.update(run_record, **kwargs)
-                    await session.commit()
-        except Exception as e:
-            logger.warning("[PlaywrightExecutor] 更新运行失败状态失败: %s", e)
 
 
 class ScenarioExecutor(ScriptExecutor):
@@ -322,11 +157,14 @@ class ScenarioExecutor(ScriptExecutor):
             try:
                 variables = config.get("variables", {})
                 base_url = config.get("base_url", "")
+                env_id = config.get("env_id")
+                env_uuid = UUID(env_id) if env_id else None
 
                 scenario_run = await engine.execute(
                     scenario_id=script_id,
                     variables=variables,
                     base_url=base_url,
+                    env_id=env_uuid,
                 )
 
                 duration_ms = int(

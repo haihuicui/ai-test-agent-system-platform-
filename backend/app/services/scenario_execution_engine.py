@@ -6,12 +6,22 @@
 
 import asyncio
 import json
+import random
 import re
+import string
+import time
+import traceback
 from datetime import datetime, timezone
+from types import SimpleNamespace
 from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
 
 import httpx
+
+try:
+    from faker import Faker
+except ImportError:  # pragma: no cover
+    Faker = None  # type: ignore
 from jsonpath_ng import parse as jsonpath_parse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -75,6 +85,90 @@ class DataDependencyResolver:
 
     def __init__(self, context: ExecutionContext):
         self.context = context
+        self._faker = Faker('zh_CN') if Faker else None
+
+    def _call_faker(self, method: str) -> str:
+        """调用 faker 生成数据，支持常见字段别名"""
+        if not self._faker:
+            return str(uuid4())
+
+        # 常见字段的 JS 风格 -> Python faker 映射
+        aliases = {
+            "name": "name",
+            "person.full_name": "name",
+            "person.fullName": "name",
+            "first_name": "first_name",
+            "last_name": "last_name",
+            "phone_number": "phone_number",
+            "phone.number": "phone_number",
+            "email": "email",
+            "internet.email": "email",
+            "company": "company",
+            "address": "address",
+            "uuid4": "uuid4",
+        }
+        real_method = aliases.get(method, method)
+        try:
+            fn = getattr(self._faker, real_method)
+            value = fn()
+            return str(value)
+        except Exception:
+            # 未知方法回退到 uuid，避免阻塞执行
+            return str(uuid4())
+
+    def _resolve_dynamic_placeholders(self, obj: Any) -> Any:
+        """递归替换 {{$...}} 动态占位符
+
+        支持：
+        - {{$uuid}}
+        - {{$timestamp}}
+        - {{$randomString(n)}}
+        - {{$randomNumber(n)}}
+        - {{$faker.name}} / {{$faker.phone_number}} / {{$faker.email}} 等
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+
+        if isinstance(obj, str):
+            pattern = re.compile(r'\{\{\$(\w+(?:\.\w+)*(?:\([^)]*\))?)\}\}')
+
+            def _replacer(match: re.Match) -> str:
+                full = match.group(1)
+                if "(" in full:
+                    name = full.split("(", 1)[0]
+                    args_str = full[full.find("(") + 1 : full.rfind(")")]
+                    args = [a.strip() for a in args_str.split(",") if a.strip()]
+                else:
+                    name = full
+                    args = []
+
+                try:
+                    if name == "uuid":
+                        return str(uuid4())
+                    if name == "timestamp":
+                        return str(int(time.time() * 1000))
+                    if name == "randomString":
+                        n = int(args[0]) if args else 6
+                        return "".join(random.choices(string.ascii_lowercase + string.digits, k=n))
+                    if name == "randomNumber":
+                        n = int(args[0]) if args else 6
+                        return "".join(random.choices(string.digits, k=n))
+                    if name.startswith("faker."):
+                        method = name.split(".", 1)[1]
+                        return self._call_faker(method)
+                except Exception as e:
+                    logger.warning(f"动态占位符解析失败: {match.group(0)}, 错误: {e}")
+
+                # 解析失败时保留原占位符，便于排查
+                return match.group(0)
+
+            return pattern.sub(_replacer, obj)
+        elif isinstance(obj, dict):
+            return {k: self._resolve_dynamic_placeholders(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [self._resolve_dynamic_placeholders(item) for item in obj]
+        else:
+            return obj
 
     def _ensure_dict(self, value: Any) -> dict:
         """确保值是一个字典"""
@@ -425,7 +519,10 @@ class ScenarioExecutionEngine:
                 if step.delay_ms > 0:
                     await asyncio.sleep(step.delay_ms / 1000.0)
 
-            # 5. 完成执行
+            # 5. 执行 teardown 清理步骤（无论主流程是否失败都会执行）
+            await self._run_teardown(scenario, run)
+
+            # 6. 完成执行
             if run.status != "failed":
                 run.status = "completed"
 # pragma: no cover  My80OmFIVnBZMlhsdEpUbXRiZm92b2s2VW0xMk5RPT06ZmU0ODI2MTM=
@@ -514,6 +611,9 @@ class ScenarioExecutionEngine:
             request = await self.resolver.resolve_request(step, endpoint, self.session)
             current_request = request
 
+            # 2.1 替换动态占位符 {{$uuid}} / {{$timestamp}} / {{$faker.*}} 等
+            request = self.resolver._resolve_dynamic_placeholders(request)
+
             # 3. 发送 HTTP 请求
             response = await self._send_request(request)
 
@@ -562,26 +662,54 @@ class ScenarioExecutionEngine:
 
         except Exception as e:
             # 记录错误（包含完整的堆栈跟踪和上下文信息）
-            import traceback
-            duration_ms = int((datetime.now(timezone.utc) - start_time).total_seconds() * 1000)
+            duration_ms = int(
+                (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
+            )
 
-            # 获取详细的错误信息和上下文
-            error_detail = f"{str(e)}\n\nStack trace:\n{traceback.format_exc()}"
+            # 尽可能捕获当前步骤已经产生的请求/响应上下文
+            current_response = locals().get("response", {})
 
-            # 添加上下文信息以帮助调试
+            # 构建调试上下文，使用 default=str 避免不可序列化对象导致报错
             context_info = {
                 "step_id": str(step.id),
                 "step_order": step.step_order,
                 "step_name": step.name,
                 "endpoint_id": str(step.endpoint_id) if step.endpoint_id else None,
-                "available_variables": dict(self.context.variables),
-                "available_step_data": dict(self.context.step_data),
+                "request": current_request or {},
+                "response": current_response or {},
             }
+            try:
+                context_info["available_variables"] = dict(self.context.variables)
+                context_info["available_step_data"] = dict(self.context.step_data)
+            except Exception:
+                # 变量/步骤数据无法读取时跳过，保证错误记录不中断
+                pass
 
-            error_detail = f"{error_detail}\n\nContext:\n{json.dumps(context_info, indent=2, ensure_ascii=False)}"
+            try:
+                context_json = json.dumps(
+                    context_info, indent=2, ensure_ascii=False, default=str
+                )
+            except Exception:
+                context_json = json.dumps(
+                    {"error": "无法序列化上下文信息"}, ensure_ascii=False
+                )
+
+            error_detail = (
+                f"{str(e)}\n\nStack trace:\n{traceback.format_exc()}"
+                f"\n\nContext:\n{context_json}"
+            )
 
             result = await self._record_result(
-                step, run, current_request or {}, {}, {}, [], "error", duration_ms, str(e), error_detail
+                step,
+                run,
+                current_request or {},
+                current_response or {},
+                {},
+                [],
+                "error",
+                duration_ms,
+                str(e),
+                error_detail,
             )
 
             # 使用 update 语句更新失败计数
@@ -594,6 +722,58 @@ class ScenarioExecutionEngine:
 
             await self.session.commit()
             return result
+
+    async def _run_teardown(self, scenario: TestScenario, run: ScenarioRun) -> None:
+        """执行场景 teardown 清理步骤
+
+        在主流程结束后运行，用于删除/禁用场景中创建的资源。
+        teardown 步骤失败不会影响主流程的运行状态，但会记录日志。
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+
+        teardown_config = self._ensure_dict(scenario.teardown_config)
+        teardown_steps = self._ensure_list(teardown_config.get("steps"))
+        if not teardown_steps:
+            return
+
+        logger.info(
+            f"场景 {scenario.identifier} 主流程结束，开始执行 {len(teardown_steps)} 个 teardown 步骤"
+        )
+
+        for idx, step_def in enumerate(teardown_steps, 1):
+            try:
+                await self._execute_teardown_step(step_def, idx)
+            except Exception as e:
+                logger.warning(f"Teardown 步骤 {idx} ({step_def.get('name')}) 执行失败: {e}")
+                if not step_def.get("continue_on_failure", True):
+                    logger.warning("continue_on_failure=false，停止后续 teardown 步骤")
+                    break
+
+    async def _execute_teardown_step(self, step_def: dict, idx: int) -> None:
+        """执行单个 teardown 步骤"""
+        import logging
+        logger = logging.getLogger(__name__)
+
+        endpoint_id = step_def.get("endpoint_id")
+        endpoint = await self._load_endpoint(
+            UUID(endpoint_id) if endpoint_id else None, None
+        )
+
+        # 构造临时 step 对象复用 resolver（不持久化到数据库）
+        step_like = SimpleNamespace(
+            id=uuid4(),
+            name=step_def.get("name", f"teardown-{idx}"),
+            request_override=self._ensure_dict(step_def.get("request_override")),
+            headers_override=self._ensure_dict(step_def.get("headers_override")),
+        )
+
+        request = await self.resolver.resolve_request(step_like, endpoint, self.session)
+        request = self.resolver._resolve_dynamic_placeholders(request)
+
+        logger.debug(f"Teardown 步骤 {idx} 请求: {request}")
+        await self._send_request(request)
+        logger.info(f"Teardown 步骤 {idx} ({step_like.name}) 执行完成")
 
     async def _load_endpoint(self, endpoint_id: UUID | None, step: ScenarioStep = None) -> APIEndpoint:
         """加载端点，如果没有端点ID则创建虚拟端点"""

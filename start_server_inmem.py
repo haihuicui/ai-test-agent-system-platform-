@@ -65,7 +65,8 @@ def setup_environment():
         "LANGSERVE_GRAPHS": json.dumps(graphs) if graphs else "{}",
         
         # Worker configuration
-        "N_JOBS_PER_WORKER": "1",
+        "N_JOBS_PER_WORKER": "5",
+        "BG_JOB_ISOLATED_LOOPS": "true",
     })
     
     # Load .env file if exists
@@ -213,10 +214,10 @@ def main():
     # monkey_patch()
     # Print server information
     print("\n" + "="*60)
-    print("📍 Server URL: http://localhost:2026")
-    print("📚 API Documentation: http://localhost:2026/docs")
-    print("🎨 Studio UI: http://localhost:2026/ui")
-    print("💚 Health Check: http://localhost:2026/ok")
+    print("📍 Server URL: http://localhost:2025")
+    print("📚 API Documentation: http://localhost:2025/docs")
+    print("🎨 Studio UI: http://localhost:2025/ui")
+    print("💚 Health Check: http://localhost:2025/ok")
     print("="*60)
     
     try:
@@ -227,7 +228,7 @@ def main():
         uvicorn.run(
             "langgraph_api.server:app",
             host="0.0.0.0",
-            port=2026,
+            port=2025,
             reload=False,
             access_log=False,
             log_config={

@@ -99,6 +99,7 @@ export async function getEndpointTestRuns(
   endpoint_id: string;
   test_runs: Array<{
     id: string;
+    api_test_id: string;
     status: string;
     total_scenarios: number;
     passed_scenarios: number;
@@ -129,6 +130,7 @@ export async function getEndpointTestRuns(
 export async function getEndpointRunResults(
   endpointId: string,
   runId: string,
+  apiTestId: string,
   params?: {
     page?: number;
     page_size?: number;
@@ -146,7 +148,7 @@ export async function getEndpointRunResults(
     page_size: number;
   }>(
     `/api-endpoints/${endpointId}/runs/${runId}/results`,
-    { params }
+    { params: { ...params, api_test_id: apiTestId } }
   );
 }
 

@@ -69,6 +69,7 @@ const testPlan = planResult.content
 
 ```typescript
 import { test, expect } from '@playwright/test';
+import { faker } from '@faker-js/faker/locale/zh_CN';
 
 // 配置：API_BASE_URL 由执行环境注入，禁止硬编码 fallback
 const BASE_URL = (process.env.API_BASE_URL || '').trim();
@@ -92,6 +93,19 @@ const authHeaders = {
   'Authorization': `Bearer ${AUTH_TOKEN}`,
   'Content-Type': 'application/json'
 };
+
+// 动态测试数据生成：用于 customerName/phone/email/orderNo 等必须唯一的字段
+function generateUnique(prefix: string, length = 6): string {
+  const random = Math.random().toString(36).substring(2, 2 + length);
+  return `${prefix}-${Date.now()}-${random}`;
+}
+
+// 使用示例（根据实际接口字段替换）：
+// const payload = {
+//   customerName: `${faker.person.fullName()}-${Date.now()}`,
+//   phone: faker.phone.number('138########'),
+//   email: faker.internet.email({ provider: 'example.com' }).replace('@', `+${Date.now()}@`),
+// };
 
 test.describe('{endpoint_display_name}', () => {
 

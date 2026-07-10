@@ -65,11 +65,16 @@ import {
   createSchedule,
   updateSchedule,
   deleteSchedule,
+  listEnvironments,
   type TestRunScheduleInfo,
   type TestRunScheduleCreate,
   type ScheduleTriggerType,
+  type ScriptSelection,
+  type ExecutionMode,
+  type EnvironmentInfo,
 } from "@/lib/api";
 import { ApiError } from "@/lib/api/client";
+import { ScriptSelector } from "../_components/script-selector";
 
 const PAGE_SIZE = 20;
 // WATERMARK  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2WkVwd2NRPT06NTRjMTI5N2Q=
@@ -103,6 +108,27 @@ function buildCronDescription(config: Record<string, unknown>): string {
   }
   return JSON.stringify(config);
 }
+
+interface TemplateFormValue extends Record<string, unknown> {
+  name: string;
+  execution_mode: ExecutionMode;
+  scripts: ScriptSelection[];
+  environment_id?: string;
+}
+
+function normalizeTemplate(template?: Record<string, unknown>): TemplateFormValue {
+  return {
+    name: typeof template?.name === "string" ? template.name : "定时执行",
+    execution_mode: (template?.execution_mode as ExecutionMode) || "sequential",
+    scripts: Array.isArray(template?.scripts)
+      ? (template.scripts as ScriptSelection[])
+      : [],
+    environment_id:
+      typeof template?.environment_id === "string"
+        ? template.environment_id
+        : undefined,
+  };
+}
 // FIXME  My80OmFIVnBZMlhsdEpUbXRiZm92b2s2WkVwd2NRPT06NTRjMTI5N2Q=
 
 export default function SchedulesPage() {
@@ -122,10 +148,16 @@ export default function SchedulesPage() {
     description: "",
     trigger_type: "cron",
     trigger_config: { cron_expression: "0 9 * * *" },
-    test_run_template: { name: "定时执行", execution_mode: "sequential" },
+    test_run_template: {
+      name: "定时执行",
+      execution_mode: "sequential",
+      scripts: [] as ScriptSelection[],
+    },
     is_enabled: true,
   });
   const [creating, setCreating] = React.useState(false);
+  const [environments, setEnvironments] = React.useState<EnvironmentInfo[]>([]);
+  const [environmentsLoading, setEnvironmentsLoading] = React.useState(false);
 
   const [editingSchedule, setEditingSchedule] = React.useState<TestRunScheduleInfo | null>(null);
   const [editForm, setEditForm] = React.useState<Partial<TestRunScheduleCreate>>({});
@@ -156,16 +188,70 @@ export default function SchedulesPage() {
     loadList();
   }, [loadList]);
 
+  // 创建/编辑对话框打开时加载环境列表
+  React.useEffect(() => {
+    if (!projectId) return;
+    if (!createOpen && !editingSchedule) return;
+
+    let cancelled = false;
+    setEnvironmentsLoading(true);
+    listEnvironments(projectId)
+      .then((res) => {
+        if (cancelled) return;
+        const envs = res.data || [];
+        setEnvironments(envs);
+        // 新建时默认选中项目默认环境
+        if (createOpen && envs.length > 0) {
+          const currentTemplate = normalizeTemplate(
+            createForm.test_run_template as Record<string, unknown>
+          );
+          if (!currentTemplate.environment_id) {
+            const defaultEnv = envs.find((e) => e.is_default);
+            if (defaultEnv) {
+              setCreateForm((prev) => ({
+                ...prev,
+                test_run_template: {
+                  ...prev.test_run_template,
+                  environment_id: defaultEnv.id,
+                },
+              }));
+            }
+          }
+        }
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        // eslint-disable-next-line no-console
+        console.error("[SchedulesPage] 加载环境列表失败:", err);
+      })
+      .finally(() => {
+        if (!cancelled) setEnvironmentsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [createOpen, editingSchedule, projectId]);
+
   function resetCreateForm() {
     setCreateForm({
       name: "",
       description: "",
       trigger_type: "cron",
       trigger_config: { cron_expression: "0 9 * * *" },
-      test_run_template: { name: "定时执行", execution_mode: "sequential" },
+      test_run_template: {
+        name: "定时执行",
+        execution_mode: "sequential",
+        scripts: [] as ScriptSelection[],
+      },
       is_enabled: true,
     });
   }
+
+  // 获取当前创建表单中的 template 对象（带默认值）
+  const createTemplate = normalizeTemplate(
+    createForm.test_run_template as Record<string, unknown>
+  );
 
   async function handleCreate() {
     if (!createForm.name.trim()) return;
@@ -188,6 +274,26 @@ export default function SchedulesPage() {
     }
   }
 
+  function updateCreateTemplateScripts(scripts: ScriptSelection[]) {
+    setCreateForm((prev) => ({
+      ...prev,
+      test_run_template: {
+        ...prev.test_run_template,
+        scripts,
+      },
+    }));
+  }
+
+  function updateEditTemplateScripts(scripts: ScriptSelection[]) {
+    setEditForm((prev) => ({
+      ...prev,
+      test_run_template: {
+        ...(prev.test_run_template ?? {}),
+        scripts,
+      },
+    }));
+  }
+
   function openEdit(schedule: TestRunScheduleInfo) {
     setEditingSchedule(schedule);
     setEditForm({
@@ -195,7 +301,7 @@ export default function SchedulesPage() {
       description: schedule.description,
       trigger_type: schedule.trigger_type,
       trigger_config: schedule.trigger_config,
-      test_run_template: schedule.test_run_template || { name: "定时执行" },
+      test_run_template: normalizeTemplate(schedule.test_run_template),
       is_enabled: schedule.is_enabled,
     });
   }
@@ -460,21 +566,85 @@ export default function SchedulesPage() {
               </div>
             )}
             <div className="space-y-2">
-              <Label>测试运行模板</Label>
-              <Textarea
-                value={JSON.stringify(createForm.test_run_template, null, 2)}
-                onChange={(e) => {
-                  try {
-                    const obj = JSON.parse(e.target.value);
-                    setCreateForm({ ...createForm, test_run_template: obj });
-                  } catch {
-                    // ignore invalid JSON while typing
-                  }
-                }}
-                rows={4}
-                className="font-mono text-xs"
+              <Label htmlFor="sch-template-name">测试运行名称模板</Label>
+              <Input
+                id="sch-template-name"
+                value={String(
+                  (createForm.test_run_template as Record<string, unknown>).name ?? ""
+                )}
+                onChange={(e) =>
+                  setCreateForm((prev) => ({
+                    ...prev,
+                    test_run_template: {
+                      ...prev.test_run_template,
+                      name: e.target.value,
+                    },
+                  }))
+                }
+                placeholder="定时执行"
               />
             </div>
+            <div className="space-y-2">
+              <Label>执行模式</Label>
+              <Select
+                value={createTemplate.execution_mode || "sequential"}
+                onValueChange={(v) =>
+                  setCreateForm((prev) => ({
+                    ...prev,
+                    test_run_template: {
+                      ...prev.test_run_template,
+                      execution_mode: v as ExecutionMode,
+                    },
+                  }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sequential">顺序执行</SelectItem>
+                  <SelectItem value="parallel">并行执行</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>执行环境</Label>
+              <Select
+                value={createTemplate.environment_id ?? "__default__"}
+                onValueChange={(v) =>
+                  setCreateForm((prev) => ({
+                    ...prev,
+                    test_run_template: {
+                      ...prev.test_run_template,
+                      environment_id:
+                        v === "__default__" ? undefined : v,
+                    },
+                  }))
+                }
+                disabled={environmentsLoading}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="选择执行环境" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__default__">使用项目默认环境</SelectItem>
+                  {environments.map((env) => (
+                    <SelectItem key={env.id} value={env.id}>
+                      {env.name}
+                      {env.is_default ? "（默认）" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {environmentsLoading && (
+                <p className="text-xs text-muted-foreground">加载环境中...</p>
+              )}
+            </div>
+            <ScriptSelector
+              projectId={projectId}
+              scripts={createTemplate.scripts}
+              onScriptsChange={updateCreateTemplateScripts}
+            />
             <div className="flex items-center gap-2">
               <Checkbox
                 id="sch-enabled"
@@ -521,6 +691,98 @@ export default function SchedulesPage() {
                 rows={2}
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-template-name">测试运行名称模板</Label>
+              <Input
+                id="edit-template-name"
+                value={String(
+                  (editForm.test_run_template as Record<string, unknown>)?.name ?? ""
+                )}
+                onChange={(e) =>
+                  setEditForm((prev) => ({
+                    ...prev,
+                    test_run_template: {
+                      ...(prev.test_run_template ?? {}),
+                      name: e.target.value,
+                    },
+                  }))
+                }
+                placeholder="定时执行"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>执行模式</Label>
+              <Select
+                value={String(
+                  (editForm.test_run_template as Record<string, unknown>)
+                    ?.execution_mode || "sequential"
+                )}
+                onValueChange={(v) =>
+                  setEditForm((prev) => ({
+                    ...prev,
+                    test_run_template: {
+                      ...(prev.test_run_template ?? {}),
+                      execution_mode: v as ExecutionMode,
+                    },
+                  }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sequential">顺序执行</SelectItem>
+                  <SelectItem value="parallel">并行执行</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>执行环境</Label>
+              <Select
+                value={
+                  normalizeTemplate(
+                    editForm.test_run_template as Record<string, unknown>
+                  ).environment_id ?? "__default__"
+                }
+                onValueChange={(v) =>
+                  setEditForm((prev) => ({
+                    ...prev,
+                    test_run_template: {
+                      ...(prev.test_run_template ?? {}),
+                      environment_id:
+                        v === "__default__" ? undefined : v,
+                    },
+                  }))
+                }
+                disabled={environmentsLoading}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="选择执行环境" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__default__">使用项目默认环境</SelectItem>
+                  {environments.map((env) => (
+                    <SelectItem key={env.id} value={env.id}>
+                      {env.name}
+                      {env.is_default ? "（默认）" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {environmentsLoading && (
+                <p className="text-xs text-muted-foreground">加载环境中...</p>
+              )}
+            </div>
+            <ScriptSelector
+              projectId={projectId}
+              scripts={
+                (
+                  (editForm.test_run_template as Record<string, unknown>)
+                    ?.scripts as ScriptSelection[]
+                ) ?? []
+              }
+              onScriptsChange={updateEditTemplateScripts}
+            />
             <div className="flex items-center gap-2">
               <Checkbox
                 id="edit-enabled"

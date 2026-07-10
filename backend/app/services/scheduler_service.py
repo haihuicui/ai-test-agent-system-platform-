@@ -163,6 +163,9 @@ class TestRunSchedulerService:
                 max_concurrency=template.get("max_concurrency", 5),
                 trigger_type=TriggerType.SCHEDULED,
                 scheduled_by=schedule.id,
+                environment_id=UUID(template["environment_id"])
+                if template.get("environment_id")
+                else None,
             )
             session.add(test_run)
             await session.flush()

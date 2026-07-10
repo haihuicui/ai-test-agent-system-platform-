@@ -116,7 +116,8 @@ def setup_environment():
         "LANGGRAPH_AUTH": json.dumps(auth) if auth else None,
 
         # Worker configuration
-        "N_JOBS_PER_WORKER": "1",
+        "N_JOBS_PER_WORKER": "5",
+        "BG_JOB_ISOLATED_LOOPS": "true",
     }
 
     # 过滤掉 None 值，然后设置环境变量

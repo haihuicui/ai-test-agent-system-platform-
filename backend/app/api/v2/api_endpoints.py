@@ -508,6 +508,7 @@ async def get_endpoint_test_runs(
         "test_runs": [
             {
                 "id": str(run.id),
+                "api_test_id": str(run.api_test_id),
                 "status": run.status,
                 "total_scenarios": run.total_tests,
                 "passed_scenarios": run.passed_tests,
@@ -530,6 +531,7 @@ async def get_endpoint_run_results(
     endpoint_id: UUID,
     run_id: UUID,
     service: APITestServiceDep,
+    api_test_id: UUID | None = None,
     page: int = 1,
     page_size: int = 50,
 ):
@@ -541,6 +543,7 @@ async def get_endpoint_run_results(
     result = await service.get_endpoint_run_results(
         endpoint_id=str(endpoint_id),
         run_id=str(run_id),
+        api_test_id=str(api_test_id) if api_test_id else None,
         page=page,
         page_size=page_size,
     )

@@ -166,13 +166,45 @@ await tools.add_step_assertion({
 | `contains` | 包含 | `expected: "success"` |
 | `regex` | 正则匹配 | `expected: "^\\d+$"` |
 
-### 7. 执行场景测试
+### 7. 添加 Teardown 清理步骤
+
+如果场景包含“创建/新增/上传”类步骤，必须添加对应的 teardown 步骤清理资源，避免脏数据堆积和后续运行失败。
+
+**规则：**
+1. 在创建类步骤中添加提取器，提取资源 ID（如 `customerId`、`orderId`、`fileId`）。
+2. 使用 `add_teardown_step` 添加清理步骤，放在场景最后执行。
+3. teardown 步骤引用主流程变量，如 `"path": "/customers/{{customerId}}"`。
+4. teardown 步骤默认 `continue_on_failure=true`，清理失败不影响主流程报告。
+
+```javascript
+// 步骤 2：创建客户（记得提取 customerId）
+await tools.add_step_extractor({
+  step_id: "{create_customer_step_id}",
+  name: "customerId",
+  path: "$.data.id",
+  extractor_type: "jsonpath"
+})
+
+// 添加 teardown：删除刚才创建的客户
+await tools.add_teardown_step({
+  scenario_id: "{scenario_id}",
+  name: "删除测试客户",
+  endpoint_id: "{delete_customer_endpoint_id}",
+  request_override: {
+    method: "DELETE",
+    path: "/customers/{{customerId}}"
+  },
+  continue_on_failure: true
+})
+```
+
+### 8. 执行场景测试
 
 ```javascript
 const result = await tools.execute_scenario({
   scenario_id: "{scenario_id}",
   variables: {
-    username: "testuser",
+    username: "testuser-{{$timestamp}}",
     password: "password123"
   },
   base_url: "{base_url_from_project_environment}",  // 从项目环境配置获取，禁止硬编码示例域名

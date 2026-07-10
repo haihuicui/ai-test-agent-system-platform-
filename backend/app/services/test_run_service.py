@@ -122,6 +122,28 @@ class TestRunService:
             )
         return tp.id
 
+    async def _resolve_environment_id(
+        self, environment_id: Optional[str], project_id: UUID
+    ) -> Optional[UUID]:
+        """校验 environment_id 属于该项目，返回 UUID 或 None"""
+        if not environment_id:
+            return None
+        from app.repositories.environment_repo import EnvironmentRepository
+
+        env_repo = EnvironmentRepository(self.session)
+        try:
+            env_uuid = UUID(environment_id)
+        except ValueError:
+            raise BadRequestException(
+                message=f"环境 ID '{environment_id}' 格式不正确"
+            )
+        env = await env_repo.get_by_id(env_uuid)
+        if not env or env.project_id != project_id:
+            raise BadRequestException(
+                message=f"环境 '{environment_id}' 不存在或不属于该项目"
+            )
+        return env_uuid
+
     def _overall_progress(self, test_run: TestRun) -> OverallProgress:
         """从模型字段构造 BS 7 字段进度"""
         return OverallProgress(
@@ -329,6 +351,7 @@ class TestRunService:
             max_concurrency=test_run.max_concurrency or 5,
             trigger_type=test_run.trigger_type or TriggerType.MANUAL,
             script_jobs=script_jobs,
+            environment_id=str(test_run.environment_id) if test_run.environment_id else None,
             created_at=test_run.created_at,
             updated_at=test_run.updated_at,
             closed_at=test_run.closed_at,
@@ -372,6 +395,7 @@ class TestRunService:
             execution_mode=test_run.execution_mode or ExecutionMode.SEQUENTIAL,
             max_concurrency=test_run.max_concurrency or 5,
             trigger_type=test_run.trigger_type or TriggerType.MANUAL,
+            environment_id=str(test_run.environment_id) if test_run.environment_id else None,
         )
 
     # ============ 测试用例解析 (BS 优先级) ============
@@ -599,6 +623,9 @@ class TestRunService:
         sub_plan_id = await self._resolve_test_plan_id(
             data.sub_test_plan_id, project.id
         )
+        environment_id = await self._resolve_environment_id(
+            data.environment_id, project.id
+        )
 
         identifier = await self.repo.generate_identifier(project.id)
 
@@ -613,6 +640,7 @@ class TestRunService:
             test_case_assignee=data.test_case_assignee,
             test_plan_id=plan_id,
             sub_test_plan_id=sub_plan_id,
+            environment_id=environment_id,
             tags=data.tags or [],
             issues=data.issues or [],
             issue_tracker=data.issue_tracker.model_dump()
@@ -708,6 +736,13 @@ class TestRunService:
                 ftc.model_dump() if hasattr(ftc, "model_dump") else ftc
             )
 
+        # environment_id 校验并转换
+        if "environment_id" in payload:
+            env_id = payload.pop("environment_id")
+            test_run.environment_id = await self._resolve_environment_id(
+                env_id, project.id
+            )
+
         # 平铺字段
         for key, value in payload.items():
             if hasattr(test_run, key):
@@ -735,6 +770,9 @@ class TestRunService:
         sub_plan_id = await self._resolve_test_plan_id(
             data.sub_test_plan_id, project.id
         )
+        environment_id = await self._resolve_environment_id(
+            data.environment_id, project.id
+        )
 
         test_run.name = data.name
         test_run.description = data.description
@@ -743,6 +781,7 @@ class TestRunService:
         test_run.test_case_assignee = data.test_case_assignee
         test_run.test_plan_id = plan_id
         test_run.sub_test_plan_id = sub_plan_id
+        test_run.environment_id = environment_id
         test_run.tags = data.tags or []
         test_run.issues = data.issues or []
         test_run.issue_tracker = (

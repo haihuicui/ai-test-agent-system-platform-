@@ -11,12 +11,13 @@ import type { StateType } from "./useChat";
 //
 // 这里采用「先 head、再按需回溯」的策略：
 // - 首屏只拉 1 个 checkpoint，保证打开会话时立即渲染。
-// - 组件挂载后在后台自动继续拉取更早的 checkpoint，直到没有新消息或到达安全上限；
+// - 组件挂载后在后台自动继续拉取更早的 checkpoint，直到 API 返回空页或到达安全上限；
 //   用户无需手动滚动即可看到完整历史。
 // - 用户向上滚动时，也会通过 before 参数逐页拉取更早的 checkpoint。
-// - hasMore 不仅看是否还有 checkpoint，还会检查上一页是否带来了新消息；
-//   对累积型 checkpoint 来说， older checkpoint 不会增加新消息，因此翻页会自然停止，
-//   避免无意义请求。
+// - hasMore 看的是 API 是否还有更早 checkpoint（最后一页是否非空）。
+//   对累积型 checkpoint 来说，older checkpoint 不会增加新消息，但去重由 useChat 负责；
+//   这里宁可多请求几页，也要保证 DeltaChannel / summarization 等场景下的历史完整。
+// - 自动加载额外受 MAX_AUTO_LOAD_PAGES 限制，防止极端 checkpoint 数量导致无限请求。
 const PAGE_SIZE = 1;
 // 自动加载历史时的安全上限，防止极端 checkpoint 数量导致无限请求
 const MAX_AUTO_LOAD_PAGES = 50;
@@ -86,13 +87,19 @@ export function usePaginatedThreadHistory(
 
   const flattened = useMemo(() => swr.data?.flat() ?? [], [swr.data]);
 
-  // 计算 hasMore：
-  // 1. 没有任何页 → false
-  // 2. 最后一页为空 → false
-  // 3. 最后一页带来了新的 message id → true
-  // 4. 最后一页没有新消息（累积型 checkpoint 常见）→ false
+  // 计算 hasMore：只要 API 还返回了非空页，就认为可能还有更早的 checkpoint。
+  // 对累积型 channel 来说，翻页会拿到重复消息；对 DeltaChannel / summarization
+  // 等场景来说，更早的 checkpoint 可能包含 head 中已缺失的消息。因此这里宁可
+  // 多请求几页，也不提前停止，把去重/择优交给 useChat 处理。
   const hasMore = useMemo(() => {
     if (!swr.data || swr.data.length === 0) return false;
+    const lastPage = swr.data[swr.data.length - 1];
+    return lastPage != null && lastPage.length > 0;
+  }, [swr.data]);
+
+  // 计算上一页是否带来了新的 message id（仅用于 UI 提示）。
+  const hasNewMessages = useMemo(() => {
+    if (!swr.data || swr.data.length <= 1) return true;
     const lastPage = swr.data[swr.data.length - 1];
     if (!lastPage || lastPage.length === 0) return false;
 
@@ -147,6 +154,7 @@ export function usePaginatedThreadHistory(
     isLoadingMore,
     setSize: swr.setSize,
     hasMore,
+    hasNewMessages,
     loadMore: () => swr.setSize((size) => size + 1),
   };
 }

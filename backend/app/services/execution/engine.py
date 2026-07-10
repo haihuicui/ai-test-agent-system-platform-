@@ -86,6 +86,7 @@ class ScriptExecutionEngine:
         execution_mode = test_run.execution_mode or ExecutionMode.SEQUENTIAL
         max_concurrency = test_run.max_concurrency or 5
         project_id = test_run.project_id
+        environment_id = test_run.environment_id
 
         # 2. 执行作业
         try:
@@ -97,7 +98,9 @@ class ScriptExecutionEngine:
             results = await scheduler.schedule(
                 project_id=project_id,
                 jobs=jobs,
-                run_job=lambda job: self._run_job(test_run_id, job),
+                run_job=lambda job: self._run_job(
+                    test_run_id, job, environment_id=environment_id
+                ),
                 max_concurrency=max_concurrency,
             )
 
@@ -154,7 +157,12 @@ class ScriptExecutionEngine:
                 "error": str(e),
             }
 
-    async def _run_job(self, test_run_id: UUID, job: TestRunScriptJob) -> ExecutionResult:
+    async def _run_job(
+        self,
+        test_run_id: UUID,
+        job: TestRunScriptJob,
+        environment_id: Optional[UUID] = None,
+    ) -> ExecutionResult:
         """执行单个作业并更新其状态"""
         start_time = datetime.now(timezone.utc)
 # noqa  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2VG5aU1ZRPT06Njc4ZDgzY2U=
@@ -179,6 +187,9 @@ class ScriptExecutionEngine:
             executor = ExecutorRegistry.get(job.script_type, self.mongodb)
             _active_executors[test_run_id] = executor
             config = job.execution_config or {}
+            # 注入 TestRun 级别的环境 ID（job 级 execution_config 优先级更高）
+            if environment_id and "env_id" not in config:
+                config = {**config, "env_id": str(environment_id)}
 # pylint: disable  My80OmFIVnBZMlhsdEpUbXRiZm92b2s2VG5aU1ZRPT06Njc4ZDgzY2U=
 
             result = await executor.execute(

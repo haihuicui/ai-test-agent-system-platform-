@@ -479,6 +479,7 @@ export interface TestRunCreate {
   scripts?: ScriptSelection[];
   execution_mode?: ExecutionMode;
   max_concurrency?: number;
+  environment_id?: string;
 }
 // TODO  My80OmFIVnBZMlhsdEpUbXRiZm92b2s2YnpKSlN3PT06NDllNWUxYTI=
 
@@ -493,6 +494,7 @@ export interface TestRunPatchUpdate {
   folder_ids?: number[];
   include_all?: boolean;
   filter_test_cases?: TestCaseFilter;
+  environment_id?: string;
 }
 
 // 全量替换测试运行请求 (POST /test-runs/{id}/update)
@@ -561,6 +563,7 @@ export interface TestRunInfo {
   max_concurrency: number;
   trigger_type: TriggerType;
   script_jobs?: TestRunScriptJobInfo[] | null;
+  environment_id?: string | null;
   created_at: string;
   updated_at?: string | null;
   closed_at?: string | null;
@@ -603,6 +606,7 @@ export interface TestRunListInfo {
   execution_mode: ExecutionMode;
   max_concurrency: number;
   trigger_type: TriggerType;
+  environment_id?: string | null;
 }
 
 // 列表查询参数

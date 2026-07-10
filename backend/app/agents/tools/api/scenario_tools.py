@@ -14,6 +14,7 @@ from langchain_core.tools import InjectedToolArg, tool
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agents.api.runtime_context import get_conversation_id
 from app.config.database import async_session_factory
 from app.models.api_endpoint import APIEndpoint
 from app.models.project import Project
@@ -25,65 +26,82 @@ from app.models.test_scenario import (
 )
 
 
-# 同一次 AI 对话（thread）内创建场景的去重缓存。
-# key: (thread_id, project_id), value: (scenario_id, created_at)
+# 同一次 AI 对话（conversation）内创建场景的去重缓存。
+# key: (conversation_id, project_id), value: (scenario_id, created_at)
 # 用于在同一次对话中重新生成时，覆盖/替换旧场景。
-SCENARIO_THREAD_CACHE_TTL_MINUTES = 60
-_scenario_thread_cache: dict[tuple[str | None, UUID], tuple[UUID, datetime]] = {}
+SCENARIO_CONVERSATION_CACHE_TTL_MINUTES = 60
+_scenario_conversation_cache: dict[tuple[str | None, UUID], tuple[UUID, datetime]] = {}
 
 
-def _cache_key(thread_id: str | None, project_id: UUID) -> tuple[str | None, UUID]:
-    return (thread_id, project_id)
+def _cache_key(conversation_id: str | None, project_id: UUID) -> tuple[str | None, UUID]:
+    return (conversation_id, project_id)
 
 
-def _get_thread_scenario_id(
-    thread_id: str | None,
+def _get_conversation_scenario_id(
+    conversation_id: str | None,
     project_id: UUID,
 ) -> UUID | None:
     """
-    获取指定 thread + project 最近创建的场景 ID。
+    获取指定 conversation + project 最近创建的场景 ID。
 
     如果缓存中的场景已超过 TTL，则清理并返回 None。
     """
-    key = _cache_key(thread_id, project_id)
-    entry = _scenario_thread_cache.get(key)
+    key = _cache_key(conversation_id, project_id)
+    entry = _scenario_conversation_cache.get(key)
     if not entry:
         return None
     scenario_id, created_at = entry
     if datetime.now(timezone.utc) - created_at > timedelta(
-        minutes=SCENARIO_THREAD_CACHE_TTL_MINUTES
+        minutes=SCENARIO_CONVERSATION_CACHE_TTL_MINUTES
     ):
-        _scenario_thread_cache.pop(key, None)
+        _scenario_conversation_cache.pop(key, None)
         return None
     return scenario_id
 
 
-def _set_thread_scenario_id(
-    thread_id: str | None,
+def _set_conversation_scenario_id(
+    conversation_id: str | None,
     project_id: UUID,
     scenario_id: UUID,
 ) -> None:
-    """记录指定 thread + project 已创建的场景 ID。"""
-    key = _cache_key(thread_id, project_id)
-    _scenario_thread_cache[key] = (scenario_id, datetime.now(timezone.utc))
+    """记录指定 conversation + project 已创建的场景 ID。"""
+    key = _cache_key(conversation_id, project_id)
+    _scenario_conversation_cache[key] = (scenario_id, datetime.now(timezone.utc))
 
 
-def _clear_thread_scenario_id(thread_id: str | None, project_id: UUID) -> None:
-    """清除指定 thread + project 的缓存记录。"""
-    _scenario_thread_cache.pop(_cache_key(thread_id, project_id), None)
+def _clear_conversation_scenario_id(conversation_id: str | None, project_id: UUID) -> None:
+    """清除指定 conversation + project 的缓存记录。"""
+    _scenario_conversation_cache.pop(_cache_key(conversation_id, project_id), None)
 
 
-async def _replace_thread_scenario(
+def _get_current_conversation_id(config: RunnableConfig | None) -> str | None:
+    """
+    获取当前 AI 会话 ID。
+
+    优先从 LangGraph 运行配置读取（工具调用上下文内最可靠），
+    读取不到时回退到 contextvar。
+    """
+    if config and isinstance(config.get("configurable"), dict):
+        conversation_id = config["configurable"].get("conversation_id")
+        if conversation_id:
+            return conversation_id
+    return get_conversation_id()
+
+
+async def _replace_conversation_scenario(
     session: AsyncSession,
-    thread_id: str | None,
+    conversation_id: str | None,
     project_id: UUID,
 ) -> None:
     """
-    删除当前 thread + project 下已创建的场景，以便重新生成。
+    删除当前 conversation + project 下已创建的场景，以便重新生成。
 
     通过级联删除清理关联的步骤、变量、执行记录等。
     """
-    existing_id = _get_thread_scenario_id(thread_id, project_id)
+    if not conversation_id:
+        return
+
+    existing_id = _get_conversation_scenario_id(conversation_id, project_id)
     if not existing_id:
         return
 
@@ -91,7 +109,7 @@ async def _replace_thread_scenario(
     if scenario:
         await session.delete(scenario)
         await session.commit()
-    _clear_thread_scenario_id(thread_id, project_id)
+    _clear_conversation_scenario_id(conversation_id, project_id)
 
 
 @tool
@@ -109,9 +127,9 @@ async def create_test_scenario(
     - 用户登录 → 创建订单 → 支付 → 查询订单状态
     - 注册用户 → 验证邮箱 → 完善资料 → 上传头像
 
-    注意：同一次 AI 对话中最终只保留一个场景。如果 AI 在同一次对话中
-    再次调用本工具，会先删除该对话下已创建的旧场景，然后创建新场景，
-    实现覆盖/替换。
+    注意：同一次 AI 对话（conversation_id 相同）中最终只保留一个场景。如果 AI
+    在同一次对话中再次调用本工具，会先删除该对话下已创建的旧场景，然后创建
+    新场景，实现覆盖/替换。不同对话之间互不影响。
 
     Args:
         project_identifier: 项目标识符（如 "PR-1234"）
@@ -129,10 +147,8 @@ async def create_test_scenario(
         ...     description="测试从登录到支付的完整业务流"
         ... )
     """
-    # 从 LangGraph 运行时配置中获取当前对话的 thread_id
-    thread_id = None
-    if config and isinstance(config.get("configurable"), dict):
-        thread_id = config["configurable"].get("thread_id")
+    # 从 LangGraph 运行时配置或 contextvar 中获取当前对话的 conversation_id
+    conversation_id = _get_current_conversation_id(config)
 
     async with async_session_factory() as session:
         try:
@@ -149,8 +165,8 @@ async def create_test_scenario(
                     "error": f"项目 {project_identifier} 不存在"
                 }, ensure_ascii=False, indent=2)
 
-            # 2. 同一次对话（thread）内如果已创建过场景，先删除旧场景以便重新生成
-            await _replace_thread_scenario(thread_id, project.id)
+            # 2. 同一次对话（conversation）内如果已创建过场景，先删除旧场景以便重新生成
+            await _replace_conversation_scenario(session, conversation_id, project.id)
 
             # 3. 生成场景标识符
             # 查询当前项目的场景数量
@@ -178,8 +194,8 @@ async def create_test_scenario(
             await session.commit()
             await session.refresh(scenario)
 
-            # 记录当前 thread 已创建的场景，用于同对话去重
-            _set_thread_scenario_id(thread_id, project.id, scenario.id)
+            # 记录当前 conversation 已创建的场景，用于同对话去重
+            _set_conversation_scenario_id(conversation_id, project.id, scenario.id)
 
             return json.dumps({
                 "success": True,
@@ -208,11 +224,12 @@ async def update_test_scenario(
     description: str | None = None,
     status: str | None = None,
     global_variables: dict | None = None,
+    teardown_config: dict | None = None,
 ) -> str:
     """
     更新测试场景的基本信息
 
-    可以修改场景的名称、描述、状态和全局变量。
+    可以修改场景的名称、描述、状态、全局变量和 teardown 清理配置。
 
     Args:
         scenario_id: 场景 ID
@@ -220,6 +237,18 @@ async def update_test_scenario(
         description: 新的场景描述（可选）
         status: 新的场景状态（可选，draft/active/archived）
         global_variables: 全局变量字典（可选）
+        teardown_config: teardown 清理配置（可选），格式示例：
+            {
+              "steps": [
+                {
+                  "name": "删除测试客户",
+                  "endpoint_id": "uuid",
+                  "request_override": {"method": "DELETE", "path": "/customers/{{customerId}}"},
+                  "headers_override": {},
+                  "continue_on_failure": true
+                }
+              ]
+            }
 
     Returns:
         JSON 格式的更新结果
@@ -228,8 +257,7 @@ async def update_test_scenario(
         >>> result = await update_test_scenario(
         ...     scenario_id="uuid-xxx",
         ...     name="更新后的场景名称",
-        ...     description="更新后的描述",
-        ...     status="active"
+        ...     teardown_config={"steps": [{"name": "清理客户", "endpoint_id": "...", "request_override": {"method": "DELETE", "path": "/customers/{{customerId}}"}}]}
         ... )
     """
     async with async_session_factory() as session:
@@ -273,6 +301,10 @@ async def update_test_scenario(
                 scenario.global_variables = global_variables
                 updated_fields.append("global_variables")
 
+            if teardown_config is not None:
+                scenario.teardown_config = teardown_config
+                updated_fields.append("teardown_config")
+
             scenario.updated_at = datetime.now(timezone.utc)
 
             await session.commit()
@@ -289,6 +321,7 @@ async def update_test_scenario(
                     "status": scenario.status,
                     "total_steps": scenario.total_steps,
                     "global_variables": scenario.global_variables,
+                    "teardown_config": scenario.teardown_config,
                     "updated_fields": updated_fields,
                 }
             }, ensure_ascii=False, indent=2)
@@ -298,6 +331,89 @@ async def update_test_scenario(
             return json.dumps({
                 "success": False,
                 "error": f"更新场景失败: {str(e)}"
+            }, ensure_ascii=False, indent=2)
+
+
+@tool
+async def add_teardown_step(
+    scenario_id: str,
+    name: str,
+    request_override: dict,
+    endpoint_id: str | None = None,
+    headers_override: dict | None = None,
+    continue_on_failure: bool = True,
+) -> str:
+    """
+    向场景追加一个 teardown 清理步骤
+
+    场景主流程执行结束后，会按顺序执行 teardown 步骤，用于删除/禁用
+    主流程中创建的资源（如客户、订单、文件等）。
+
+    Args:
+        scenario_id: 场景 ID
+        name: 清理步骤名称（如 "删除测试客户"）
+        request_override: 请求覆盖配置，可引用主流程提取的变量，如
+            {"method": "DELETE", "path": "/customers/{{customerId}}"}
+        endpoint_id: 清理接口端点 ID（可选；若为空则尝试从 request_override 推断）
+        headers_override: 请求头覆盖（可选）
+        continue_on_failure: 该步骤失败后是否继续执行后续 teardown，默认 true
+
+    Returns:
+        JSON 格式的添加结果
+
+    Example:
+        >>> result = await add_teardown_step(
+        ...     scenario_id="uuid-xxx",
+        ...     name="删除测试客户",
+        ...     endpoint_id="uuid-yyy",
+        ...     request_override={"method": "DELETE", "path": "/customers/{{customerId}}"},
+        ...     continue_on_failure=True
+        ... )
+    """
+    async with async_session_factory() as session:
+        try:
+            scenario_stmt = select(TestScenario).where(
+                TestScenario.id == UUID(scenario_id)
+            )
+            scenario_result = await session.execute(scenario_stmt)
+            scenario = scenario_result.scalar_one_or_none()
+
+            if not scenario:
+                return json.dumps({
+                    "success": False,
+                    "error": f"场景 {scenario_id} 不存在"
+                }, ensure_ascii=False, indent=2)
+
+            teardown_config = scenario.teardown_config or {}
+            steps = list(teardown_config.get("steps", []))
+            steps.append({
+                "name": name,
+                "endpoint_id": endpoint_id,
+                "request_override": request_override or {},
+                "headers_override": headers_override or {},
+                "continue_on_failure": continue_on_failure,
+            })
+            scenario.teardown_config = {**teardown_config, "steps": steps}
+            scenario.updated_at = datetime.now(timezone.utc)
+
+            await session.commit()
+            await session.refresh(scenario)
+
+            return json.dumps({
+                "success": True,
+                "message": f"成功为场景 {scenario.identifier} 添加 teardown 步骤: {name}",
+                "data": {
+                    "scenario_id": str(scenario.id),
+                    "teardown_step_count": len(steps),
+                    "teardown_config": scenario.teardown_config,
+                }
+            }, ensure_ascii=False, indent=2)
+
+        except Exception as e:
+            await session.rollback()
+            return json.dumps({
+                "success": False,
+                "error": f"添加 teardown 步骤失败: {str(e)}"
             }, ensure_ascii=False, indent=2)
 
 

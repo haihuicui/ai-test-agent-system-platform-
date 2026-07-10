@@ -762,7 +762,7 @@ export default function APITestsPage() {
             >
               {renderAIChat && (
                 <ClientProvider
-                  deploymentUrl={process.env.NEXT_PUBLIC_LANGGRAPH_API_URL || "http://localhost:2025"}
+                  deploymentUrl={process.env.NEXT_PUBLIC_LANGGRAPH_API_URL || "http://127.0.0.1:2025"}
                   apiKey={process.env.NEXT_PUBLIC_LANGSMITH_API_KEY || ""}
                 >
                   <AIChatContainer

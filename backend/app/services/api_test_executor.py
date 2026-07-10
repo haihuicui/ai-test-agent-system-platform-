@@ -11,6 +11,7 @@ import os
 import subprocess
 import tempfile
 import shutil
+import time
 import zipfile
 from pathlib import Path
 from datetime import datetime, timezone
@@ -44,26 +45,71 @@ TRACE_HELPER_FILE = "api-trace-helper.ts"
 _TRACE_HELPER_SOURCE = Path(__file__).parent.parent.parent / "workspace" / "api" / TRACE_HELPER_FILE
 
 
+def _cleanup_old_trace_helpers(workspace_dir: Path, max_age_seconds: float = 3600) -> None:
+    """
+    清理 workspace 中过期的临时 trace helper 文件。
+
+    Windows 下主文件可能被占用，_ensure_trace_helper 会回退到临时文件名。
+    这些临时文件不会自动删除，长期运行可能累积，因此每次执行前清理超过
+    1 小时的旧临时文件（并发运行 1 小时内通常已完成，较安全）。
+    """
+    try:
+        cutoff = time.time() - max_age_seconds
+        for p in workspace_dir.glob("api-trace-helper-*.ts"):
+            try:
+                if p.stat().st_mtime < cutoff:
+                    p.unlink()
+                    logger.info("[APITestExecutor] 清理旧临时 trace helper: %s", p)
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+
 def _ensure_trace_helper(workspace_dir: Path) -> Path:
     """
-    确保 workspace 根目录存在 api-trace-helper.ts。
+    确保 workspace 根目录存在最新版本的 api-trace-helper.ts。
 
-    如果目标目录没有该文件，会尝试从仓库模板复制；若模板也不存在，
-    则写入一个最小可用版本，避免执行失败。
+    每次执行都会从仓库模板重新复制；若模板不存在，则写入一个最小可用版本。
+    这样 helper 代码更新后能自动生效，不需要手动清理 workspace。
+
+    Windows 下目标文件可能被占用，此时先尝试重命名，再不行就使用临时文件名。
     """
     target = workspace_dir / TRACE_HELPER_FILE
-    if target.exists():
-        return target
-
     workspace_dir.mkdir(parents=True, exist_ok=True)
 
+    # 清理过期的临时 helper 文件，避免 Windows 文件占用回退时无限累积
+    _cleanup_old_trace_helpers(workspace_dir)
+
     if _TRACE_HELPER_SOURCE.exists():
-        shutil.copy2(_TRACE_HELPER_SOURCE, target)
-        logger.info("[APITestExecutor] 已复制 trace helper: %s", target)
-        return target
+        try:
+            if target.exists():
+                target.unlink()
+            shutil.copy2(_TRACE_HELPER_SOURCE, target)
+            logger.info("[APITestExecutor] 已复制 trace helper: %s", target)
+            return target
+        except PermissionError:
+            # 文件被占用，先尝试重命名再复制
+            try:
+                backup = target.with_suffix('.ts.bak')
+                if backup.exists():
+                    backup.unlink()
+                target.rename(backup)
+                shutil.copy2(_TRACE_HELPER_SOURCE, target)
+                logger.info("[APITestExecutor] 目标被占用，重命名后复制 trace helper: %s", target)
+                return target
+            except PermissionError:
+                # 重命名也失败，使用临时文件名
+                target = workspace_dir / f"api-trace-helper-{uuid4().hex}.ts"
+                shutil.copy2(_TRACE_HELPER_SOURCE, target)
+                logger.info("[APITestExecutor] 目标被占用，使用临时 trace helper: %s", target)
+                return target
 
     # 兜底：写入最小可用版本
-    minimal_helper = '''import { test as baseTest, APIRequestContext, APIResponse } from '@playwright/test';
+    minimal_helper = '''// NOTE: Keep this helper in sync with backend/app/services/api_test_executor.py.
+// The `minimal_helper` string in that file is the embedded fallback used when
+// this standalone template is not available.
+import { test as baseTest, APIRequestContext, APIResponse } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -144,6 +190,17 @@ function getBodyMeta(body: any): { originalSize: number; truncated: boolean } {
   const serialized = typeof body === 'string' ? body : JSON.stringify(body);
   const originalSize = Buffer.byteLength(serialized, 'utf8');
   return { originalSize, truncated: originalSize > BODY_TRUNCATE_THRESHOLD };
+}
+
+function parseHeaders(h: HeadersInit | undefined): Record<string, string> | undefined {
+  if (!h) return undefined;
+  if (h instanceof Headers) {
+    const result: Record<string, string> = {};
+    h.forEach((v, k) => { result[k] = v; });
+    return result;
+  }
+  if (Array.isArray(h)) return Object.fromEntries(h);
+  return h as Record<string, string>;
 }
 
 function wrapResponse(response: APIResponse, testName: string, testTitle: string, traceFile: string, startTime: number, requestInfo: any): APIResponse {
@@ -252,6 +309,84 @@ function wrapContext(context: APIRequestContext, testName: string, testTitle: st
   });
 }
 
+// ---------------------------------------------------------------------------
+// 全局 fetch 拦截：兼容使用原生 fetch 的测试脚本
+// ---------------------------------------------------------------------------
+let currentTestName = '';
+let currentTestTitle = '';
+
+function parseUrlParams(url: string): Record<string, string> | undefined {\n  try {\n    const parsed = new URL(url, 'http://localhost');\n    const params: Record<string, string> = {};\n    parsed.searchParams.forEach((value, key) => {\n      params[key] = value;\n    });\n    return Object.keys(params).length > 0 ? params : undefined;\n  } catch {\n    return undefined;\n  }\n}\n\nconst originalFetch = globalThis.fetch;
+console.error('[api-trace-helper] global fetch patch installed, API_TRACE_OUTPUT_FILE=', process.env.API_TRACE_OUTPUT_FILE);
+globalThis.fetch = async function fetch(input: RequestInfo | URL, init?: RequestInit) {
+  const traceFile = process.env.API_TRACE_OUTPUT_FILE;
+  console.error('[api-trace-helper] fetch intercepted, currentTestName=', currentTestName, 'url=', typeof input === 'string' ? input : (input as any).url);
+  if (!traceFile || !currentTestName) {
+    return originalFetch(input, init);
+  }
+
+  const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+  const method = init?.method?.toUpperCase() || 'GET';
+  const startTime = Date.now();
+
+  try {
+    const response = await originalFetch(input, init);
+    const cloned = response.clone();
+    let responseBody: any;
+    try {
+      const contentType = cloned.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        responseBody = await cloned.json();
+      } else {
+        responseBody = await cloned.text();
+      }
+    } catch { /* ignore body parse errors */ }
+
+    const sanitizedReqHeaders = sanitizeHeaders(parseHeaders(init?.headers));
+    const sanitizedRespHeaders = sanitizeHeaders(Object.fromEntries(response.headers.entries()));
+    const sanitizedReqBody = sanitizeBody(init?.body);
+    const sanitizedRespBody = sanitizeBody(responseBody);
+    const reqBodyMeta = getBodyMeta(sanitizedReqBody);
+    const respBodyMeta = getBodyMeta(sanitizedRespBody);
+
+    appendTrace(traceFile, {
+      testName: currentTestName,
+      testTitle: currentTestTitle,
+      method, url,
+      requestHeaders: sanitizedReqHeaders,
+      requestParams: parseUrlParams(url),
+      requestBody: sanitizedReqBody,
+      requestBodyOriginalSize: reqBodyMeta.originalSize,
+      requestBodyTruncated: reqBodyMeta.truncated,
+      status: response.status,
+      statusText: response.statusText,
+      responseHeaders: sanitizedRespHeaders,
+      responseBody: sanitizedRespBody,
+      responseBodyOriginalSize: respBodyMeta.originalSize,
+      responseBodyTruncated: respBodyMeta.truncated,
+      durationMs: Date.now() - startTime,
+      timestamp: new Date().toISOString(),
+    });
+
+    return response;
+  } catch (error) {
+    appendTrace(traceFile, {
+      testName: currentTestName,
+      testTitle: currentTestTitle,
+      method, url,
+      requestHeaders: sanitizeHeaders(parseHeaders(init?.headers)),
+      requestBody: sanitizeBody(init?.body),
+      status: null,
+      statusText: String(error),
+      responseHeaders: {},
+      responseBody: null,
+      error: String(error),
+      durationMs: Date.now() - startTime,
+      timestamp: new Date().toISOString(),
+    });
+    throw error;
+  }
+};
+
 export const test = baseTest.extend({
   request: async ({ request }, use, testInfo) => {
     const traceFile = process.env.API_TRACE_OUTPUT_FILE;
@@ -261,33 +396,48 @@ export const test = baseTest.extend({
   },
 });
 
+// 记录当前用例标题，供全局 fetch 拦截使用
+test.beforeEach(async ({}, testInfo) => {
+  currentTestName = testInfo.titlePath.join(' › ');
+  currentTestTitle = testInfo.title;
+  console.error('[api-trace-helper] beforeEach set currentTestName=', currentTestName);
+});
+
+test.afterEach(() => {
+  currentTestName = '';
+  currentTestTitle = '';
+});
+
 export { expect } from '@playwright/test';
 export { request, APIRequestContext, APIResponse, Page, BrowserContext, Browser, chromium, firefox, webkit, devices, defineConfig } from '@playwright/test';
+
+
 '''
     target.write_text(minimal_helper, encoding="utf-8")
     logger.warning("[APITestExecutor] 使用最小 trace helper: %s", target)
     return target
 
 
-def _rewrite_script_imports(script_content: str) -> str:
+def _rewrite_script_imports(script_content: str, helper_path: str = "../api-trace-helper") -> str:
     """
     把脚本里对 @playwright/test 的 import/require 替换为本地 api-trace-helper。
 
     测试脚本实际写在 workspace/tests/ 下，而 helper 在 workspace 根目录，
-    因此使用相对路径 ../api-trace-helper。
+    因此默认使用相对路径 ../api-trace-helper。
+    调用方（如 execution_tools.py）可通过 helper_path 指定其他相对路径。
     """
     import re
 
     # ES Module: import { test, expect } from '@playwright/test'
     rewritten = re.sub(
         r"(import\s+\{[^}]*\}\s+from\s+['\"])@playwright/test(['\"])",
-        r"\1../api-trace-helper\2",
+        rf"\1{helper_path}\2",
         script_content,
     )
     # CommonJS: const { test, expect } = require('@playwright/test')
     rewritten = re.sub(
         r"(require\s*\(\s*['\"])@playwright/test(['\"]\s*\))",
-        r"\1../api-trace-helper\2",
+        rf"\1{helper_path}\2",
         rewritten,
     )
     return rewritten
@@ -482,19 +632,24 @@ class APITestExecutor:
             try:
                 # 1. 更新状态为 RUNNING
                 run_record = await run_repo.get_by_id(run_id)
+                print(f"[APITestExecutor DEBUG] run_record={run_record}")
                 if run_record is None:
                     raise ValueError(f"测试运行记录不存在: {run_id}")
                 await run_repo.update(run_record, status="running")
                 await session.commit()
+                print(f"[APITestExecutor DEBUG] status updated to running")
 
                 # 2. 重新加载 APITest（避免跨 session 的 ORM 实例问题）
                 api_test = await api_test_repo.get_by_id(api_test_id)
+                print(f"[APITestExecutor DEBUG] api_test={api_test}")
                 if api_test is None:
                     raise ValueError(f"API 测试不存在: {api_test_id}")
 
                 # 3. 下载测试脚本
+                print(f"[APITestExecutor DEBUG] downloading script from {api_test.script_path}")
                 script_content = MinIOClient.download_file(api_test.script_path)
                 script_content = script_content.decode("utf-8")
+                print(f"[APITestExecutor DEBUG] script content length={len(script_content)}")
 
                 # 4. 准备执行环境：使用 workspace 目录而非临时目录
                 workspace_dir = Path(settings.api_workspace_root).resolve()
@@ -504,16 +659,18 @@ class APITestExecutor:
                 # 使用唯一文件名避免冲突
                 script_file = tests_dir / f"run_{run_id}_{uuid4().hex[:8]}.spec.ts"
                 script_file.write_text(script_content, encoding="utf-8")
-                logger.info("[APITestExecutor] 脚本已写入: %s", script_file)
+                print(f"[APITestExecutor DEBUG] script written to {script_file}")
 
                 try:
                     # 5. 执行测试（非阻塞异步子进程）
+                    print(f"[APITestExecutor DEBUG] running playwright test")
                     result = await self._run_playwright_test(
                         run_id=run_id,
                         script_path=script_file,
                         api_test=api_test,
                         execution_config=execution_config,
                     )
+                    print(f"[APITestExecutor DEBUG] playwright result: {result}")
 
                     # 6. 解析结果并保存
                     await self._process_test_results(
@@ -524,6 +681,7 @@ class APITestExecutor:
                         test_result=result,
                     )
                     await session.commit()
+                    print(f"[APITestExecutor DEBUG] results saved")
 
                     # 7. 保存 HTML 测试报告到 MinIO 并创建附件记录
                     report_path = result.get("report_path")
@@ -547,6 +705,7 @@ class APITestExecutor:
                             status="completed",
                         )
                         await session.commit()
+                        print(f"[APITestExecutor DEBUG] status updated to completed")
 
                 finally:
                     # 清理临时脚本文件
@@ -558,6 +717,9 @@ class APITestExecutor:
                             logger.warning("[APITestExecutor] 清理临时脚本失败: %s", e)
 
             except Exception as e:
+                print(f"[APITestExecutor DEBUG] exception in _execute_in_background: {e}")
+                import traceback
+                traceback.print_exc()
                 logger.exception("[APITestExecutor] 后台执行失败")
                 # 更新为失败状态
                 try:
@@ -643,6 +805,8 @@ class APITestExecutor:
                 if rewritten_script != original_script:
                     script_path.write_text(rewritten_script, encoding="utf-8")
                     logger.info("[APITestExecutor] 已重写脚本导入以启用 trace: %s", script_path)
+                else:
+                    logger.info("[APITestExecutor] 脚本已使用 trace helper，无需重写: %s", script_path)
             except Exception as e:
                 logger.warning("[APITestExecutor] 重写脚本导入失败，继续执行原脚本: %s", e)
 
@@ -723,6 +887,9 @@ class APITestExecutor:
             # 解析真实请求/响应 trace
             trace_file = test_result.get("trace_file")
             trace_entries = _parse_api_trace(Path(trace_file)) if trace_file else []
+            logger.info("[APITestExecutor] trace_file=%s, entries=%d, first_entry=%s",
+                        trace_file, len(trace_entries),
+                        trace_entries[0] if trace_entries else None)
 
             total_tests = 0
             passed_tests = 0
@@ -746,6 +913,7 @@ class APITestExecutor:
 
                 # 匹配当前用例的 trace 条目
                 matched_traces = self._match_trace_entries(item["title"], trace_entries)
+                logger.info("[APITestExecutor] test=%s matched_traces=%d", item["title"], len(matched_traces))
 
                 await self._save_test_result(
                     run_id=run_id,
@@ -819,7 +987,7 @@ class APITestExecutor:
         # 匹配行首状态符号、序号、项目信息、文件名位置、标题和可选耗时
         # Playwright 在不同终端/系统下可能输出 ok/x 或 ✓/✗
         pattern = re.compile(
-            r"^\s*(ok|x|[✓✗\-+×])\s+\d+\s+\[[^\]]+\]\s+›\s+[^›]+›\s+(.+?)(?:\s+\(\d+ms\))?\s*$",
+            r"^\s*(ok|x|[✓✗\-+×])\s+\d+\s+\[[^\]]+\]\s+›\s+[^›]+›\s+(.+?)(?:\s+\([\d.]+\s*(?:ms|s|m|h)\))?\s*$",
             re.MULTILINE,
         )
         status_map = {
