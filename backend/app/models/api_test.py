@@ -260,6 +260,18 @@ class APITestRun(Base, UUIDMixin, TimestampMixin):
         comment="测试报告文件路径 (MinIO)"
     )
 
+    # 原始执行输出（Playwright stdout/stderr）
+    stdout: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        comment="Playwright 标准输出日志"
+    )
+    stderr: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        comment="Playwright 标准错误日志"
+    )
+
     # 错误信息
     error_message: Mapped[str | None] = mapped_column(
         Text,

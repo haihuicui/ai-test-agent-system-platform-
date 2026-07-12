@@ -129,6 +129,8 @@ class PlaywrightExecutor(ScriptExecutor):
                 error_message=run.error_message if not success else None,
                 report_path=run.report_path,
                 result_summary=result_summary,
+                stdout=run.stdout or "",
+                stderr=run.stderr or "",
                 detail_run_id=str(run_id),
             )
         except Exception as e:

@@ -708,11 +708,15 @@ class APITestExecutor:
                     # 8. 根据 Playwright 实际执行结果更新状态
                     run_record = await run_repo.get_by_id(run_id)
                     if run_record:
+                        stdout = result.get("stdout", "")
+                        stderr = result.get("stderr", "")
                         if result.get("status") != "passed":
                             await run_repo.update(
                                 run_record,
                                 status="failed",
                                 error_message=result.get("error") or "测试执行失败",
+                                stdout=stdout,
+                                stderr=stderr,
                             )
                         elif (run_record.total_tests or 0) == 0:
                             # Playwright 返回成功但没有执行任何用例，视为异常
@@ -720,11 +724,15 @@ class APITestExecutor:
                                 run_record,
                                 status="failed",
                                 error_message="Playwright 未执行任何测试用例，请检查脚本或 trace helper",
+                                stdout=stdout,
+                                stderr=stderr,
                             )
                         else:
                             await run_repo.update(
                                 run_record,
                                 status="completed",
+                                stdout=stdout,
+                                stderr=stderr,
                             )
                         await session.commit()
                         logger.info("[APITestExecutor DEBUG] status updated to %s", run_record.status)
@@ -859,6 +867,7 @@ class APITestExecutor:
                 "status": "passed" if returncode == 0 else "failed",
                 "error": stderr if returncode != 0 else None,
                 "stdout": stdout,
+                "stderr": stderr,
                 "returncode": returncode,
                 "report_path": report_path,
                 "trace_file": str(trace_file),
@@ -876,11 +885,15 @@ class APITestExecutor:
             return {
                 "status": "failed",
                 "error": f"测试执行超时（超过 {execution_config.get('timeout', 300)} 秒）",
+                "stdout": "",
+                "stderr": "",
             }
         except Exception as e:
             return {
                 "status": "failed",
                 "error": f"测试执行失败: {str(e)}",
+                "stdout": "",
+                "stderr": "",
             }
 
     async def _process_test_results(
@@ -997,17 +1010,17 @@ class APITestExecutor:
         从 Playwright list reporter 输出中解析每个测试用例的状态和标题。
 
         示例行：
-          ✓  1 [chromium] › example.spec.ts:3:1 › GET /api/users (125ms)
-          ✗  2 [chromium] › example.spec.ts:4:1 › POST /api/users (234ms)
-          -  3 [chromium] › example.spec.ts:5:1 › PUT /api/users/1
+          ✓  1 [chromium] > example.spec.ts:3:1 > GET /api/users (125ms)
+          ✗  2 [chromium] > example.spec.ts:4:1 > POST /api/users (234ms)
+          -  3 [chromium] > example.spec.ts:5:1 > PUT /api/users/1
         """
         import re
 
         results: List[Dict[str, str]] = []
-        # 匹配行首状态符号、序号、项目信息、文件名位置、标题和可选耗时
-        # Playwright 在不同终端/系统下可能输出 ok/x 或 ✓/✗
+        # 匹配行首状态符号、序号、可选项目信息、文件名位置、标题和可选耗时
+        # Playwright 实际输出使用 ASCII '>' 作为分隔符，而非 Unicode '›'
         pattern = re.compile(
-            r"^\s*(ok|x|[✓✗\-+×])\s+\d+\s+\[[^\]]+\]\s+›\s+[^›]+›\s+(.+?)(?:\s+\([\d.]+\s*(?:ms|s|m|h)\))?\s*$",
+            r"^\s*(ok|x|[✓✗\-+×])\s+\d+\s+(?:\[[^\]]+\]\s+)?>\s+[^>]+\s+>\s+(.+?)(?:\s+\([\d.]+\s*(?:ms|s|m|h)\))?\s*$",
             re.MULTILINE,
         )
         status_map = {
@@ -1023,6 +1036,8 @@ class APITestExecutor:
         for match in pattern.finditer(stdout):
             symbol = match.group(1)
             title = match.group(2).strip()
+            # trace helper 中使用 '›' 作为 titlePath 分隔符，统一格式便于后续匹配
+            title = title.replace(">", "›")
             results.append({
                 "status": status_map.get(symbol, "failed"),
                 "title": title,

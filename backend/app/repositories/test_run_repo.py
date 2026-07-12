@@ -235,19 +235,25 @@ class TestRunRepository:
         for job in jobs:
             status = job.status
             summary = job.result_summary or {}
+            has_explicit_results = bool(job.result_summary)  # True if result_summary is a non-None, non-empty dict
             if status == JobStatus.PENDING:
                 untested += 1
             elif status == JobStatus.RUNNING:
                 in_progress += 1
             elif status == JobStatus.COMPLETED:
-                # completed 的作业内部可能包含 passed/failed/skipped
-                passed += summary.get("passed", 1)
-                failed += summary.get("failed", 0)
-                skipped += summary.get("skipped", 0)
+                if has_explicit_results:
+                    passed += summary.get("passed", 0)
+                    failed += summary.get("failed", 0)
+                    skipped += summary.get("skipped", 0)
+                else:
+                    passed += 1
             elif status == JobStatus.FAILED:
-                failed += summary.get("failed", 1)
-                passed += summary.get("passed", 0)
-                skipped += summary.get("skipped", 0)
+                if has_explicit_results:
+                    passed += summary.get("passed", 0)
+                    failed += summary.get("failed", 0)
+                    skipped += summary.get("skipped", 0)
+                else:
+                    failed += 1
             elif status == JobStatus.SKIPPED:
                 skipped += 1
             elif status == JobStatus.CANCELLED:
