@@ -413,7 +413,9 @@ export { request, APIRequestContext, APIResponse, Page, BrowserContext, Browser,
 
 
 '''
-    target.write_text(minimal_helper, encoding="utf-8")
+    # 兜底字符串中的 \n 是字面量，需要转成真正的换行，否则生成的 .ts 文件
+    # 会把代码中的 \n 也当作反斜杠+n，导致 TypeScript 语法错误。
+    target.write_text(minimal_helper.replace('\\n', '\n'), encoding="utf-8")
     logger.warning("[APITestExecutor] 使用最小 trace helper: %s", target)
     return target
 
@@ -632,24 +634,24 @@ class APITestExecutor:
             try:
                 # 1. 更新状态为 RUNNING
                 run_record = await run_repo.get_by_id(run_id)
-                print(f"[APITestExecutor DEBUG] run_record={run_record}")
+                logger.info("[APITestExecutor DEBUG] run_record=%s", run_record)
                 if run_record is None:
                     raise ValueError(f"测试运行记录不存在: {run_id}")
                 await run_repo.update(run_record, status="running")
                 await session.commit()
-                print(f"[APITestExecutor DEBUG] status updated to running")
+                logger.info("[APITestExecutor DEBUG] status updated to running")
 
                 # 2. 重新加载 APITest（避免跨 session 的 ORM 实例问题）
                 api_test = await api_test_repo.get_by_id(api_test_id)
-                print(f"[APITestExecutor DEBUG] api_test={api_test}")
+                logger.info("[APITestExecutor DEBUG] api_test=%s", api_test)
                 if api_test is None:
                     raise ValueError(f"API 测试不存在: {api_test_id}")
 
                 # 3. 下载测试脚本
-                print(f"[APITestExecutor DEBUG] downloading script from {api_test.script_path}")
+                logger.info("[APITestExecutor DEBUG] downloading script from %s", api_test.script_path)
                 script_content = MinIOClient.download_file(api_test.script_path)
                 script_content = script_content.decode("utf-8")
-                print(f"[APITestExecutor DEBUG] script content length={len(script_content)}")
+                logger.info("[APITestExecutor DEBUG] script content length=%d", len(script_content))
 
                 # 4. 准备执行环境：使用 workspace 目录而非临时目录
                 workspace_dir = Path(settings.api_workspace_root).resolve()
@@ -659,18 +661,18 @@ class APITestExecutor:
                 # 使用唯一文件名避免冲突
                 script_file = tests_dir / f"run_{run_id}_{uuid4().hex[:8]}.spec.ts"
                 script_file.write_text(script_content, encoding="utf-8")
-                print(f"[APITestExecutor DEBUG] script written to {script_file}")
+                logger.info("[APITestExecutor DEBUG] script written to %s", script_file)
 
                 try:
                     # 5. 执行测试（非阻塞异步子进程）
-                    print(f"[APITestExecutor DEBUG] running playwright test")
+                    logger.info("[APITestExecutor DEBUG] running playwright test")
                     result = await self._run_playwright_test(
                         run_id=run_id,
                         script_path=script_file,
                         api_test=api_test,
                         execution_config=execution_config,
                     )
-                    print(f"[APITestExecutor DEBUG] playwright result: {result}")
+                    logger.info("[APITestExecutor DEBUG] playwright result: %s", result)
 
                     # 6. 解析结果并保存
                     await self._process_test_results(
@@ -681,7 +683,7 @@ class APITestExecutor:
                         test_result=result,
                     )
                     await session.commit()
-                    print(f"[APITestExecutor DEBUG] results saved")
+                    logger.info("[APITestExecutor DEBUG] results saved")
 
                     # 7. 保存 HTML 测试报告到 MinIO 并创建附件记录
                     report_path = result.get("report_path")
@@ -705,7 +707,7 @@ class APITestExecutor:
                             status="completed",
                         )
                         await session.commit()
-                        print(f"[APITestExecutor DEBUG] status updated to completed")
+                        logger.info("[APITestExecutor DEBUG] status updated to completed")
 
                 finally:
                     # 清理临时脚本文件
@@ -717,9 +719,7 @@ class APITestExecutor:
                             logger.warning("[APITestExecutor] 清理临时脚本失败: %s", e)
 
             except Exception as e:
-                print(f"[APITestExecutor DEBUG] exception in _execute_in_background: {e}")
-                import traceback
-                traceback.print_exc()
+                logger.exception("[APITestExecutor DEBUG] exception in _execute_in_background: %s", e)
                 logger.exception("[APITestExecutor] 后台执行失败")
                 # 更新为失败状态
                 try:

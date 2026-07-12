@@ -86,49 +86,51 @@ class PlaywrightExecutor(ScriptExecutor):
         # 2. 轮询等待后台执行完成
         timeout = (config or {}).get("timeout", 300)
         interval = 2.0
+        run = None
         try:
-            async with async_session_factory() as session:
-                run_repo = APITestRunRepository(session)
-                for _ in range(int(timeout / interval)):
-                    if self._cancelled:
-                        return ExecutionResult(
-                            success=False,
-                            status=JobStatus.CANCELLED.value,
-                            error_message="执行已被取消",
-                        )
+            for _ in range(int(timeout / interval)):
+                if self._cancelled:
+                    return ExecutionResult(
+                        success=False,
+                        status=JobStatus.CANCELLED.value,
+                        error_message="执行已被取消",
+                    )
+                # 每次轮询使用新 session，避免 identity map 缓存导致读不到最新状态
+                async with async_session_factory() as session:
+                    run_repo = APITestRunRepository(session)
                     run = await run_repo.get_by_id(run_id)
                     if run and run.status in ("completed", "failed", "cancelled"):
                         break
-                    await asyncio.sleep(interval)
-                else:
-                    return ExecutionResult(
-                        success=False,
-                        status=JobStatus.FAILED.value,
-                        error_message=f"API 测试执行超时（超过 {timeout} 秒）",
-                    )
-
-                duration_ms = int(
-                    (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
-                )
-                success = run.status == "completed"
-                result_summary = {
-                    "total": run.total_tests or 0,
-                    "passed": run.passed_tests or 0,
-                    "failed": run.failed_tests or 0,
-                    "skipped": run.skipped_tests or 0,
-                }
-
+                await asyncio.sleep(interval)
+            else:
                 return ExecutionResult(
-                    success=success,
-                    status=JobStatus.COMPLETED.value
-                    if success
-                    else JobStatus.FAILED.value,
-                    duration_ms=duration_ms,
-                    error_message=run.error_message if not success else None,
-                    report_path=run.report_path,
-                    result_summary=result_summary,
-                    detail_run_id=str(run_id),
+                    success=False,
+                    status=JobStatus.FAILED.value,
+                    error_message=f"API 测试执行超时（超过 {timeout} 秒）",
                 )
+
+            duration_ms = int(
+                (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
+            )
+            success = run.status == "completed"
+            result_summary = {
+                "total": run.total_tests or 0,
+                "passed": run.passed_tests or 0,
+                "failed": run.failed_tests or 0,
+                "skipped": run.skipped_tests or 0,
+            }
+
+            return ExecutionResult(
+                success=success,
+                status=JobStatus.COMPLETED.value
+                if success
+                else JobStatus.FAILED.value,
+                duration_ms=duration_ms,
+                error_message=run.error_message if not success else None,
+                report_path=run.report_path,
+                result_summary=result_summary,
+                detail_run_id=str(run_id),
+            )
         except Exception as e:
             logger.exception("[PlaywrightExecutor] 等待 API 测试执行结果失败")
             return ExecutionResult(

@@ -6,6 +6,7 @@ FastAPI 应用程序入口点
 
 from contextlib import asynccontextmanager
 from uuid import UUID
+import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,6 +21,8 @@ from app.models.base import Base
 from app.models.user import User
 from app.services.scheduler_service import get_scheduler_service
 
+logger = logging.getLogger(__name__)
+
 # Import all models DIRECTLY from their modules (not through __init__.py)
 # This ensures correct initialization order for SQLAlchemy foreign key resolution
 # IMPORTANT: Models referenced by foreign keys must be imported FIRST
@@ -28,9 +31,10 @@ from app.models.project import Project
 from app.models.folder import Folder
 from app.models.team import Team
 from app.models.test_case import TestCase, TestStep, Tag, TestCaseTag
-from app.models.test_run import TestRun, TestRunTestCase
+from app.models.test_run import TestRun, TestRunTestCase, TestRunScriptJob
 from app.models.test_result import TestResult, TestStepResult
 from app.models.attachment import Attachment
+from app.schemas.enums import TestRunState, JobStatus
 from app.models.configuration import Configuration
 from app.models.test_plan import TestPlan
 from app.models.api_test import APITest, APITestRun, APITestResult
@@ -81,6 +85,76 @@ async def ensure_default_user():
             print(f"[OK] Created default test user: {settings.default_user_email}")
         else:
             print(f"[OK] Default test user exists: {settings.default_user_email}")
+
+
+async def cleanup_stale_execution_state():
+    """
+    启动自洁：重置上次运行遗留的 IN_PROGRESS 测试运行和 RUNNING 脚本作业。
+
+    后端进程异常退出或重启后，后台执行协程会消失，但数据库里的状态可能仍停留在
+    '进行中'。这会导致用户再次点击执行时，后端直接返回'已在执行中'而什么都不做。
+    启动时把这些脏状态统一标记为失败/拒绝，避免重启后卡死。
+    """
+    try:
+        from app.repositories.test_run_repo import (
+            TestRunRepository,
+            TestRunScriptJobRepository,
+        )
+        from datetime import datetime, timezone
+
+        async with async_session_factory() as session:
+            run_repo = TestRunRepository(session)
+            job_repo = TestRunScriptJobRepository(session)
+
+            # 1. 找出所有遗留的 IN_PROGRESS 测试运行
+            result = await session.execute(
+                select(TestRun).where(TestRun.run_state == TestRunState.IN_PROGRESS)
+            )
+            stale_runs = list(result.scalars().all())
+            if not stale_runs:
+                logger.info("[Startup Cleanup] 未发现遗留的进行中测试运行")
+                return
+
+            logger.info(
+                "[Startup Cleanup] 发现 %s 个上次遗留的进行中测试运行，正在重置状态...",
+                len(stale_runs),
+            )
+
+            reset_count = 0
+            for test_run in stale_runs:
+                # 重置该运行下所有 RUNNING 的脚本作业
+                jobs_result = await session.execute(
+                    select(TestRunScriptJob).where(
+                        TestRunScriptJob.test_run_id == test_run.id,
+                        TestRunScriptJob.status == JobStatus.RUNNING,
+                    )
+                )
+                stale_jobs = list(jobs_result.scalars().all())
+                now = datetime.now(timezone.utc)
+                for job in stale_jobs:
+                    await job_repo.update_status(
+                        job.id,
+                        JobStatus.FAILED,
+                        completed_at=now,
+                        error_message="后端重启，遗留的执行状态已重置",
+                    )
+
+                # 测试运行本身标记为 rejected
+                test_run.run_state = TestRunState.REJECTED
+                await run_repo.update(test_run)
+
+                # 基于 script_jobs 重新统计计数
+                await run_repo.update_counts_from_jobs(test_run.id)
+                reset_count += 1
+
+            await session.commit()
+            logger.info(
+                "[Startup Cleanup] 已重置 %s 个测试运行及其脚本作业状态",
+                reset_count,
+            )
+    except Exception as e:
+        # 自洁失败不应阻塞应用启动
+        logger.exception("[Startup Cleanup] 重置遗留执行状态时出错: %s", e)
 # type: ignore  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2TUc1RmJRPT06MGM2MDM2MGM=
 
 
@@ -102,6 +176,9 @@ async def lifespan(app: FastAPI):
 
     # 确保默认用户存在
     await ensure_default_user()
+
+    # 启动自洁：重置上次遗留的进行中状态
+    await cleanup_stale_execution_state()
 
     # 启动定时调度器
     scheduler = get_scheduler_service()
