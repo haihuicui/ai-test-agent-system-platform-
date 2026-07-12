@@ -38,7 +38,7 @@ from app.utils.sync_executor import run_sync
 
 logger = logging.getLogger(__name__)
 
-# Playwright trace helper 文件名（放在 workspace 根目录，与测试脚本同级）
+# Playwright trace helper 文件名（放在 api_workspace_root 目录，与测试脚本目录 tests/ 同级）
 TRACE_HELPER_FILE = "api-trace-helper.ts"
 
 # trace helper 在仓库中的源路径（相对当前模块）
@@ -68,7 +68,7 @@ def _cleanup_old_trace_helpers(workspace_dir: Path, max_age_seconds: float = 360
 
 def _ensure_trace_helper(workspace_dir: Path) -> Path:
     """
-    确保 workspace 根目录存在最新版本的 api-trace-helper.ts。
+    确保 workspace/api 目录存在最新版本的 api-trace-helper.ts。
 
     每次执行都会从仓库模板重新复制；若模板不存在，则写入一个最小可用版本。
     这样 helper 代码更新后能自动生效，不需要手动清理 workspace。
@@ -82,6 +82,12 @@ def _ensure_trace_helper(workspace_dir: Path) -> Path:
     _cleanup_old_trace_helpers(workspace_dir)
 
     if _TRACE_HELPER_SOURCE.exists():
+        # 源文件已经在目标位置（例如 settings.api_workspace_root 指向 workspace/，
+        # helper 源在 workspace/api/，目标也在 workspace/api/），直接复用
+        if _TRACE_HELPER_SOURCE.resolve() == target.resolve():
+            logger.info("[APITestExecutor] trace helper 已位于目标目录: %s", target)
+            return target
+
         try:
             if target.exists():
                 target.unlink()
@@ -653,7 +659,7 @@ class APITestExecutor:
                 script_content = script_content.decode("utf-8")
                 logger.info("[APITestExecutor DEBUG] script content length=%d", len(script_content))
 
-                # 4. 准备执行环境：使用 workspace 目录而非临时目录
+                # 4. 准备执行环境：使用 api_workspace_root 目录（包含 package.json/node_modules）
                 workspace_dir = Path(settings.api_workspace_root).resolve()
                 tests_dir = workspace_dir / "tests"
                 tests_dir.mkdir(parents=True, exist_ok=True)
@@ -699,15 +705,29 @@ class APITestExecutor:
                         except Exception as report_e:
                             logger.error("[APITestExecutor] 保存测试报告失败: %s", report_e)
 
-                    # 8. 更新为完成状态
+                    # 8. 根据 Playwright 实际执行结果更新状态
                     run_record = await run_repo.get_by_id(run_id)
                     if run_record:
-                        await run_repo.update(
-                            run_record,
-                            status="completed",
-                        )
+                        if result.get("status") != "passed":
+                            await run_repo.update(
+                                run_record,
+                                status="failed",
+                                error_message=result.get("error") or "测试执行失败",
+                            )
+                        elif (run_record.total_tests or 0) == 0:
+                            # Playwright 返回成功但没有执行任何用例，视为异常
+                            await run_repo.update(
+                                run_record,
+                                status="failed",
+                                error_message="Playwright 未执行任何测试用例，请检查脚本或 trace helper",
+                            )
+                        else:
+                            await run_repo.update(
+                                run_record,
+                                status="completed",
+                            )
                         await session.commit()
-                        logger.info("[APITestExecutor DEBUG] status updated to completed")
+                        logger.info("[APITestExecutor DEBUG] status updated to %s", run_record.status)
 
                 finally:
                     # 清理临时脚本文件
@@ -779,7 +799,7 @@ class APITestExecutor:
             # 注入环境变量
             env.update(env_vars)
             if "API_BASE_URL" in env_vars:
-                print(f"[APITestExecutor] 注入 API_BASE_URL: {env_vars['API_BASE_URL']}")
+                logger.info("[APITestExecutor] 注入 API_BASE_URL: %s", env_vars["API_BASE_URL"])
             env["CI"] = "1"
 
             # 注入 trace 脱敏与截断配置（供 api-trace-helper.ts 读取）
