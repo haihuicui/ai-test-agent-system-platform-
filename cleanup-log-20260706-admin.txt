@@ -1,0 +1,8 @@
+﻿=== CapabilityAccessManager WAL cleanup started at 2026-07-06_14-50-00 ===
+Stopping service: camsvc
+Service stopped successfully.
+Found WAL file: C:\ProgramData\Microsoft\Windows\CapabilityAccessManager\CapabilityAccessManager.db-wal (0 GB)
+DELETED WAL file.
+Starting service: camsvc
+Service started successfully.
+=== Cleanup completed at 2026-07-06_14-50-02 ===

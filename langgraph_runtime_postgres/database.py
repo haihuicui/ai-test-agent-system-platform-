@@ -88,16 +88,37 @@ async def _reset_connection(conn: AsyncConnection[DictRow]) -> None:
         await conn.rollback()
 
 
-def create_pool(
-    *, __test__: bool = False, thread_local: bool = False
-) -> AsyncConnectionPool[AsyncConnection[DictRow]]:
-    # parse connection string
+def _connection_params(*, __test__: bool = False) -> dict[str, Any]:
+    """Parse DATABASE_URI and add statement timeouts + TCP keepalive settings.
+
+    TCP keepalive is especially important when the PostgreSQL server is remote
+    (e.g. 192.168.60.103): firewalls and NAT gateways often drop idle TCP
+    sessions, and PostgreSQL may also close idle connections depending on its
+    own ``tcp_keepalives_*`` configuration. Without keepalive, a connection
+    returned from the pool can be silently closed by the server, causing
+    ``OperationalError: server closed the connection unexpectedly`` on the
+    first query.
+    """
     params = conninfo_to_dict(config.DATABASE_URI)
     params.setdefault("options", "")
     if not __test__:
         params["options"] += " -c lock_timeout=1000"  # ms
         params["options"] += " -c statement_timeout=900s"
         params["options"] += " -c idle_in_transaction_session_timeout=900s"
+
+    # TCP keepalive: start probing after 30s idle, every 10s, up to 5 times.
+    params.setdefault("keepalives", 1)
+    params.setdefault("keepalives_idle", 30)
+    params.setdefault("keepalives_interval", 10)
+    params.setdefault("keepalives_count", 5)
+    return params
+
+
+def create_pool(
+    *, __test__: bool = False, thread_local: bool = False
+) -> AsyncConnectionPool[AsyncConnection[DictRow]]:
+    # parse connection string and add keepalive/timeouts
+    params = _connection_params(__test__=__test__)
 
     # For thread-local pools, use smaller pool sizes
     if thread_local:
@@ -116,6 +137,7 @@ def create_pool(
         min_size=pool_min_size,
         max_size=pool_max_size,
         max_idle=pool_max_idle,  # seconds
+        max_lifetime=600,  # seconds; force rotation to avoid stale remote conns
         timeout=15,
         kwargs={
             **params,
@@ -130,19 +152,14 @@ def create_pool(
 
 
 async def create_conn(__test__: bool = False) -> AsyncConnection[DictRow]:
-    params = conninfo_to_dict(config.DATABASE_URI)
-    params.setdefault("options", "")
-    if not __test__:
-        params["options"] += " -c lock_timeout=1000"  # ms
-        params["options"] += " -c statement_timeout=900s"
-        params["options"] += " -c idle_in_transaction_session_timeout=900s"
+    params = _connection_params(__test__=__test__)
 
     conn = await AsyncConnection.connect(
         config.DATABASE_URI,
-        options=params["options"],
         row_factory=dict_row,
         autocommit=True,
         prepare_threshold=0,
+        **params,
     )
     await _configure_connection(conn)
     return conn

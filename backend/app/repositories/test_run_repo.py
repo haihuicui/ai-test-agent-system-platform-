@@ -9,7 +9,7 @@ from datetime import date, datetime
 from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import select, func, and_, or_, update, delete, cast, Date
+from sqlalchemy import select, func, and_, or_, update, delete, cast, Date, Integer
 from sqlalchemy.orm import selectinload, joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -215,16 +215,21 @@ class TestRunRepository:
         await self.session.delete(test_run)
         await self.session.flush()
 
-    async def generate_identifier(self, project_id: UUID) -> str:
-        """生成测试运行标识符"""
+    async def generate_identifier(self) -> str:
+        """生成测试运行标识符（全局自增，避免删除/并发导致重复）"""
+        # 从现有 TR-% 标识符中提取最大数字，生成 TR-{max+1}
+        numeric_part = cast(
+            func.regexp_replace(TestRun.identifier, "[^0-9]", "", "g"),
+            Integer,
+        )
         stmt = (
-            select(func.count())
+            select(func.max(numeric_part))
             .select_from(TestRun)
-            .where(TestRun.project_id == project_id)
+            .where(TestRun.identifier.like("TR-%"))
         )
         result = await self.session.execute(stmt)
-        count = result.scalar() or 0
-        return f"TR-{count + 1}"
+        max_num = result.scalar() or 0
+        return f"TR-{max_num + 1}"
 
     async def update_counts(self, test_run_id: UUID) -> None:
         """更新测试运行的统计数据，覆盖 BS 的 7 个状态"""

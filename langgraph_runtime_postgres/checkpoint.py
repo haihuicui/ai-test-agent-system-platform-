@@ -33,6 +33,8 @@ from langgraph_api.serde import Fragment, Serializer, json_loads
 from psycopg import AsyncConnection
 from psycopg.types.json import Jsonb
 
+from langgraph_runtime_postgres.retry import retry_db
+
 logger = structlog.stdlib.get_logger(__name__)
 PENDING_SENDS_CTE = (
     ""
@@ -162,6 +164,7 @@ class Checkpointer(BaseCheckpointSaver):
         else:
             yield self.conn
 
+    @retry_db
     async def alist(
         self,
         config: RunnableConfig | None,
@@ -206,6 +209,7 @@ class Checkpointer(BaseCheckpointSaver):
                 )
 # pragma: no cover  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2YkZkaU53PT06MzdkMTA5MjE=
 
+    @retry_db
     async def aget_iter(self, config: RunnableConfig) -> AsyncIterator[CheckpointTuple]:
         thread_id = config["configurable"]["thread_id"]
         checkpoint_ns = config["configurable"].get("checkpoint_ns", "")
@@ -255,6 +259,7 @@ class Checkpointer(BaseCheckpointSaver):
                 async for value in aclosing_aiter(cur)
             )
 
+    @retry_db
     async def aget_tuple(self, config: RunnableConfig) -> CheckpointTuple | None:
         if self.latest_iter is not None:
             try:

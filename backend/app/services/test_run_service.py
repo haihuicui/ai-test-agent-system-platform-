@@ -14,6 +14,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
+from sqlalchemy.exc import IntegrityError
 
 from app.config.minio_client import MinIOClient
 from app.models.test_run import TestRun, TestRunTestCase, TestRunScriptJob, TestRunSchedule
@@ -698,44 +699,58 @@ class TestRunService:
             data.scheduled_by, project.id
         )
 
-        identifier = await self.repo.generate_identifier(project.id)
+        # 生成唯一标识符并创建 TestRun；带重试以应对并发/定时调度导致的主键冲突
+        max_retries = 3
+        test_run: TestRun | None = None
+        for attempt in range(max_retries):
+            identifier = await self.repo.generate_identifier()
+            test_run = TestRun(
+                project_id=project.id,
+                identifier=identifier,
+                name=data.name,
+                description=data.description,
+                run_state=data.run_state,
+                active_state=TestRunActiveState.ACTIVE,
+                assignee=data.assignee,
+                test_case_assignee=data.test_case_assignee,
+                test_plan_id=plan_id,
+                sub_test_plan_id=sub_plan_id,
+                environment_id=environment_id,
+                scheduled_by=scheduled_by_id,
+                tags=data.tags or [],
+                issues=data.issues or [],
+                issue_tracker=data.issue_tracker.model_dump()
+                if data.issue_tracker
+                else None,
+                configurations=data.configurations or [],
+                configuration_map=[
+                    m.model_dump() for m in data.configuration_map
+                ]
+                if data.configuration_map
+                else None,
+                folder_ids=data.folder_ids,
+                include_all=bool(data.include_all),
+                filter_scope=data.filter_scope or FilterScope.GLOBAL,
+                filter_test_cases=data.filter_test_cases.model_dump()
+                if data.filter_test_cases
+                else None,
+                execution_mode=data.execution_mode or ExecutionMode.SEQUENTIAL,
+                max_concurrency=data.max_concurrency or 5,
+                failure_policy=data.failure_policy or FailurePolicy.CONTINUE,
+                trigger_type=data.trigger_type or TriggerType.MANUAL,
+            )
+            try:
+                test_run = await self.repo.create(test_run)
+                break
+            except IntegrityError as exc:
+                if "ix_test_runs_identifier" in str(exc) and attempt < max_retries - 1:
+                    await self.session.rollback()
+                    await asyncio.sleep(0.05 * (2 ** attempt))
+                    continue
+                raise
 
-        test_run = TestRun(
-            project_id=project.id,
-            identifier=identifier,
-            name=data.name,
-            description=data.description,
-            run_state=data.run_state,
-            active_state=TestRunActiveState.ACTIVE,
-            assignee=data.assignee,
-            test_case_assignee=data.test_case_assignee,
-            test_plan_id=plan_id,
-            sub_test_plan_id=sub_plan_id,
-            environment_id=environment_id,
-            scheduled_by=scheduled_by_id,
-            tags=data.tags or [],
-            issues=data.issues or [],
-            issue_tracker=data.issue_tracker.model_dump()
-            if data.issue_tracker
-            else None,
-            configurations=data.configurations or [],
-            configuration_map=[
-                m.model_dump() for m in data.configuration_map
-            ]
-            if data.configuration_map
-            else None,
-            folder_ids=data.folder_ids,
-            include_all=bool(data.include_all),
-            filter_scope=data.filter_scope or FilterScope.GLOBAL,
-            filter_test_cases=data.filter_test_cases.model_dump()
-            if data.filter_test_cases
-            else None,
-            execution_mode=data.execution_mode or ExecutionMode.SEQUENTIAL,
-            max_concurrency=data.max_concurrency or 5,
-            failure_policy=data.failure_policy or FailurePolicy.CONTINUE,
-            trigger_type=data.trigger_type or TriggerType.MANUAL,
-        )
-        test_run = await self.repo.create(test_run)
+        if test_run is None:
+            raise BadRequestException(message="生成测试运行标识符失败，请重试")
 
         # 解析用例并创建关联（兼容旧模式）
         cases = await self._resolve_test_cases_for_create(project.id, data)

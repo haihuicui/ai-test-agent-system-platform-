@@ -1,0 +1,33 @@
+
+Running 3 tests using 1 worker
+
+  x  1 [api-tests] › tests\customer_create_test_20260710_141312.spec.ts:39:7 › POST /xmetrix-data/customer - 新增客户（正常功能测试） › TC1 - 使用完整有效数据创建客户 (2.7s)
+  x  2 [api-tests] › tests\customer_create_test_20260710_141312.spec.ts:69:7 › POST /xmetrix-data/customer - 新增客户（正常功能测试） › TC2 - 使用单个采样点创建客户 (2.3s)
+  x  3 [api-tests] › tests\customer_create_test_20260710_141312.spec.ts:97:7 › POST /xmetrix-data/customer - 新增客户（正常功能测试） › TC3 - 使用多个采样点创建客户 (2.3s)
+
+
+  1) [api-tests] › tests\customer_create_test_20260710_141312.spec.ts:39:7 › POST /xmetrix-data/customer - 新增客户（正常功能测试） › TC1 - 使用完整有效数据创建客户 
+
+    TypeError: fetch failed
+    [cause]: Error: getaddrinfo ENOTFOUND dummy
+
+    Error Context: test-results\customer_create_test_20260-f92a1-（正常功能测试）-TC1---使用完整有效数据创建客户-api-tests\error-context.md
+
+  2) [api-tests] › tests\customer_create_test_20260710_141312.spec.ts:69:7 › POST /xmetrix-data/customer - 新增客户（正常功能测试） › TC2 - 使用单个采样点创建客户 
+
+    TypeError: fetch failed
+    [cause]: Error: getaddrinfo ENOTFOUND dummy
+
+    Error Context: test-results\customer_create_test_20260-eaa6f-户（正常功能测试）-TC2---使用单个采样点创建客户-api-tests\error-context.md
+
+  3) [api-tests] › tests\customer_create_test_20260710_141312.spec.ts:97:7 › POST /xmetrix-data/customer - 新增客户（正常功能测试） › TC3 - 使用多个采样点创建客户 
+
+    TypeError: fetch failed
+    [cause]: Error: getaddrinfo ENOTFOUND dummy
+
+    Error Context: test-results\customer_create_test_20260-7a873-户（正常功能测试）-TC3---使用多个采样点创建客户-api-tests\error-context.md
+
+  3 failed
+    [api-tests] › tests\customer_create_test_20260710_141312.spec.ts:39:7 › POST /xmetrix-data/customer - 新增客户（正常功能测试） › TC1 - 使用完整有效数据创建客户 
+    [api-tests] › tests\customer_create_test_20260710_141312.spec.ts:69:7 › POST /xmetrix-data/customer - 新增客户（正常功能测试） › TC2 - 使用单个采样点创建客户 
+    [api-tests] › tests\customer_create_test_20260710_141312.spec.ts:97:7 › POST /xmetrix-data/customer - 新增客户（正常功能测试） › TC3 - 使用多个采样点创建客户 

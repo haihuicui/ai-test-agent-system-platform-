@@ -20,8 +20,18 @@ from app.agents.tools.error_handler import wrap_tools_with_error_handling
 from app.agents.testcase.phase_review_middleware import PhaseReviewMiddleware
 from app.agents.testcase.rag_middleware import RAGMiddleware
 from app.agents.testcase.state_compaction_middleware import StaleToolResultOffloadMiddleware
+from app.agents.testcase.tool_call_validation_middleware import (
+    ToolCallAdjacencyMiddleware,
+    patch_model_for_tool_call_adjacency,
+)
 from app.config.settings import settings
 from app.core.llms import text_model, image_model
+
+# 在模型序列化消息前做最后一道 tool-call 邻接修复
+# （create_deep_agent 的内置 middleware 会排在用户 middleware 之后，
+#  因此仅靠 ToolCallAdjacencyMiddleware.awrap_model_call 不够可靠）
+patch_model_for_tool_call_adjacency(text_model)
+patch_model_for_tool_call_adjacency(image_model)
 
 # ============================================================================
 # 后端配置
@@ -510,6 +520,8 @@ async def make_agent() -> AsyncIterator[Pregel]:
     stale_offload_middleware = StaleToolResultOffloadMiddleware(backend=composite_backend)
     # 阶段报告人工评审：需求分析、测试策略、质量评审完成后触发 HITL
     phase_review_middleware = PhaseReviewMiddleware()
+    # OpenAI 兼容接口要求 assistant tool_calls 后必须紧跟对应 ToolMessage
+    tool_call_validation_middleware = ToolCallAdjacencyMiddleware()
 
     # 加载所有工具（包括本地工具和 RAG MCP 工具）
     all_tools = await get_all_tools()
@@ -529,6 +541,7 @@ async def make_agent() -> AsyncIterator[Pregel]:
             stale_offload_middleware,
             phase_review_middleware,
             dynamic_model_selection,
+            tool_call_validation_middleware,
         ],
         backend=composite_backend,
         context_schema=TestCaseGeneratorContext,
