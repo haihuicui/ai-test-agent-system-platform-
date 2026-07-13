@@ -24,6 +24,7 @@ from app.schemas.enums import (
     TriggerType,
     JobStatus,
     ScheduleTriggerType,
+    FailurePolicy,
 )
 
 # pylint: disable  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2T0hBeWFRPT06ODhjYzc5YzI=
@@ -136,8 +137,18 @@ class TestRunCreate(BaseModel):
     max_concurrency: Optional[int] = Field(
         default=5, ge=1, le=50, description="最大并发数"
     )
+    failure_policy: Optional[FailurePolicy] = Field(
+        default=FailurePolicy.CONTINUE,
+        description="失败策略: continue / stop_run / stop_job / mark_blocked",
+    )
     environment_id: Optional[str] = Field(
         default=None, description="执行环境 ID，未指定时使用项目默认环境"
+    )
+    scheduled_by: Optional[str] = Field(
+        default=None, description="来源定时调度 ID（trigger_type=scheduled 时使用）"
+    )
+    trigger_type: Optional[TriggerType] = Field(
+        default=TriggerType.MANUAL, description="触发类型: manual / scheduled / api"
     )
 
     @model_validator(mode="after")
@@ -158,8 +169,23 @@ class TestRunPatchUpdate(BaseModel):
     name: Optional[str] = Field(
         default=None, min_length=1, max_length=500, description="测试运行名称"
     )
+    description: Optional[str] = Field(default=None, description="测试运行描述")
     run_state: Optional[TestRunState] = Field(default=None, description="运行状态")
+    active_state: Optional[TestRunActiveState] = Field(
+        default=None, description="活跃状态 (active / closed)"
+    )
+    assignee: Optional[str] = Field(default=None, description="负责人邮箱")
+    test_case_assignee: Optional[str] = Field(
+        default=None, description="测试用例默认负责人邮箱"
+    )
     tags: Optional[list[str]] = Field(default=None, description="标签列表")
+    issues: Optional[list[str]] = Field(default=None, description="关联的问题列表")
+    issue_tracker: Optional[IssueTracker] = Field(
+        default=None, description="问题跟踪器配置"
+    )
+    test_plan_id: Optional[str] = Field(
+        default=None, description="关联的测试计划 ID（与 sub_test_plan_id 互斥）"
+    )
     sub_test_plan_id: Optional[str] = Field(default=None, description="子测试计划 ID")
     configurations: Optional[list[int]] = Field(
         default=None, description="配置 ID 列表"
@@ -173,12 +199,33 @@ class TestRunPatchUpdate(BaseModel):
     include_all: Optional[bool] = Field(
         default=None, description="是否包含项目下全部测试用例"
     )
+    filter_scope: Optional[FilterScope] = Field(
+        default=None, description="过滤作用域"
+    )
     filter_test_cases: Optional[TestCaseFilter] = Field(
         default=None, description="测试用例过滤条件"
     )
-    environment_id: Optional[str] = Field(
-        default=None, description="执行环境 ID，未指定时使用项目默认环境"
+    execution_mode: Optional[ExecutionMode] = Field(
+        default=None, description="执行模式"
     )
+    max_concurrency: Optional[int] = Field(
+        default=None, ge=1, le=50, description="最大并发数"
+    )
+    failure_policy: Optional[FailurePolicy] = Field(
+        default=None, description="失败策略: continue / stop_run / stop_job / mark_blocked"
+    )
+    environment_id: Optional[str] = Field(
+        default=None, description="执行环境 ID"
+    )
+    scripts: Optional[list[ScriptSelection]] = Field(
+        default=None, description="直接选择的脚本列表"
+    )
+
+    @model_validator(mode="after")
+    def _check_mutual_exclusion(self) -> "TestRunPatchUpdate":
+        if self.test_plan_id and self.sub_test_plan_id:
+            raise ValueError("test_plan_id 与 sub_test_plan_id 不能同时提供")
+        return self
 
 
 class TestRunFullReplace(TestRunCreate):
@@ -433,10 +480,23 @@ class TestRunInfo(BaseModel):
     environment_id: Optional[str] = Field(
         default=None, description="执行环境 ID"
     )
+    scheduled_by: Optional[UUID] = Field(
+        default=None,
+        alias="schedule_id",
+        description="来源定时调度 ID",
+    )
+    schedule_name: Optional[str] = Field(
+        default=None, description="来源定时调度名称"
+    )
+    failure_policy: FailurePolicy = Field(
+        default=FailurePolicy.CONTINUE, description="失败策略"
+    )
     created_at: datetime = Field(..., description="创建时间")
     updated_at: Optional[datetime] = Field(default=None, description="更新时间")
     closed_at: Optional[datetime] = Field(default=None, description="关闭时间")
     links: Optional[TestRunLinks] = Field(default=None, description="相关资源链接")
+
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class TestRunMinifiedInfo(BaseModel):
@@ -454,6 +514,9 @@ class TestRunMinifiedInfo(BaseModel):
     overall_progress: OverallProgress = Field(
         default_factory=OverallProgress, description="整体进度"
     )
+    failure_policy: FailurePolicy = Field(
+        default=FailurePolicy.CONTINUE, description="失败策略"
+    )
     created_at: datetime = Field(..., description="创建时间")
     updated_at: Optional[datetime] = Field(default=None, description="更新时间")
     links: Optional[TestRunLinks] = Field(default=None, description="资源链接")
@@ -468,9 +531,11 @@ class TestRunListInfo(BaseModel):
     id: UUID = Field(..., description="测试运行 ID")
     identifier: str = Field(..., description="测试运行标识符")
     name: str = Field(..., description="测试运行名称")
+    description: Optional[str] = Field(default=None, description="测试运行描述")
     run_state: TestRunState = Field(..., description="运行状态")
     active_state: TestRunActiveState = Field(..., description="活跃状态")
     assignee: Optional[str] = Field(default=None, description="负责人邮箱")
+    test_case_assignee: Optional[str] = Field(default=None, description="测试用例默认负责人邮箱")
     project_id: UUID = Field(..., description="所属项目 ID")
     test_cases_count: int = Field(default=0, description="测试用例总数")
     configurations: list[int] = Field(
@@ -481,17 +546,32 @@ class TestRunListInfo(BaseModel):
     )
     created_at: datetime = Field(..., description="创建时间")
     closed_at: Optional[datetime] = Field(default=None, description="关闭时间")
+    tags: list[str] = Field(default_factory=list, description="标签列表")
+    issues: list[str] = Field(default_factory=list, description="关联的问题列表")
     # 企业级扩展字段
     execution_mode: ExecutionMode = Field(
         default=ExecutionMode.SEQUENTIAL, description="执行模式"
     )
     max_concurrency: int = Field(default=5, description="最大并发数")
+    failure_policy: FailurePolicy = Field(
+        default=FailurePolicy.CONTINUE, description="失败策略"
+    )
     trigger_type: TriggerType = Field(
         default=TriggerType.MANUAL, description="触发方式"
     )
     environment_id: Optional[str] = Field(
         default=None, description="执行环境 ID"
     )
+    scheduled_by: Optional[UUID] = Field(
+        default=None,
+        alias="schedule_id",
+        description="来源定时调度 ID",
+    )
+    schedule_name: Optional[str] = Field(
+        default=None, description="来源定时调度名称"
+    )
+
+    model_config = ConfigDict(populate_by_name=True)
 
 
 # ============ 调度 Schema ============

@@ -2,6 +2,7 @@
 // WATERMARK  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2WWprd2VBPT06ODAxNDMxNTY=
 
 import * as React from "react";
+import dynamic from "next/dynamic";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import { MainLayout } from "@/components/layout";
@@ -9,11 +10,6 @@ import { useLanguage } from "@/providers/LanguageProvider";
 import {
   FolderTree,
   TestCaseList,
-  TestCaseDialog,
-  MoveFolderDialog,
-  AIGenerateDialog,
-  AIGenerateFromDocumentDialog,
-  BulkEditDialog,
 } from "@/components/test-cases";
 import type { FolderTreeRef } from "@/components/test-cases";
 import {
@@ -29,7 +25,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { AIChatContainer } from "@/components/langgraph/AIChatContainer";
 import { ClientProvider } from "@/providers/ClientProvider";
 import { useDelayedUnmount } from "@/hooks/useDelayedUnmount";
 import { Assistant } from "@langchain/langgraph-sdk";
@@ -56,7 +51,58 @@ import type {
   Priority,
   TestCaseState,
 } from "@/lib/api/types";
+import { AIChatSkeleton } from "@/components/langgraph/ai-chat-skeleton";
 // NOTE  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2WWprd2VBPT06ODAxNDMxNTY=
+
+// 重型对话框与 AI 聊天面板代码分割
+const AIChatContainer = dynamic(
+  () =>
+    import("@/components/langgraph/AIChatContainer").then((m) => ({
+      default: m.AIChatContainer,
+    })),
+  { ssr: false, loading: () => <AIChatSkeleton /> }
+);
+
+const TestCaseDialog = dynamic(
+  () =>
+    import("@/components/test-cases/test-case-dialog").then((m) => ({
+      default: m.TestCaseDialog,
+    })),
+  { ssr: false }
+);
+
+const AIGenerateDialog = dynamic(
+  () =>
+    import("@/components/test-cases/ai-generate-dialog").then((m) => ({
+      default: m.AIGenerateDialog,
+    })),
+  { ssr: false }
+);
+
+const AIGenerateFromDocumentDialog = dynamic(
+  () =>
+    import("@/components/test-cases/ai-generate-from-document-dialog").then(
+      (m) => ({ default: m.AIGenerateFromDocumentDialog })
+    ),
+  { ssr: false }
+);
+
+const BulkEditDialog = dynamic(
+  () =>
+    import("@/components/test-cases/bulk-edit-dialog").then((m) => ({
+      default: m.BulkEditDialog,
+    })),
+  { ssr: false }
+);
+
+const MoveFolderDialog = dynamic(
+  () =>
+    import("@/components/test-cases/move-folder-dialog").then((m) => ({
+      default: m.MoveFolderDialog,
+    })),
+  { ssr: false }
+);
+
 
 export default function TestCasesPage() {
   const params = useParams();

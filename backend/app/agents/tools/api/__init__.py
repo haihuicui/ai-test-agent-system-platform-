@@ -23,6 +23,7 @@ from app.agents.tools.api.artifacts_tools import (
     save_test_plan,
     save_test_cases,
     save_test_script,
+    audit_script_assertions,
     get_endpoint_artifacts,
     get_artifact_content,
 )
@@ -83,6 +84,7 @@ ARTIFACT_TOOLS = [
     save_test_plan,
     save_test_cases,
     save_test_script,
+    audit_script_assertions,
     get_endpoint_artifacts,
     get_artifact_content,
 ]
@@ -160,6 +162,7 @@ __all__ = [
     "save_test_plan",
     "save_test_cases",
     "save_test_script",
+    "audit_script_assertions",
     "get_endpoint_artifacts",
     "get_artifact_content",
     # 脚本

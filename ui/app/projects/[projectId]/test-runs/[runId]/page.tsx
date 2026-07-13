@@ -16,7 +16,6 @@ import {
   Loader2,
   Zap,
   CalendarClock,
-  Bot,
   FileCode,
   FileText,
   Globe,
@@ -36,6 +35,16 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -49,6 +58,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -56,6 +66,8 @@ import {
   getTestRun,
   executeTestRun,
   cancelTestRun,
+  patchTestRun,
+  deleteTestRun,
   getScriptJobs,
   getJobReportUrl,
   retryJob,
@@ -66,6 +78,9 @@ import {
   getJobReportPreview,
   mapJobsToTestCases,
   subscribeToTestRunEvents,
+  listEnvironments,
+  csvToList,
+  listToCsv,
   type TestRunInfo,
   type TestRunScriptJobInfo,
   type TestRunState,
@@ -73,8 +88,13 @@ import {
   type TriggerType,
   type ScriptType,
   type JobStatus,
+  type EnvironmentInfo,
+  type ScriptSelection,
+  type FailurePolicy,
+  FAILURE_POLICY_OPTIONS,
 } from "@/lib/api";
 import { ApiError } from "@/lib/api/client";
+import { ScriptSelector } from "../_components/script-selector";
 // NOTE  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2UVZCR1lnPT06Zjc3ZTQ2ZTk=
 
 const RUN_STATE_BADGE: Record<
@@ -87,8 +107,20 @@ const RUN_STATE_BADGE: Record<
   rejected: { label: "已拒绝", variant: "destructive" },
   approved: { label: "已批准", variant: "default" },
   done: { label: "已完成", variant: "default" },
+  done_with_failures: { label: "已完成（含失败）", variant: "destructive" },
   closed: { label: "已关闭", variant: "secondary" },
 };
+
+const RUN_STATE_OPTIONS: { value: TestRunState; label: string }[] = [
+  { value: "new_run", label: "新建" },
+  { value: "in_progress", label: "进行中" },
+  { value: "under_review", label: "评审中" },
+  { value: "rejected", label: "已拒绝" },
+  { value: "approved", label: "已批准" },
+  { value: "done", label: "已完成" },
+  { value: "done_with_failures", label: "已完成（含失败）" },
+  { value: "closed", label: "已关闭" },
+];
 
 const EXECUTION_MODE_BADGE: Record<ExecutionMode, { label: string }> = {
   sequential: { label: "顺序执行" },
@@ -190,11 +222,70 @@ export default function TestRunDetailPage() {
   // 映射到用例状态
   const [mappingJobs, setMappingJobs] = React.useState(false);
 
+  // 编辑弹窗状态
+  const [editOpen, setEditOpen] = React.useState(false);
+  const [editForm, setEditForm] = React.useState<{
+    name: string;
+    description: string;
+    run_state: TestRunState;
+    assignee: string;
+    test_case_assignee: string;
+    tags: string;
+    issues: string;
+    execution_mode: ExecutionMode;
+    max_concurrency: number;
+    failure_policy: FailurePolicy;
+    environment_id: string;
+    scripts: ScriptSelection[];
+  }>({
+    name: "",
+    description: "",
+    run_state: "new_run",
+    assignee: "",
+    test_case_assignee: "",
+    tags: "",
+    issues: "",
+    execution_mode: "sequential",
+    max_concurrency: 5,
+    failure_policy: "continue",
+    environment_id: "__default__",
+    scripts: [],
+  });
+  const [editSaving, setEditSaving] = React.useState(false);
+  const [editEnvironments, setEditEnvironments] = React.useState<EnvironmentInfo[]>([]);
+  const [editEnvironmentsLoading, setEditEnvironmentsLoading] = React.useState(false);
+
+  // 删除确认状态
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false);
+  const [deleting, setDeleting] = React.useState(false);
+
   // ref 用于 SSE handler 中读取最新状态，避免闭包问题
   const testRunRef = React.useRef<TestRunInfo | null>(null);
   React.useEffect(() => {
     testRunRef.current = testRun;
   }, [testRun]);
+
+  // 编辑弹窗打开时加载环境列表
+  React.useEffect(() => {
+    if (!projectId || !editOpen) return;
+    let cancelled = false;
+    setEditEnvironmentsLoading(true);
+    listEnvironments(projectId)
+      .then((res) => {
+        if (cancelled) return;
+        setEditEnvironments(res.data || []);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setEditEnvironments([]);
+      })
+      .finally(() => {
+        if (!cancelled) setEditEnvironmentsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [editOpen, projectId]);
 
   // SSE 实时状态订阅 + 轮询 fallback
   React.useEffect(() => {
@@ -477,6 +568,82 @@ export default function TestRunDetailPage() {
     }
   }
 
+  function openEdit() {
+    if (!testRun) return;
+    setEditForm({
+      name: testRun.name,
+      description: testRun.description ?? "",
+      run_state: testRun.run_state,
+      assignee: testRun.assignee ?? "",
+      test_case_assignee: testRun.test_case_assignee ?? "",
+      tags: listToCsv(testRun.tags) ?? "",
+      issues: listToCsv(testRun.issues) ?? "",
+      execution_mode: testRun.execution_mode ?? "sequential",
+      max_concurrency: testRun.max_concurrency ?? 5,
+      failure_policy: testRun.failure_policy ?? "continue",
+      environment_id: testRun.environment_id ?? "__default__",
+      scripts:
+        testRun.script_jobs?.map((job) => ({
+          script_type: job.script_type,
+          script_id: job.script_id,
+          script_identifier: job.script_identifier,
+          script_name: job.script_name,
+          execution_order: job.execution_order,
+          execution_mode: job.execution_mode,
+        })) ?? [],
+    });
+    setEditOpen(true);
+  }
+
+  async function handleEditSave() {
+    if (!testRun) return;
+    setEditSaving(true);
+    try {
+      const isManual = testRun.trigger_type === "manual";
+      await patchTestRun(projectId, testRun.identifier, {
+        name: editForm.name.trim() || undefined,
+        description: editForm.description.trim() || undefined,
+        run_state: editForm.run_state,
+        assignee: editForm.assignee.trim() || undefined,
+        test_case_assignee: editForm.test_case_assignee.trim() || undefined,
+        tags: editForm.tags.trim() ? csvToList(editForm.tags) : [],
+        issues: editForm.issues.trim() ? csvToList(editForm.issues) : [],
+        ...(isManual
+          ? {
+              execution_mode: editForm.execution_mode,
+              max_concurrency: editForm.max_concurrency,
+              failure_policy: editForm.failure_policy,
+              environment_id:
+                editForm.environment_id === "__default__"
+                  ? undefined
+                  : editForm.environment_id,
+              scripts: editForm.scripts,
+            }
+          : {}),
+      });
+      setEditOpen(false);
+      await loadDetail();
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : "更新测试运行失败";
+      setError(msg);
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!testRun) return;
+    setDeleting(true);
+    try {
+      await deleteTestRun(projectId, testRun.identifier);
+      router.push(`/projects/${projectId}/test-runs`);
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : "删除测试运行失败";
+      setError(msg);
+      setDeleting(false);
+    }
+  }
+
   const filteredJobs = React.useMemo(() => {
     if (activeTab === "all") return scriptJobs;
     return scriptJobs.filter((j) => j.script_type === activeTab);
@@ -566,12 +733,23 @@ export default function TestRunDetailPage() {
                   <span className="flex items-center gap-1">
                     {testRun.trigger_type === "scheduled" ? (
                       <CalendarClock className="h-3.5 w-3.5" />
-                    ) : testRun.trigger_type === "api" ? (
-                      <Bot className="h-3.5 w-3.5" />
                     ) : (
                       <Play className="h-3.5 w-3.5" />
                     )}
-                    {TRIGGER_TYPE_BADGE[testRun.trigger_type].label}
+                    {TRIGGER_TYPE_BADGE[testRun.trigger_type]?.label ?? "手动触发"}
+                  </span>
+                )}
+                {testRun.trigger_type === "scheduled" && (
+                  <span
+                    className="flex cursor-pointer items-center gap-1 hover:underline"
+                    onClick={() =>
+                      router.push(
+                        `/projects/${projectId}/test-runs?tab=scheduled`
+                      )
+                    }
+                  >
+                    <CalendarClock className="h-3.5 w-3.5" />
+                    来源: {testRun.schedule_name ?? "已删除的调度"}
                   </span>
                 )}
                 <span>创建于 {new Date(testRun.created_at).toLocaleString()}</span>
@@ -591,6 +769,18 @@ export default function TestRunDetailPage() {
                     <Square className="mr-2 h-4 w-4" />
                   )}
                   取消执行
+                </Button>
+              ) : testRun.trigger_type === "scheduled" ? (
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    router.push(
+                      `/projects/${projectId}/test-runs?tab=scheduled&show_schedules=1`
+                    )
+                  }
+                >
+                  <CalendarClock className="mr-2 h-4 w-4" />
+                  查看调度规则
                 </Button>
               ) : (
                 <Button
@@ -612,11 +802,14 @@ export default function TestRunDetailPage() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem disabled>
+                  <DropdownMenuItem onClick={openEdit}>
                     <Pencil className="mr-2 h-4 w-4" />
                     编辑
                   </DropdownMenuItem>
-                  <DropdownMenuItem disabled>
+                  <DropdownMenuItem
+                    onClick={() => setDeleteConfirmOpen(true)}
+                    className="text-destructive"
+                  >
                     <Trash2 className="mr-2 h-4 w-4" />
                     删除
                   </DropdownMenuItem>
@@ -967,6 +1160,230 @@ export default function TestRunDetailPage() {
           </div>
         )}
       </div>
+
+      {/* 编辑弹窗 */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>编辑测试运行</DialogTitle>
+            <DialogDescription>
+              {testRun ? `修改 ${testRun.identifier} 的基础信息` : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="detail-edit-name">名称</Label>
+              <Input
+                id="detail-edit-name"
+                value={editForm.name}
+                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="detail-edit-description">描述</Label>
+              <Textarea
+                id="detail-edit-description"
+                value={editForm.description}
+                onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                placeholder="请输入描述（可选）"
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="detail-edit-state">运行状态</Label>
+              <Select
+                value={editForm.run_state}
+                onValueChange={(v) => setEditForm({ ...editForm, run_state: v as TestRunState })}
+              >
+                <SelectTrigger id="detail-edit-state">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {RUN_STATE_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="detail-edit-assignee">负责人邮箱</Label>
+              <Input
+                id="detail-edit-assignee"
+                value={editForm.assignee}
+                onChange={(e) => setEditForm({ ...editForm, assignee: e.target.value })}
+                placeholder="user@example.com（可选）"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="detail-edit-test-case-assignee">用例默认负责人邮箱</Label>
+              <Input
+                id="detail-edit-test-case-assignee"
+                value={editForm.test_case_assignee}
+                onChange={(e) => setEditForm({ ...editForm, test_case_assignee: e.target.value })}
+                placeholder="user@example.com（可选）"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="detail-edit-tags">标签（逗号分隔）</Label>
+              <Input
+                id="detail-edit-tags"
+                value={editForm.tags}
+                onChange={(e) => setEditForm({ ...editForm, tags: e.target.value })}
+                placeholder="tag1, tag2, tag3"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="detail-edit-issues">关联问题（逗号分隔）</Label>
+              <Input
+                id="detail-edit-issues"
+                value={editForm.issues}
+                onChange={(e) => setEditForm({ ...editForm, issues: e.target.value })}
+                placeholder="ISSUE-1, ISSUE-2"
+              />
+            </div>
+            {testRun.trigger_type === "scheduled" && (
+              <p className="text-sm text-muted-foreground">
+                该测试运行为定时触发，执行模式、环境及脚本由调度模板控制，不可在此处修改。
+              </p>
+            )}
+            {testRun.trigger_type === "manual" && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="detail-edit-exec-mode">执行模式</Label>
+                  <Select
+                    value={editForm.execution_mode}
+                    onValueChange={(v) => setEditForm({ ...editForm, execution_mode: v as ExecutionMode })}
+                  >
+                    <SelectTrigger id="detail-edit-exec-mode">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="sequential">顺序执行</SelectItem>
+                      <SelectItem value="parallel">并行执行</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {editForm.execution_mode === "parallel" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="detail-edit-max-concurrency">最大并发数</Label>
+                    <Input
+                      id="detail-edit-max-concurrency"
+                      type="number"
+                      min={1}
+                      max={50}
+                      value={editForm.max_concurrency}
+                      onChange={(e) =>
+                        setEditForm({
+                          ...editForm,
+                          max_concurrency: parseInt(e.target.value) || 5,
+                        })
+                      }
+                    />
+                  </div>
+                )}
+                <div className="space-y-2">
+                  <Label htmlFor="detail-edit-failure-policy">失败策略</Label>
+                  <Select
+                    value={editForm.failure_policy}
+                    onValueChange={(v) =>
+                      setEditForm({
+                        ...editForm,
+                        failure_policy: v as FailurePolicy,
+                      })
+                    }
+                  >
+                    <SelectTrigger id="detail-edit-failure-policy">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {FAILURE_POLICY_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="detail-edit-environment">执行环境</Label>
+                  <Select
+                    value={editForm.environment_id}
+                    onValueChange={(v) =>
+                      setEditForm({
+                        ...editForm,
+                        environment_id: v,
+                      })
+                    }
+                    disabled={editEnvironmentsLoading}
+                  >
+                    <SelectTrigger id="detail-edit-environment">
+                      <SelectValue placeholder="选择执行环境" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__default__">使用项目默认环境</SelectItem>
+                      {editEnvironments.map((env) => (
+                        <SelectItem key={env.id} value={env.id}>
+                          {env.name}
+                          {env.is_default ? "（默认）" : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {editEnvironmentsLoading && (
+                    <p className="text-xs text-muted-foreground">加载环境中...</p>
+                  )}
+                </div>
+                <div className="space-y-2 pt-2">
+                  <ScriptSelector
+                    projectId={projectId}
+                    scripts={editForm.scripts}
+                    onScriptsChange={(scripts) =>
+                      setEditForm({ ...editForm, scripts })
+                    }
+                    disabled={editSaving}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)} disabled={editSaving}>
+              取消
+            </Button>
+            <Button onClick={handleEditSave} disabled={editSaving || !editForm.name.trim()}>
+              {editSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              保存
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 删除确认弹窗 */}
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>删除测试运行?</DialogTitle>
+            <DialogDescription>
+              确认删除 {testRun?.identifier} ({testRun?.name})？此操作不可恢复。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)} disabled={deleting}>
+              取消
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={deleting}
+            >
+              {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              删除
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* 日志弹窗 */}
       <Dialog open={!!logDialogJob} onOpenChange={(open) => { if (!open) { setLogDialogJob(null); setLogDialogData(null); } }}>

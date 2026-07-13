@@ -63,9 +63,50 @@ const testPlan = planResult.content
 
 ### 4. 生成测试代码
 
-根据选择的框架生成测试代码。
+#### 断言生成强制规范（必须遵守）
+
+每个测试函数必须包含**三层断言**，缺少任意一层即为不合格脚本：
+
+1. **协议层**：验证 HTTP 状态码
+   ```typescript
+   expect(response.status).toBe(200); // 根据场景使用 200/201/204/400/401/403/404
+   ```
+
+2. **结构/业务层**：基于 OpenAPI `responses` schema 验证响应体
+   ```typescript
+   const body = await response.json();
+
+   // 必填字段存在性
+   expect(body).toHaveProperty('data');
+   expect(body.data).toHaveProperty('id');
+
+   // 字段类型（动态值只断言类型，不断言具体值）
+   expect(typeof body.data.id).toBe('string');
+
+   // 业务状态字段（如有）
+   if (body.success !== undefined) expect(body.success).toBe(true);
+   if (body.code !== undefined) expect(body.code).toBe(0);
+
+   // 枚举字段
+   expect(['pending', 'paid', 'cancelled']).toContain(body.data.orderStatus);
+   ```
+
+3. **边界/错误层**：异常场景验证具体错误信息
+   ```typescript
+   // 4xx 场景
+   expect(response.status).toBe(400);
+   expect(body).toHaveProperty('message');
+   expect(body.message).toContain('参数不能为空'); // 以文档 error schema 为准
+   ```
+
+**核心原则：**
+- 字段名必须从 `get_endpoint_details` 返回的 `responses` schema 中提取，**禁止臆测**。
+- 数组/分页接口必须断言 `Array.isArray(body.data.records)` 和 `typeof body.data.total === 'number'`。
+- 生成脚本后、保存前，**必须调用 `audit_script_assertions(script_content=...)`**；若返回 `FAIL` 或 `WEAK`，必须补充断言后再保存。
 
 #### 4.1 Playwright + TypeScript 模板
+
+根据选择的框架生成测试代码。
 
 ```typescript
 import { test, expect } from '@playwright/test';
@@ -119,12 +160,18 @@ test.describe('{endpoint_display_name}', () => {
       })
     });
 
+    // 1. 协议断言
     expect(response.status).toBe(200);
-    const data = await response.json();
 
-    // 验证响应结构
-    expect(data).toHaveProperty('id');
-    expect(data).toHaveProperty('name');
+    // 2. 结构/业务断言（根据 OpenAPI responses schema 替换字段名）
+    const data = await response.json();
+    expect(data).toHaveProperty('data');
+    expect(data.data).toHaveProperty('id');
+    expect(typeof data.data.id).toBe('string'); // 或 number，以 schema 为准
+
+    // 若接口文档定义了业务状态字段
+    if (data.success !== undefined) expect(data.success).toBe(true);
+    if (data.code !== undefined) expect(data.code).toBe(0);
   });
 
   test('边界测试 - {boundary_name}', async () => {
@@ -137,7 +184,12 @@ test.describe('{endpoint_display_name}', () => {
       })
     });
 
+    // 协议断言
     expect(response.status).toBe(200);
+
+    // 边界场景应验证数据结构完整性，而非具体值
+    const data = await response.json();
+    expect(data).toHaveProperty('data');
   });
 
   test('异常测试 - 缺少必填参数', async () => {
@@ -150,9 +202,11 @@ test.describe('{endpoint_display_name}', () => {
       })
     });
 
+    // 协议断言 + 错误信息断言
     expect(response.status).toBe(400);
     const error = await response.json();
     expect(error).toHaveProperty('error');
+    expect(error.error).toContain('required'); // 或根据文档 error schema 调整
   });
 
   test('安全测试 - SQL注入', async () => {
@@ -585,8 +639,12 @@ test('should return user list', async () => {
 
   expect(response.status).toBe(200);
   const data = await response.json();
-  expect(data.items).toBeInstanceOf(Array);
-  expect(data.total).toBeGreaterThanOrEqual(0);
+
+  // 结构断言：数组类型 + total 类型
+  expect(data).toHaveProperty('items');
+  expect(Array.isArray(data.items)).toBe(true);
+  expect(data).toHaveProperty('total');
+  expect(typeof data.total).toBe('number');
 });
 
 test('should support pagination', async () => {
@@ -602,6 +660,7 @@ test('should support pagination', async () => {
 
   expect(response.status).toBe(200);
   const data = await response.json();
+  expect(Array.isArray(data.items)).toBe(true);
   expect(data.items.length).toBeLessThanOrEqual(10);
 });
 ```
@@ -625,7 +684,12 @@ test('should create new user', async () => {
 
   expect(response.status).toBe(201);
   const data = await response.json();
-  expect(data.id).toBeDefined();
+
+  // 结构断言
+  expect(data).toHaveProperty('id');
+  expect(typeof data.id).toBe('string');
+
+  // 业务一致性断言
   expect(data.name).toBe(newUser.name);
   expect(data.email).toBe(newUser.email);
 });
@@ -768,6 +832,7 @@ test.describe('User Login API', () => {
     const data = await response.json();
     expect(data).toHaveProperty('token');
     expect(data).toHaveProperty('userId');
+    if (data.success !== undefined) expect(data.success).toBe(true);
   });
 
   test('should return 401 with invalid credentials', async () => {
@@ -778,6 +843,8 @@ test.describe('User Login API', () => {
       body: JSON.stringify({ username: 'testuser', password: 'wrongpassword' })
     });
     expect(response.status).toBe(401);
+    const data = await response.json();
+    expect(data).toHaveProperty('error');
   });
 
   test('should return 400 when missing password', async () => {
@@ -788,10 +855,21 @@ test.describe('User Login API', () => {
       body: JSON.stringify({ username: 'testuser' })
     });
     expect(response.status).toBe(400);
+    const data = await response.json();
+    expect(data).toHaveProperty('error');
   });
 });`
 
-// 步骤 4: 保存测试脚本
+// 步骤 4: 断言审查（必须）
+const auditResult = await tools.audit_script_assertions({
+  script_content: testScript
+})
+if (auditResult.verdict === 'FAIL' || auditResult.verdict === 'WEAK') {
+  // 必须根据 auditResult.suggestions 补充断言后再保存
+  throw new Error(`断言不足: ${auditResult.message}`)
+}
+
+// 步骤 5: 保存测试脚本
 await tools.save_test_script({
   endpoint_id: "550e8400-e29b-41d4-a716-446655440000",
   script_content: testScript,

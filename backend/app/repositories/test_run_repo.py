@@ -66,6 +66,8 @@ class TestRunRepository:
         # 旧字段，保持兼容
         active_state: Optional[TestRunActiveState] = None,
         run_state: Optional[TestRunState] = None,
+        trigger_types: Optional[list] = None,
+        scheduled_by: Optional[UUID] = None,
         offset: int = 0,
         limit: int = 30,
     ) -> tuple[list[TestRun], int]:
@@ -76,13 +78,27 @@ class TestRunRepository:
         - include_closed=False 时强制 active_state=ACTIVE；True 不限制
         - closed_before/after 对 closed_at 做日期比较
         - created_before/after 对 created_at 做日期比较
+        - trigger_types 按触发方式过滤
+        - scheduled_by 按来源调度过滤
+        - search 支持按调度名称搜索（通过 join TestRunSchedule）
         """
+        # 如果需要按调度名称搜索，需要 join TestRunSchedule
+        need_schedule_join = search is not None
+
         stmt = select(TestRun).where(TestRun.project_id == project_id)
         count_stmt = (
             select(func.count())
             .select_from(TestRun)
             .where(TestRun.project_id == project_id)
         )
+
+        if need_schedule_join:
+            stmt = stmt.outerjoin(
+                TestRunSchedule, TestRun.scheduled_by == TestRunSchedule.id
+            )
+            count_stmt = count_stmt.outerjoin(
+                TestRunSchedule, TestRun.scheduled_by == TestRunSchedule.id
+            )
 
         def _add(filter_clause):
             nonlocal stmt, count_stmt
@@ -111,7 +127,14 @@ class TestRunRepository:
                     TestRun.sub_test_plan_id == test_plan_id,
                 )
             )
-# pragma: no cover  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2VkVOellnPT06ZWRjMDdkNDQ=
+
+        # 触发方式过滤
+        if trigger_types:
+            _add(TestRun.trigger_type.in_(trigger_types))
+
+        # 来源调度过滤
+        if scheduled_by:
+            _add(TestRun.scheduled_by == scheduled_by)
 
         if closed_before:
             _add(cast(TestRun.closed_at, Date) <= closed_before)
@@ -127,6 +150,7 @@ class TestRunRepository:
                 or_(
                     TestRun.name.ilike(f"%{search}%"),
                     TestRun.identifier.ilike(f"%{search}%"),
+                    TestRunSchedule.name.ilike(f"%{search}%"),
                 )
             )
 
@@ -142,6 +166,43 @@ class TestRunRepository:
         self.session.add(test_run)
         await self.session.flush()
         return test_run
+
+    async def get_recent_by_schedule(
+        self,
+        schedule_id: UUID,
+        seconds: int = 60,
+    ) -> Optional[TestRun]:
+        """获取某调度在最近 N 秒内创建的测试运行（用于幂等）"""
+        from datetime import datetime, timedelta, timezone
+        cutoff = datetime.now(timezone.utc) - timedelta(seconds=seconds)
+        stmt = (
+            select(TestRun)
+            .where(
+                TestRun.scheduled_by == schedule_id,
+                TestRun.created_at >= cutoff,
+            )
+            .order_by(TestRun.created_at.desc())
+            .limit(1)
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def get_in_progress_by_schedule(
+        self,
+        schedule_id: UUID,
+    ) -> Optional[TestRun]:
+        """获取某调度当前正在执行的测试运行（用于跳过并发触发）"""
+        from app.schemas.enums import TestRunState
+        stmt = (
+            select(TestRun)
+            .where(
+                TestRun.scheduled_by == schedule_id,
+                TestRun.run_state == TestRunState.IN_PROGRESS,
+            )
+            .limit(1)
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
 
     async def update(self, test_run: TestRun) -> TestRun:
         """更新测试运行"""
@@ -223,7 +284,7 @@ class TestRunRepository:
         jobs = list(result.scalars().all())
 # pragma: no cover  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2VkVOellnPT06ZWRjMDdkNDQ=
 
-        total = len(jobs)
+        total = 0
         untested = 0
         passed = 0
         failed = 0
@@ -235,29 +296,52 @@ class TestRunRepository:
         for job in jobs:
             status = job.status
             summary = job.result_summary or {}
-            has_explicit_results = bool(job.result_summary)  # True if result_summary is a non-None, non-empty dict
+            has_explicit_results = bool(summary)
+
+            # 兼容 result_summary 中可能使用的不同 key（passed / passed_count）
+            passed_in_summary = summary.get("passed", summary.get("passed_count", 0)) or 0
+            failed_in_summary = summary.get("failed", summary.get("failed_count", 0)) or 0
+            skipped_in_summary = summary.get("skipped", summary.get("skipped_count", 0)) or 0
+            total_in_summary = summary.get("total")
+
+            # 每个 ScriptJob 的“用例总数”优先取 result_summary.total；
+            # 没有显式 total 时按 passed+failed+skipped 计；
+            # 仍为空则按 1 个用例计，避免整项结果丢失。
+            if has_explicit_results and status in (JobStatus.COMPLETED, JobStatus.FAILED):
+                if total_in_summary is not None:
+                    job_total = total_in_summary
+                else:
+                    job_total = passed_in_summary + failed_in_summary + skipped_in_summary
+                if job_total == 0:
+                    job_total = 1
+            else:
+                job_total = 1
+            total += job_total
+
             if status == JobStatus.PENDING:
-                untested += 1
+                untested += job_total
             elif status == JobStatus.RUNNING:
-                in_progress += 1
+                in_progress += job_total
             elif status == JobStatus.COMPLETED:
                 if has_explicit_results:
-                    passed += summary.get("passed", 0)
-                    failed += summary.get("failed", 0)
-                    skipped += summary.get("skipped", 0)
+                    passed += passed_in_summary
+                    failed += failed_in_summary
+                    skipped += skipped_in_summary
                 else:
-                    passed += 1
+                    passed += job_total
             elif status == JobStatus.FAILED:
                 if has_explicit_results:
-                    passed += summary.get("passed", 0)
-                    failed += summary.get("failed", 0)
-                    skipped += summary.get("skipped", 0)
+                    passed += passed_in_summary
+                    failed += failed_in_summary
+                    skipped += skipped_in_summary
                 else:
-                    failed += 1
+                    failed += job_total
             elif status == JobStatus.SKIPPED:
-                skipped += 1
+                skipped += job_total
+            elif status == JobStatus.BLOCKED:
+                blocked += job_total
             elif status == JobStatus.CANCELLED:
-                blocked += 1
+                blocked += job_total
 
         update_stmt = (
             update(TestRun)
@@ -634,6 +718,17 @@ class TestRunScheduleRepository:
         stmt = select(TestRunSchedule).where(TestRunSchedule.id == schedule_id)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def get_by_ids(self, schedule_ids: list[UUID]) -> list[TestRunSchedule]:
+        """根据 ID 列表批量获取调度"""
+        if not schedule_ids:
+            return []
+        stmt = (
+            select(TestRunSchedule)
+            .where(TestRunSchedule.id.in_(schedule_ids))
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
 
     async def get_by_project(
         self,

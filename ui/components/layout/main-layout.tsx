@@ -3,6 +3,7 @@
 
 import * as React from "react";
 import { useRouter, usePathname } from "next/navigation";
+import useSWR from "swr";
 import { Sidebar } from "./sidebar";
 import { Header } from "./header";
 import { getProjects } from "@/lib/api/projects";
@@ -16,14 +17,16 @@ interface MainLayoutProps {
 }
 // eslint-disable  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2VGpGM1ZRPT06MTUwOTM3ZTA=
 
+const PROJECTS_SWR_KEY = ["projects", "list", { page_size: 100 }] as const;
+
+async function fetchProjects(): Promise<ProjectInfo[]> {
+  const response = await getProjects({ page_size: 100 });
+  return response.success && response.data ? response.data : [];
+}
+
 export function MainLayout({ children, title, headerContent }: MainLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const [projects, setProjects] = React.useState<ProjectInfo[]>([]);
-  const [currentProject, setCurrentProject] = React.useState<ProjectInfo | null>(
-    null
-  );
-  const [loading, setLoading] = React.useState(true);
 
   // 从 URL 中提取项目 ID
   const projectIdFromUrl = React.useMemo(() => {
@@ -31,40 +34,30 @@ export function MainLayout({ children, title, headerContent }: MainLayoutProps) 
     return match ? match[1] : null;
   }, [pathname]);
 
-  // 加载项目列表
-  React.useEffect(() => {
-    const loadProjects = async () => {
-      try {
-        const response = await getProjects({ page_size: 100 });
-        if (response.success && response.data) {
-          setProjects(response.data);
+  // 使用 SWR 缓存项目列表，避免每次路由切换都重新请求
+  const { data: projects = [] } = useSWR<ProjectInfo[]>(
+    PROJECTS_SWR_KEY,
+    fetchProjects,
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      dedupingInterval: 5 * 60 * 1000, // 5 分钟
+    }
+  );
 
-          // 如果 URL 中有项目 ID，设置当前项目
-          if (projectIdFromUrl) {
-            const project = response.data.find(
-              (p) => p.identifier === projectIdFromUrl
-            );
-            if (project) {
-              setCurrentProject(project);
-            }
-          }
-        }
-      } catch (error) {
-        console.error("Failed to load projects:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadProjects();
-  }, [projectIdFromUrl]);
+  const currentProject = React.useMemo(() => {
+    if (!projectIdFromUrl || !projects.length) return null;
+    return projects.find((p) => p.identifier === projectIdFromUrl) || null;
+  }, [projects, projectIdFromUrl]);
 
   // 处理项目切换
-  const handleProjectChange = (project: ProjectInfo) => {
-    setCurrentProject(project);
-    // 导航到新项目的测试用例页面
-    router.push(`/projects/${project.identifier}/test-cases`);
-  };
+  const handleProjectChange = React.useCallback(
+    (project: ProjectInfo) => {
+      // 导航到新项目的测试用例页面
+      router.push(`/projects/${project.identifier}/test-cases`);
+    },
+    [router]
+  );
 
   return (
     <div className="flex h-screen overflow-hidden">

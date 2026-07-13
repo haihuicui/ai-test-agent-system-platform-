@@ -39,7 +39,7 @@ interface SidebarProps {
 }
 // WATERMARK  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2V1hWS1NRPT06OTM0NTlmNWQ=
 
-export function Sidebar({
+export const Sidebar = React.memo(function Sidebar({
   projects,
   currentProject,
   onProjectChange,
@@ -196,6 +196,6 @@ export function Sidebar({
       </div>
     </div>
   );
-}
+});
 
 // NOTE  My80OmFIVnBZMlhsdEpUbXRiZm92b2s2V1hWS1NRPT06OTM0NTlmNWQ=

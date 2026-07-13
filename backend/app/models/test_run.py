@@ -22,6 +22,7 @@ from app.schemas.enums import (
     ScriptType,
     JobStatus,
     ScheduleTriggerType,
+    FailurePolicy,
 )
 
 
@@ -163,6 +164,12 @@ class TestRun(Base, UUIDMixin, TimestampMixin):
         default=5,
         nullable=False,
         comment="最大并发数"
+    )
+    failure_policy: Mapped[FailurePolicy] = mapped_column(
+        SQLEnum(FailurePolicy, values_callable=lambda obj: [e.value for e in obj]),
+        default=FailurePolicy.CONTINUE,
+        nullable=False,
+        comment="失败策略: continue / stop_run / stop_job / mark_blocked"
     )
     trigger_type: Mapped[TriggerType] = mapped_column(
         SQLEnum(TriggerType, values_callable=lambda obj: [e.value for e in obj]),

@@ -4,7 +4,7 @@
 封装 APScheduler，提供测试运行定时调度的注册、执行和管理。
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 from uuid import UUID
 
@@ -20,7 +20,8 @@ from app.models.test_run import TestRunSchedule
 from app.repositories.project_repo import ProjectRepository
 from app.repositories.test_run_repo import TestRunScheduleRepository, TestRunRepository
 from app.schemas.enums import TriggerType
-from app.services.test_execution_engine import TestExecutionService
+from app.schemas.test_run import TestRunCreate
+from app.services.test_run_service import TestRunService
 
 
 class TestRunSchedulerService:
@@ -46,6 +47,9 @@ class TestRunSchedulerService:
     def _build_trigger(self, trigger_type: str, trigger_config: dict) -> Any:
         """根据配置构建 APScheduler 触发器"""
         if trigger_type == "cron":
+            cron_expression = trigger_config.get("cron_expression")
+            if cron_expression:
+                return CronTrigger.from_crontab(cron_expression)
             return CronTrigger(**trigger_config)
         elif trigger_type == "interval":
             config = dict(trigger_config)
@@ -64,6 +68,27 @@ class TestRunSchedulerService:
             return DateTrigger(run_date=run_date)
         else:
             raise ValueError(f"不支持的触发器类型: {trigger_type}")
+
+    def compute_next_run_at(
+        self, trigger_type: str, trigger_config: dict
+    ) -> Optional[datetime]:
+        """根据触发器配置计算下次执行时间（UTC）"""
+        try:
+            trigger = self._build_trigger(trigger_type, trigger_config)
+            now = datetime.now(timezone.utc)
+            next_time = trigger.get_next_fire_time(None, now)
+            if next_time is None:
+                return None
+            # APScheduler 可能返回 naive datetime，统一按 UTC 处理
+            if next_time.tzinfo is None:
+                next_time = next_time.replace(tzinfo=timezone.utc)
+            # 一次性 date 触发器若已过期，则没有下次执行时间
+            if next_time <= now:
+                return None
+            return next_time
+        except Exception as e:
+            print(f"[Scheduler] 计算下次执行时间失败: {e}")
+            return None
 
     def add_schedule(self, schedule: TestRunSchedule) -> None:
         """将调度添加到 APScheduler"""
@@ -120,14 +145,18 @@ class TestRunSchedulerService:
 
             for schedule in schedules:
                 self.add_schedule(schedule)
+                # 同步下次执行时间；若已过期则重新计算
+                schedule.next_run_at = self.compute_next_run_at(
+                    schedule.trigger_type.value,
+                    schedule.trigger_config,
+                )
 
+            await session.commit()
             print(f"[Scheduler] 已加载 {len(schedules)} 个定时调度")
 
     async def _execute_scheduled_run(self, schedule_id: str) -> None:
-        """定时触发的回调：创建测试运行并执行"""
+        """定时触发的回调：统一通过 TestRunService 创建测试运行并执行"""
         print(f"[Scheduler] 执行定时调度: {schedule_id}")
-
-        test_run_id: UUID | None = None
 
         async with async_session_factory() as session:
             repo = TestRunScheduleRepository(session)
@@ -142,83 +171,67 @@ class TestRunSchedulerService:
                 print(f"[Scheduler] 项目不存在: {schedule.project_id}")
                 return
 
-            template = schedule.test_run_template or {}
-
-            # 创建测试运行
-            from app.models.test_run import TestRun
-            from app.schemas.enums import ExecutionMode, TestRunState
-
             run_repo = TestRunRepository(session)
-            identifier = await run_repo.generate_identifier(project.id)
 
-            test_run = TestRun(
-                project_id=project.id,
-                identifier=identifier,
-                name=template.get("name", f"定时执行 - {schedule.name}"),
-                description=template.get("description", schedule.description),
-                run_state=TestRunState.NEW_RUN,
-                execution_mode=ExecutionMode(
-                    template.get("execution_mode", "sequential")
+            # 幂等保护 1：最近 N 秒内已触发过则跳过
+            recent_run = await run_repo.get_recent_by_schedule(
+                schedule.id, seconds=60
+            )
+            if recent_run:
+                print(
+                    f"[Scheduler] 调度 {schedule_id} 最近已触发 "
+                    f"({recent_run.identifier})，跳过"
+                )
+                return
+
+            # 幂等保护 2：存在执行中的 run 则跳过
+            in_progress_run = await run_repo.get_in_progress_by_schedule(
+                schedule.id
+            )
+            if in_progress_run:
+                print(
+                    f"[Scheduler] 调度 {schedule_id} 存在执行中的 run "
+                    f"({in_progress_run.identifier})，跳过"
+                )
+                return
+
+            template = schedule.test_run_template or {}
+            service = TestRunService(session)
+
+            # 统一通过 Service 创建 TestRun，复用所有校验、默认值、脚本作业创建逻辑
+            test_run = await service.create(
+                project.identifier,
+                TestRunCreate(
+                    name=template.get("name", f"定时执行 - {schedule.name}"),
+                    description=template.get(
+                        "description", schedule.description
+                    ),
+                    execution_mode=template.get("execution_mode", "sequential"),
+                    max_concurrency=template.get("max_concurrency", 5),
+                    environment_id=template.get("environment_id"),
+                    scripts=template.get("scripts", []),
+                    trigger_type=TriggerType.SCHEDULED,
+                    scheduled_by=str(schedule.id),
                 ),
-                max_concurrency=template.get("max_concurrency", 5),
-                trigger_type=TriggerType.SCHEDULED,
-                scheduled_by=schedule.id,
-                environment_id=UUID(template["environment_id"])
-                if template.get("environment_id")
-                else None,
             )
-            session.add(test_run)
-            await session.flush()
-# noqa  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2WVhSb05BPT06ZTVlYmNmZTU=
 
-            # 如果有 scripts 配置，创建 script_jobs
-            scripts = template.get("scripts", [])
-            if scripts:
-                from app.models.test_run import TestRunScriptJob
-                from app.schemas.enums import JobStatus
+            # 统一通过 Service 执行
+            await service.execute_test_run(
+                project.identifier, test_run.identifier
+            )
 
-                jobs = []
-                for i, sel in enumerate(scripts):
-                    jobs.append(
-                        TestRunScriptJob(
-                            test_run_id=test_run.id,
-                            script_type=sel["script_type"],
-                            script_id=UUID(sel["script_id"]),
-                            script_identifier=sel.get("script_identifier", ""),
-                            script_name=sel.get("script_name"),
-                            execution_order=sel.get("execution_order", i),
-                            execution_mode=ExecutionMode(
-                                sel.get("execution_mode", "sequential")
-                            ),
-                            status=JobStatus.PENDING,
-                            max_retries=sel.get("max_retries", 0),
-                        )
-                    )
-                session.add_all(jobs)
-
-            await session.commit()
-            test_run_id = test_run.id
-
-            # 更新调度上次执行时间
+            # 更新调度上次执行时间，并重新计算下次执行时间
             schedule.last_run_at = datetime.utcnow()
+            schedule.next_run_at = self.compute_next_run_at(
+                schedule.trigger_type.value,
+                schedule.trigger_config,
+            )
             await session.commit()
 
-            print(f"[Scheduler] 创建测试运行: {test_run.identifier}")
-# fmt: off  My80OmFIVnBZMlhsdEpUbXRiZm92b2s2WVhSb05BPT06ZTVlYmNmZTU=
-
-        if not test_run_id:
-            print("[Scheduler] 测试运行创建失败")
-            return
-
-        # 使用独立的 session 执行测试运行
-        execution_service = TestExecutionService()
-        try:
-            result = await execution_service.execute_run(
-                test_run_id, trigger="scheduled"
+            print(
+                f"[Scheduler] 调度 {schedule_id} 已创建并执行: "
+                f"{test_run.identifier}"
             )
-            print(f"[Scheduler] 执行完成: {result}")
-        except Exception as e:
-            print(f"[Scheduler] 执行失败: {e}")
 
 
 # 全局单例

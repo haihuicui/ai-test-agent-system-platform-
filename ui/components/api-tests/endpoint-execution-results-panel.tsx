@@ -189,6 +189,15 @@ export function EndpointExecutionResultsPanel({
     window.open(`/api/v2/projects/${projectId}/attachments/${attachmentId}/download`, "_blank");
   };
 
+  const formatAssertionValue = (value: unknown): string => {
+    if (value === undefined) return "undefined";
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
+  };
+
   if (!endpointId) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -402,25 +411,71 @@ export function EndpointExecutionResultsPanel({
                                 <h5 className="text-xs font-semibold mb-2">
                                   {t("apiTests.assertionResults") || "断言结果"}
                                 </h5>
-                                <div className="space-y-1">
-                                  {result.assertion_results.map((assertion, idx) => (
-                                    <div
-                                      key={idx}
-                                      className={cn(
-                                        "text-xs px-2 py-1 rounded flex items-center gap-2",
-                                        assertion.passed
-                                          ? "bg-green-50 text-green-700"
-                                          : "bg-red-50 text-red-700"
-                                      )}
-                                    >
-                                      {assertion.passed ? (
-                                        <CheckCircle2 className="h-3 w-3" />
-                                      ) : (
-                                        <XCircle className="h-3 w-3" />
-                                      )}
-                                      <span>{assertion.message}</span>
-                                    </div>
-                                  ))}
+                                <div className="overflow-x-auto rounded border">
+                                  <table className="w-full text-xs border-collapse">
+                                    <thead>
+                                      <tr className="bg-muted/60 text-muted-foreground border-b">
+                                        <th className="text-left px-2 py-1.5 font-medium">{t("apiTests.assertionResult") || "结果"}</th>
+                                        <th className="text-left px-2 py-1.5 font-medium">{t("apiTests.assertionType") || "类型"}</th>
+                                        <th className="text-left px-2 py-1.5 font-medium">{t("apiTests.assertionExpected") || "预期"}</th>
+                                        <th className="text-left px-2 py-1.5 font-medium">{t("apiTests.assertionActual") || "实际"}</th>
+                                        <th className="text-left px-2 py-1.5 font-medium">{t("apiTests.assertionMessage") || "消息"}</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {result.assertion_results.map((assertion, idx) => {
+                                        const expectedText = formatAssertionValue(assertion.expected);
+                                        const actualText = formatAssertionValue(assertion.actual);
+                                        const assertionConfig = assertion.assertion as Record<string, unknown>;
+                                        return (
+                                          <tr
+                                            key={idx}
+                                            className={cn(
+                                              assertion.passed
+                                                ? "bg-green-50 text-green-700"
+                                                : "bg-red-50 text-red-700",
+                                              idx > 0 && "border-t border-border/40"
+                                            )}
+                                          >
+                                            <td className="px-2 py-1.5 whitespace-nowrap align-top">
+                                              {assertion.passed ? (
+                                                <span className="inline-flex items-center gap-1">
+                                                  <CheckCircle2 className="h-3 w-3" /> {t("apiTests.assertionPassed") || "通过"}
+                                                </span>
+                                              ) : (
+                                                <span className="inline-flex items-center gap-1">
+                                                  <XCircle className="h-3 w-3" /> {t("apiTests.assertionFailed") || "失败"}
+                                                </span>
+                                              )}
+                                            </td>
+                                            <td className="px-2 py-1.5 align-top">
+                                              <span className="capitalize">{String(assertionConfig.type || "")}</span>
+                                              {typeof assertionConfig.path === "string" && assertionConfig.path && (
+                                                <code className="block text-[10px] opacity-80 truncate max-w-[120px]">
+                                                  {assertionConfig.path}
+                                                </code>
+                                              )}
+                                            </td>
+                                            <td
+                                              className="px-2 py-1.5 align-top truncate max-w-[120px]"
+                                              title={expectedText}
+                                            >
+                                              <code>{expectedText}</code>
+                                            </td>
+                                            <td
+                                              className="px-2 py-1.5 align-top truncate max-w-[120px]"
+                                              title={actualText}
+                                            >
+                                              <code>{actualText}</code>
+                                            </td>
+                                            <td className="px-2 py-1.5 align-top">
+                                              {assertion.message || "-"}
+                                            </td>
+                                          </tr>
+                                        );
+                                      })}
+                                    </tbody>
+                                  </table>
                                 </div>
                               </div>
                             )}

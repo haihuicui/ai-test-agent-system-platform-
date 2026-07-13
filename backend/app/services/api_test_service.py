@@ -481,6 +481,8 @@ class APITestService:
             "progress": progress,
             "error_message": test_run.error_message,
             "report_path": test_run.report_path,
+            "stdout": test_run.stdout,
+            "stderr": test_run.stderr,
             "created_at": test_run.created_at.isoformat(),
             "updated_at": test_run.updated_at.isoformat() if test_run.updated_at else None,
         }

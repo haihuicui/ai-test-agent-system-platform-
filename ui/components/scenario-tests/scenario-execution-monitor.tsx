@@ -153,6 +153,15 @@ export function ScenarioExecutionMonitor({
     }
   };
 
+  const formatAssertionValue = (value: any): string => {
+    if (value === undefined) return "undefined";
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
+  };
+
   function CollapsibleErrorStack({ stack }: { stack: string }) {
     const [expanded, setExpanded] = React.useState(false);
     return (
@@ -382,26 +391,71 @@ export function ScenarioExecutionMonitor({
                               {result.assertion_results && result.assertion_results.length > 0 && (
                                 <div>
                                   <h5 className="text-xs font-semibold mb-2">断言结果</h5>
-                                  <div className="space-y-1">
-                                    {result.assertion_results.map(
-                                      (assertion: any, idx: number) => (
-                                        <div
-                                          key={idx}
-                                          className={`text-xs px-2 py-1 rounded flex items-center gap-2 ${
-                                            assertion.passed
-                                              ? "bg-green-50 text-green-700"
-                                              : "bg-red-50 text-red-700"
-                                          }`}
-                                        >
-                                          {assertion.passed ? (
-                                            <CheckCircle2 className="h-3 w-3" />
-                                          ) : (
-                                            <XCircle className="h-3 w-3" />
-                                          )}
-                                          <span>{assertion.message || assertion.assertion.type}</span>
-                                        </div>
-                                      )
-                                    )}
+                                  <div className="overflow-x-auto rounded border">
+                                    <table className="w-full text-xs border-collapse">
+                                      <thead>
+                                        <tr className="bg-muted/60 text-muted-foreground border-b">
+                                          <th className="text-left px-2 py-1.5 font-medium">结果</th>
+                                          <th className="text-left px-2 py-1.5 font-medium">类型</th>
+                                          <th className="text-left px-2 py-1.5 font-medium">预期</th>
+                                          <th className="text-left px-2 py-1.5 font-medium">实际</th>
+                                          <th className="text-left px-2 py-1.5 font-medium">消息</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {result.assertion_results.map(
+                                          (assertion: any, idx: number) => {
+                                            const expectedText = formatAssertionValue(assertion.expected);
+                                            const actualText = formatAssertionValue(assertion.actual);
+                                            return (
+                                              <tr
+                                                key={idx}
+                                                className={`${
+                                                  assertion.passed
+                                                    ? "bg-green-50 text-green-700"
+                                                    : "bg-red-50 text-red-700"
+                                                } ${idx > 0 ? "border-t border-border/40" : ""}`}
+                                              >
+                                                <td className="px-2 py-1.5 whitespace-nowrap align-top">
+                                                  {assertion.passed ? (
+                                                    <span className="inline-flex items-center gap-1">
+                                                      <CheckCircle2 className="h-3 w-3" /> 通过
+                                                    </span>
+                                                  ) : (
+                                                    <span className="inline-flex items-center gap-1">
+                                                      <XCircle className="h-3 w-3" /> 失败
+                                                    </span>
+                                                  )}
+                                                </td>
+                                                <td className="px-2 py-1.5 align-top">
+                                                  <span className="capitalize">{assertion.assertion?.type}</span>
+                                                  {assertion.assertion?.path && (
+                                                    <code className="block text-[10px] opacity-80 truncate max-w-[120px]">
+                                                      {assertion.assertion.path}
+                                                    </code>
+                                                  )}
+                                                </td>
+                                                <td
+                                                  className="px-2 py-1.5 align-top truncate max-w-[120px]"
+                                                  title={expectedText}
+                                                >
+                                                  <code>{expectedText}</code>
+                                                </td>
+                                                <td
+                                                  className="px-2 py-1.5 align-top truncate max-w-[120px]"
+                                                  title={actualText}
+                                                >
+                                                  <code>{actualText}</code>
+                                                </td>
+                                                <td className="px-2 py-1.5 align-top">
+                                                  {assertion.message || "-"}
+                                                </td>
+                                              </tr>
+                                            );
+                                          }
+                                        )}
+                                      </tbody>
+                                    </table>
                                   </div>
                                 </div>
                               )}

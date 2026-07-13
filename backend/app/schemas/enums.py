@@ -163,12 +163,13 @@ class TestRunState(str, Enum):
     用于标识测试运行的执行状态
     参考: https://www.browserstack.com/docs/test-management/api-reference/test-runs
     """
-    NEW_RUN = "new_run"           # 新建运行
-    IN_PROGRESS = "in_progress"   # 进行中
-    UNDER_REVIEW = "under_review" # 审核中
-    REJECTED = "rejected"         # 已拒绝
-    DONE = "done"                 # 已完成
-    CLOSED = "closed"             # 已关闭
+    NEW_RUN = "new_run"                  # 新建运行
+    IN_PROGRESS = "in_progress"          # 进行中
+    UNDER_REVIEW = "under_review"        # 审核中
+    REJECTED = "rejected"                # 已拒绝
+    DONE = "done"                        # 已完成
+    DONE_WITH_FAILURES = "done_with_failures"  # 已完成但存在失败
+    CLOSED = "closed"                    # 已关闭
 
 
 class TestRunActiveState(str, Enum):
@@ -287,6 +288,18 @@ class TriggerType(str, Enum):
     API = "api"             # API 调用触发
 
 
+class FailurePolicy(str, Enum):
+    """
+    测试运行失败策略
+
+    用于配置脚本作业失败后的后续行为
+    """
+    CONTINUE = "continue"           # 继续执行后续脚本
+    STOP_RUN = "stop_run"           # 失败即停止整个运行
+    STOP_JOB = "stop_job"           # 仅当前脚本失败，后续继续执行
+    MARK_BLOCKED = "mark_blocked"   # 后续脚本标记为阻塞
+
+
 class ScheduleTriggerType(str, Enum):
     """
     调度触发器类型
@@ -310,4 +323,5 @@ class JobStatus(str, Enum):
     COMPLETED = "completed"     # 执行完成
     FAILED = "failed"           # 执行失败
     SKIPPED = "skipped"         # 已跳过
+    BLOCKED = "blocked"         # 已阻塞
     CANCELLED = "cancelled"     # 已取消

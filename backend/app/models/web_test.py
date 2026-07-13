@@ -287,6 +287,18 @@ class WebTestRun(Base, UUIDMixin, TimestampMixin):
         comment="错误信息"
     )
 
+    # 执行日志
+    stdout: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        comment="标准输出日志"
+    )
+    stderr: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        comment="标准错误日志"
+    )
+
     # 关系
     project: Mapped["Project"] = relationship("Project")
     web_test: Mapped["WebTest"] = relationship(

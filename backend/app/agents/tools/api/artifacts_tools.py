@@ -10,6 +10,7 @@ API 测试成果物管理工具
 import json
 import io
 import os
+import re
 from uuid import UUID, uuid4
 from typing import Optional
 from datetime import datetime, timezone
@@ -529,6 +530,96 @@ async def save_test_script(
             "format": script_format,
             "message": "测试脚本已保存"
         }
+
+
+def _analyze_script_assertions(script_content: str) -> dict:
+    """
+    静态分析测试脚本中的断言分布。
+
+    返回指标：
+    - total_tests: 估算的测试用例数
+    - total_expects: expect(...) 调用总数
+    - status_asserts: 涉及 response.status 的断言数
+    - non_status_asserts: 非状态码断言数
+    - status_only: 是否只有状态码断言
+    - weak: 是否判定为断言不足
+    """
+    # 估算测试数量：匹配 test('...', ...) 或 it('...', ...)
+    test_pattern = re.compile(r"(?:test|it)\s*\(\s*['\"`]")
+    # 所有 expect 调用
+    expect_pattern = re.compile(r"\bexpect\s*\(")
+    # 与 response.status 相关的断言（包含 .status 的 expect 链）
+    status_pattern = re.compile(
+        r"\bexpect\s*\([^)]*\.status\b[^)]*\)\s*\.\s*(?:toBe|toEqual|toMatchObject|toContain|oneOf|any)\s*\("
+    )
+    # 错误/空 body 断言也计入非状态码，这里不做排除
+
+    total_tests = len(test_pattern.findall(script_content))
+    total_expects = len(expect_pattern.findall(script_content))
+    status_asserts = len(status_pattern.findall(script_content))
+    non_status_asserts = max(0, total_expects - status_asserts)
+
+    # 判定规则
+    status_only = total_expects > 0 and non_status_asserts == 0
+    # 每个测试平均非状态码断言不足 1.5 个视为弱
+    weak = (
+        total_expects > 0
+        and (total_tests == 0 or (non_status_asserts / max(total_tests, 1)) < 1.5)
+    )
+
+    return {
+        "total_tests": total_tests,
+        "total_expects": total_expects,
+        "status_asserts": status_asserts,
+        "non_status_asserts": non_status_asserts,
+        "status_only": status_only,
+        "weak": weak,
+    }
+
+
+@tool
+async def audit_script_assertions(script_content: str) -> dict:
+    """
+    审查生成的测试脚本断言是否充分。
+
+    生成测试脚本后、调用 save_test_script 保存前，应先使用本工具检查。
+    如果返回 weak=true，必须补充字段/业务/结构断言后再保存。
+
+    Args:
+        script_content: 测试脚本完整内容
+
+    Returns:
+        dict: 审查结果，包含 verdict、指标和改进建议
+    """
+    metrics = _analyze_script_assertions(script_content)
+
+    if metrics["status_only"]:
+        verdict = "FAIL"
+        message = "断言严重不足：脚本只包含状态码断言，必须补充响应体字段/类型/业务断言。"
+    elif metrics["weak"]:
+        verdict = "WEAK"
+        message = "断言偏弱：非状态码断言数量不足，建议为每个测试补充至少 1-2 个字段或业务断言。"
+    else:
+        verdict = "OK"
+        message = "断言基本充足。"
+
+    suggestions = []
+    if metrics["status_only"] or metrics["weak"]:
+        suggestions.extend([
+            "对 2xx 响应补充 body 关键字段存在性断言，如 expect(body.data).toBeDefined()",
+            "根据 OpenAPI responses schema 补充字段类型断言，如 expect(typeof body.data.id).toBe('number')",
+            "对业务状态字段补充枚举断言，如 expect(['pending','paid']).toContain(body.data.status)",
+            "对 4xx 错误响应补充 error message / code 断言，验证具体错误原因",
+            "查询类接口补充数组类型和 total 类型断言，避免空数据误通过",
+        ])
+
+    return {
+        "success": True,
+        "verdict": verdict,
+        "message": message,
+        "metrics": metrics,
+        "suggestions": suggestions,
+    }
 
 
 @tool

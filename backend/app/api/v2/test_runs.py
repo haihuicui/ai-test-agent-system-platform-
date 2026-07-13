@@ -42,7 +42,7 @@ from app.schemas.test_run import (
     TestRunScheduleUpdate,
     BatchRetryJobsRequest,
 )
-from app.schemas.enums import TestResultStatus, TestRunState, ScriptType
+from app.schemas.enums import TestResultStatus, TestRunState, ScriptType, TriggerType
 
 router = APIRouter(
     prefix="/projects/{project_identifier}/test-runs",
@@ -63,6 +63,13 @@ def _csv_to_run_states(value: Optional[str]) -> Optional[list[TestRunState]]:
     if not items:
         return None
     return [TestRunState(v) for v in items]
+
+
+def _csv_to_trigger_types(value: Optional[str]) -> Optional[list[TriggerType]]:
+    items = _csv_to_list(value)
+    if not items:
+        return None
+    return [TriggerType(v) for v in items]
 
 
 # =============== 列表 / 详情 / 创建 ===============
@@ -106,7 +113,14 @@ async def list_test_runs(
     created_after: Optional[date] = Query(
         default=None, description="创建时间晚于该日期"
     ),
-    search: Optional[str] = Query(default=None, description="按名称/标识符搜索"),
+    search: Optional[str] = Query(default=None, description="按名称/标识符/调度名称搜索"),
+    trigger_type: Optional[str] = Query(
+        default=None,
+        description="触发方式过滤，逗号分隔多值 (manual, scheduled, api)",
+    ),
+    scheduled_by: Optional[str] = Query(
+        default=None, description="按来源调度 ID 过滤"
+    ),
 ) -> PaginatedResponse[TestRunListInfo]:
     """获取测试运行列表 (BS GET /test-runs)"""
     items, total = await service.get_list(
@@ -120,6 +134,8 @@ async def list_test_runs(
         created_before=created_before,
         created_after=created_after,
         search=search,
+        trigger_types=_csv_to_trigger_types(trigger_type),
+        scheduled_by=UUID(scheduled_by) if scheduled_by else None,
         offset=pagination.offset,
         limit=pagination.limit,
     )
@@ -227,6 +243,44 @@ async def delete_schedule(
         success=True,
         message=f"Schedule {schedule_id} has been deleted successfully",
     )
+
+
+@router.post(
+    "/schedules/{schedule_id}/trigger",
+    response_model=SuccessResponse,
+    summary="立即触发调度",
+    description="手动触发一次定时调度，生成 TestRun 并执行（含幂等保护）",
+)
+async def trigger_schedule(
+    project_identifier: str,
+    schedule_id: str,
+    service: TestRunServiceDep,
+    db: DbSessionDep,
+) -> SuccessResponse:
+    result = await service.trigger_schedule(project_identifier, schedule_id)
+    await db.commit()
+    return SuccessResponse(success=True, data=result)
+
+
+@router.get(
+    "/schedules/{schedule_id}/runs",
+    response_model=SuccessResponse,
+    summary="获取调度的执行历史",
+    description="获取指定定时调度产生的所有 TestRun 执行记录",
+)
+async def get_schedule_runs(
+    project_identifier: str,
+    schedule_id: str,
+    service: TestRunServiceDep,
+    pagination: PaginationDep,
+) -> SuccessResponse:
+    result = await service.get_schedule_runs(
+        project_identifier,
+        schedule_id,
+        page=pagination.page,
+        page_size=pagination.limit,
+    )
+    return SuccessResponse(success=True, data=result)
 
 
 @router.get(
@@ -343,6 +397,69 @@ async def close_test_run(
     description="BS POST /test-runs/{id}/delete",
 )
 async def delete_test_run(
+    project_identifier: str,
+    test_run_identifier: str,
+    service: TestRunServiceDep,
+    db: DbSessionDep,
+) -> MessageResponse:
+    await service.delete(project_identifier, test_run_identifier)
+    await db.commit()
+    return MessageResponse(
+        success=True,
+        message=f"Test Run {test_run_identifier} has been deleted successfully",
+    )
+
+
+# =============== 标准 REST 兼容端点 ===============
+
+
+@router.patch(
+    "/{test_run_identifier}",
+    response_model=SuccessResponse[TestRunInfo],
+    summary="部分更新测试运行 (PATCH)",
+    description="标准 REST 风格的部分更新，与 POST /update 行为一致",
+)
+async def patch_test_run_rest(
+    project_identifier: str,
+    test_run_identifier: str,
+    data: TestRunPatchUpdate,
+    service: TestRunServiceDep,
+    db: DbSessionDep,
+) -> SuccessResponse[TestRunInfo]:
+    test_run = await service.patch_update(
+        project_identifier, test_run_identifier, data
+    )
+    await db.commit()
+    return SuccessResponse(success=True, data=test_run)
+
+
+@router.put(
+    "/{test_run_identifier}",
+    response_model=SuccessResponse[TestRunInfo],
+    summary="全量替换测试运行 (PUT)",
+    description="标准 REST 风格的全量替换，与 POST /update 行为一致",
+)
+async def put_test_run_rest(
+    project_identifier: str,
+    test_run_identifier: str,
+    data: TestRunFullReplace,
+    service: TestRunServiceDep,
+    db: DbSessionDep,
+) -> SuccessResponse[TestRunInfo]:
+    test_run = await service.full_replace(
+        project_identifier, test_run_identifier, data
+    )
+    await db.commit()
+    return SuccessResponse(success=True, data=test_run)
+
+
+@router.delete(
+    "/{test_run_identifier}",
+    response_model=MessageResponse,
+    summary="删除测试运行 (DELETE)",
+    description="标准 REST 风格的删除，与 POST /delete 行为一致",
+)
+async def delete_test_run_rest(
     project_identifier: str,
     test_run_identifier: str,
     service: TestRunServiceDep,

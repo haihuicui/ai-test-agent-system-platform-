@@ -117,6 +117,13 @@ async def _create_test_case_impl(
     case_id: Optional[str] = None,
 ) -> dict[str, Any]:
     """创建测试用例的内部实现"""
+    if not project_identifier:
+        return {
+            "success": False,
+            "error": "project_identifier 不能为空，请确认 AI 助手已正确获取项目上下文",
+            "message": "创建测试用例失败：project_identifier 为空",
+        }
+
     request_data: dict[str, Any] = {
         "name": name,
         "template": template,
@@ -439,6 +446,13 @@ async def _batch_create_test_cases_impl(
     folder_id: Optional[str] = None,
 ) -> dict[str, Any]:
     """批量创建测试用例的内部实现"""
+    if not project_identifier:
+        return {
+            "success": False,
+            "error": "project_identifier 不能为空，请确认 AI 助手已正确获取项目上下文",
+            "message": "批量创建失败：project_identifier 为空",
+        }
+
     if not test_cases:
         return {
             "success": False,

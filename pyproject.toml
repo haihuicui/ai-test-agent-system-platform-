@@ -6,7 +6,7 @@ requires-python = ">=3.13"
 dependencies = [
     "alembic>=1.13.0",
     "apscheduler>=3.11.0",
-    "asyncpg>=0.31.0",alembic upgrade head
+    "asyncpg>=0.31.0",
     "deepagents>=0.6.1",
     "faker>=33.0.0",
     "fastapi>=0.136.1",

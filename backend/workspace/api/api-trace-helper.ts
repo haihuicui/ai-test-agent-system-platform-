@@ -221,10 +221,10 @@ function parseUrlParams(url: string): Record<string, string> | undefined {
 }
 
 const originalFetch = globalThis.fetch;
-console.error('[api-trace-helper] global fetch patch installed, API_TRACE_OUTPUT_FILE=', process.env.API_TRACE_OUTPUT_FILE);
+console.log('[api-trace-helper] global fetch patch installed, API_TRACE_OUTPUT_FILE=', process.env.API_TRACE_OUTPUT_FILE);
 globalThis.fetch = async function fetch(input: RequestInfo | URL, init?: RequestInit) {
   const traceFile = process.env.API_TRACE_OUTPUT_FILE;
-  console.error('[api-trace-helper] fetch intercepted, currentTestName=', currentTestName, 'url=', typeof input === 'string' ? input : (input as any).url);
+  console.log('[api-trace-helper] fetch intercepted, currentTestName=', currentTestName, 'url=', typeof input === 'string' ? input : (input as any).url);
   if (!traceFile || !currentTestName) {
     return originalFetch(input, init);
   }
@@ -305,7 +305,7 @@ export const test = baseTest.extend({
 test.beforeEach(async ({}, testInfo) => {
   currentTestName = testInfo.titlePath.join(' › ');
   currentTestTitle = testInfo.title;
-  console.error('[api-trace-helper] beforeEach set currentTestName=', currentTestName);
+  console.log('[api-trace-helper] beforeEach set currentTestName=', currentTestName);
 });
 
 test.afterEach(() => {

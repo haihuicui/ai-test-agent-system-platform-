@@ -2,6 +2,7 @@
 // WATERMARK  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2U1d4Q1NnPT06MDc4YTc2NTA=
 
 import * as React from "react";
+import dynamic from "next/dynamic";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -18,13 +19,9 @@ import {
 } from "lucide-react";
 import { MainLayout } from "@/components/layout";
 import { useLanguage } from "@/providers/LanguageProvider";
-import { AndroidSubFunctionSidebar } from "@/components/android-tests/android-function-sidebar";
 import { AndroidFunctionFolderTree } from "@/components/android-tests/folder-tree";
 import type { AndroidFunctionFolderTreeRef } from "@/components/android-tests/folder-tree";
 import { AndroidFunctionList, AndroidSubFunctionList } from "@/components/android-tests";
-import { CreateAndroidFunctionDialog, AIGenerateDialog } from "@/components/android-tests";
-import { EnhancedTestArtifactsPanel, DevicePanel } from "@/components/android-tests";
-import { MoveFolderDialog } from "@/components/test-cases";
 import {
   Dialog,
   DialogContent,
@@ -45,7 +42,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { AIChatContainer } from "@/components/langgraph/AIChatContainer";
+import { AIChatSkeleton } from "@/components/langgraph/ai-chat-skeleton";
 import { ClientProvider } from "@/providers/ClientProvider";
 import { useDelayedUnmount } from "@/hooks/useDelayedUnmount";
 import { Assistant } from "@langchain/langgraph-sdk";
@@ -71,6 +68,65 @@ import type {
   FolderCreate,
 } from "@/lib/api/types";
 // WATERMARK  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2U1d4Q1NnPT06MDc4YTc2NTA=
+
+// AI 聊天面板代码分割
+const AIChatContainer = dynamic(
+  () =>
+    import("@/components/langgraph/AIChatContainer").then((m) => ({
+      default: m.AIChatContainer,
+    })),
+  { ssr: false, loading: () => <AIChatSkeleton /> }
+);
+
+const AndroidSubFunctionSidebar = dynamic(
+  () =>
+    import("@/components/android-tests/android-function-sidebar").then((m) => ({
+      default: m.AndroidSubFunctionSidebar,
+    })),
+  { ssr: false }
+);
+
+const EnhancedTestArtifactsPanel = dynamic(
+  () =>
+    import("@/components/android-tests/test-artifacts-panel-enhanced").then(
+      (m) => ({ default: m.EnhancedTestArtifactsPanel })
+    ),
+  { ssr: false }
+);
+
+const DevicePanel = dynamic(
+  () =>
+    import("@/components/android-tests").then((m) => ({
+      default: m.DevicePanel,
+    })),
+  { ssr: false }
+);
+
+const CreateAndroidFunctionDialog = dynamic(
+  () =>
+    import("@/components/android-tests").then((m) => ({
+      default: m.CreateAndroidFunctionDialog,
+    })),
+  { ssr: false }
+);
+
+const AIGenerateDialog = dynamic(
+  () =>
+    import("@/components/android-tests").then((m) => ({
+      default: m.AIGenerateDialog,
+    })),
+  { ssr: false }
+);
+
+const MoveFolderDialog = dynamic(
+  () =>
+    import("@/components/test-cases/move-folder-dialog").then((m) => ({
+      default: m.MoveFolderDialog,
+    })),
+  { ssr: false }
+);
+
+
 
 type TestMode = "function";
 // NOTE  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2U1d4Q1NnPT06MDc4YTc2NTA=
@@ -130,36 +186,27 @@ export default function AndroidTestsPage() {
   const renderAIChat = useDelayedUnmount(aiChatOpen, 300);
   const [aiChatInitialPrompt, setAiChatInitialPrompt] = React.useState<string>("");
   const [aiChatKey, setAiChatKey] = React.useState<number>(0);
-  const [assistant, setAssistant] = React.useState<Assistant | null>(null);
 
-  // 初始化 Assistant
-  React.useEffect(() => {
-    const initAssistant = async () => {
-      try {
-        const assistantId = "android_agent";
-        const mockAssistant: Assistant = {
-          assistant_id: assistantId,
-          graph_id: assistantId,
-          config: {
-            configurable: {
-              project_identifier: projectId,
-              folder_id: selectedFolderId || "",
-              template_type: "android_test",
-            }
-          },
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          metadata: {},
-          version: 1,
-          name: "Android测试生成助手",
-          context: {},
-        };
-        setAssistant(mockAssistant);
-      } catch (error) {
-        console.error("Failed to initialize assistant:", error);
-      }
+  // 使用 useMemo 稳定 assistant 对象
+  const assistant = React.useMemo<Assistant | null>(() => {
+    if (!projectId) return null;
+    return {
+      assistant_id: "android_agent",
+      graph_id: "android_agent",
+      config: {
+        configurable: {
+          project_identifier: projectId,
+          folder_id: selectedFolderId || "",
+          template_type: "android_test",
+        }
+      },
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      metadata: {},
+      version: 1,
+      name: "Android测试生成助手",
+      context: {},
     };
-    initAssistant();
   }, [projectId, selectedFolderId]);
 
   // 加载 Android 函数测试数据
@@ -176,9 +223,6 @@ export default function AndroidTestsPage() {
       if (selectedFolderId) {
         subFunctionsParams.folder_id = selectedFolderId;
       }
-      const subFunctions = await listAndroidSubFunctions(projectId, subFunctionsParams);
-      const subFunctionsItems = subFunctions.items || [];
-      setAndroidSubFunctions(subFunctionsItems);
 
       const params = {
         p: page,
@@ -186,15 +230,16 @@ export default function AndroidTestsPage() {
         search: searchQuery || undefined,
       };
 
-      let response;
-      if (selectedFolderId) {
-        response = await listAndroidFunctions(projectId, {
-          ...params,
-          folder_id: selectedFolderId,
-        });
-      } else {
-        response = await listAndroidFunctions(projectId, params);
-      }
+      // 子功能列表与功能列表相互独立，并行请求
+      const [subFunctions, response] = await Promise.all([
+        listAndroidSubFunctions(projectId, subFunctionsParams),
+        selectedFolderId
+          ? listAndroidFunctions(projectId, { ...params, folder_id: selectedFolderId })
+          : listAndroidFunctions(projectId, params),
+      ]);
+
+      const subFunctionsItems = subFunctions.items || [];
+      setAndroidSubFunctions(subFunctionsItems);
 
       let items, total;
       if ((response as any).data) {

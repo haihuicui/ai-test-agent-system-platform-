@@ -513,6 +513,40 @@ export function deleteSchedule(
   );
 }
 
+// 立即触发一次调度
+export function triggerSchedule(
+  projectIdentifier: string,
+  scheduleId: string
+) {
+  return apiClient.post<SuccessResponse<{
+    status: string;
+    reason?: string;
+    test_run_id?: string;
+    identifier?: string;
+    message: string;
+  }>>(`${basePath(projectIdentifier)}/schedules/${scheduleId}/trigger`);
+}
+
+// 获取调度的执行历史
+export function getScheduleRuns(
+  projectIdentifier: string,
+  scheduleId: string,
+  params?: {
+    page?: number;
+    page_size?: number;
+  }
+) {
+  return apiClient.get<SuccessResponse<{
+    items: TestRunListInfo[];
+    total: number;
+    page: number;
+    page_size: number;
+  }>>(
+    `${basePath(projectIdentifier)}/schedules/${scheduleId}/runs`,
+    { params: params as Record<string, string | number | undefined> }
+  );
+}
+
 // =========================================================
 // 工具函数
 // =========================================================

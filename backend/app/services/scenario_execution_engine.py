@@ -981,14 +981,13 @@ class ScenarioExecutionEngine:
             assertion_type = assertion["type"]
             expected = assertion["expected"]
             operator = assertion.get("operator", "eq")
+            path = assertion.get("path")
 
             if assertion_type == "status":
                 actual = response["status"]
             elif assertion_type == "jsonpath":
-                path = assertion["path"]
                 actual = self.context._extract_by_jsonpath(response["body"], path)
             elif assertion_type == "header":
-                path = assertion["path"]
                 actual = response["headers"].get(path)
             else:
                 actual = None
@@ -1001,10 +1000,45 @@ class ScenarioExecutionEngine:
                 "passed": passed,
                 "actual": actual,
                 "expected": expected,
-                "message": f"断言{'通过' if passed else '失败'}: {assertion_type}",
+                "message": self._build_assertion_message(
+                    assertion_type, passed, actual, expected, operator, path
+                ),
             })
 
         return results
+
+    def _build_assertion_message(
+        self,
+        assertion_type: str,
+        passed: bool,
+        actual: Any,
+        expected: Any,
+        operator: str,
+        path: Optional[str],
+    ) -> str:
+        """构建人类可读的断言结果消息"""
+        status_text = "通过" if passed else "失败"
+        op = operator or "eq"
+
+        def _fmt(value: Any) -> str:
+            try:
+                return json.dumps(value, ensure_ascii=False, default=str)
+            except Exception:
+                return str(value)
+
+        if assertion_type == "status":
+            return f"断言{status_text}: status {op} {_fmt(expected)} (实际: {_fmt(actual)})"
+        if assertion_type == "jsonpath":
+            return (
+                f"断言{status_text}: jsonpath '{path}' {op} {_fmt(expected)} "
+                f"(实际: {_fmt(actual)})"
+            )
+        if assertion_type == "header":
+            return (
+                f"断言{status_text}: header '{path}' {op} {_fmt(expected)} "
+                f"(实际: {_fmt(actual)})"
+            )
+        return f"断言{status_text}: {assertion_type}"
 
     def _compare(self, actual: Any, expected: Any, operator: str) -> bool:
         """比较值"""

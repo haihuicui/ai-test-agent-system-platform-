@@ -272,6 +272,36 @@ export function useChat({
     []
   );
 
+  // 从 assistant config 中提取并构建 Agent 运行时上下文
+  const buildAgentContext = useCallback(
+    (options?: {
+      enable_rag?: boolean;
+      auto_approve_threshold?: number;
+    }): Record<string, any> => {
+      const context = activeAssistant?.config?.configurable || {};
+      return {
+        project_identifier: context.project_identifier || "",
+        folder_id: context.folder_id || "",
+        template_type: context.template_type || "test_case",
+        environment_id: context.environment_id || "",
+        enable_rag: options?.enable_rag ?? true,
+        auto_approve_threshold: options?.auto_approve_threshold ?? 100,
+      };
+    },
+    [activeAssistant?.config]
+  );
+
+  // 构建提交 run 时使用的 config：移除 configurable，避免与 context 同时传递。
+  // LangGraph API 禁止 config.configurable 与 context 并存。
+  const buildRunConfig = useCallback(
+    (extra?: Record<string, any>) => {
+      const config = activeAssistant?.config ? { ...activeAssistant.config } : {};
+      delete config.configurable;
+      return { ...config, ...extra };
+    },
+    [activeAssistant?.config]
+  );
+
   const sendMessage = useCallback(
     (
       content: string,
@@ -308,36 +338,23 @@ export function useChat({
         },
       };
 
-      // 从 assistant config 中提取 context 信息
-      const context = activeAssistant?.config?.configurable || {};
-
-      // 构建 context 对象
-      const agentContext: Record<string, any> = {
-        project_identifier: context.project_identifier || "",
-        folder_id: context.folder_id || "",
-        template_type: context.template_type || "test_case",
-        environment_id: context.environment_id || "",
-        enable_rag: options?.enable_rag ?? true,
-        auto_approve_threshold: options?.auto_approve_threshold ?? 100,
-      };
-
+      // 运行时上下文必须通过 submit 的 options.context 传递给 LangGraph，
+      // 不能放在 input 中；否则 request.runtime.context 会保持为空，
+      // 导致 project_identifier 为空而创建失败。
       stream.submit(
-        {
-          messages: [newMessage],
-          // 将 context 信息传递给后端智能体
-          context: agentContext,
-        },
+        { messages: [newMessage] },
         {
           optimisticValues: (prev) => ({
             messages: [...(prev.messages ?? []), newMessage],
           }),
-          config: { ...(activeAssistant?.config ?? {}), recursion_limit: 1000 },
+          config: buildRunConfig({ recursion_limit: 1000 }),
+          context: buildAgentContext(options),
         }
       );
       // Update thread list immediately when sending a message
       onHistoryRevalidate?.();
     },
-    [stream, activeAssistant?.config, onHistoryRevalidate]
+    [stream, buildRunConfig, buildAgentContext, onHistoryRevalidate]
   );
 
   const runSingleStep = useCallback(
@@ -352,7 +369,8 @@ export function useChat({
           ...(optimisticMessages
             ? { optimisticValues: { messages: optimisticMessages } }
             : {}),
-          config: activeAssistant?.config,
+          config: buildRunConfig(),
+          context: buildAgentContext(),
           checkpoint: checkpoint,
           ...(isRerunningSubagent
             ? { interruptAfter: ["tools"] }
@@ -361,11 +379,15 @@ export function useChat({
       } else {
         stream.submit(
           { messages },
-          { config: activeAssistant?.config, interruptBefore: ["tools"] }
+          {
+            config: buildRunConfig(),
+            context: buildAgentContext(),
+            interruptBefore: ["tools"],
+          }
         );
       }
     },
-    [stream, activeAssistant?.config]
+    [stream, buildRunConfig, buildAgentContext]
   );
 
   const setFiles = useCallback(
@@ -381,10 +403,8 @@ export function useChat({
   const continueStream = useCallback(
     (hasTaskToolCall?: boolean) => {
       stream.submit(undefined, {
-        config: {
-          ...(activeAssistant?.config || {}),
-          recursion_limit: 1000,
-        },
+        config: buildRunConfig({ recursion_limit: 1000 }),
+        context: buildAgentContext(),
         ...(hasTaskToolCall
           ? { interruptAfter: ["tools"] }
           : { interruptBefore: ["tools"] }),
@@ -392,7 +412,7 @@ export function useChat({
       // Update thread list when continuing stream
       onHistoryRevalidate?.();
     },
-    [stream, activeAssistant?.config, onHistoryRevalidate]
+    [stream, buildRunConfig, buildAgentContext, onHistoryRevalidate]
   );
 
   const markCurrentThreadAsResolved = useCallback(() => {
@@ -403,11 +423,14 @@ export function useChat({
 
   const resumeInterrupt = useCallback(
     (value: any) => {
-      stream.submit(null, { command: { resume: value } });
+      stream.submit(null, {
+        command: { resume: value },
+        context: buildAgentContext(),
+      });
       // Update thread list when resuming from interrupt
       onHistoryRevalidate?.();
     },
-    [stream, onHistoryRevalidate]
+    [stream, buildAgentContext, onHistoryRevalidate]
   );
 
   const stopStream = useCallback(() => {

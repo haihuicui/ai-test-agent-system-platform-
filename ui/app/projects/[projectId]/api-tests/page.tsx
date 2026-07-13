@@ -2,6 +2,7 @@
 // NOTE  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2TlVSaVdBPT06MmUzZDY0N2Y=
 
 import * as React from "react";
+import dynamic from "next/dynamic";
 import { useParams, useSearchParams } from "next/navigation";
 import { useQueryState } from "nuqs";
 import { toast } from "sonner";
@@ -20,22 +21,16 @@ import {
 } from "lucide-react";
 import { MainLayout } from "@/components/layout";
 import { useLanguage } from "@/providers/LanguageProvider";
-import { APITestList, APITestDialog, AIGenerateAPITestDialog } from "@/components/api-tests";
-import { MoveFolderDialog } from "@/components/test-cases";
-import { APIEndpointSidebar } from "@/components/api-tests/api-endpoint-sidebar";
-import { APIParseDialog } from "@/components/api-tests/api-parse-dialog";
 import { APIEndpointList } from "@/components/api-tests/APIEndpointList";
-import { EnhancedTestArtifactsPanel } from "@/components/api-tests/test-artifacts-panel-enhanced";
-import { CreateEndpointDialog } from "@/components/api-tests/create-endpoint-dialog";
 import { APIFolderTree } from "@/components/api-tests/folder-tree";
 import type { APIFolderTreeRef } from "@/components/api-tests/folder-tree";
-import { EndpointExecutionResultsPanel } from "@/components/api-tests/endpoint-execution-results-panel";
 import { ScenarioListPanel } from "@/components/scenario-tests/scenario-list-panel";
-import { ScenarioOrchestrationView } from "@/components/scenario-tests/scenario-orchestration-view";
-import { ScenarioExecutionMonitor } from "@/components/scenario-tests/scenario-execution-monitor";
-import { ScenarioCreateDialog } from "@/components/scenario-tests/scenario-create-dialog";
-import { AIGenerateScenarioDialog } from "@/components/scenario-tests/ai-generate-scenario-dialog";
-import { ScenarioDetailSidebar } from "@/components/scenario-tests/scenario-detail-sidebar";
+import { EnvironmentSelector } from "@/components/api-tests/environment-selector";
+import { AIChatSkeleton } from "@/components/langgraph/ai-chat-skeleton";
+import { useProjectEnvironment } from "@/providers/ProjectEnvironmentProvider";
+import { useDelayedUnmount } from "@/hooks/useDelayedUnmount";
+import { Assistant } from "@langchain/langgraph-sdk";
+import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -49,16 +44,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AIChatContainer } from "@/components/langgraph/AIChatContainer";
 import { ClientProvider } from "@/providers/ClientProvider";
-import { EnvironmentSheet } from "@/components/api-tests/environment-sheet";
-import { EnvironmentSelector } from "@/components/api-tests/environment-selector";
-import { useProjectEnvironment } from "@/providers/ProjectEnvironmentProvider";
-import { useDelayedUnmount } from "@/hooks/useDelayedUnmount";
-import { Assistant } from "@langchain/langgraph-sdk";
-import { cn } from "@/lib/utils";
 import {
   getFolderAPITests,
+  listAPITests,
   createAPITest,
   updateAPITest,
   deleteAPITest,
@@ -81,6 +70,120 @@ import type {
 import type { APITest, CreateAPITestRequest } from "@/lib/api/api-tests";
 import type { Scenario } from "@/types/scenario";
 // TODO  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2TlVSaVdBPT06MmUzZDY0N2Y=
+
+// 重型组件代码分割，减少初始 chunk 体积
+const AIChatContainer = dynamic(
+  () =>
+    import("@/components/langgraph/AIChatContainer").then((m) => ({
+      default: m.AIChatContainer,
+    })),
+  { ssr: false, loading: () => <AIChatSkeleton /> }
+);
+
+const ScenarioOrchestrationView = dynamic(
+  () =>
+    import("@/components/scenario-tests/scenario-orchestration-view").then(
+      (m) => ({ default: m.ScenarioOrchestrationView })
+    ),
+  { ssr: false }
+);
+
+const ScenarioExecutionMonitor = dynamic(
+  () =>
+    import("@/components/scenario-tests/scenario-execution-monitor").then(
+      (m) => ({ default: m.ScenarioExecutionMonitor })
+    ),
+  { ssr: false }
+);
+
+const EnhancedTestArtifactsPanel = dynamic(
+  () =>
+    import("@/components/api-tests/test-artifacts-panel-enhanced").then(
+      (m) => ({ default: m.EnhancedTestArtifactsPanel })
+    ),
+  { ssr: false }
+);
+
+const EndpointExecutionResultsPanel = dynamic(
+  () =>
+    import("@/components/api-tests/endpoint-execution-results-panel").then(
+      (m) => ({ default: m.EndpointExecutionResultsPanel })
+    ),
+  { ssr: false }
+);
+
+const APIEndpointSidebar = dynamic(
+  () =>
+    import("@/components/api-tests/api-endpoint-sidebar").then(
+      (m) => ({ default: m.APIEndpointSidebar })
+    ),
+  { ssr: false }
+);
+
+const ScenarioDetailSidebar = dynamic(
+  () =>
+    import("@/components/scenario-tests/scenario-detail-sidebar").then(
+      (m) => ({ default: m.ScenarioDetailSidebar })
+    ),
+  { ssr: false }
+);
+
+const APIParseDialog = dynamic(
+  () =>
+    import("@/components/api-tests/api-parse-dialog").then((m) => ({
+      default: m.APIParseDialog,
+    })),
+  { ssr: false }
+);
+
+const AIGenerateAPITestDialog = dynamic(
+  () =>
+    import("@/components/api-tests/ai-generate-dialog").then((m) => ({
+      default: m.AIGenerateAPITestDialog,
+    })),
+  { ssr: false }
+);
+
+const CreateEndpointDialog = dynamic(
+  () =>
+    import("@/components/api-tests/create-endpoint-dialog").then((m) => ({
+      default: m.CreateEndpointDialog,
+    })),
+  { ssr: false }
+);
+
+const AIGenerateScenarioDialog = dynamic(
+  () =>
+    import("@/components/scenario-tests/ai-generate-scenario-dialog").then(
+      (m) => ({ default: m.AIGenerateScenarioDialog })
+    ),
+  { ssr: false }
+);
+
+const ScenarioCreateDialog = dynamic(
+  () =>
+    import("@/components/scenario-tests/scenario-create-dialog").then((m) => ({
+      default: m.ScenarioCreateDialog,
+    })),
+  { ssr: false }
+);
+
+const EnvironmentSheet = dynamic(
+  () =>
+    import("@/components/api-tests/environment-sheet").then((m) => ({
+      default: m.EnvironmentSheet,
+    })),
+  { ssr: false }
+);
+
+const MoveFolderDialog = dynamic(
+  () =>
+    import("@/components/test-cases/move-folder-dialog").then((m) => ({
+      default: m.MoveFolderDialog,
+    })),
+  { ssr: false }
+);
+
 
 type TestMode = "endpoint" | "scenario";
 type ScenarioViewMode = "orchestrate" | "monitor";
@@ -163,38 +266,30 @@ export default function APITestsPage() {
   const renderAIChat = useDelayedUnmount(aiChatOpen, 300);
   const [aiChatInitialPrompt, setAiChatInitialPrompt] = React.useState<string>("");
   const [aiChatKey, setAiChatKey] = React.useState<number>(0);
-  const [assistant, setAssistant] = React.useState<Assistant | null>(null);
 
-  // 初始化 Assistant
-  React.useEffect(() => {
-    const initAssistant = async () => {
-      try {
-        const assistantId = "api_agent";
-        const mockAssistant: Assistant = {
-          assistant_id: assistantId,
-          graph_id: assistantId,
-          config: {
-            configurable: {
-              project_identifier: projectId,
-              folder_id: selectedFolderId || "",
-              template_type: testMode === "endpoint" ? "api_test" : "scenario_test",
-              environment_id: selectedEnvironmentId || "",
-            }
-          },
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          metadata: {},
-          version: 1,
-          name: testMode === "endpoint" ? t("apiTests.apiTestAssistant") : t("apiTests.scenarioTestAssistant"),
-          context: {},
-        };
-        setAssistant(mockAssistant);
-      } catch (error) {
-        console.error("Failed to initialize assistant:", error);
-      }
+  // 使用 useMemo 稳定 assistant 对象，避免 testMode 切换触发额外重渲染
+  const assistant = React.useMemo<Assistant | null>(() => {
+    if (!projectId) return null;
+    const isEndpoint = testMode === "endpoint";
+    return {
+      assistant_id: "api_agent",
+      graph_id: "api_agent",
+      config: {
+        configurable: {
+          project_identifier: projectId,
+          folder_id: selectedFolderId || "",
+          template_type: isEndpoint ? "api_test" : "scenario_test",
+          environment_id: selectedEnvironmentId || "",
+        }
+      },
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      metadata: {},
+      version: 1,
+      name: isEndpoint ? t("apiTests.apiTestAssistant") : t("apiTests.scenarioTestAssistant"),
+      context: {},
     };
-    initAssistant();
-  }, [projectId, selectedFolderId, testMode, selectedEnvironmentId]);
+  }, [projectId, selectedFolderId, testMode, selectedEnvironmentId, t]);
 
   // 加载 API 测试数据
   const loadAPITests = React.useCallback(async () => {
@@ -203,12 +298,6 @@ export default function APITestsPage() {
     try {
       setLoading(true);
 
-      // 加载端点列表（无论是根目录还是子文件夹，都加载对应的 endpoints）
-      const endpoints = await listAPIEndpoints(projectId, {
-        folder_id: selectedFolderId || undefined,  // undefined 表示加载所有根目录的端点
-      });
-      setApiEndpoints(endpoints);
-
       const params = {
         page,
         page_size: pageSize,
@@ -216,13 +305,17 @@ export default function APITestsPage() {
         script_format: formatFilter && formatFilter !== "all" ? formatFilter : undefined,
       };
 
-      let response;
-      if (selectedFolderId) {
-        response = await getFolderAPITests(projectId, selectedFolderId, params);
-      } else {
-        const { listAPITests } = await import("@/lib/api/api-tests");
-        response = await listAPITests(projectId, params);
-      }
+      // 端点列表与测试列表相互独立，并行请求
+      const [endpoints, response] = await Promise.all([
+        listAPIEndpoints(projectId, {
+          folder_id: selectedFolderId || undefined,
+        }),
+        selectedFolderId
+          ? getFolderAPITests(projectId, selectedFolderId, params)
+          : listAPITests(projectId, params),
+      ]);
+
+      setApiEndpoints(endpoints);
 
       let items, total;
       if ((response as any).data) {
@@ -242,7 +335,7 @@ export default function APITestsPage() {
     } finally {
       setLoading(false);
     }
-  }, [projectId, selectedFolderId, page, pageSize, searchQuery, formatFilter, testMode]);
+  }, [projectId, selectedFolderId, page, pageSize, searchQuery, formatFilter, testMode, t]);
 
   // 加载场景测试数据
   const loadScenarios = React.useCallback(async () => {

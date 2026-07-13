@@ -2,6 +2,7 @@
 // TODO  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2T0ZGMk5RPT06N2Y2NWVlMGM=
 
 import * as React from "react";
+import dynamic from "next/dynamic";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -21,13 +22,9 @@ import {
 } from "lucide-react";
 import { MainLayout } from "@/components/layout";
 import { useLanguage } from "@/providers/LanguageProvider";
-import { WebSubFunctionSidebar } from "@/components/web-tests/web-function-sidebar";
 import { WebFunctionFolderTree } from "@/components/web-tests/folder-tree";
 import type { WebFunctionFolderTreeRef } from "@/components/web-tests/folder-tree";
 import { WebFunctionList, WebSubFunctionList } from "@/components/web-tests";
-import { CreateWebFunctionDialog, AIGenerateDialog } from "@/components/web-tests";
-import { EnhancedTestArtifactsPanel } from "@/components/web-tests/test-artifacts-panel-enhanced";
-import { MoveFolderDialog } from "@/components/test-cases";
 import {
   Dialog,
   DialogContent,
@@ -48,7 +45,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { AIChatContainer } from "@/components/langgraph/AIChatContainer";
+import { AIChatSkeleton } from "@/components/langgraph/ai-chat-skeleton";
 import { ClientProvider } from "@/providers/ClientProvider";
 import { useDelayedUnmount } from "@/hooks/useDelayedUnmount";
 import { Assistant } from "@langchain/langgraph-sdk";
@@ -73,6 +70,57 @@ import type {
   FolderCreate,
 } from "@/lib/api/types";
 // FIXME  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2T0ZGMk5RPT06N2Y2NWVlMGM=
+
+// 重型组件代码分割
+const AIChatContainer = dynamic(
+  () =>
+    import("@/components/langgraph/AIChatContainer").then((m) => ({
+      default: m.AIChatContainer,
+    })),
+  { ssr: false, loading: () => <AIChatSkeleton /> }
+);
+
+const WebSubFunctionSidebar = dynamic(
+  () =>
+    import("@/components/web-tests/web-function-sidebar").then((m) => ({
+      default: m.WebSubFunctionSidebar,
+    })),
+  { ssr: false }
+);
+
+const EnhancedTestArtifactsPanel = dynamic(
+  () =>
+    import("@/components/web-tests/test-artifacts-panel-enhanced").then(
+      (m) => ({ default: m.EnhancedTestArtifactsPanel })
+    ),
+  { ssr: false }
+);
+
+const CreateWebFunctionDialog = dynamic(
+  () =>
+    import("@/components/web-tests").then((m) => ({
+      default: m.CreateWebFunctionDialog,
+    })),
+  { ssr: false }
+);
+
+const AIGenerateDialog = dynamic(
+  () =>
+    import("@/components/web-tests").then((m) => ({
+      default: m.AIGenerateDialog,
+    })),
+  { ssr: false }
+);
+
+const MoveFolderDialog = dynamic(
+  () =>
+    import("@/components/test-cases/move-folder-dialog").then((m) => ({
+      default: m.MoveFolderDialog,
+    })),
+  { ssr: false }
+);
+
+
 
 // Simplified to only function mode
 type TestMode = "function";
@@ -125,7 +173,7 @@ export default function WebTestsPage() {
   const [deletingFolder, setDeletingFolder] = React.useState<FolderInfo | null>(null);
   const [moveFolderDialogOpen, setMoveFolderDialogOpen] = React.useState(false);
   const [movingFolder, setMovingFolder] = React.useState<FolderInfo | null>(null);
-  const [createWebFunctionFolder, setCreateWebFunctionFolder] = React.useState<FolderInfo | null>(null);
+  const [createWebFunctionFolderId, setCreateWebFunctionFolderId] = React.useState<string | null>(null);
   const [selectedFolderName, setSelectedFolderName] = React.useState<string | undefined>();
   const [createFunctionDialogOpen, setCreateFunctionDialogOpen] = React.useState(false);
   const [aiGenerateDialogOpen, setAiGenerateDialogOpen] = React.useState(false);
@@ -135,37 +183,28 @@ export default function WebTestsPage() {
   const renderAIChat = useDelayedUnmount(aiChatOpen, 300);
   const [aiChatInitialPrompt, setAiChatInitialPrompt] = React.useState<string>("");
   const [aiChatKey, setAiChatKey] = React.useState<number>(0);
-  const [assistant, setAssistant] = React.useState<Assistant | null>(null);
 
-  // 初始化 Assistant
-  React.useEffect(() => {
-    const initAssistant = async () => {
-      try {
-        const assistantId = "web_agent";
-        const mockAssistant: Assistant = {
-          assistant_id: assistantId,
-          graph_id: assistantId,
-          config: {
-            configurable: {
-              project_identifier: projectId,
-              folder_id: selectedFolderId || "",
-              template_type: "web_test",
-            }
-          },
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          metadata: {},
-          version: 1,
-          name: t("webTests.webFunctionAssistant"),
-          context: {},
-        };
-        setAssistant(mockAssistant);
-      } catch (error) {
-        console.error("Failed to initialize assistant:", error);
-      }
+  // 使用 useMemo 稳定 assistant 对象
+  const assistant = React.useMemo<Assistant | null>(() => {
+    if (!projectId) return null;
+    return {
+      assistant_id: "web_agent",
+      graph_id: "web_agent",
+      config: {
+        configurable: {
+          project_identifier: projectId,
+          folder_id: selectedFolderId || "",
+          template_type: "web_test",
+        }
+      },
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      metadata: {},
+      version: 1,
+      name: t("webTests.webFunctionAssistant"),
+      context: {},
     };
-    initAssistant();
-  }, [projectId, selectedFolderId]);
+  }, [projectId, selectedFolderId, t]);
 
   // 加载 Web 函数测试数据
   const loadWebFunctions = React.useCallback(async () => {
@@ -174,7 +213,6 @@ export default function WebTestsPage() {
     try {
       setLoading(true);
 
-      // 加载子功能列表（无论是根目录还是子文件夹，都加载对应的 sub-functions）
       const subFunctionsParams: any = {
         p: page,
         page_size: pageSize,
@@ -182,12 +220,6 @@ export default function WebTestsPage() {
       if (selectedFolderId) {
         subFunctionsParams.folder_id = selectedFolderId;
       }
-      const subFunctions = await listWebSubFunctions(projectId, subFunctionsParams);
-      const subFunctionsItems = subFunctions.items || [];
-      setWebSubFunctions(subFunctionsItems);
-
-      // 不自动选中第一个子功能，等待用户手动选择
-      // 只有在抽屉中点击子功能时才加载对应的成果物
 
       const params = {
         p: page,
@@ -195,15 +227,16 @@ export default function WebTestsPage() {
         search: searchQuery || undefined,
       };
 
-      let response;
-      if (selectedFolderId) {
-        response = await listWebFunctions(projectId, {
-          ...params,
-          folder_id: selectedFolderId,
-        });
-      } else {
-        response = await listWebFunctions(projectId, params);
-      }
+      // 子功能列表与功能列表相互独立，并行请求
+      const [subFunctions, response] = await Promise.all([
+        listWebSubFunctions(projectId, subFunctionsParams),
+        selectedFolderId
+          ? listWebFunctions(projectId, { ...params, folder_id: selectedFolderId })
+          : listWebFunctions(projectId, params),
+      ]);
+
+      const subFunctionsItems = subFunctions.items || [];
+      setWebSubFunctions(subFunctionsItems);
 
       let items, total;
       if ((response as any).data) {
@@ -223,7 +256,7 @@ export default function WebTestsPage() {
     } finally {
       setLoading(false);
     }
-  }, [projectId, selectedFolderId, page, pageSize, searchQuery, formatFilter, testMode]);
+  }, [projectId, selectedFolderId, page, pageSize, searchQuery, formatFilter, testMode, t]);
 
   // 根据模式加载数据
   React.useEffect(() => {
@@ -243,6 +276,8 @@ export default function WebTestsPage() {
 
   // 处理创建函数
   const handleCreateWebFunction = (folderId?: string | null) => {
+    setEditingWebFunction(null);
+    setCreateWebFunctionFolderId(folderId || null);
     setCreateFunctionDialogOpen(true);
   };
 
@@ -524,7 +559,7 @@ export default function WebTestsPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setCreateFunctionDialogOpen(true)}
+                  onClick={() => handleCreateWebFunction(null)}
                   className="bg-background hover:bg-accent"
                 >
                   <Plus className="mr-2 h-4 w-4" />
@@ -778,9 +813,15 @@ export default function WebTestsPage() {
         {/* 创建/编辑函数对话框 */}
         <CreateWebFunctionDialog
           open={createFunctionDialogOpen}
-          onOpenChange={setCreateFunctionDialogOpen}
+          onOpenChange={(open) => {
+            setCreateFunctionDialogOpen(open);
+            if (!open) {
+              setCreateWebFunctionFolderId(null);
+              setEditingWebFunction(null);
+            }
+          }}
           projectId={projectId}
-          folderId={selectedFolderId}
+          folderId={createWebFunctionFolderId ?? selectedFolderId}
           editingFunction={editingWebFunction}
           onSuccess={handleFunctionCreated}
         />

@@ -120,6 +120,12 @@ await tools.add_step_extractor({
 
 ### 6. 添加断言验证
 
+**强制规则：每个步骤必须至少包含 2 个断言：**
+1. **1 个 status 断言**（验证 HTTP 状态码）
+2. **1 个 jsonpath 或 header 断言**（验证响应体字段或响应头）
+
+对核心业务字段（如 token、orderId、userId、支付状态等）必须追加 `ne null` / `ne ""` 断言，确保后续步骤拿到的数据有效；对业务状态字段（如 orderStatus、paymentStatus）必须追加 `eq` 断言验证流程正确流转。
+
 为每个步骤添加断言，验证响应是否符合预期：
 
 ```javascript
@@ -130,13 +136,22 @@ await tools.add_step_assertion({
   expected: 200
 })
 
-// 验证响应中的字段值
+// 验证业务成功标识
 await tools.add_step_assertion({
   step_id: "{step1_id}",
   assertion_type: "jsonpath",
   path: "$.success",
   expected: true,
   operator: "eq"
+})
+
+// 验证核心字段非空（token / orderId / userId 等必须加）
+await tools.add_step_assertion({
+  step_id: "{step1_id}",
+  assertion_type: "jsonpath",
+  path: "$.data.token",
+  expected: null,
+  operator: "ne"
 })
 
 // 验证响应头
@@ -274,8 +289,9 @@ const result = await tools.execute_scenario({
 ### 3. 断言设计策略
 
 **必备断言：**
-- 每个 HTTP 状态码都要验证
-- 关键业务字段必须验证（如订单 ID、支付状态）
+- 每个步骤至少包含 2 个断言：1 个 HTTP 状态码 + 1 个 jsonpath/header。
+- 关键业务字段必须验证（如订单 ID、支付状态、token 非空）。
+- 从步骤响应中提取出来供后续步骤使用的字段，必须在本步骤追加 `ne null` / `ne ""` 断言。
 
 **推荐断言层次：**
 1. HTTP 状态码验证（最基本）
@@ -440,7 +456,7 @@ await tools.add_step_extractor({
   path: "$.data.userId"
 })
 
-// 添加断言
+// 添加断言（status + jsonpath 必备）
 await tools.add_step_assertion({
   step_id: step1.data.step_id,
   assertion_type: "status",
@@ -452,6 +468,23 @@ await tools.add_step_assertion({
   assertion_type: "jsonpath",
   path: "$.success",
   expected: true
+})
+
+// 核心提取字段必须非空
+await tools.add_step_assertion({
+  step_id: step1.data.step_id,
+  assertion_type: "jsonpath",
+  path: "$.data.token",
+  expected: null,
+  operator: "ne"
+})
+
+await tools.add_step_assertion({
+  step_id: step1.data.step_id,
+  assertion_type: "jsonpath",
+  path: "$.data.userId",
+  expected: null,
+  operator: "ne"
 })
 
 // 3. 步骤 2: 获取商品列表
@@ -470,6 +503,21 @@ await tools.add_data_mapping({
   source_path: "$.data.token",
   target_path: "headers.Authorization",
   transform_expression: "'Bearer ' + value"
+})
+
+// 列表步骤断言
+await tools.add_step_assertion({
+  step_id: step2.data.step_id,
+  assertion_type: "status",
+  expected: 200
+})
+
+await tools.add_step_assertion({
+  step_id: step2.data.step_id,
+  assertion_type: "jsonpath",
+  path: "$.data",
+  expected: null,
+  operator: "ne"
 })
 
 // 4. 步骤 3: 创建订单
@@ -503,6 +551,29 @@ await tools.add_step_extractor({
   path: "$.data.orderId"
 })
 
+// 创建订单断言
+await tools.add_step_assertion({
+  step_id: step3.data.step_id,
+  assertion_type: "status",
+  expected: 201
+})
+
+await tools.add_step_assertion({
+  step_id: step3.data.step_id,
+  assertion_type: "jsonpath",
+  path: "$.data.orderId",
+  expected: null,
+  operator: "ne"
+})
+
+await tools.add_step_assertion({
+  step_id: step3.data.step_id,
+  assertion_type: "jsonpath",
+  path: "$.data.orderStatus",
+  expected: "pending",
+  operator: "eq"
+})
+
 // 5. 步骤 4: 支付订单
 const step4 = await tools.add_scenario_step({
   scenario_id: scenarioId,
@@ -533,9 +604,24 @@ await tools.add_data_mapping({
 // 验证支付状态
 await tools.add_step_assertion({
   step_id: step4.data.step_id,
+  assertion_type: "status",
+  expected: 200
+})
+
+await tools.add_step_assertion({
+  step_id: step4.data.step_id,
   assertion_type: "jsonpath",
-  path: "$.data.status",
-  expected: "paid"
+  path: "$.data.paymentStatus",
+  expected: "paid",
+  operator: "eq"
+})
+
+await tools.add_step_assertion({
+  step_id: step4.data.step_id,
+  assertion_type: "jsonpath",
+  path: "$.data.transactionId",
+  expected: null,
+  operator: "ne"
 })
 
 // 6. 更新场景状态

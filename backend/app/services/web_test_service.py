@@ -369,6 +369,15 @@ class WebTestService:
                     skipped = result.get("skipped", 0)
                     error = result.get("error")
 
+                    # 截断日志，防止数据库/前端过载
+                    _MAX_LOG_LENGTH = 100_000
+                    stdout_text = result.get("stdout", "") or ""
+                    stderr_text = result.get("stderr", "") or ""
+                    if len(stdout_text) > _MAX_LOG_LENGTH:
+                        stdout_text = stdout_text[:_MAX_LOG_LENGTH] + "\n...[truncated]"
+                    if len(stderr_text) > _MAX_LOG_LENGTH:
+                        stderr_text = stderr_text[:_MAX_LOG_LENGTH] + "\n...[truncated]"
+
                     await run_repo.update(
                         await run_repo.get_by_id(run_id),
                         status="completed" if result.get("success") else "failed",
@@ -378,6 +387,8 @@ class WebTestService:
                         skipped_tests=skipped,
                         error_message=error,
                         duration_ms=result.get("duration_ms"),
+                        stdout=stdout_text,
+                        stderr=stderr_text,
                     )
                     await session.commit()
 
@@ -386,6 +397,8 @@ class WebTestService:
                     await run_repo.get_by_id(run_id),
                     status="failed",
                     error_message=str(e),
+                    stdout="",
+                    stderr=str(e),
                 )
                 await session.commit()
                 print(f"Web 测试执行失败: {e}")
@@ -469,8 +482,10 @@ export default defineConfig({{
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
 
             # 尝试解析 JSON 结果
+            stdout_text = stdout.decode("utf-8", errors="replace")
+            stderr_text = stderr.decode("utf-8", errors="replace")
             try:
-                result_data = json.loads(stdout.decode("utf-8"))
+                result_data = json.loads(stdout_text)
                 stats = result_data.get("stats", {})
                 return {
                     "success": proc.returncode == 0,
@@ -479,7 +494,9 @@ export default defineConfig({{
                     "failed": stats.get("unexpected", 0),
                     "skipped": stats.get("skipped", 0),
                     "duration_ms": duration_ms,
-                    "error": stderr.decode("utf-8") if proc.returncode != 0 else None,
+                    "error": stderr_text if proc.returncode != 0 else None,
+                    "stdout": stdout_text,
+                    "stderr": stderr_text,
                 }
             except json.JSONDecodeError:
                 # JSON 解析失败，使用简化结果
@@ -490,7 +507,9 @@ export default defineConfig({{
                     "failed": 0 if proc.returncode == 0 else 1,
                     "skipped": 0,
                     "duration_ms": duration_ms,
-                    "error": stderr.decode("utf-8") if proc.returncode != 0 else None,
+                    "error": stderr_text if proc.returncode != 0 else None,
+                    "stdout": stdout_text,
+                    "stderr": stderr_text,
                 }
 # pylint: disable  My80OmFIVnBZMlhsdEpUbXRiZm92b2s2ZGtSSVRRPT06MjUwZjQ4ZDM=
 
@@ -503,6 +522,8 @@ export default defineConfig({{
                 "skipped": 0,
                 "duration_ms": int((datetime.now() - start_time).total_seconds() * 1000),
                 "error": f"测试执行超时（{timeout}秒）",
+                "stdout": "",
+                "stderr": "",
             }
         except Exception as e:
             return {
@@ -513,6 +534,8 @@ export default defineConfig({{
                 "skipped": 0,
                 "duration_ms": int((datetime.now() - start_time).total_seconds() * 1000),
                 "error": str(e),
+                "stdout": "",
+                "stderr": "",
             }
 
     async def get_test_runs(

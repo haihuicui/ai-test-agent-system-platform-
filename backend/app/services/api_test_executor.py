@@ -322,10 +322,10 @@ let currentTestName = '';
 let currentTestTitle = '';
 
 function parseUrlParams(url: string): Record<string, string> | undefined {\n  try {\n    const parsed = new URL(url, 'http://localhost');\n    const params: Record<string, string> = {};\n    parsed.searchParams.forEach((value, key) => {\n      params[key] = value;\n    });\n    return Object.keys(params).length > 0 ? params : undefined;\n  } catch {\n    return undefined;\n  }\n}\n\nconst originalFetch = globalThis.fetch;
-console.error('[api-trace-helper] global fetch patch installed, API_TRACE_OUTPUT_FILE=', process.env.API_TRACE_OUTPUT_FILE);
+console.log('[api-trace-helper] global fetch patch installed, API_TRACE_OUTPUT_FILE=', process.env.API_TRACE_OUTPUT_FILE);
 globalThis.fetch = async function fetch(input: RequestInfo | URL, init?: RequestInit) {
   const traceFile = process.env.API_TRACE_OUTPUT_FILE;
-  console.error('[api-trace-helper] fetch intercepted, currentTestName=', currentTestName, 'url=', typeof input === 'string' ? input : (input as any).url);
+  console.log('[api-trace-helper] fetch intercepted, currentTestName=', currentTestName, 'url=', typeof input === 'string' ? input : (input as any).url);
   if (!traceFile || !currentTestName) {
     return originalFetch(input, init);
   }
@@ -406,7 +406,7 @@ export const test = baseTest.extend({
 test.beforeEach(async ({}, testInfo) => {
   currentTestName = testInfo.titlePath.join(' › ');
   currentTestTitle = testInfo.title;
-  console.error('[api-trace-helper] beforeEach set currentTestName=', currentTestName);
+  console.log('[api-trace-helper] beforeEach set currentTestName=', currentTestName);
 });
 
 test.afterEach(() => {
@@ -749,15 +749,19 @@ class APITestExecutor:
             except Exception as e:
                 logger.exception("[APITestExecutor DEBUG] exception in _execute_in_background: %s", e)
                 logger.exception("[APITestExecutor] 后台执行失败")
-                # 更新为失败状态
+                # 更新为失败状态，尽量保留已产生的 stdout/stderr
                 try:
                     run_record = await run_repo.get_by_id(run_id)
                     if run_record:
-                        await run_repo.update(
-                            run_record,
-                            status="failed",
-                            error_message=str(e)
-                        )
+                        update_kwargs = {
+                            "status": "failed",
+                            "error_message": str(e),
+                        }
+                        result = locals().get("result")
+                        if result is not None:
+                            update_kwargs["stdout"] = result.get("stdout", "")
+                            update_kwargs["stderr"] = result.get("stderr", "")
+                        await run_repo.update(run_record, **update_kwargs)
                         await session.commit()
                 except Exception as inner_e:
                     logger.error("[APITestExecutor] 更新失败状态也失败了: %s", inner_e)
@@ -953,7 +957,7 @@ class APITestExecutor:
                     api_test=api_test,
                     test_name=item["title"],
                     status=status,
-                    results=matched_traces,
+                    trace_entries=matched_traces,
                     result_repo=result_repo,
                 )
 
@@ -1018,9 +1022,10 @@ class APITestExecutor:
 
         results: List[Dict[str, str]] = []
         # 匹配行首状态符号、序号、可选项目信息、文件名位置、标题和可选耗时
-        # Playwright 实际输出使用 ASCII '>' 作为分隔符，而非 Unicode '›'
+        # Playwright 在不同终端/系统下可能输出 ok/x 或 ✓/✗，
+        # 且分隔符可能是 Unicode '›' 或 ASCII '>'，这里同时兼容两者。
         pattern = re.compile(
-            r"^\s*(ok|x|[✓✗\-+×])\s+\d+\s+(?:\[[^\]]+\]\s+)?>\s+[^>]+\s+>\s+(.+?)(?:\s+\([\d.]+\s*(?:ms|s|m|h)\))?\s*$",
+            r"^\s*(ok|x|[✓✗\-+×])\s+\d+\s+(?:\[[^\]]+\]\s+)?[›>]\s+[^›>]+\s+[›>]\s+(.+?)(?:\s+\([\d.]+\s*(?:ms|s|m|h)\))?\s*$",
             re.MULTILINE,
         )
         status_map = {
@@ -1198,7 +1203,7 @@ class APITestExecutor:
                 "passed": passed,
                 "actual": response_status,
                 "expected": "2xx",
-                "message": f"HTTP 状态码断言{'通过' if passed else '失败'}: 实际 {response_status}",
+                "message": f"HTTP 状态码断言{'通过' if passed else '失败'}: 预期 2xx，实际 {response_status}",
             })
 
         # 如果 Playwright 测试本身失败，追加一个通用失败断言

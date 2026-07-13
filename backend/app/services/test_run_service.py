@@ -9,14 +9,17 @@ import asyncio
 import logging
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
-from typing import Optional, Union
+from typing import Any, Optional, Union
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func
 
 from app.config.minio_client import MinIOClient
 from app.models.test_run import TestRun, TestRunTestCase, TestRunScriptJob, TestRunSchedule
 from app.models.api_test import APITestRun
+from app.models.test_scenario import ScenarioRun
+from app.models.web_test import WebTestRun
 from app.repositories.api_test_repo import APITestRunRepository
 from app.services.test_execution_engine import TestExecutionService
 from app.models.test_case import TestCase
@@ -29,6 +32,7 @@ from app.repositories.test_run_repo import (
 from app.repositories.project_repo import ProjectRepository
 from app.repositories.test_case_repo import TestCaseRepository
 from app.repositories.test_plan_repo import TestPlanRepository
+from app.repositories.web_test_repo import WebTestRunRepository
 from app.schemas.test_run import (
     TestRunCreate,
     TestRunPatchUpdate,
@@ -64,6 +68,7 @@ from app.schemas.enums import (
     TriggerType,
     ScriptType,
     JobStatus,
+    FailurePolicy,
 )
 from app.utils.exceptions import NotFoundException, BadRequestException
 from app.config.settings import settings
@@ -144,6 +149,25 @@ class TestRunService:
             )
         return env_uuid
 
+    async def _resolve_schedule_id(
+        self, schedule_id: Optional[str], project_id: UUID
+    ) -> Optional[UUID]:
+        """校验 scheduled_by 属于该项目，返回 UUID 或 None"""
+        if not schedule_id:
+            return None
+        try:
+            schedule_uuid = UUID(schedule_id)
+        except ValueError:
+            raise BadRequestException(
+                message=f"来源调度 ID '{schedule_id}' 格式不正确"
+            )
+        schedule = await self.schedule_repo.get_by_id(schedule_uuid)
+        if not schedule or schedule.project_id != project_id:
+            raise BadRequestException(
+                message=f"来源调度 '{schedule_id}' 不存在或不属于该项目"
+            )
+        return schedule_uuid
+
     def _overall_progress(self, test_run: TestRun) -> OverallProgress:
         """从模型字段构造 BS 7 字段进度"""
         return OverallProgress(
@@ -164,6 +188,15 @@ class TestRunService:
             f"/test-runs/{test_run_identifier}"
         )
         return TestRunLinks(self=base, test_cases=f"{base}/test-cases")
+
+    async def _batch_schedule_names(
+        self, schedule_ids: set[UUID]
+    ) -> dict[UUID, str]:
+        """批量获取调度名称，用于列表/详情展示"""
+        if not schedule_ids:
+            return {}
+        schedules = await self.schedule_repo.get_by_ids(list(schedule_ids))
+        return {s.id: s.name for s in schedules if s.id}
 
     def _test_plan_ref(self, plan) -> Optional[TestPlanRef]:
         if not plan:
@@ -300,7 +333,12 @@ class TestRunService:
             sub_plan = await self.test_plan_repo.get_by_id(
                 test_run.sub_test_plan_id
             )
-# noqa  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2V1doaFV3PT06MzhkMDVhYzE=
+
+        # 来源调度名称
+        schedule_name: Optional[str] = None
+        if test_run.scheduled_by:
+            schedule = await self.schedule_repo.get_by_id(test_run.scheduled_by)
+            schedule_name = schedule.name if schedule else None
 
         inline_cases: Optional[list[TestRunTestCaseInfo]] = None
         if include_inline_test_cases:
@@ -349,9 +387,12 @@ class TestRunService:
             test_cases=inline_cases,
             execution_mode=test_run.execution_mode or ExecutionMode.SEQUENTIAL,
             max_concurrency=test_run.max_concurrency or 5,
+            failure_policy=test_run.failure_policy or FailurePolicy.CONTINUE,
             trigger_type=test_run.trigger_type or TriggerType.MANUAL,
             script_jobs=script_jobs,
             environment_id=str(test_run.environment_id) if test_run.environment_id else None,
+            scheduled_by=test_run.scheduled_by,
+            schedule_name=schedule_name,
             created_at=test_run.created_at,
             updated_at=test_run.updated_at,
             closed_at=test_run.closed_at,
@@ -373,29 +414,43 @@ class TestRunService:
             tags=test_run.tags or [],
             configurations=test_run.configurations or [],
             overall_progress=self._overall_progress(test_run),
+            failure_policy=test_run.failure_policy or FailurePolicy.CONTINUE,
             created_at=test_run.created_at,
             updated_at=test_run.updated_at,
             links=self._links(project_identifier, test_run.identifier),
         )
 
-    def _to_list_info(self, test_run: TestRun) -> TestRunListInfo:
+    def _to_list_info(
+        self,
+        test_run: TestRun,
+        *,
+        schedule_names: Optional[dict[UUID, str]] = None,
+    ) -> TestRunListInfo:
+        schedule_names = schedule_names or {}
         return TestRunListInfo(
             id=test_run.id,
             identifier=test_run.identifier,
             name=test_run.name,
+            description=test_run.description,
             run_state=test_run.run_state,
             active_state=test_run.active_state,
             assignee=test_run.assignee,
+            test_case_assignee=test_run.test_case_assignee,
             project_id=test_run.project_id,
             test_cases_count=test_run.test_cases_count or 0,
             configurations=test_run.configurations or [],
             overall_progress=self._overall_progress(test_run),
             created_at=test_run.created_at,
             closed_at=test_run.closed_at,
+            tags=test_run.tags or [],
+            issues=test_run.issues or [],
             execution_mode=test_run.execution_mode or ExecutionMode.SEQUENTIAL,
             max_concurrency=test_run.max_concurrency or 5,
+            failure_policy=test_run.failure_policy or FailurePolicy.CONTINUE,
             trigger_type=test_run.trigger_type or TriggerType.MANUAL,
             environment_id=str(test_run.environment_id) if test_run.environment_id else None,
+            scheduled_by=test_run.scheduled_by,
+            schedule_name=schedule_names.get(test_run.scheduled_by) if test_run.scheduled_by else None,
         )
 
     # ============ 测试用例解析 (BS 优先级) ============
@@ -555,11 +610,12 @@ class TestRunService:
         created_before=None,
         created_after=None,
         search: Optional[str] = None,
+        trigger_types: Optional[list[TriggerType]] = None,
+        scheduled_by: Optional[UUID] = None,
         offset: int = 0,
         limit: int = 30,
     ) -> tuple[list[TestRunListInfo], int]:
         project = await self._get_project_by_identifier(project_identifier)
-# noqa  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2V1doaFV3PT06MzhkMDVhYzE=
 
         resolved_plan_id: Optional[UUID] = None
         if test_plan_id:
@@ -578,10 +634,22 @@ class TestRunService:
             created_before=created_before,
             created_after=created_after,
             search=search,
+            trigger_types=trigger_types,
+            scheduled_by=scheduled_by,
             offset=offset,
             limit=limit,
         )
-        return [self._to_list_info(tr) for tr in test_runs], total
+
+        # 批量获取来源调度名称
+        schedule_ids = {
+            tr.scheduled_by for tr in test_runs if tr.scheduled_by
+        }
+        schedule_names = await self._batch_schedule_names(schedule_ids)
+
+        return [
+            self._to_list_info(tr, schedule_names=schedule_names)
+            for tr in test_runs
+        ], total
 
     async def get_detail(
         self,
@@ -626,6 +694,9 @@ class TestRunService:
         environment_id = await self._resolve_environment_id(
             data.environment_id, project.id
         )
+        scheduled_by_id = await self._resolve_schedule_id(
+            data.scheduled_by, project.id
+        )
 
         identifier = await self.repo.generate_identifier(project.id)
 
@@ -641,6 +712,7 @@ class TestRunService:
             test_plan_id=plan_id,
             sub_test_plan_id=sub_plan_id,
             environment_id=environment_id,
+            scheduled_by=scheduled_by_id,
             tags=data.tags or [],
             issues=data.issues or [],
             issue_tracker=data.issue_tracker.model_dump()
@@ -660,7 +732,8 @@ class TestRunService:
             else None,
             execution_mode=data.execution_mode or ExecutionMode.SEQUENTIAL,
             max_concurrency=data.max_concurrency or 5,
-            trigger_type=TriggerType.MANUAL,
+            failure_policy=data.failure_policy or FailurePolicy.CONTINUE,
+            trigger_type=data.trigger_type or TriggerType.MANUAL,
         )
         test_run = await self.repo.create(test_run)
 
@@ -694,8 +767,10 @@ class TestRunService:
                     )
                 )
             await self.script_job_repo.create_many(jobs)
-
-        await self.repo.update_counts(test_run.id)
+            # 新方式基于 script_jobs 统计未测/进行中数量
+            await self.repo.update_counts_from_jobs(test_run.id)
+        else:
+            await self.repo.update_counts(test_run.id)
         await self.session.refresh(test_run)
         return await self._to_info(test_run, project_identifier)
 
@@ -711,7 +786,14 @@ class TestRunService:
 
         payload = data.model_dump(exclude_unset=True)
 
-        # sub_test_plan_id (identifier → UUID)
+        # test_plan_id / sub_test_plan_id (identifier → UUID)
+        if "test_plan_id" in payload:
+            ident = payload.pop("test_plan_id")
+            test_run.test_plan_id = (
+                await self._resolve_test_plan_id(ident, project.id)
+                if ident
+                else None
+            )
         if "sub_test_plan_id" in payload:
             ident = payload.pop("sub_test_plan_id")
             test_run.sub_test_plan_id = (
@@ -736,6 +818,13 @@ class TestRunService:
                 ftc.model_dump() if hasattr(ftc, "model_dump") else ftc
             )
 
+        # issue_tracker serialize
+        if "issue_tracker" in payload:
+            it = payload.pop("issue_tracker")
+            test_run.issue_tracker = (
+                it.model_dump() if hasattr(it, "model_dump") else it
+            )
+
         # environment_id 校验并转换
         if "environment_id" in payload:
             env_id = payload.pop("environment_id")
@@ -743,12 +832,76 @@ class TestRunService:
                 env_id, project.id
             )
 
+        # active_state 关闭/打开时同步 closed_at 与 run_state
+        if "active_state" in payload:
+            active_state = payload["active_state"]
+            if isinstance(active_state, TestRunActiveState):
+                active_state = active_state.value
+            if active_state == TestRunActiveState.CLOSED.value:
+                if test_run.closed_at is None:
+                    test_run.closed_at = datetime.now(timezone.utc)
+                test_run.run_state = TestRunState.CLOSED
+            elif active_state == TestRunActiveState.ACTIVE.value:
+                test_run.closed_at = None
+
+        # run_state 设为 closed 时同步 active_state 与 closed_at
+        if "run_state" in payload:
+            run_state = payload["run_state"]
+            if isinstance(run_state, TestRunState):
+                run_state = run_state.value
+            if run_state == TestRunState.CLOSED.value:
+                test_run.active_state = TestRunActiveState.CLOSED
+                if test_run.closed_at is None:
+                    test_run.closed_at = datetime.now(timezone.utc)
+
+        # scripts: 替换脚本作业（新增/清空直接脚本选择）
+        scripts_updated = False
+        if "scripts" in payload:
+            scripts = payload.pop("scripts")
+            await self.script_job_repo.delete_by_test_run(test_run.id)
+            if scripts:
+                scripts_updated = True
+                jobs: list[TestRunScriptJob] = []
+                for i, sel in enumerate(scripts):
+                    jobs.append(
+                        TestRunScriptJob(
+                            test_run_id=test_run.id,
+                            script_type=sel["script_type"],
+                            script_id=UUID(sel["script_id"]),
+                            script_identifier=sel.get("script_identifier") or "",
+                            script_name=sel.get("script_name"),
+                            execution_order=sel.get("execution_order")
+                            if sel.get("execution_order") is not None
+                            else i,
+                            execution_mode=sel.get("execution_mode")
+                            or test_run.execution_mode,
+                            execution_config=sel.get("execution_config"),
+                            status=JobStatus.PENDING,
+                            max_retries=0,
+                        )
+                    )
+                await self.script_job_repo.create_many(jobs)
+
         # 平铺字段
         for key, value in payload.items():
             if hasattr(test_run, key):
                 setattr(test_run, key, value)
 
+        # 关闭状态以 active_state 为准，强制联动 run_state
+        if test_run.active_state == TestRunActiveState.CLOSED:
+            test_run.run_state = TestRunState.CLOSED
+
         test_run = await self.repo.update(test_run)
+
+        # 根据是否存在脚本作业选择正确的计数方式
+        if scripts_updated:
+            await self.repo.update_counts_from_jobs(test_run.id)
+        else:
+            existing_jobs, _ = await self.script_job_repo.get_by_test_run(test_run.id)
+            if existing_jobs:
+                await self.repo.update_counts_from_jobs(test_run.id)
+            else:
+                await self.repo.update_counts(test_run.id)
         return await self._to_info(test_run, project_identifier)
 
     async def full_replace(
@@ -815,7 +968,29 @@ class TestRunService:
             default_assignee=data.test_case_assignee or data.assignee,
         )
 
-        await self.repo.update_counts(test_run.id)
+        # 重建脚本作业
+        if data.scripts:
+            jobs: list[TestRunScriptJob] = []
+            for i, sel in enumerate(data.scripts):
+                jobs.append(
+                    TestRunScriptJob(
+                        test_run_id=test_run.id,
+                        script_type=sel.script_type,
+                        script_id=UUID(sel.script_id),
+                        script_identifier=sel.script_identifier or "",
+                        script_name=sel.script_name,
+                        execution_order=sel.execution_order or i,
+                        execution_mode=sel.execution_mode
+                        or (data.execution_mode or ExecutionMode.SEQUENTIAL),
+                        execution_config=sel.execution_config,
+                        status=JobStatus.PENDING,
+                        max_retries=0,
+                    )
+                )
+            await self.script_job_repo.create_many(jobs)
+            await self.repo.update_counts_from_jobs(test_run.id)
+        else:
+            await self.repo.update_counts(test_run.id)
         await self.session.refresh(test_run)
         return await self._to_info(test_run, project_identifier)
 
@@ -840,6 +1015,7 @@ class TestRunService:
         test_run.active_state = data.active_state or TestRunActiveState.CLOSED
         if test_run.active_state == TestRunActiveState.CLOSED:
             test_run.closed_at = datetime.now(timezone.utc)
+            test_run.run_state = TestRunState.CLOSED
         else:
             test_run.closed_at = None
 
@@ -1198,30 +1374,98 @@ class TestRunService:
         """获取脚本执行历史趋势（成功率统计）"""
         await self._get_project_by_identifier(project_identifier)
 
-        jobs = await self.script_job_repo.get_history_by_script(
-            script_type=script_type,
-            script_id=UUID(script_id),
-            limit=limit,
-        )
+        runs: list[Any] = []
+        total_attr = "total_tests"
+        passed_attr = "passed_tests"
+        failed_attr = "failed_tests"
+        skipped_attr = "skipped_tests"
+
+        if script_type == ScriptType.API_TEST:
+            api_run_repo = APITestRunRepository(self.session)
+            runs, _ = await api_run_repo.get_by_api_test(
+                UUID(script_id), offset=0, limit=limit
+            )
+        elif script_type == ScriptType.WEB_TEST:
+            web_run_repo = WebTestRunRepository(self.session)
+            runs, _ = await web_run_repo.get_by_web_test(
+                UUID(script_id), offset=0, limit=limit
+            )
+        elif script_type == ScriptType.SCENARIO:
+            stmt = (
+                select(ScenarioRun)
+                .where(ScenarioRun.scenario_id == UUID(script_id))
+                .order_by(ScenarioRun.created_at.desc())
+                .offset(0)
+                .limit(limit)
+            )
+            result = await self.session.execute(stmt)
+            runs = list(result.scalars().all())
+            total_attr = "total_steps"
+            passed_attr = "passed_steps"
+            failed_attr = "failed_steps"
+            skipped_attr = "skipped_steps"
+        else:
+            # 兜底：按 TestRunScriptJob 查询
+            jobs = await self.script_job_repo.get_history_by_script(
+                script_type=script_type,
+                script_id=UUID(script_id),
+                limit=limit,
+            )
+            history = []
+            for job in jobs:
+                history.append({
+                    "job_id": str(job.id),
+                    "test_run_id": str(job.test_run_id),
+                    "status": job.status.value,
+                    "result_summary": job.result_summary,
+                    "duration_ms": job.duration_ms,
+                    "started_at": job.started_at.isoformat() if job.started_at else None,
+                    "completed_at": job.completed_at.isoformat() if job.completed_at else None,
+                })
+
+            total = len(jobs)
+            passed = sum(1 for j in jobs if j.status == JobStatus.COMPLETED)
+            failed = sum(1 for j in jobs if j.status == JobStatus.FAILED)
+            skipped = sum(1 for j in jobs if j.status == JobStatus.SKIPPED)
+            cancelled = sum(1 for j in jobs if j.status == JobStatus.CANCELLED)
+            success_rate = round((passed / total) * 100, 1) if total > 0 else 0
+
+            return {
+                "script_type": script_type.value,
+                "script_id": script_id,
+                "total_runs": total,
+                "success_rate": success_rate,
+                "passed": passed,
+                "failed": failed,
+                "skipped": skipped,
+                "cancelled": cancelled,
+                "history": history,
+            }
 
         history = []
-        for job in jobs:
+        for run in runs:
+            started_at = getattr(run, "started_at", None) or getattr(run, "created_at", None)
+            completed_at = getattr(run, "completed_at", None) or getattr(run, "updated_at", None)
             history.append({
-                "job_id": str(job.id),
-                "test_run_id": str(job.test_run_id),
-                "status": job.status.value,
-                "result_summary": job.result_summary,
-                "duration_ms": job.duration_ms,
-                "started_at": job.started_at.isoformat() if job.started_at else None,
-                "completed_at": job.completed_at.isoformat() if job.completed_at else None,
+                "job_id": str(run.id),
+                "test_run_id": None,
+                "status": run.status,
+                "result_summary": {
+                    "total": getattr(run, total_attr) or 0,
+                    "passed": getattr(run, passed_attr) or 0,
+                    "failed": getattr(run, failed_attr) or 0,
+                    "skipped": getattr(run, skipped_attr) or 0,
+                },
+                "duration_ms": getattr(run, "duration_ms", None),
+                "started_at": started_at.isoformat() if started_at else None,
+                "completed_at": completed_at.isoformat() if completed_at else None,
             })
 
-        # 汇总统计
-        total = len(jobs)
-        passed = sum(1 for j in jobs if j.status == JobStatus.COMPLETED)
-        failed = sum(1 for j in jobs if j.status == JobStatus.FAILED)
-        skipped = sum(1 for j in jobs if j.status == JobStatus.SKIPPED)
-        cancelled = sum(1 for j in jobs if j.status == JobStatus.CANCELLED)
+        total = len(history)
+        passed = sum(1 for h in history if h["status"] == "completed")
+        failed = sum(1 for h in history if h["status"] == "failed")
+        skipped = 0
+        cancelled = sum(1 for h in history if h["status"] == "cancelled")
         success_rate = round((passed / total) * 100, 1) if total > 0 else 0
 
         return {
@@ -1472,6 +1716,17 @@ class TestRunService:
             trigger_config=data.trigger_config,
             is_enabled=data.is_enabled,
         )
+
+        # 计算下次执行时间
+        if schedule.is_enabled:
+            from app.services.scheduler_service import get_scheduler_service
+
+            scheduler = get_scheduler_service()
+            schedule.next_run_at = scheduler.compute_next_run_at(
+                schedule.trigger_type.value,
+                schedule.trigger_config,
+            )
+
         schedule = await self.schedule_repo.create(schedule)
         await self.session.commit()
 
@@ -1497,6 +1752,23 @@ class TestRunService:
         for key, value in payload.items():
             if hasattr(schedule, key):
                 setattr(schedule, key, value)
+
+        # 触发器或启用状态变更后，重新计算下次执行时间
+        trigger_changed = (
+            "trigger_type" in payload or "trigger_config" in payload
+        )
+        enabled_changed = "is_enabled" in payload
+        if trigger_changed or enabled_changed:
+            from app.services.scheduler_service import get_scheduler_service
+
+            scheduler = get_scheduler_service()
+            if schedule.is_enabled:
+                schedule.next_run_at = scheduler.compute_next_run_at(
+                    schedule.trigger_type.value,
+                    schedule.trigger_config,
+                )
+            else:
+                schedule.next_run_at = None
 
         schedule = await self.schedule_repo.update(schedule)
         await self.session.commit()
@@ -1527,6 +1799,114 @@ class TestRunService:
         # 从 APScheduler 移除
         from app.services.scheduler_service import get_scheduler_service
         get_scheduler_service().remove_schedule(schedule_id)
+
+    async def trigger_schedule(
+        self,
+        project_identifier: str,
+        schedule_id: str,
+    ) -> dict:
+        """立即手动触发一次调度，生成 TestRun 并执行"""
+        project = await self._get_project_by_identifier(project_identifier)
+        schedule = await self.schedule_repo.get_by_id(UUID(schedule_id))
+        if not schedule or schedule.project_id != project.id:
+            raise NotFoundException(resource_type="定时调度", resource_id=schedule_id)
+
+        if not schedule.is_enabled:
+            raise BadRequestException(message="调度已禁用，无法触发")
+
+        # 幂等：最近 1 分钟内已触发过则返回已有 run
+        recent_run = await self.repo.get_recent_by_schedule(schedule.id, seconds=60)
+        if recent_run:
+            return {
+                "status": "skipped",
+                "reason": "recent_run_exists",
+                "test_run_id": str(recent_run.id),
+                "identifier": recent_run.identifier,
+                "message": "最近 1 分钟内已触发过该调度",
+            }
+
+        # 幂等：有执行中的 run 则跳过
+        in_progress_run = await self.repo.get_in_progress_by_schedule(schedule.id)
+        if in_progress_run:
+            return {
+                "status": "skipped",
+                "reason": "in_progress",
+                "test_run_id": str(in_progress_run.id),
+                "identifier": in_progress_run.identifier,
+                "message": "该调度存在执行中的测试运行",
+            }
+
+        template = schedule.test_run_template or {}
+        test_run = await self.create(
+            project_identifier,
+            TestRunCreate(
+                name=template.get("name", f"定时执行 - {schedule.name}"),
+                description=template.get("description", schedule.description),
+                execution_mode=template.get("execution_mode", "sequential"),
+                max_concurrency=template.get("max_concurrency", 5),
+                failure_policy=template.get("failure_policy", "continue"),
+                environment_id=template.get("environment_id"),
+                scripts=template.get("scripts", []),
+                trigger_type=TriggerType.SCHEDULED,
+                scheduled_by=str(schedule.id),
+            ),
+        )
+
+        await self.execute_test_run(project_identifier, test_run.identifier)
+
+        # 更新调度上次执行时间，并重新计算下次执行时间
+        schedule.last_run_at = datetime.utcnow()
+        from app.services.scheduler_service import get_scheduler_service
+
+        scheduler = get_scheduler_service()
+        schedule.next_run_at = scheduler.compute_next_run_at(
+            schedule.trigger_type.value,
+            schedule.trigger_config,
+        )
+        await self.session.commit()
+
+        return {
+            "status": "triggered",
+            "test_run_id": str(test_run.id),
+            "identifier": test_run.identifier,
+            "message": "调度已触发",
+        }
+
+    async def get_schedule_runs(
+        self,
+        project_identifier: str,
+        schedule_id: str,
+        *,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> dict:
+        """获取某调度产生的执行历史"""
+        project = await self._get_project_by_identifier(project_identifier)
+        schedule = await self.schedule_repo.get_by_id(UUID(schedule_id))
+        if not schedule or schedule.project_id != project.id:
+            raise NotFoundException(resource_type="定时调度", resource_id=schedule_id)
+
+        offset = (page - 1) * page_size
+        test_runs, total = await self.repo.get_list(
+            project_id=project.id,
+            scheduled_by=schedule.id,
+            include_closed=True,
+            offset=offset,
+            limit=page_size,
+        )
+
+        schedule_ids = {tr.scheduled_by for tr in test_runs if tr.scheduled_by}
+        schedule_names = await self._batch_schedule_names(schedule_ids)
+
+        return {
+            "items": [
+                self._to_list_info(tr, schedule_names=schedule_names)
+                for tr in test_runs
+            ],
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+        }
 
     # ============ 测试运行执行 ============
 
@@ -1629,6 +2009,7 @@ class TestRunService:
         passed_count = 0
         failed_count = 0
         skipped_count = 0
+        infra_error_count = 0
 
         for case in cases:
             # 加载测试用例的 api_tests 和 web_tests 关系
@@ -1638,6 +2019,7 @@ class TestRunService:
             case_status = TestResultStatus.PASSED
             has_automated_tests = False
             any_failed = False
+            case_infra_error = False
 
             # 执行关联的 API 测试
             for api_test in case.test_case.api_tests:
@@ -1657,10 +2039,12 @@ class TestRunService:
                             skipped_count += 1
                     else:
                         any_failed = True
+                        case_infra_error = True
 
                     executed_count += 1
                 except Exception:
                     any_failed = True
+                    case_infra_error = True
                     executed_count += 1
 
             # TODO: Web 测试执行（Phase 4 实现）
@@ -1676,6 +2060,9 @@ class TestRunService:
                 else:
                     skipped_count += 1
 
+                if case_infra_error:
+                    infra_error_count += 1
+
                 await self.tc_repo.update_status(case.id, case_status)
             else:
                 case_status = TestResultStatus.SKIPPED
@@ -1687,8 +2074,10 @@ class TestRunService:
 
         # 执行完成后更新状态
         test_run = await self.repo.get_by_id(test_run.id)
-        if failed_count > 0:
+        if infra_error_count > 0:
             test_run.run_state = TestRunState.REJECTED
+        elif failed_count > 0:
+            test_run.run_state = TestRunState.DONE_WITH_FAILURES
         else:
             test_run.run_state = TestRunState.DONE
         await self.repo.update(test_run)

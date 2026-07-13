@@ -279,7 +279,18 @@ export type TestRunState =
   | "rejected"
   | "approved"
   | "done"
+  | "done_with_failures"
   | "closed";
+
+// 失败策略
+export type FailurePolicy = "continue" | "stop_run" | "stop_job" | "mark_blocked";
+
+export const FAILURE_POLICY_OPTIONS = [
+  { value: "continue", label: "继续执行后续脚本" },
+  { value: "stop_run", label: "失败即停止整个运行" },
+  { value: "stop_job", label: "仅停止当前脚本" },
+  { value: "mark_blocked", label: "后续脚本标记为阻塞" },
+];
 
 // 活跃状态 (BS active_state)
 export type TestRunActiveState = "active" | "closed";
@@ -479,22 +490,36 @@ export interface TestRunCreate {
   scripts?: ScriptSelection[];
   execution_mode?: ExecutionMode;
   max_concurrency?: number;
+  failure_policy?: FailurePolicy;
   environment_id?: string;
+  scheduled_by?: string;
 }
 // TODO  My80OmFIVnBZMlhsdEpUbXRiZm92b2s2YnpKSlN3PT06NDllNWUxYTI=
 
 // 部分更新测试运行请求 (PATCH /test-runs/{id}/update)
 export interface TestRunPatchUpdate {
   name?: string;
+  description?: string;
   run_state?: TestRunState;
+  active_state?: TestRunActiveState;
+  assignee?: string;
+  test_case_assignee?: string;
   tags?: string[];
+  issues?: string[];
+  issue_tracker?: IssueTracker;
+  test_plan_id?: string;
   sub_test_plan_id?: string;
   configurations?: number[];
   configuration_map?: ConfigurationMapping[];
   folder_ids?: number[];
   include_all?: boolean;
+  filter_scope?: FilterScope;
   filter_test_cases?: TestCaseFilter;
+  execution_mode?: ExecutionMode;
+  max_concurrency?: number;
+  failure_policy?: FailurePolicy;
   environment_id?: string;
+  scripts?: ScriptSelection[];
 }
 
 // 全量替换测试运行请求 (POST /test-runs/{id}/update)
@@ -564,6 +589,9 @@ export interface TestRunInfo {
   trigger_type: TriggerType;
   script_jobs?: TestRunScriptJobInfo[] | null;
   environment_id?: string | null;
+  schedule_id?: string | null;
+  schedule_name?: string | null;
+  failure_policy: FailurePolicy;
   created_at: string;
   updated_at?: string | null;
   closed_at?: string | null;
@@ -583,6 +611,7 @@ export interface TestRunMinifiedInfo {
   tags: string[];
   configurations: number[];
   overall_progress: OverallProgress;
+  failure_policy: FailurePolicy;
   created_at: string;
   updated_at?: string | null;
   links?: TestRunLinks | null;
@@ -593,6 +622,7 @@ export interface TestRunListInfo {
   id: string;
   identifier: string;
   name: string;
+  description?: string | null;
   run_state: TestRunState;
   active_state: TestRunActiveState;
   assignee?: string | null;
@@ -605,8 +635,14 @@ export interface TestRunListInfo {
   // 企业级扩展字段
   execution_mode: ExecutionMode;
   max_concurrency: number;
+  failure_policy: FailurePolicy;
   trigger_type: TriggerType;
   environment_id?: string | null;
+  schedule_id?: string | null;
+  schedule_name?: string | null;
+  tags?: string[];
+  issues?: string[];
+  test_case_assignee?: string | null;
 }
 
 // 列表查询参数
@@ -623,6 +659,8 @@ export interface TestRunListParams {
   created_before?: string;
   created_after?: string;
   search?: string;
+  trigger_type?: string;
+  scheduled_by?: string;
 }
 
 // test-cases 子资源查询参数

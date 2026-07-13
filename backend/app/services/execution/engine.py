@@ -17,7 +17,7 @@ from app.repositories.test_run_repo import (
     TestRunRepository,
     TestRunScriptJobRepository,
 )
-from app.schemas.enums import ExecutionMode, JobStatus, TestRunState
+from app.schemas.enums import ExecutionMode, JobStatus, TestRunState, FailurePolicy
 from app.services.execution.executors import ExecutorRegistry
 from app.services.execution.models import ExecutionResult
 from app.services.execution.schedulers import (
@@ -30,6 +30,8 @@ logger = logging.getLogger(__name__)
 # 模块级取消状态，保证跨实例共享（cancel_run 可能由不同 TestExecutionService 实例调用）
 _cancelled_runs: Set[UUID] = set()
 _active_executors: Dict[UUID, Any] = {}
+# 模块级 run 计数锁，避免并发更新 TestRun 计数时互相覆盖
+_run_count_locks: Dict[UUID, asyncio.Lock] = {}
 # type: ignore  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2VG5aU1ZRPT06Njc4ZDgzY2U=
 
 
@@ -38,6 +40,27 @@ class ScriptExecutionEngine:
 
     def __init__(self, mongodb: Any = None):
         self.mongodb = mongodb
+
+    def _get_run_count_lock(self, test_run_id: UUID) -> asyncio.Lock:
+        """获取（必要时创建）指定测试运行的计数更新锁。"""
+        if test_run_id not in _run_count_locks:
+            _run_count_locks[test_run_id] = asyncio.Lock()
+        return _run_count_locks[test_run_id]
+
+    async def _update_run_counts(self, test_run_id: UUID) -> None:
+        """根据当前 ScriptJob 状态刷新 TestRun 的整体进度计数。"""
+        async with self._get_run_count_lock(test_run_id):
+            try:
+                async with async_session_factory() as session:
+                    run_repo = TestRunRepository(session)
+                    await run_repo.update_counts_from_jobs(test_run_id)
+                    await session.commit()
+            except Exception as e:
+                logger.warning(
+                    "[ScriptExecutionEngine] 更新测试运行 %s 计数失败: %s",
+                    test_run_id,
+                    e,
+                )
 
     async def execute_run(
         self,
@@ -72,9 +95,10 @@ class ScriptExecutionEngine:
             jobs, _ = await job_repo.get_by_test_run(test_run_id)
 
             if not jobs:
-                # 没有脚本作业，直接标记为完成
+                # 没有脚本作业，直接标记为完成并清零计数
                 test_run.run_state = TestRunState.DONE
                 await run_repo.update(test_run)
+                await run_repo.update_counts_from_jobs(test_run_id)
                 await session.commit()
                 return {
                     "test_run_id": str(test_run_id),
@@ -85,77 +109,93 @@ class ScriptExecutionEngine:
         # 提取执行配置（在 session 外访问标量属性是安全的，expire_on_commit=False）
         execution_mode = test_run.execution_mode or ExecutionMode.SEQUENTIAL
         max_concurrency = test_run.max_concurrency or 5
+        failure_policy = test_run.failure_policy or FailurePolicy.CONTINUE
         project_id = test_run.project_id
         environment_id = test_run.environment_id
 
-        # 2. 执行作业
         try:
-            if execution_mode == ExecutionMode.PARALLEL:
-                scheduler = ParallelScheduler()
-            else:
-                scheduler = SequentialScheduler()
-
-            results = await scheduler.schedule(
-                project_id=project_id,
-                jobs=jobs,
-                run_job=lambda job: self._run_job(
-                    test_run_id, job, environment_id=environment_id
-                ),
-                max_concurrency=max_concurrency,
-            )
-
-            # 清除取消标记
-            _cancelled_runs.discard(test_run_id)
-
-            # 3. 汇总结果并更新 TestRun 状态
-            success_count = sum(1 for r in results if r.success)
-            failed_count = len(results) - success_count
-
-            async with async_session_factory() as session:
-                run_repo = TestRunRepository(session)
-                test_run = await run_repo.get_by_id(test_run_id)
-
-                if failed_count > 0:
-                    test_run.run_state = TestRunState.REJECTED
+            # 2. 执行作业
+            try:
+                if execution_mode == ExecutionMode.PARALLEL:
+                    scheduler = ParallelScheduler()
                 else:
-                    test_run.run_state = TestRunState.DONE
+                    scheduler = SequentialScheduler()
 
-                await run_repo.update(test_run)
-                await run_repo.update_counts_from_jobs(test_run_id)
-                await session.commit()
+                results = await scheduler.schedule(
+                    project_id=project_id,
+                    jobs=jobs,
+                    run_job=lambda job: self._run_job(
+                        test_run_id, job, environment_id=environment_id
+                    ),
+                    max_concurrency=max_concurrency,
+                    failure_policy=failure_policy,
+                )
 
-            logger.info(
-                "[ScriptExecutionEngine] 测试运行 %s 执行完成: "
-                "total=%s, passed=%s, failed=%s",
-                test_run_id,
-                len(results),
-                success_count,
-                failed_count,
-            )
+                # 清除取消标记
+                _cancelled_runs.discard(test_run_id)
 
-            return {
-                "test_run_id": str(test_run_id),
-                "status": "done" if failed_count == 0 else "rejected",
-                "total": len(results),
-                "passed": success_count,
-                "failed": failed_count,
-            }
+                # 3. 汇总结果并更新 TestRun 状态
+                success_count = sum(1 for r in results if r.success)
+                failed_count = len(results) - success_count
 
-        except Exception as e:
-            logger.exception("[ScriptExecutionEngine] 执行测试运行时异常")
-            async with async_session_factory() as session:
-                run_repo = TestRunRepository(session)
-                test_run = await run_repo.get_by_id(test_run_id)
-                test_run.run_state = TestRunState.REJECTED
-                await run_repo.update(test_run)
-                await run_repo.update_counts_from_jobs(test_run_id)
-                await session.commit()
+                # 根据失败分类推断最终状态
+                infra_categories = {"environment", "infra"}
+                has_infra_error = any(
+                    r.failure_category in infra_categories and not r.has_missing_counts
+                    for r in results
+                )
+                if failed_count == 0:
+                    final_state = TestRunState.DONE
+                elif has_infra_error:
+                    final_state = TestRunState.REJECTED
+                else:
+                    final_state = TestRunState.DONE_WITH_FAILURES
 
-            return {
-                "test_run_id": str(test_run_id),
-                "status": "failed",
-                "error": str(e),
-            }
+                async with async_session_factory() as session:
+                    run_repo = TestRunRepository(session)
+                    test_run = await run_repo.get_by_id(test_run_id)
+
+                    test_run.run_state = final_state
+
+                    await run_repo.update(test_run)
+                    await run_repo.update_counts_from_jobs(test_run_id)
+                    await session.commit()
+
+                logger.info(
+                    "[ScriptExecutionEngine] 测试运行 %s 执行完成: "
+                    "total=%s, passed=%s, failed=%s, state=%s",
+                    test_run_id,
+                    len(results),
+                    success_count,
+                    failed_count,
+                    final_state.value,
+                )
+
+                return {
+                    "test_run_id": str(test_run_id),
+                    "status": final_state.value,
+                    "total": len(results),
+                    "passed": success_count,
+                    "failed": failed_count,
+                }
+
+            except Exception as e:
+                logger.exception("[ScriptExecutionEngine] 执行测试运行时异常")
+                async with async_session_factory() as session:
+                    run_repo = TestRunRepository(session)
+                    test_run = await run_repo.get_by_id(test_run_id)
+                    test_run.run_state = TestRunState.REJECTED
+                    await run_repo.update(test_run)
+                    await run_repo.update_counts_from_jobs(test_run_id)
+                    await session.commit()
+
+                return {
+                    "test_run_id": str(test_run_id),
+                    "status": "failed",
+                    "error": str(e),
+                }
+        finally:
+            _run_count_locks.pop(test_run_id, None)
 
     async def _run_job(
         self,
@@ -181,6 +221,7 @@ class ScriptExecutionEngine:
             JobStatus.RUNNING,
             started_at=start_time,
         )
+        await self._update_run_counts(test_run_id)
 
         executor = None
         try:
@@ -203,6 +244,13 @@ class ScriptExecutionEngine:
             )
 
             # 更新作业状态
+            summary = dict(result.result_summary)
+            summary["failure_category"] = result.failure_category
+            summary["passed_count"] = result.passed_count
+            summary["failed_count"] = result.failed_count
+            summary["skipped_count"] = result.skipped_count
+            summary["error_count"] = result.error_count
+
             await self._update_job_status(
                 job.id,
                 JobStatus(result.status),
@@ -212,8 +260,9 @@ class ScriptExecutionEngine:
                 stdout=result.stdout,
                 stderr=result.stderr,
                 report_path=result.report_path,
-                result_summary=result.result_summary,
+                result_summary=summary,
             )
+            await self._update_run_counts(test_run_id)
 
             return result
 
@@ -230,11 +279,14 @@ class ScriptExecutionEngine:
                 completed_at=completed_at,
                 duration_ms=duration_ms,
                 error_message=str(e),
+                result_summary={"failure_category": "infra"},
             )
+            await self._update_run_counts(test_run_id)
 
             return ExecutionResult(
                 success=False,
                 status=JobStatus.FAILED.value,
+                failure_category="infra",
                 duration_ms=duration_ms,
                 error_message=str(e),
             )

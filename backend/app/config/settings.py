@@ -151,7 +151,7 @@ class Settings(BaseSettings):
     # api_mcp_root: str = "backend/mcp/api"
     api_skills_root: str
 
-    # 接口测试 trace 配置
+    # 接口测试 trace 配置（同时被场景测试日志格式化复用）
     api_test_sensitive_headers: list[str] = [
         "authorization",
         "cookie",
