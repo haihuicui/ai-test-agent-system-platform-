@@ -83,23 +83,17 @@ class ProjectService:
         Raises:
             NotFoundException: 项目不存在
         """
-        project = await self.repo.get_by_identifier(project_identifier)
-        if not project:
+        data = await self.repo.get_by_identifier_with_counts(project_identifier)
+        if not data:
             raise NotFoundException(
                 resource_type="项目",
                 resource_id=project_identifier
             )
-        
-        # 获取统计信息
-        data = await self.repo.get_all_with_counts(0, 1)
-        tc_count = 0
-        folder_count = 0
-        for d in data:
-            if d["project"].id == project.id:
-                tc_count = d["test_cases_count"]
-                folder_count = d["folders_count"]
-                break
-        
+
+        project = data["project"]
+        tc_count = data["test_cases_count"]
+        folder_count = data["folders_count"]
+
         return ProjectInfo(
             identifier=project.identifier,
             name=project.name,

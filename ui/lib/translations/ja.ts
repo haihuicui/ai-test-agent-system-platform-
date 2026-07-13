@@ -175,23 +175,6 @@ export const translations = {
     tokenNotConfigured: "未設定",
   },
 
-  // AIアシスタント
-  ai: {
-    title: "AIインテリジェントアシスタント",
-    testCaseGenerator: "テストケースジェネレーター",
-    testCaseGeneratorDesc: "要件ドキュメントに基づいてテストケースを自動生成",
-    defectAnalyzer: "欠陥分析アシスタント",
-    defectAnalyzerDesc: "テスト結果をインテリジェントに分析し、潜在的な欠陥を特定",
-    regressionOptimizer: "リグレッションテスト最適化",
-    regressionOptimizerDesc: "リグレッションテストケースをインテリジェントに選択し、テスト効率を向上",
-    available: "利用可能",
-    comingSoon: "近日公開",
-    generate: "生成",
-    generating: "生成中...",
-    analyze: "分析",
-    analyzing: "分析中...",
-  },
-
   // ステータス
   status: {
     active: "アクティブ",

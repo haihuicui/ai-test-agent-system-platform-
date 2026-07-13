@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -224,9 +225,9 @@ export function TestCaseDialog({
       <DialogContent className="max-w-7xl max-h-[90vh] p-0 gap-0">
         {/* 头部 */}
         <div className="flex items-center justify-between border-b px-6 py-4">
-          <h2 className="text-lg font-semibold">
+          <DialogTitle className="text-lg font-semibold">
             {isEdit ? "编辑测试用例" : "创建测试用例"}
-          </h2>
+          </DialogTitle>
           <Button
             variant="ghost"
             size="icon"

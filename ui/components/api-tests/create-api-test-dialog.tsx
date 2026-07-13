@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -495,7 +496,7 @@ export function CreateAPITestDialog({
         {/* 头部 */}
         <div className="flex items-center justify-between border-b px-6 py-4">
           <div>
-            <h2 className="text-lg font-semibold">创建 API 测试</h2>
+            <DialogTitle className="text-lg font-semibold">创建 API 测试</DialogTitle>
             {currentStep !== "basic" && (
               <p className="text-sm text-muted-foreground mt-1">
                 {name}

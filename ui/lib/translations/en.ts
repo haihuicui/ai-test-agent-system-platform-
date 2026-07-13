@@ -177,23 +177,6 @@ export const translations = {
     tokenNotConfigured: "Not configured",
   },
 
-  // AI Assistant
-  ai: {
-    title: "AI Intelligent Assistant",
-    testCaseGenerator: "Test Case Generator",
-    testCaseGeneratorDesc: "Automatically generate test cases based on requirement documents",
-    defectAnalyzer: "Defect Analysis Assistant",
-    defectAnalyzerDesc: "Intelligently analyze test results and identify potential defects",
-    regressionOptimizer: "Regression Test Optimizer",
-    regressionOptimizerDesc: "Intelligently select regression test cases to improve testing efficiency",
-    available: "Available",
-    comingSoon: "Coming Soon",
-    generate: "Generate",
-    generating: "Generating...",
-    analyze: "Analyze",
-    analyzing: "Analyzing...",
-  },
-
   // Status
   status: {
     active: "Active",

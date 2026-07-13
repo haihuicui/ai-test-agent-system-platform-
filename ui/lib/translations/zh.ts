@@ -178,23 +178,6 @@ export const translations = {
     tokenNotConfigured: "未配置",
   },
 
-  // AI 助手
-  ai: {
-    title: "AI 智能助手",
-    testCaseGenerator: "测试用例生成器",
-    testCaseGeneratorDesc: "基于需求文档自动生成测试用例",
-    defectAnalyzer: "缺陷分析助手",
-    defectAnalyzerDesc: "智能分析测试结果，识别潜在缺陷",
-    regressionOptimizer: "回归测试优化器",
-    regressionOptimizerDesc: "智能选择回归测试用例，提高测试效率",
-    available: "可用",
-    comingSoon: "即将推出",
-    generate: "生成",
-    generating: "生成中...",
-    analyze: "分析",
-    analyzing: "分析中...",
-  },
-
   // 状态
   status: {
     active: "活跃",

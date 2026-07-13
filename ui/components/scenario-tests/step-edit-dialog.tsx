@@ -292,6 +292,7 @@ export function StepEditDialog({
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-4xl h-[85vh] p-0 flex flex-col">
+          <DialogTitle className="sr-only">编辑步骤</DialogTitle>
           <div className="flex items-center justify-center py-12">
             <p className="text-sm text-muted-foreground">加载中...</p>
           </div>

@@ -3,7 +3,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import {
   FolderKanban,
   FileText,
@@ -44,6 +44,7 @@ export const Sidebar = React.memo(function Sidebar({
   currentProject,
   onProjectChange,
 }: SidebarProps) {
+  const router = useRouter();
   const pathname = usePathname();
   const { t } = useLanguage();
 
@@ -137,18 +138,24 @@ export const Sidebar = React.memo(function Sidebar({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-52">
-            {projects.map((project) => (
-              <DropdownMenuItem
-                key={project.identifier}
-                onClick={() => onProjectChange?.(project)}
-                className={cn(
-                  currentProject?.identifier === project.identifier &&
-                    "bg-accent"
-                )}
-              >
-                <span className="truncate">{project.name}</span>
-              </DropdownMenuItem>
-            ))}
+            <ScrollArea className="max-h-[60vh]">
+              {projects.map((project) => {
+                const projectHref = `/projects/${project.identifier}/test-cases`;
+                return (
+                  <DropdownMenuItem
+                    key={project.identifier}
+                    onClick={() => onProjectChange?.(project)}
+                    onMouseEnter={() => router.prefetch(projectHref)}
+                    className={cn(
+                      currentProject?.identifier === project.identifier &&
+                        "bg-accent"
+                    )}
+                  >
+                    <span className="truncate">{project.name}</span>
+                  </DropdownMenuItem>
+                );
+              })}
+            </ScrollArea>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

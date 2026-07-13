@@ -13,7 +13,6 @@ import {
   Trash2,
   FolderKanban,
   FileText,
-  Bot,
 } from "lucide-react";
 import { toast } from "sonner";
 import { MainLayout } from "@/components/layout";
@@ -37,11 +36,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import {
-  getProjects,
   createProject,
   updateProject,
   deleteProject,
 } from "@/lib/api/projects";
+import { useProjects } from "@/hooks/useProjects";
 import type { ProjectInfo, ProjectCreate } from "@/lib/api/types";
 import { useLanguage } from "@/providers/LanguageProvider";
 // WATERMARK  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2TWtsclNRPT06NjYyNWI3YTE=
@@ -49,37 +48,11 @@ import { useLanguage } from "@/providers/LanguageProvider";
 export default function ProjectsPage() {
   const router = useRouter();
   const { t } = useLanguage();
-  const [projects, setProjects] = React.useState<ProjectInfo[]>([]);
-  const [loading, setLoading] = React.useState(true);
+  const { projects, isLoading: loading, mutate: mutateProjects } = useProjects();
   const [searchQuery, setSearchQuery] = React.useState("");
   const [starredProjects, setStarredProjects] = React.useState<Set<string>>(
     new Set()
   );
-
-  // AI 代理展示数据
-  const aiAgents = [
-    {
-      id: 1,
-      name: t("ai.testCaseGenerator"),
-      description: t("ai.testCaseGeneratorDesc"),
-      icon: "🤖",
-      status: "active",
-    },
-    {
-      id: 2,
-      name: t("ai.defectAnalyzer"),
-      description: t("ai.defectAnalyzerDesc"),
-      icon: "🔍",
-      status: "active",
-    },
-    {
-      id: 3,
-      name: t("ai.regressionOptimizer"),
-      description: t("ai.regressionOptimizerDesc"),
-      icon: "⚡",
-      status: "coming",
-    },
-  ];
 
   // 对话框状态
   const [createDialogOpen, setCreateDialogOpen] = React.useState(false);
@@ -95,30 +68,13 @@ export default function ProjectsPage() {
   });
   const [submitting, setSubmitting] = React.useState(false);
 
-  // 加载项目列表
-  const loadProjects = React.useCallback(async () => {
-    try {
-      setLoading(true);
-      const response = await getProjects({ page_size: 100 });
-      if (response.success && response.data) {
-        setProjects(response.data);
-      }
-    } catch (error) {
-      console.error("Failed to load projects:", error);
-      toast.error(t("projects.loadFailed"));
-    } finally {
-      setLoading(false);
-    }
-  }, [t]);
-
+  // 从 localStorage 加载收藏状态
   React.useEffect(() => {
-    loadProjects();
-    // 从 localStorage 加载收藏状态
     const saved = localStorage.getItem("starredProjects");
     if (saved) {
       setStarredProjects(new Set(JSON.parse(saved)));
     }
-  }, [loadProjects]);
+  }, []);
 
   // 过滤项目
   const filteredProjects = React.useMemo(() => {
@@ -156,7 +112,7 @@ export default function ProjectsPage() {
         toast.success(t("projects.projectCreated"));
         setCreateDialogOpen(false);
         setFormData({ name: "", description: "" });
-        loadProjects();
+        await mutateProjects();
       }
     } catch (error) {
       console.error("Failed to create project:", error);
@@ -180,7 +136,7 @@ export default function ProjectsPage() {
         setEditDialogOpen(false);
         setSelectedProject(null);
         setFormData({ name: "", description: "" });
-        loadProjects();
+        await mutateProjects();
       }
     } catch (error) {
       console.error("Failed to update project:", error);
@@ -200,7 +156,7 @@ export default function ProjectsPage() {
         toast.success(t("projects.projectDeleted"));
         setDeleteDialogOpen(false);
         setSelectedProject(null);
-        loadProjects();
+        await mutateProjects();
       }
     } catch (error) {
       console.error("Failed to delete project:", error);
@@ -234,35 +190,6 @@ export default function ProjectsPage() {
   return (
     <MainLayout title={t("projects.title")}>
       <div className="space-y-6">
-        {/* AI 代理展示区 */}
-        <div className="rounded-lg border bg-gradient-to-r from-primary/5 to-primary/10 p-6">
-          <div className="mb-4 flex items-center gap-2">
-            <Bot className="h-5 w-5 text-primary" />
-            <h2 className="text-lg font-semibold">{t("ai.title")}</h2>
-          </div>
-          <div className="grid gap-4 md:grid-cols-3">
-            {aiAgents.map((agent) => (
-              <div
-                key={agent.id}
-                className="rounded-lg border bg-card p-4 transition-shadow hover:shadow-md"
-              >
-                <div className="mb-2 flex items-center justify-between">
-                  <span className="text-2xl">{agent.icon}</span>
-                  <Badge
-                    variant={agent.status === "active" ? "default" : "secondary"}
-                  >
-                    {agent.status === "active" ? t("ai.available") : t("ai.comingSoon")}
-                  </Badge>
-                </div>
-                <h3 className="font-medium">{agent.name}</h3>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {agent.description}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-
         {/* 项目列表区 */}
         <div className="rounded-lg border bg-card">
           <div className="flex items-center justify-between border-b p-4">
@@ -302,6 +229,7 @@ export default function ProjectsPage() {
                   key={project.identifier}
                   className="group cursor-pointer rounded-lg border p-4 transition-all hover:border-primary hover:shadow-md"
                   onClick={() => enterProject(project)}
+                  onMouseEnter={() => router.prefetch(`/projects/${project.identifier}/test-cases`)}
                 >
                   <div className="mb-3 flex items-start justify-between">
                     <div className="flex items-center gap-2">

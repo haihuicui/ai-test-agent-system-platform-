@@ -72,46 +72,85 @@ class ProjectRepository(BaseRepository[Project]):
     ) -> list[dict]:
         """
         获取所有项目及其统计信息
-        
+
+        使用标量子查询一次性返回测试用例/文件夹数量，避免 2N+1 查询。
+
         Args:
             offset: 偏移量
             limit: 限制数量
-            
+
         Returns:
             list[dict]: 项目列表及统计信息
         """
+        test_cases_count = (
+            select(func.count(TestCase.id))
+            .where(TestCase.project_id == Project.id)
+            .correlate(Project)
+            .scalar_subquery()
+            .label("test_cases_count")
+        )
+        folders_count = (
+            select(func.count(Folder.id))
+            .where(Folder.project_id == Project.id)
+            .correlate(Project)
+            .scalar_subquery()
+            .label("folders_count")
+        )
+
         result = await self.session.execute(
-            select(Project)
+            select(Project, test_cases_count, folders_count)
             .options(selectinload(Project.teams))
             .options(selectinload(Project.creator))
             .offset(offset)
             .limit(limit)
             .order_by(Project.created_at.desc())
         )
-        projects = result.scalars().all()
-        
-        project_data = []
-        for project in projects:
-            # 获取测试用例数量
-            tc_count = await self.session.execute(
-                select(func.count()).select_from(TestCase)
-                .where(TestCase.project_id == project.id)
-            )
-            # 获取文件夹数量
-            folder_count = await self.session.execute(
-                select(func.count()).select_from(Folder)
-                .where(Folder.project_id == project.id)
-            )
-            
-            project_data.append({
+
+        return [
+            {
                 "project": project,
-                "test_cases_count": tc_count.scalar_one(),
-                "folders_count": folder_count.scalar_one(),
-            })
-# type: ignore  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2WkhKUE9BPT06Njg5YTIxYzA=
-        
-        return project_data
-    
+                "test_cases_count": tc_count,
+                "folders_count": folder_count,
+            }
+            for project, tc_count, folder_count in result.all()
+        ]
+
+    async def get_by_identifier_with_counts(
+        self,
+        identifier: str,
+    ) -> Optional[dict]:
+        """
+        根据标识符获取项目及其统计信息
+
+        Args:
+            identifier: 项目标识符，如 PR-1234
+
+        Returns:
+            Optional[dict]: 项目及统计信息，项目不存在时返回 None
+        """
+        result = await self.session.execute(
+            select(Project)
+            .options(selectinload(Project.teams))
+            .options(selectinload(Project.creator))
+            .where(Project.identifier == identifier)
+        )
+        project = result.scalar_one_or_none()
+        if not project:
+            return None
+
+        tc_count = await self.session.scalar(
+            select(func.count(TestCase.id)).where(TestCase.project_id == project.id)
+        )
+        folder_count = await self.session.scalar(
+            select(func.count(Folder.id)).where(Folder.project_id == project.id)
+        )
+
+        return {
+            "project": project,
+            "test_cases_count": tc_count or 0,
+            "folders_count": folder_count or 0,
+        }
+
     async def get_next_sequence(self) -> int:
         """
         获取下一个项目序号

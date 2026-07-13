@@ -3,10 +3,9 @@
 
 import * as React from "react";
 import { useRouter, usePathname } from "next/navigation";
-import useSWR from "swr";
 import { Sidebar } from "./sidebar";
 import { Header } from "./header";
-import { getProjects } from "@/lib/api/projects";
+import { useProjects } from "@/hooks/useProjects";
 import type { ProjectInfo } from "@/lib/api/types";
 // eslint-disable  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2VGpGM1ZRPT06MTUwOTM3ZTA=
 
@@ -16,13 +15,6 @@ interface MainLayoutProps {
   headerContent?: React.ReactNode;
 }
 // eslint-disable  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2VGpGM1ZRPT06MTUwOTM3ZTA=
-
-const PROJECTS_SWR_KEY = ["projects", "list", { page_size: 100 }] as const;
-
-async function fetchProjects(): Promise<ProjectInfo[]> {
-  const response = await getProjects({ page_size: 100 });
-  return response.success && response.data ? response.data : [];
-}
 
 export function MainLayout({ children, title, headerContent }: MainLayoutProps) {
   const router = useRouter();
@@ -34,16 +26,8 @@ export function MainLayout({ children, title, headerContent }: MainLayoutProps) 
     return match ? match[1] : null;
   }, [pathname]);
 
-  // 使用 SWR 缓存项目列表，避免每次路由切换都重新请求
-  const { data: projects = [] } = useSWR<ProjectInfo[]>(
-    PROJECTS_SWR_KEY,
-    fetchProjects,
-    {
-      revalidateOnFocus: false,
-      revalidateOnReconnect: false,
-      dedupingInterval: 5 * 60 * 1000, // 5 分钟
-    }
-  );
+  // 使用共享 SWR 缓存项目列表
+  const { projects = [] } = useProjects();
 
   const currentProject = React.useMemo(() => {
     if (!projectIdFromUrl || !projects.length) return null;
