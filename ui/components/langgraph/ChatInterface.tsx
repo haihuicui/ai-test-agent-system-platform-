@@ -130,6 +130,7 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
     isLoading,
     isThreadLoading,
     interrupt,
+    isResumingInterrupt,
     sendMessage,
     stopStream,
     resumeInterrupt,
@@ -641,6 +642,7 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
                     toolCalls={data.toolCalls}
                     isLoading={isLoading}
                     isStreaming={isLastMessage && isLoading}
+                    isResumingInterrupt={isResumingInterrupt}
                     actionRequestsMap={
                       isLastMessage ? actionRequestsMap : undefined
                     }
@@ -662,7 +664,7 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
                     formats={(interrupt.value as any).formats || []}
                     description={(interrupt.value as any).description}
                     onResume={resumeInterrupt}
-                    isLoading={isLoading}
+                    isLoading={isResumingInterrupt}
                   />
                 </div>
               )}
@@ -673,7 +675,7 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
                     reviewConfig={Array.from(reviewConfigsMap!.values())[0]}
                     reviewRounds={currentPhaseReviewRounds}
                     onResume={resumeInterrupt}
-                    isLoading={isLoading}
+                    isLoading={isResumingInterrupt}
                   />
                 </div>
               )}
