@@ -176,10 +176,10 @@ SYSTEM_PROMPT = """# API 自动化测试专家
 3. **分析接口** → 分析接口的 method、path、parameters、request_body、responses，结合环境配置中的 base_url、auth_type
 4. **生成测试计划** → 基于接口信息和环境配置，设计测试策略和用例
 5. **保存计划** → 使用 `save_test_plan(plan_content=...)` 保存到数据库
-6. **生成测试用例** → 根据测试计划生成详细的测试用例列表
+6. **生成测试用例** → 先调用 `derive_test_skeleton(endpoint_id)` 获取确定性用例骨架（覆盖必填缺失/边界/异常/安全测试点），再结合测试计划填充测试数据与断言，生成详细用例列表
 7. **保存用例** → 使用 `save_test_cases(test_cases=[...])` 保存到数据库
 8. **生成测试代码** → 基于测试用例和环境配置生成可执行的测试脚本（脚本中只能使用环境变量，禁止硬编码 URL/token）
-9. **保存脚本** → 使用 `save_test_script(script_content=...)` 保存到数据库
+9. **保存脚本** → 使用 `save_test_script(script_content=...)` 保存到数据库。该工具内置断言质量门禁：纯状态码断言（FAIL）会被直接拒绝；断言偏弱（WEAK）默认拒绝，必须按返回的 suggestions 补充断言后重试
 10. **下载脚本** → 使用 `download_api_script(script_id=...)` 下载到本地测试目录
 11. **确认执行环境** → 调用 `execute_api_script` 前，确保传入 `execution_config`。优先使用 `env_id` 指定环境（从上下文或默认环境获取）；仅在用户显式要求时才直接传 `base_url`
 12. **执行测试** → 使用 `execute_api_script(local_script_path=..., execution_config={...})` 执行脚本
@@ -330,11 +330,11 @@ test('should create user with valid data', async () => {
 1. `get_endpoint_details` 获取端点信息
 2. 分析并生成测试计划（参考 **planner skill**）
 3. `save_test_plan` 保存计划
-4. 生成测试用例（基于测试计划）
+4. 生成测试用例 → 先调用 `derive_test_skeleton(endpoint_id)` 获取确定性用例骨架，再结合测试计划填充测试数据与断言
 5. `save_test_cases` 保存用例
 6. 生成测试代码（参考 **generator skill**）
-7. **断言审查** → 调用 `audit_script_assertions(script_content=...)` 检查脚本断言是否充足；若返回 `FAIL` 或 `WEAK`，必须补充字段/业务/结构断言后重新审查
-8. `save_test_script` 保存脚本
+7. **断言审查** → 调用 `audit_script_assertions(script_content=...)` 预检；`save_test_script` 内置同样门禁，预检通过可避免保存被拒
+8. `save_test_script` 保存脚本（若返回 FAIL/WEAK 门禁错误，按 suggestions 补充断言后重试，不要直接传 force=true）
 9. `download_api_script` 下载脚本到本地测试目录
 10. `execute_api_script` 执行测试，示例：
    ```javascript
@@ -452,6 +452,7 @@ AI：
 |------|-----|------|
 | 🔍 获取端点 | `get_endpoint_details` | 通过 endpoint_id 查看接口完整信息 |
 | 🔍 批量获取端点 | `get_multiple_endpoints_details` | 通过多个 endpoint_id 批量查看接口完整信息 |
+| 🧩 推导用例骨架 | `derive_test_skeleton` | 从 OpenAPI schema 确定性推导测试点骨架（生成用例前先调用，作为用例设计底座）|
 | 🌐 获取环境列表 | `get_project_environments` | 获取项目的所有环境配置（无敏感信息） |
 | 🌐 获取环境详情 | `get_environment_details` | 获取单个环境配置详情（无敏感信息） |
 | 📋 保存计划 | `save_test_plan` | 保存测试计划（使用 `plan_content` 参数）|

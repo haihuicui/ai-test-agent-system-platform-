@@ -427,7 +427,8 @@ async def save_test_script(
     script_content: Optional[str] = None,
     script_language: str = "typescript",
     script_format: str = "playwright",
-    project_identifier: str = ""
+    project_identifier: str = "",
+    force: bool = False
 ) -> dict:
     """
     保存 API 端点的测试脚本到 MinIO
@@ -443,9 +444,12 @@ async def save_test_script(
         script_language: 脚本语言（如: typescript, python）
         script_format: 脚本格式（如: playwright, pytest）
         project_identifier: 项目标识符
+        force: 断言质量门禁开关。默认 False（严格）：纯状态码断言（FAIL）永远拒绝保存；
+               断言偏弱（WEAK）默认拒绝，仅当 force=True 时放行。除非确有必要，不要设 True。
 
     Returns:
-        dict: 包含 attachment_id 和 file_path 的字典
+        dict: 包含 attachment_id 和 file_path 的字典；
+              门禁未通过时返回 error + verdict + metrics + suggestions（不保存）
     """
     # 验证 endpoint_id 是否为有效的 UUID
     try:
@@ -474,6 +478,22 @@ async def save_test_script(
             return {"error": f"Failed to read script file: {str(e)}"}
     elif not script_content:
         return {"error": "Either script_path or script_content must be provided"}
+
+    # 断言质量门禁（默认严格）：保存前静态分析脚本断言分布。
+    # FAIL（纯状态码断言）永远硬拒；WEAK 默认拒绝，仅 force=True 放行。
+    assertion_report = _build_assertion_report(script_content)
+    if assertion_report["verdict"] == "FAIL":
+        return {
+            "error": "断言质量门禁未通过（FAIL）：脚本只包含状态码断言，缺少响应体字段/类型/业务断言，禁止保存。",
+            **assertion_report,
+            "hint": "必须补充结构/业务断言后重新调用 save_test_script。",
+        }
+    if assertion_report["verdict"] == "WEAK" and not force:
+        return {
+            "error": "断言质量门禁未通过（WEAK）：非状态码断言数量不足。",
+            **assertion_report,
+            "hint": "补充断言后重试；如确认可接受，显式传 force=true 放行（不推荐）。",
+        }
 
     async with async_session_factory() as session:
         # 查询 endpoint
@@ -653,19 +673,10 @@ def _analyze_script_assertions(script_content: str) -> dict:
     }
 
 
-@tool
-async def audit_script_assertions(script_content: str) -> dict:
-    """
-    审查生成的测试脚本断言是否充分。
+def _build_assertion_report(script_content: str) -> dict:
+    """静态分析脚本断言分布并生成审查报告（audit 工具与 save_test_script 保存门禁共用）。
 
-    生成测试脚本后、调用 save_test_script 保存前，应先使用本工具检查。
-    如果返回 weak=true，必须补充字段/业务/结构断言后再保存。
-
-    Args:
-        script_content: 测试脚本完整内容
-
-    Returns:
-        dict: 审查结果，包含 verdict、指标和改进建议
+    返回 {verdict, message, metrics, suggestions}；verdict ∈ {OK, WEAK, FAIL}。
     """
     metrics = _analyze_script_assertions(script_content)
 
@@ -690,12 +701,29 @@ async def audit_script_assertions(script_content: str) -> dict:
         ])
 
     return {
-        "success": True,
         "verdict": verdict,
         "message": message,
         "metrics": metrics,
         "suggestions": suggestions,
     }
+
+
+@tool
+async def audit_script_assertions(script_content: str) -> dict:
+    """
+    审查生成的测试脚本断言是否充分。
+
+    生成测试脚本后、调用 save_test_script 保存前，应先使用本工具检查。
+    如果返回 weak=true，必须补充字段/业务/结构断言后再保存。
+
+    Args:
+        script_content: 测试脚本完整内容
+
+    Returns:
+        dict: 审查结果，包含 verdict、指标和改进建议
+    """
+    report = _build_assertion_report(script_content)
+    return {"success": True, **report}
 
 
 @tool
