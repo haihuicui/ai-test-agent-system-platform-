@@ -32,7 +32,6 @@ from app.agents.tools.web.script_tools import (
 
 from app.agents.tools.web.execution_tools import (
     execute_web_script,
-    get_test_execution_status,
 )
 
 # 按业务域分类的工具列表，供注册表使用
@@ -64,7 +63,6 @@ SCRIPT_TOOLS = [
 
 EXECUTION_TOOLS = [
     execute_web_script,
-    get_test_execution_status,
 ]
 # pragma: no cover  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2WXpaeGVRPT06NmJiMGM5OTU=
 
@@ -102,7 +100,6 @@ __all__ = [
     "delete_web_script",
     # 执行
     "execute_web_script",
-    "get_test_execution_status",
     # 分类列表
     "FUNCTION_TOOLS",
     "ARTIFACT_TOOLS",
