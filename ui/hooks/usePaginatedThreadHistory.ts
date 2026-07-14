@@ -79,23 +79,29 @@ export function usePaginatedThreadHistory(
       return fetcher(client, key);
     },
     {
-      initialSize: 1,
+      initialSize: 0,
       revalidateOnMount: true,
+      revalidateFirstPage: false,
       revalidateOnFocus: false,
     }
   );
 
   const flattened = useMemo(() => swr.data?.flat() ?? [], [swr.data]);
 
-  // 计算 hasMore：只要 API 还返回了非空页，就认为可能还有更早的 checkpoint。
-  // 对累积型 channel 来说，翻页会拿到重复消息；对 DeltaChannel / summarization
-  // 等场景来说，更早的 checkpoint 可能包含 head 中已缺失的消息。因此这里宁可
-  // 多请求几页，也不提前停止，把去重/择优交给 useChat 处理。
+  // 更 robust 的尽头判断：
+  // - 校验中先假设还有更多；
+  // - 请求的页数比实际返回的多，说明有 key 返回了 null（已到尽头）；
+  // - 数据为空且没有正在校验、且已经请求过页面，说明返回了空页（已到尽头）；
+  // - 最后一页数量非空，代表可能还有更早的 checkpoint。
   const hasMore = useMemo(() => {
-    if (!swr.data || swr.data.length === 0) return false;
+    if (!swr.data || swr.data.length === 0) {
+      return swr.isValidating || swr.size === 0;
+    }
+    if (swr.isValidating) return true;
+    if (swr.size > swr.data.length) return false;
     const lastPage = swr.data[swr.data.length - 1];
     return lastPage != null && lastPage.length > 0;
-  }, [swr.data]);
+  }, [swr.data, swr.isValidating, swr.size]);
 
   // 计算上一页是否带来了新的 message id（仅用于 UI 提示）。
   const hasNewMessages = useMemo(() => {
