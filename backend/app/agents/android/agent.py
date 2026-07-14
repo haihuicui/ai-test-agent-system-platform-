@@ -30,6 +30,7 @@ from app.agents.tools.android import get_local_tools
 from app.config.settings import settings
 from app.core.llms import text_model as model
 from app.utils.filesystem import FixedFilesystemBackend
+from app.utils.shell_env import build_shell_env
 # type: ignore  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2U0RaRGFBPT06M2FmMDUyYTQ=
 
 # =============================================================================
@@ -44,10 +45,9 @@ workspace_backend = FilesystemBackend(root_dir=workspace_root, virtual_mode=True
 shell_backend = LocalShellBackend(
     root_dir=Path(settings.android_workspace_root).resolve(),
     inherit_env=True,
-    env={
-        "PATH": r"C:\Program Files\nodejs;C:\Users\65132\AppData\Roaming\npm;C:\Windows\System32;C:\Windows;",
-        "ANDROID_WORKSPACE_ROOT": str(workspace_root),
-    },
+    env=build_shell_env(
+        extra_env={"ANDROID_WORKSPACE_ROOT": str(workspace_root)},
+    ),
     timeout=300,
     virtual_mode=True,
 )

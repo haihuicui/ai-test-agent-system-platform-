@@ -32,6 +32,7 @@ from langgraph.pregel import Pregel
 from app.agents.tools.web import get_local_tools
 from app.config.settings import settings
 from app.core.llms import text_model as model
+from app.utils.shell_env import build_shell_env
 # fmt: off  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2TmpKbFVBPT06YmYyODhkYzg=
 
 # =============================================================================
@@ -47,7 +48,7 @@ skills_backend = FilesystemBackend(root_dir=skills_root, virtual_mode=True)
 workspace_backend = FilesystemBackend(root_dir=workspace_root, virtual_mode=True)
 shell_backend = LocalShellBackend(root_dir=Path(settings.web_cli_workspace_root).resolve(),
                                   inherit_env=True,
-                                  env={"PATH": r"C:\Program Files\nodejs;C:\Users\65132\AppData\Roaming\npm;C:\Windows\System32;C:\Windows;"},
+                                  env=build_shell_env(),
                                   timeout=180,
                                   virtual_mode=True)
 composite_backend = CompositeBackend(
