@@ -521,6 +521,7 @@ export default function WebTestsPage() {
                   setMovingFolder(folder);
                   setMoveFolderDialogOpen(true);
                 }}
+                onCreateWebFunction={handleCreateWebFunction}
                 onSelectWebSubFunction={(subFunctionId: string) => {
                   setSelectedSubFunctionId(subFunctionId);
                   setShowSubFunctionSidebar(true);

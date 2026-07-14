@@ -446,6 +446,15 @@ async def create_web_sub_function(
         # 使用仓库创建子功能
         repo = WebSubFunctionRepository(session)
 
+        # 查询父功能，未显式指定 folder_id 时继承父功能所在文件夹，
+        # 否则按文件夹过滤子功能时会查不到（前端显示"暂无功能数据"）
+        function_stmt = select(WebFunction).where(WebFunction.id == UUID(function_id))
+        function_result = await session.execute(function_stmt)
+        parent_function = function_result.scalar_one_or_none()
+
+        if not parent_function:
+            return {"error": f"Web function {function_id} not found"}
+
         # 生成下一个标识符
         identifier = await repo.get_next_identifier(project.id)
 
@@ -456,7 +465,7 @@ async def create_web_sub_function(
             function_id=UUID(function_id),
             display_name=display_name,
             name=name,
-            folder_id=UUID(folder_id) if folder_id else None,
+            folder_id=UUID(folder_id) if folder_id else parent_function.folder_id,
             description=description,
             test_type=test_type,
             target_pages=target_pages,

@@ -316,6 +316,10 @@ class WebSubFunctionRepository(BaseRepository[WebSubFunction]):
         """
         获取文件夹下的子功能列表
 
+        子功能创建时通常不单独设置 folder_id，因此除了匹配子功能自身的
+        folder_id，还需匹配其父功能（WebFunction）所在的文件夹，否则
+        选中文件夹后子功能列表会为空（前端显示"暂无功能数据"）。
+
         Args:
             folder_id: 文件夹 ID
             offset: 偏移量
@@ -325,7 +329,14 @@ class WebSubFunctionRepository(BaseRepository[WebSubFunction]):
         Returns:
             tuple[list[WebSubFunction], int]: 子功能列表和总数
         """
-        query = select(WebSubFunction).where(WebSubFunction.folder_id == folder_id)
+        query = (
+            select(WebSubFunction)
+            .outerjoin(WebFunction, WebSubFunction.function_id == WebFunction.id)
+            .where(
+                (WebSubFunction.folder_id == folder_id) |
+                (WebFunction.folder_id == folder_id)
+            )
+        )
 
         # 搜索过滤
         if search:

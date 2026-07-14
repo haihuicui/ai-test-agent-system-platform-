@@ -393,7 +393,7 @@ class WebFunctionService:
             identifier=identifier,
             display_name=display_name,
             name=name,
-            folder_id=UUID(folder_id) if folder_id else None,
+            folder_id=UUID(folder_id) if folder_id else web_function.folder_id,
             description=description,
             test_type=test_type,
             target_pages=target_pages,

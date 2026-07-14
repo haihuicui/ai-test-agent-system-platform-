@@ -9,6 +9,7 @@ from typing import AsyncGenerator
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.pool import NullPool
 
 from app.config.settings import settings
 
@@ -17,12 +18,14 @@ from app.config.settings import settings
 # ==================== PostgreSQL 配置 ====================
 
 # 创建异步引擎
+# 必须使用 NullPool：LangGraph worker 会在不同的事件循环中执行工具调用，
+# 池化连接绑定在创建它的事件循环上，跨循环复用会触发
+# "Future attached to a different loop"（asyncpg）。
+# NullPool 每次检出都在当前循环新建连接，规避该问题。
 engine = create_async_engine(
     settings.postgres_url,
     echo=settings.debug,
-    pool_pre_ping=True,
-    pool_size=10,
-    max_overflow=20,
+    poolclass=NullPool,
 )
 
 # 创建异步会话工厂
