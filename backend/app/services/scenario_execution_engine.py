@@ -88,33 +88,98 @@ class DataDependencyResolver:
         self._faker = Faker('zh_CN') if Faker else None
 
     def _call_faker(self, method: str) -> str:
-        """调用 faker 生成数据，支持常见字段别名"""
-        if not self._faker:
-            return str(uuid4())
+        """调用 faker 生成数据，支持常见字段别名与 JS 风格嵌套路径
 
-        # 常见字段的 JS 风格 -> Python faker 映射
+        - 扁平方法名：``name`` / ``email`` / ``company`` 等
+        - JS 风格嵌套：``company.name`` / ``internet.email`` / ``person.fullName`` 等
+          会自动降级到 Python faker 上的扁平方法（``company`` / ``email`` / ``name``）
+
+        解析失败时抛 :class:`ValueError`，由上层 ``_resolve_dynamic_placeholders``
+        捕获并保留原占位符，避免静默写入 UUID 这类难以排查的脏数据。
+        """
+        if not self._faker:
+            raise ValueError("faker 库未安装，无法解析 {{$faker.*}} 占位符")
+
+        # JS 风格嵌套路径 -> Python faker 扁平方法的显式映射
         aliases = {
             "name": "name",
             "person.full_name": "name",
             "person.fullName": "name",
+            "person.first_name": "first_name",
+            "person.firstName": "first_name",
+            "person.last_name": "last_name",
+            "person.lastName": "last_name",
             "first_name": "first_name",
             "last_name": "last_name",
             "phone_number": "phone_number",
             "phone.number": "phone_number",
+            "phone.phone_number": "phone_number",
             "email": "email",
             "internet.email": "email",
+            "internet.safe_email": "safe_email",
+            "internet.safeEmail": "safe_email",
+            "internet.user_name": "user_name",
+            "internet.userName": "user_name",
+            "internet.url": "url",
             "company": "company",
+            "company.name": "company",
+            "company.company": "company",
             "address": "address",
+            "address.city": "city",
+            "address.street": "street_address",
+            "address.street_address": "street_address",
+            "address.streetAddress": "street_address",
+            "address.country": "country",
+            "address.province": "province",
             "uuid4": "uuid4",
+            "datatype.uuid": "uuid4",
+            "random.uuid": "uuid4",
+            "id_number": "ssn",
+            "id.card": "ssn",
+            "ssn": "ssn",
+            "job": "job",
+            "person.job": "job",
+            "text": "text",
+            "lorem.text": "text",
+            "lorem.sentence": "sentence",
+            "lorem.paragraph": "paragraph",
+            "date": "date",
+            "date.recent": "date",
+            "date.past": "past_date",
+            "date.future": "future_date",
         }
-        real_method = aliases.get(method, method)
-        try:
-            fn = getattr(self._faker, real_method)
-            value = fn()
-            return str(value)
-        except Exception:
-            # 未知方法回退到 uuid，避免阻塞执行
-            return str(uuid4())
+
+        candidates: list[str] = []
+        if method in aliases:
+            candidates.append(aliases[method])
+        else:
+            # 未命中别名表时，对嵌套路径做启发式降级：
+            #   company.name      -> company_name / company / name
+            #   person.first_name -> person_first_name / person / first_name
+            parts = method.split(".")
+            if len(parts) > 1:
+                candidates.append("_".join(parts))
+                candidates.append(parts[0])
+                candidates.append(parts[-1])
+            candidates.append(method)
+
+        tried: list[str] = []
+        for cand in candidates:
+            if not cand or cand in tried:
+                continue
+            tried.append(cand)
+            try:
+                fn = getattr(self._faker, cand, None)
+                if callable(fn):
+                    return str(fn())
+            except Exception:
+                # 某个候选方法调用失败（参数不匹配等），继续尝试下一个
+                continue
+
+        raise ValueError(
+            f"无法解析 faker 方法 '{method}'（已尝试: {', '.join(tried)}）。"
+            f"请使用扁平方法名（如 {{{{$faker.name}}}}）或常见别名"
+        )
 
     def _resolve_dynamic_placeholders(self, obj: Any) -> Any:
         """递归替换 {{$...}} 动态占位符
@@ -124,7 +189,12 @@ class DataDependencyResolver:
         - {{$timestamp}}
         - {{$randomString(n)}}
         - {{$randomNumber(n)}}
-        - {{$faker.name}} / {{$faker.phone_number}} / {{$faker.email}} 等
+        - {{$faker.name}} / {{$faker.phone_number}} / {{$faker.email}} 等扁平方法
+        - {{$faker.company.name}} / {{$faker.internet.email}} 等 JS 风格嵌套路径
+          （自动降级到 Python faker 的扁平方法）
+
+        解析失败时保留原占位符并记录 warning，便于上游发现配置错误，
+        而不是静默写入 UUID 之类的脏数据。
         """
         import logging
         logger = logging.getLogger(__name__)
@@ -953,26 +1023,118 @@ class ScenarioExecutionEngine:
         }
 
     def _extract_data(self, response: dict, extractors: list) -> dict:
-        """从响应中提取数据"""
+        """从响应中提取数据
+
+        提取结果为 ``None`` 时，除了保留 ``name: None`` 供前端展示外，还会在
+        ``_extraction_warnings`` 字段里附加诊断信息（响应顶层 keys、中间路径
+        命中情况），帮助 AI/用户在自动修复循环中快速定位 jsonpath 配置错误。
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+
         extracted = {}
+        warnings: list[dict] = []
+
+        # 获取响应体，如果是 JSON 字符串则先解析（只解析一次，供所有 extractor 复用）
+        body = response.get("body")
+        if isinstance(body, str):
+            try:
+                import json
+                body = json.loads(body)
+            except Exception:
+                pass  # 如果解析失败，保持原样
+
         for extractor in extractors or []:
             name = extractor["name"]
             path = extractor["path"]
-
-            # 获取响应体，如果是 JSON 字符串则先解析
-            body = response.get("body")
-            if isinstance(body, str):
-                try:
-                    import json
-                    body = json.loads(body)
-                except Exception:
-                    pass  # 如果解析失败，保持原样
 
             value = self.context._extract_by_jsonpath(body, path)
             extracted[name] = value
             # 同时设置为全局变量
             self.context.set_variable(name, value)
+
+            if value is None:
+                diagnosis = self._diagnose_extraction_failure(body, path)
+                warnings.append({"extractor": name, "path": path, **diagnosis})
+                logger.warning(
+                    f"提取器 '{name}' 未从响应中取到值 (path={path!r})。"
+                    f"响应顶层 keys: {diagnosis.get('top_level_keys')}, "
+                    f"建议: {diagnosis.get('suggestion')}"
+                )
+
+        if warnings:
+            # 下划线前缀表示元数据，不进入变量上下文，仅用于展示与 AI 诊断
+            extracted["_extraction_warnings"] = warnings
+
         return extracted
+
+    @staticmethod
+    def _diagnose_extraction_failure(body: Any, path: str) -> dict:
+        """诊断 jsonpath 提取失败的原因，返回响应结构提示"""
+        diagnosis: dict = {"top_level_keys": None, "suggestion": None}
+
+        if not isinstance(body, (dict, list)):
+            diagnosis["suggestion"] = (
+                f"响应体不是 JSON 对象/数组（实际类型: {type(body).__name__}），"
+                f"请检查接口是否返回了预期的 JSON"
+            )
+            return diagnosis
+
+        if isinstance(body, dict):
+            diagnosis["top_level_keys"] = list(body.keys())[:10]
+        else:
+            diagnosis["top_level_keys"] = f"<list, length={len(body)}>"
+            if body and isinstance(body[0], dict):
+                diagnosis["first_item_keys"] = list(body[0].keys())[:10]
+
+        # 逐级匹配路径前缀，找出从哪一级开始失配
+        # 例如 path=$.data.name，先检查 $.data 是否存在
+        if path.startswith("$.") and isinstance(body, dict):
+            segments = [s for s in path[2:].split(".") if s]
+            current: Any = body
+            matched_prefix: list[str] = []
+            index_overflow: tuple[str, int, int] | None = None  # (seg, idx, len)
+            for seg in segments:
+                # 处理数组下标，如 data[0]
+                key = seg.split("[", 1)[0]
+                if isinstance(current, dict) and key in current:
+                    current = current[key]
+                    matched_prefix.append(seg)
+                    # 简单处理 [n] 下标
+                    if "[" in seg and isinstance(current, list):
+                        try:
+                            idx = int(seg[seg.find("[") + 1 : seg.find("]")])
+                            if idx < len(current):
+                                current = current[idx]
+                            else:
+                                index_overflow = (seg, idx, len(current))
+                                current = None
+                                break
+                        except (ValueError, IndexError):
+                            current = None
+                            break
+                else:
+                    break
+
+            if index_overflow is not None:
+                seg, idx, length = index_overflow
+                diagnosis["suggestion"] = (
+                    f"数组下标越界: '{seg}' 取第 {idx} 项，但数组长度只有 {length}"
+                )
+            elif len(matched_prefix) < len(segments):
+                failed_at = segments[len(matched_prefix)]
+                available = (
+                    list(current.keys())[:10] if isinstance(current, dict) else None
+                )
+                diagnosis["suggestion"] = (
+                    f"路径前缀 '$.{'.'.join(matched_prefix)}' 可命中，"
+                    f"但下一级 '{failed_at}' 不存在"
+                    + (f"（可用 keys: {available}）" if available else "")
+                )
+            else:
+                diagnosis["suggestion"] = "路径各段均可命中，但最终值为 null"
+
+        return diagnosis
 
     def _run_assertions(self, response: dict, assertions: list) -> list:
         """执行断言"""

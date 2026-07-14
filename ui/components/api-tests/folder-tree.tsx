@@ -890,9 +890,9 @@ export const APIFolderTree = React.forwardRef<APIFolderTreeRef, APIFolderTreePro
               </DropdownMenu>
             </div>
 
-            {/* 5. 统计数字 - 显示端点数 */}
+            {/* 5. 统计数字 - 显示端点数：直接端点数(含子文件夹的总端点数) */}
             <div className="text-xs text-muted-foreground text-right whitespace-nowrap">
-              {node.api_endpoints?.length || 0}({calculateTotalEndpoints(node)})
+              {node.api_endpoints?.length || 0}({node.endpoints_count ?? calculateTotalEndpoints(node)})
             </div>
           </div>
         </div>

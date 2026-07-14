@@ -126,6 +126,7 @@ class FolderService:
             direct_cases_count=data["direct_cases_count"] if data else 0,
             cases_count=data["cases_count"] if data else 0,
             sub_folders_count=data["sub_folders_count"] if data else 0,
+            endpoints_count=data["endpoints_count"] if data else 0,
             links=FolderLinks(
                 sub_folders=f"{settings.api_prefix}/projects/{project_identifier}/folders/{folder.id}/sub-folders",
             ),

@@ -97,6 +97,7 @@ export interface FolderInfo {
   direct_cases_count: number;  // 直接在该文件夹中的用例数量
   cases_count: number;         // 该文件夹及所有子文件夹的总用例数
   sub_folders_count: number;   // 直接子文件夹数量
+  endpoints_count?: number;    // 该文件夹及所有子文件夹的 API 端点总数（仅 API_TEST 类型文件夹）
   hierarchy_index: number;
   links?: LinkInfo | null;
   api_endpoints?: APIEndpointSummary[];  // API 端点列表（仅用于 API_TEST 类型文件夹）

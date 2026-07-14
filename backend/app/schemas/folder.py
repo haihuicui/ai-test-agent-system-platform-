@@ -146,6 +146,10 @@ class FolderInfo(FolderBase):
         default=0,
         description="直接子文件夹数量"
     )
+    endpoints_count: int = Field(
+        default=0,
+        description="该文件夹及所有子文件夹的 API 端点总数（仅 API_TEST 类型文件夹有意义）"
+    )
     links: Optional[FolderLinks] = Field(
         default=None,
         description="相关资源链接"

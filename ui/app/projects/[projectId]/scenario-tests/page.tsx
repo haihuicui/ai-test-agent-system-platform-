@@ -228,6 +228,13 @@ export default function ScenarioTestsPage() {
                 selectedEnvironmentId={selectedEnvironmentId}
                 onScenarioUpdate={() => setRefreshTrigger((prev) => prev + 1)}
                 onOpenSidebar={() => setShowDetailSidebar(true)}
+                onScenarioNotFound={() => {
+                  // 场景被删除（AI 同对话重生成会替换旧场景）：
+                  // 回到列表视图并刷新，避免停留在失效 ID 上反复 404
+                  setSelectedScenarioId(null);
+                  setViewMode("list");
+                  setRefreshTrigger((prev) => prev + 1);
+                }}
               />
             )}
             {viewMode === "monitor" && (

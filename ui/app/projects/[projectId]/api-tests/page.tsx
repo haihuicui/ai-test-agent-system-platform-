@@ -830,6 +830,12 @@ export default function APITestsPage() {
                         selectedEnvironmentId={selectedEnvironmentId}
                         onScenarioUpdate={() => setScenarioRefreshTrigger(prev => prev + 1)}
                         onOpenSidebar={handleOpenScenarioSidebar}
+                        onScenarioNotFound={() => {
+                          // 场景被删除（AI 同对话重生成会替换旧场景）：
+                          // 清空失效的选中态并刷新列表，避免停留在旧 ID 上反复 404
+                          setSelectedScenarioId(null);
+                          setScenarioRefreshTrigger(prev => prev + 1);
+                        }}
                       />
                     </div>
                   ) : (

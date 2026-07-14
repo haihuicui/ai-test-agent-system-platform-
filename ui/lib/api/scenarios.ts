@@ -4,6 +4,7 @@
 // NOTE  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2VWxkTk13PT06ZmQ0NzU4YmU=
 
 import { Scenario, ScenarioStep, ScenarioRun, StepResult } from '@/types/scenario';
+import { ApiError } from './client';
 
 const API_BASE = '/api/v2/scenarios';
 
@@ -121,7 +122,12 @@ export async function deleteScenario(scenarioId: string): Promise<void> {
 export async function listScenarioSteps(scenarioId: string): Promise<ScenarioStep[]> {
   const response = await fetch(`${API_BASE}/${scenarioId}/steps`);
   if (!response.ok) {
-    throw new Error('Failed to list scenario steps');
+    const error = await response.json().catch(() => ({}));
+    throw new ApiError(
+      error?.detail || 'Failed to list scenario steps',
+      response.status,
+      error
+    );
   }
   return response.json();
 }

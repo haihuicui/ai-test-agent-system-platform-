@@ -162,11 +162,15 @@ class FolderRepository(BaseRepository[Folder]):
         # 使用递归 CTE 获取总用例数（包括所有子文件夹）
         total_cases = await self._get_total_cases_count(folder_id)
 
+        # 使用递归 CTE 获取 API 端点总数（包括所有子文件夹）
+        total_endpoints = await self._get_total_endpoints_count(folder_id)
+
         return {
             "folder": folder,
             "direct_cases_count": direct_cases.scalar_one(),
             "cases_count": total_cases,
             "sub_folders_count": sub_count.scalar_one(),
+            "endpoints_count": total_endpoints,
         }
 
     async def _get_total_cases_count(self, folder_id: UUID) -> int:
@@ -192,6 +196,31 @@ class FolderRepository(BaseRepository[Folder]):
                 INNER JOIN folder_tree ft ON f.parent_id = ft.id
             )
             SELECT COUNT(*) FROM test_cases WHERE folder_id IN (SELECT id FROM folder_tree)
+        """)
+
+        result = await self.session.execute(recursive_cte, {"folder_id": folder_id})
+        return result.scalar_one()
+
+    async def _get_total_endpoints_count(self, folder_id: UUID) -> int:
+        """
+        递归统计文件夹及其所有子文件夹的 API 端点总数
+
+        Args:
+            folder_id: 文件夹 ID
+
+        Returns:
+            int: 端点总数
+        """
+        from sqlalchemy.sql import text
+
+        recursive_cte = text("""
+            WITH RECURSIVE folder_tree AS (
+                SELECT id FROM folders WHERE id = :folder_id
+                UNION ALL
+                SELECT f.id FROM folders f
+                INNER JOIN folder_tree ft ON f.parent_id = ft.id
+            )
+            SELECT COUNT(*) FROM api_endpoints WHERE folder_id IN (SELECT id FROM folder_tree)
         """)
 
         result = await self.session.execute(recursive_cte, {"folder_id": folder_id})

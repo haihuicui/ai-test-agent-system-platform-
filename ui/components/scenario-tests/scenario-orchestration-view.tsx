@@ -51,6 +51,7 @@ import {
   deleteScenarioStep,
   reorderScenarioSteps,
 } from "@/lib/api/scenarios";
+import { ApiError } from "@/lib/api/client";
 import type { ScenarioStep } from "@/types/scenario";
 import { StepEditDialog } from "./step-edit-dialog";
 import { StepCreateDialog } from "./step-create-dialog";
@@ -62,6 +63,8 @@ interface ScenarioOrchestrationViewProps {
   selectedEnvironmentId?: string | null;
   onScenarioUpdate: () => void;
   onOpenSidebar?: () => void;
+  /** 当前 scenarioId 在服务端不存在（404）时回调，用于清空选中态并刷新列表 */
+  onScenarioNotFound?: () => void;
 }
 
 export function ScenarioOrchestrationView({
@@ -70,6 +73,7 @@ export function ScenarioOrchestrationView({
   selectedEnvironmentId,
   onScenarioUpdate,
   onOpenSidebar,
+  onScenarioNotFound,
 }: ScenarioOrchestrationViewProps) {
   const [steps, setSteps] = React.useState<ScenarioStep[]>([]);
   const [loading, setLoading] = React.useState(false);
@@ -104,7 +108,14 @@ export function ScenarioOrchestrationView({
       setSteps(data);
     } catch (error) {
       console.error("Failed to load steps:", error);
-      toast.error("加载步骤失败");
+      // 场景已被删除（常见于 AI 同对话重新生成时旧场景被替换）：
+      // 通知父组件清空选中态并刷新列表，避免停留在失效 ID 上反复 404
+      if (error instanceof ApiError && error.status === 404) {
+        toast.error("场景不存在或已被删除");
+        onScenarioNotFound?.();
+      } else {
+        toast.error("加载步骤失败");
+      }
     } finally {
       setLoading(false);
     }

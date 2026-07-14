@@ -1391,7 +1391,7 @@ export default function TestRunDetailPage() {
 
       {/* 日志弹窗 */}
       <Dialog open={!!logDialogJob} onOpenChange={(open) => { if (!open) { setLogDialogJob(null); setLogDialogData(null); } }}>
-        <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col">
+        <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col overflow-hidden">
           <DialogHeader>
             <DialogTitle>执行日志</DialogTitle>
             <DialogDescription>
@@ -1403,7 +1403,7 @@ export default function TestRunDetailPage() {
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
           ) : logDialogData ? (
-            <ScrollArea className="flex-1 border rounded-md">
+            <ScrollArea className="flex-1 min-h-0 border rounded-md">
               <div className="p-4 space-y-4">
                 {logDialogData.stdout && (
                   <div>
@@ -1454,7 +1454,7 @@ export default function TestRunDetailPage() {
 
       {/* 历史趋势弹窗 */}
       <Dialog open={!!historyDialogJob} onOpenChange={(open) => { if (!open) { setHistoryDialogJob(null); setHistoryDialogData(null); } }}>
-        <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+        <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col overflow-hidden">
           <DialogHeader>
             <DialogTitle>执行历史趋势</DialogTitle>
             <DialogDescription>
@@ -1466,7 +1466,7 @@ export default function TestRunDetailPage() {
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
           ) : historyDialogData && typeof historyDialogData === "object" && !("error" in historyDialogData) ? (
-            <ScrollArea className="flex-1">
+            <ScrollArea className="flex-1 min-h-0">
               <div className="p-4 space-y-4">
                 <div className="grid grid-cols-4 gap-4">
                   <div className="rounded-lg border p-3 text-center">
@@ -1514,7 +1514,7 @@ export default function TestRunDetailPage() {
 
       {/* 性能基准弹窗 */}
       <Dialog open={!!benchmarkDialogJob} onOpenChange={(open) => { if (!open) { setBenchmarkDialogJob(null); setBenchmarkDialogData(null); } }}>
-        <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+        <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col overflow-hidden">
           <DialogHeader>
             <DialogTitle>性能基准</DialogTitle>
             <DialogDescription>
@@ -1526,7 +1526,7 @@ export default function TestRunDetailPage() {
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
           ) : benchmarkDialogData && typeof benchmarkDialogData === "object" && !("error" in benchmarkDialogData) ? (
-            <ScrollArea className="flex-1">
+            <ScrollArea className="flex-1 min-h-0">
               <div className="p-4 space-y-4">
                 <div className="grid grid-cols-4 gap-4">
                   <div className="rounded-lg border p-3 text-center">

@@ -168,6 +168,25 @@ async def create_test_scenario(
             # 2. 同一次对话（conversation）内如果已创建过场景，先删除旧场景以便重新生成
             await _replace_conversation_scenario(session, conversation_id, project.id)
 
+            # 2.1 检测同 project 下同名场景（跨对话去重提示，避免列表被同名场景刷屏）
+            # 不强制阻断创建——用户可能确实需要多版本；但通过 warning 告知 AI，
+            # 让它在后续回复里提示用户或改用 update_test_scenario。
+            duplicate_stmt = select(TestScenario).where(
+                TestScenario.project_id == project.id,
+                TestScenario.name == name,
+            )
+            duplicate_result = await session.execute(duplicate_stmt)
+            existing_same_name = duplicate_result.scalars().all()
+            same_name_warning: str | None = None
+            if existing_same_name:
+                identifiers = ", ".join(s.identifier for s in existing_same_name[:5])
+                same_name_warning = (
+                    f"项目下已存在 {len(existing_same_name)} 个同名场景 '{name}'"
+                    f"（{identifiers}）。如果意图是更新/重新生成，"
+                    f"建议使用 update_test_scenario 更新现有场景，"
+                    f"或为新场景使用不同的名称以区分版本。"
+                )
+
             # 3. 生成场景标识符
             # 查询当前项目的场景数量
             count_stmt = select(TestScenario).where(
@@ -197,7 +216,7 @@ async def create_test_scenario(
             # 记录当前 conversation 已创建的场景，用于同对话去重
             _set_conversation_scenario_id(conversation_id, project.id, scenario.id)
 
-            return json.dumps({
+            response_data = {
                 "success": True,
                 "message": f"成功创建测试场景 {identifier}",
                 "data": {
@@ -207,7 +226,11 @@ async def create_test_scenario(
                     "status": scenario.status,
                     "total_steps": 0,
                 }
-            }, ensure_ascii=False, indent=2)
+            }
+            if same_name_warning:
+                response_data["warning"] = same_name_warning
+
+            return json.dumps(response_data, ensure_ascii=False, indent=2)
 
         except Exception as e:
             await session.rollback()
