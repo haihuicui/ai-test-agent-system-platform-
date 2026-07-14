@@ -630,44 +630,95 @@ async def save_test_script(
 
 def _analyze_script_assertions(script_content: str) -> dict:
     """
-    静态分析测试脚本中的断言分布。
+    静态分析测试脚本中的断言分布与质量。
 
     返回指标：
     - total_tests: 估算的测试用例数
     - total_expects: expect(...) 调用总数
-    - status_asserts: 涉及 response.status 的断言数
-    - non_status_asserts: 非状态码断言数
+    - status_asserts: 状态码相关断言数
+    - non_status_asserts: 非状态码断言总数
+    - weak_asserts: 弱断言数（toBeTruthy/toBeDefined 等宽泛断言）
+    - effective_asserts: 有效业务断言数（非状态码且非弱断言）
     - status_only: 是否只有状态码断言
     - weak: 是否判定为断言不足
     """
     # 估算测试数量：匹配 test('...', ...) 或 it('...', ...)
     test_pattern = re.compile(r"(?:test|it)\s*\(\s*['\"`]")
-    # 所有 expect 调用
-    expect_pattern = re.compile(r"\bexpect\s*\(")
-    # 与 response.status 相关的断言（包含 .status 的 expect 链）
-    status_pattern = re.compile(
-        r"\bexpect\s*\([^)]*\.status\b[^)]*\)\s*\.\s*(?:toBe|toEqual|toMatchObject|toContain|oneOf|any)\s*\("
+    # 提取完整 expect 链：expect( receiver ).matcher( args )
+    expect_chain_pattern = re.compile(
+        r"\bexpect\s*\(\s*(.*?)\s*\)\s*\.\s*(\w+)\s*\((.*?)\)",
+        re.DOTALL,
     )
-    # 错误/空 body 断言也计入非状态码，这里不做排除
+    # 状态码断言的接收者特征（扩展识别 response.ok / response.status() / res.status 等）
+    status_receiver_patterns = [
+        re.compile(r"\.status\b"),
+        re.compile(r"\.statusCode\b"),
+        re.compile(r"\.ok\b"),
+        re.compile(r"\.status\s*\(\s*\)"),
+    ]
+    # 简单变量接收者：对这些变量的 toBeDefined/toBeTruthy 视为弱断言
+    weak_receivers = {"body", "response", "data", "result", "res", "json", "error", "resp"}
+    # 无论接收者是什么，这些 matcher 都视为弱断言（无具体值/无字段路径）
+    always_weak_matchers = {"toBeTruthy", "toBeFalsy"}
+    # 接收者是简单变量时视为弱断言；嵌套字段路径时视为有效（字段存在性检查）
+    context_weak_matchers = {"toBeDefined", "toBeUndefined"}
+    # 宽泛 matcher：参数为 Object 或无参数时视为弱
+    broad_matchers = {"toBeInstanceOf"}
+    # 值断言：参数为空或 undefined/null 时视为弱
+    value_matchers = {"toBe", "toEqual", "toStrictEqual"}
 
     total_tests = len(test_pattern.findall(script_content))
-    total_expects = len(expect_pattern.findall(script_content))
-    status_asserts = len(status_pattern.findall(script_content))
+    chains = expect_chain_pattern.findall(script_content)
+
+    total_expects = len(chains)
+    status_asserts = 0
+    weak_asserts = 0
+    effective_asserts = 0
+
+    for receiver, matcher, args in chains:
+        receiver = receiver.strip()
+        args = args.strip()
+
+        # 1. 状态码断言
+        if any(p.search(receiver) for p in status_receiver_patterns):
+            status_asserts += 1
+            continue
+
+        # 2. 弱断言判定
+        is_weak = False
+        if matcher in always_weak_matchers:
+            is_weak = True
+        elif matcher in context_weak_matchers:
+            if receiver in weak_receivers:
+                is_weak = True
+        elif matcher in broad_matchers:
+            if "Object" in args or args == "":
+                is_weak = True
+        elif matcher in value_matchers:
+            if args in {"", "undefined", "null"}:
+                is_weak = True
+
+        if is_weak:
+            weak_asserts += 1
+        else:
+            effective_asserts += 1
+
     non_status_asserts = max(0, total_expects - status_asserts)
 
     # 判定规则
-    status_only = total_expects > 0 and non_status_asserts == 0
-    # 每个测试平均非状态码断言不足 1.5 个视为弱
-    weak = (
-        total_expects > 0
-        and (total_tests == 0 or (non_status_asserts / max(total_tests, 1)) < 1.5)
-    )
+    status_only = total_expects > 0 and effective_asserts == 0
+    # 每个测试平均有效非状态码断言不足 2 个视为弱
+    avg_effective = effective_asserts / max(total_tests, 1)
+    weak = total_expects > 0 and (total_tests == 0 or avg_effective < 2)
 
     return {
         "total_tests": total_tests,
         "total_expects": total_expects,
         "status_asserts": status_asserts,
         "non_status_asserts": non_status_asserts,
+        "weak_asserts": weak_asserts,
+        "effective_asserts": effective_asserts,
+        "avg_effective_per_test": round(avg_effective, 2),
         "status_only": status_only,
         "weak": weak,
     }
@@ -685,7 +736,10 @@ def _build_assertion_report(script_content: str) -> dict:
         message = "断言严重不足：脚本只包含状态码断言，必须补充响应体字段/类型/业务断言。"
     elif metrics["weak"]:
         verdict = "WEAK"
-        message = "断言偏弱：非状态码断言数量不足，建议为每个测试补充至少 1-2 个字段或业务断言。"
+        message = (
+            f"断言偏弱：每个测试平均仅 {metrics['avg_effective_per_test']} 个有效业务断言，"
+            "建议为每个测试补充至少 2 个字段存在性/类型/业务值断言。"
+        )
     else:
         verdict = "OK"
         message = "断言基本充足。"
@@ -693,11 +747,12 @@ def _build_assertion_report(script_content: str) -> dict:
     suggestions = []
     if metrics["status_only"] or metrics["weak"]:
         suggestions.extend([
-            "对 2xx 响应补充 body 关键字段存在性断言，如 expect(body.data).toBeDefined()",
+            "对 2xx 响应补充 body 关键字段存在性断言，如 expect(body.data).toHaveProperty('id')",
             "根据 OpenAPI responses schema 补充字段类型断言，如 expect(typeof body.data.id).toBe('number')",
             "对业务状态字段补充枚举断言，如 expect(['pending','paid']).toContain(body.data.status)",
             "对 4xx 错误响应补充 error message / code 断言，验证具体错误原因",
             "查询类接口补充数组类型和 total 类型断言，避免空数据误通过",
+            "避免使用 expect(body).toBeTruthy() / expect(response).toBeDefined() 等宽泛断言，应指向具体字段",
         ])
 
     return {

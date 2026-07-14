@@ -1170,6 +1170,41 @@ async def execute_scenario(
 
     async with async_session_factory() as session:
         try:
+            # ---- 断言质量门禁：执行前校验每个步骤的断言配置 ----
+            steps_stmt = select(ScenarioStep).where(
+                ScenarioStep.scenario_id == UUID(scenario_id)
+            ).order_by(ScenarioStep.step_order)
+            steps_result = await session.execute(steps_stmt)
+            steps = steps_result.scalars().all()
+
+            invalid_steps: list[dict] = []
+            for step in steps:
+                assertions = step.assertions or []
+                if not assertions:
+                    invalid_steps.append({
+                        "step_order": step.step_order,
+                        "step_name": step.name,
+                        "issue": "未配置任何断言",
+                    })
+                    continue
+                has_non_status = any(
+                    a.get("type") in ("jsonpath", "header") for a in assertions
+                )
+                if not has_non_status:
+                    invalid_steps.append({
+                        "step_order": step.step_order,
+                        "step_name": step.name,
+                        "issue": "只有 status 断言，缺少 jsonpath/header 业务断言",
+                    })
+
+            if invalid_steps:
+                return json.dumps({
+                    "success": False,
+                    "error": "场景断言质量门禁未通过：每个步骤必须至少包含 1 个非 status 断言（jsonpath/header）",
+                    "invalid_steps": invalid_steps,
+                    "hint": "请使用 add_step_assertion 为缺失步骤补充 jsonpath 或 header 断言后重试执行。",
+                }, ensure_ascii=False, indent=2)
+
             # 创建执行引擎
             engine = ScenarioExecutionEngine(session)
 

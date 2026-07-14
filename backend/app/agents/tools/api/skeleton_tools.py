@@ -268,6 +268,76 @@ def _extract_request_body_schema(request_body: Optional[dict]) -> tuple[Optional
     return schema, body_required, is_ref
 
 
+def _extract_response_fields(responses: Optional[dict], status_code: int) -> list[tuple[str, str]]:
+    """从 responses 中提取指定状态码响应的字段名与类型。
+
+    返回 [(field_name, field_type), ...]，最多返回 5 个字段；$ref 未解析时返回空列表。
+    """
+    if not isinstance(responses, dict):
+        return []
+    response = responses.get(str(status_code))
+    if not isinstance(response, dict):
+        return []
+    content = response.get("content") or {}
+    if not isinstance(content, dict) or not content:
+        return []
+
+    media = None
+    for mime in ("application/json", "application/*+json", "*/*"):
+        if mime in content:
+            media = content[mime]
+            break
+    if media is None:
+        media = next(iter(content.values()))
+    if not isinstance(media, dict):
+        return []
+
+    schema = media.get("schema")
+    if not isinstance(schema, dict):
+        return []
+    if "$ref" in schema:
+        return []
+
+    props = schema.get("properties")
+    if not isinstance(props, dict):
+        return []
+
+    fields: list[tuple[str, str]] = []
+    for prop_name, prop_schema in props.items():
+        if not isinstance(prop_schema, dict):
+            continue
+        if "$ref" in prop_schema:
+            fields.append((prop_name, "object"))
+        else:
+            fields.append((prop_name, _schema_type(prop_schema)))
+    return fields[:5]
+
+
+def _build_success_assertion_hints(responses: Optional[dict], success_status: int) -> list[str]:
+    """构造正向用例的断言提示，优先使用 responses schema 中的具体字段。"""
+    hints = [f"断言状态码为 {success_status}"]
+    fields = _extract_response_fields(responses, success_status)
+    if fields:
+        for fname, ftype in fields:
+            hints.append(f"断言响应体包含字段 {fname}（类型 {ftype}）")
+    else:
+        hints.append("断言响应体结构与 2xx schema 一致（字段存在性 + 类型）")
+    hints.append("业务状态字段（success/code 等）按文档断言")
+    return hints
+
+
+def _build_error_assertion_hints(responses: Optional[dict], status_code: int) -> list[str]:
+    """构造异常用例的断言提示，优先使用 error schema 中的具体字段。"""
+    hints = [f"断言状态码为 {status_code}"]
+    fields = _extract_response_fields(responses, status_code)
+    if fields:
+        for fname, _ in fields[:3]:
+            hints.append(f"断言错误响应包含字段 {fname}")
+    else:
+        hints.append("断言错误信息符合 error schema（如 message / error / code）")
+    return hints
+
+
 def _derive_skeletons(
     method: str,
     path: str,
@@ -295,11 +365,7 @@ def _derive_skeletons(
         test_point="使用符合 schema 的有效参数与请求体调用，验证成功响应",
         expected_status=success_status,
         data_strategy="按 schema 类型生成合法值；唯一字段用 faker/uuid/时间戳动态生成",
-        assertion_hints=[
-            f"断言状态码为 {success_status}",
-            "断言响应体结构与 2xx schema 一致（字段存在性 + 类型）",
-            "业务状态字段（success/code 等）按文档断言",
-        ],
+        assertion_hints=_build_success_assertion_hints(responses, success_status),
     ))
 
     # ---- 2) 参数（path/query/header）推导 ----
@@ -325,7 +391,7 @@ def _derive_skeletons(
             test_point="提交空请求体（body 为必填），应返回校验错误",
             expected_status=400,
             data_strategy="发送空 JSON {} 或不带 body",
-            assertion_hints=["断言状态码为 400"],
+            assertion_hints=_build_error_assertion_hints(responses, 400),
         ))
     if body_is_ref:
         notes.append(
@@ -361,7 +427,7 @@ def _derive_skeletons(
             test_point="不提供 Authorization / 凭证调用受保护接口，应返回未授权",
             expected_status=401,
             data_strategy="请求头中不带 Authorization",
-            assertion_hints=["断言状态码为 401 或 403"],
+            assertion_hints=_build_error_assertion_hints(responses, 401),
         ))
         skeletons.append(_make_point(
             name="安全 - 无效/过期凭证",
@@ -370,7 +436,7 @@ def _derive_skeletons(
             test_point="使用无效或过期 token 调用，应返回未授权",
             expected_status=401,
             data_strategy="Authorization: Bearer invalid-token",
-            assertion_hints=["断言状态码为 401 或 403"],
+            assertion_hints=_build_error_assertion_hints(responses, 401),
         ))
     else:
         notes.append("端点未声明 security（或为公开接口），未生成认证类用例。")
