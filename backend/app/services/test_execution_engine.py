@@ -71,6 +71,17 @@ class TestExecutionService:
         """
         return await self._engine.execute_run(test_run_id, trigger=trigger)
 
+    async def execute_jobs(
+        self,
+        test_run_id: UUID,
+        job_ids: List[UUID],
+    ) -> Dict[str, Any]:
+        """仅执行指定的脚本作业（重试场景），随后基于全部作业重新定案。
+
+        委托给 ScriptExecutionEngine.execute_jobs。
+        """
+        return await self._engine.execute_jobs(test_run_id, job_ids)
+
     async def cancel_run(self, test_run_id: UUID) -> None:
         """取消测试运行"""
         await self._engine.cancel_run(test_run_id)

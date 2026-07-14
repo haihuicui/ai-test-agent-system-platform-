@@ -462,6 +462,8 @@ export default function TestRunDetailPage() {
     setRetryingJobId(job.id);
     try {
       await retryJob(projectId, testRun.identifier, job.id);
+      // 重试会把 run 置回 in_progress，刷新详情以触发 SSE 实时订阅
+      await loadDetailSilent();
       await loadScriptJobs();
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : "重试失败";
@@ -489,6 +491,8 @@ export default function TestRunDetailPage() {
     try {
       await batchRetryJobs(projectId, testRun.identifier, Array.from(selectedJobIds));
       setSelectedJobIds(new Set());
+      // 重试会把 run 置回 in_progress，刷新详情以触发 SSE 实时订阅
+      await loadDetailSilent();
       await loadScriptJobs();
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : "批量重试失败";
