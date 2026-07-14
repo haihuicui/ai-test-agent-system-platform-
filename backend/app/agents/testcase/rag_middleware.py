@@ -4,23 +4,45 @@
 关闭 RAG 时，会过滤掉所有以 `rag_` 开头的工具，并在系统提示词中追加禁用说明，
 防止模型尝试调用历史知识库。
 """
+from typing import Any
+
+from deepagents.middleware import SkillsMiddleware
+from deepagents.middleware._utils import append_to_system_message
 from langchain.agents.middleware import AgentMiddleware, ModelRequest
+
+# RAG Skill 在虚拟文件系统中的路由前缀（见 agent.py 的 CompositeBackend 路由）
+RAG_SKILL_SOURCE_PREFIX = "/rag/"
+
+
+def resolve_enable_rag(messages: list[Any] | None, runtime: Any) -> bool:
+    """解析 RAG 开关的唯一权威实现。
+
+    优先级：最近一条 human 消息的 ``additional_kwargs.enable_rag``
+    > 运行时上下文 ``context.enable_rag`` > 默认 True。
+
+    注意：
+    - 只从 human 消息读取开关，避免从 AI / tool 消息的 additional_kwargs
+      中误读（两类中间件此前行为不一致的 bug 根源）。
+    - 沿历史倒序找最近一条 human 消息，而不是只看 ``messages[-1]``——
+      工具调用循环中最后一条可能是 ToolMessage，会导致开关在
+      一轮对话中途翻转。
+    """
+    for msg in reversed(messages or []):
+        if getattr(msg, "type", None) == "human":
+            ak = getattr(msg, "additional_kwargs", None) or {}
+            if isinstance(ak, dict) and "enable_rag" in ak:
+                return bool(ak["enable_rag"])
+            break  # 最近的 human 消息未携带开关 -> 回退到 context
+
+    context = getattr(runtime, "context", None) if runtime else None
+    return getattr(context, "enable_rag", True) if context else True
 
 
 class RAGMiddleware(AgentMiddleware):
     """根据 enable_rag 开关动态控制 RAG 工具的注入与过滤。"""
 
     def _is_rag_enabled(self, request: ModelRequest) -> bool:
-        # 优先从最后一条 human 消息的 additional_kwargs 中读取开关状态
-        last_msg = request.messages[-1] if request.messages else None
-        if last_msg and getattr(last_msg, "type", None) == "human":
-            ak = getattr(last_msg, "additional_kwargs", None) or {}
-            if "enable_rag" in ak:
-                return bool(ak["enable_rag"])
-
-        runtime = getattr(request, "runtime", None)
-        context = getattr(runtime, "context", None) if runtime else None
-        return getattr(context, "enable_rag", True) if context else True
+        return resolve_enable_rag(request.messages, getattr(request, "runtime", None))
 
     def _filter_rag_tools(self, tools: list) -> list:
         """过滤掉名称以 rag_ 开头的 RAG 工具。"""
@@ -60,3 +82,50 @@ class RAGMiddleware(AgentMiddleware):
             request.tools = filtered_tools
 
         return await handler(request)
+
+
+class RagAwareSkillsMiddleware(SkillsMiddleware):
+    """RAG 开关感知的 SkillsMiddleware。
+
+    RAG 工具过滤（RAGMiddleware）只移除了 rag_* 工具，但 SkillsMiddleware
+    仍会把 /rag/ 下的 rag-query Skill 注入系统提示词；该 Skill 内含
+    "必须优先使用检索工具"等强指令，会在 enable_rag=False 时反向驱动模型
+    执行检索，使开关失效。
+
+    本中间件在渲染 skill 列表时按请求过滤掉 /rag/ 来源的 skill 及其
+    source 位置行，保证 RAG 开关端到端一致。skill 加载（before_agent）
+    不受影响——过滤发生在渲染层，开关打开时无需重新加载。
+    """
+
+    def modify_request(self, request: ModelRequest) -> ModelRequest:
+        if resolve_enable_rag(request.messages, getattr(request, "runtime", None)):
+            return super().modify_request(request)
+
+        state = getattr(request, "state", None) or {}
+        skills_metadata = [
+            skill
+            for skill in state.get("skills_metadata", [])
+            if not str(skill.get("path", "")).startswith(RAG_SKILL_SOURCE_PREFIX)
+        ]
+        skills_load_errors = state.get("skills_load_errors", [])
+
+        # source 位置行同样过滤掉 /rag/，避免模型按路径直接 read_file
+        source_pairs = [
+            (path, label)
+            for path, label in zip(self.sources, self.source_labels, strict=True)
+            if not path.startswith(RAG_SKILL_SOURCE_PREFIX)
+        ]
+        last = len(source_pairs) - 1
+        skills_locations = "\n".join(
+            f"**{label} Skills**: `{path}`{' (higher priority)' if i == last else ''}"
+            for i, (path, label) in enumerate(source_pairs)
+        )
+
+        skills_section = self.system_prompt_template.format(
+            skills_locations=skills_locations,
+            skills_load_warnings=self._format_skills_load_warnings(skills_load_errors),
+            skills_list=self._format_skills_list(skills_metadata),
+        )
+        return request.override(
+            system_message=append_to_system_message(request.system_message, skills_section)
+        )

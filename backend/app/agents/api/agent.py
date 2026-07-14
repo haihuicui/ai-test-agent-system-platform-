@@ -13,10 +13,9 @@ API 自动化测试智能体
 - Tools: 原子操作（数据库、存储、MCP）
 """
 import asyncio
-from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import AsyncIterator, Callable, TYPE_CHECKING
+from typing import Callable
 from uuid import uuid4
 # pylint: disable  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2YlZsVldBPT06YzRiOTU0ZTI=
 
@@ -24,10 +23,7 @@ from deepagents import create_deep_agent as create_agent
 from deepagents.backends import FilesystemBackend, LocalShellBackend, CompositeBackend
 from deepagents.middleware import SkillsMiddleware
 from langchain.agents.middleware import AgentMiddleware, ModelRequest, ModelResponse
-from langchain_mcp_adapters.client import MultiServerMCPClient
-from langchain_mcp_adapters.tools import load_mcp_tools
 from langgraph.config import get_config
-from langgraph.pregel import Pregel
 
 from app.agents.api.runtime_context import conversation_id_ctx
 from app.agents.tools.api import get_local_tools
@@ -527,57 +523,6 @@ AI：
 - **场景测试**：创建场景 → 添加步骤 → 配置数据依赖 → 添加断言 → 验证数据流 → 执行测试！
 """
 
-@asynccontextmanager
-async def get_gitnexus_tools():
-    async with MultiServerMCPClient(
-        {
-            "gitnexus": {
-                "transport": "stdio",
-                "command": "gitnexus",
-                "args": ["mcp"],
-            },
-        }
-    ) as client:
-        yield await client.get_tools()
-
-
-@asynccontextmanager
-async def make_agent() -> AsyncIterator[Pregel]:
-    """
-    创建 API 测试智能体的工厂函数。
-
-    使用 asynccontextmanager 模式确保：
-    - MCP session 在智能体生命周期内保持活跃
-    - 退出时自动清理资源
-    """
-    # 创建中间件
-    context_middleware = APIContextInjectionMiddleware()
-
-    client = MultiServerMCPClient(
-            {
-                "gitnexus": {
-                    "transport": "stdio",
-                    "command": "gitnexus",
-                    "args": ["mcp"],
-                },
-            }
-    )
-    async with client.session("gitnexus") as session:
-        # 在 session 中加载 MCP 工具
-        # mcp_tools = await load_mcp_tools(session)
-        all_tools = get_local_tools() # + mcp_tools
-        # 创建智能体
-        api_agent = create_agent(
-            model=model,
-            tools=all_tools,
-            system_prompt=SYSTEM_PROMPT,
-            middleware=[skills_middleware, context_middleware],
-            backend=composite_backend,
-            context_schema=APIAgentContext,
-        )
-
-        yield api_agent
-
 # 创建中间件
 context_middleware = APIContextInjectionMiddleware()
 all_tools = get_local_tools()
@@ -589,6 +534,6 @@ api_agent = create_agent(
             backend=composite_backend,
             context_schema=APIAgentContext,
         )
-# 导出 make_agent 供 LangGraph API 使用
+# 导出 agent 供 LangGraph API 使用（langgraph.json: api_agent -> agent.py:agent）
 agent = api_agent
 # pragma: no cover  My80OmFIVnBZMlhsdEpUbXRiZm92b2s2YlZsVldBPT06YzRiOTU0ZTI=
