@@ -21,6 +21,7 @@ from sqlalchemy import select
 # noqa  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2TVhwMk9RPT06MTE1M2I2M2M=
 
 from app.utils.sync_executor import run_sync
+from app.utils.shell_env import resolve_effective_headless
 from app.config import settings
 from app.config.database import async_session_factory
 from app.models.attachment import Attachment, AttachmentEntityType
@@ -63,7 +64,8 @@ async def execute_web_script(
     framework: str = "playwright",
     reporter: str = "html",
     project_identifier: str = "PR-1",
-    sub_function_id: Optional[str] = None
+    sub_function_id: Optional[str] = None,
+    headless: Optional[bool] = None,
 ) -> str:
     """
     执行已下载到 MCP 测试目录的 Web 测试脚本
@@ -83,6 +85,7 @@ async def execute_web_script(
         reporter: 报告格式 (html, json, list)
         project_identifier: 项目标识符，用于保存测试报告
         sub_function_id: 子功能 ID（可选，用于更新测试统计）
+        headless: 是否以无头模式运行浏览器（可选，默认读取 settings.web_mcp_headless）
 
     Returns:
         JSON 格式的执行结果，包含：
@@ -134,12 +137,14 @@ async def execute_web_script(
         print(f"[Web Script Execution] 相对脚本路径: {relative_path}")
 
         # 5. 执行脚本
+        resolved_headless = settings.web_mcp_headless if headless is None else headless
         execution_result = await _execute_script_internal(
             script_path=str(relative_path),
             script_filename=script_filename,
             framework=framework,
             reporter=reporter,
-            project_root=str(project_root)
+            project_root=str(project_root),
+            headless=resolved_headless,
         )
 
         # 6. 保存测试报告到 MinIO（如果生成了 HTML 报告）
@@ -217,7 +222,8 @@ async def _execute_script_internal(
     script_filename: str,
     framework: str,
     reporter: str,
-    project_root: str
+    project_root: str,
+    headless: bool = True,
 ) -> Dict[str, Any]:
     """
     内部执行脚本函数
@@ -237,20 +243,26 @@ async def _execute_script_internal(
 
         # 确定测试命令
         is_windows = sys.platform == "win32"
+        effective_headless = resolve_effective_headless(headless)
 # fmt: off  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2TVhwMk9RPT06MTE1M2I2M2M=
 
         if framework == "playwright":
+            headed_flag = "--headed" if not effective_headless else ""
             if reporter == "html":
                 # HTML 报告需要指定输出目录
                 if is_windows:
-                    cmd = f'npx playwright test {script_filename} --reporter=html'
+                    cmd = f'npx playwright test {script_filename} --reporter=html {headed_flag}'
                 else:
                     cmd = ["npx", "playwright", "test", script_filename, "--reporter=html"]
+                    if headed_flag:
+                        cmd.append("--headed")
             else:
                 if is_windows:
-                    cmd = f'npx playwright test {script_filename} --reporter={reporter}'
+                    cmd = f'npx playwright test {script_filename} --reporter={reporter} {headed_flag}'
                 else:
                     cmd = ["npx", "playwright", "test", script_filename, f"--reporter={reporter}"]
+                    if headed_flag:
+                        cmd.append("--headed")
         else:
             return {
                 "success": False,

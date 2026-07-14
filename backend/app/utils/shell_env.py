@@ -79,7 +79,18 @@ def build_shell_env(
 _playwright_mcp_init_lock = asyncio.Lock()
 
 
-async def ensure_playwright_mcp_project(root_dir: str) -> None:
+def resolve_effective_headless(headless: bool) -> bool:
+    """根据运行环境修正 headless 取值。
+
+    在 Linux 且无 DISPLAY 的图形环境下，无法弹出真实浏览器窗口，强制降级为
+    headless 模式，避免启动失败。
+    """
+    if not headless and sys.platform.startswith("linux") and not os.environ.get("DISPLAY"):
+        return True
+    return headless
+
+
+async def ensure_playwright_mcp_project(root_dir: str, headless: bool = False) -> None:
     """确保 Playwright MCP server 所需的配置文件与依赖已就绪。
 
     ``web_mcp_root`` 是运行时工作区（被 .gitignore 忽略），在新 clone 或清理后可能
@@ -89,30 +100,48 @@ async def ensure_playwright_mcp_project(root_dir: str) -> None:
 
     本函数在启动 MCP server 前惰性地初始化这些文件，并在缺少依赖时自动运行
     ``npm install``。
+
+    Args:
+        root_dir: Playwright MCP 工作区根目录。
+        headless: 是否以无头模式运行浏览器。``False`` 表示弹出真实浏览器窗口。
     """
     root = Path(root_dir)
     root.mkdir(parents=True, exist_ok=True)
 
+    effective_headless = resolve_effective_headless(headless)
+    headless_value = "true" if effective_headless else "false"
+    workers_value = "4" if effective_headless else "1"
+
     config_file = root / "playwright.config.js"
     if not config_file.exists():
         config_file.write_text(
-            """module.exports = {
+            f"""module.exports = {{
   testDir: './tests',
   timeout: 60000,
-  use: {
-    headless: true,
-    viewport: { width: 1280, height: 720 },
-  },
+  retries: 2,
+  workers: {workers_value},
+  use: {{
+    headless: {headless_value},
+    viewport: {{ width: 1280, height: 720 }},
+    trace: 'retain-on-failure',
+    video: 'retain-on-failure',
+    screenshot: 'only-on-failure',
+    launchOptions: {{
+      handleSIGINT: true,
+      handleSIGTERM: true,
+      handleSIGHUP: true,
+    }},
+  }},
   projects: [
-    {
+    {{
       name: 'chromium',
-      use: {
+      use: {{
         browserName: 'chromium',
-        viewport: { width: 1280, height: 720 },
-      },
-    },
+        viewport: {{ width: 1280, height: 720 }},
+      }},
+    }},
   ],
-};
+}};
 """,
             encoding="utf-8",
         )
@@ -157,13 +186,19 @@ async def ensure_playwright_mcp_project(root_dir: str) -> None:
             )
 
 
-def get_playwright_mcp_command_args(root_dir: str) -> tuple[str, list[str]]:
+def get_playwright_mcp_command_args(root_dir: str, headless: bool = False) -> tuple[str, list[str]]:
     """返回适合当前平台的 Playwright MCP server 启动命令与参数。
 
     Windows 下使用 cmd /c 执行 cd & npx ...；
     Linux/macOS 下使用 bash -c 执行 cd && npx ...，并优先定位 npx 绝对路径。
+
+    Args:
+        root_dir: Playwright MCP 工作区根目录。
+        headless: 是否以无头模式运行浏览器。``False`` 表示弹出真实浏览器窗口。
     """
     npx = shutil.which("npx") or "npx"
+    effective_headless = resolve_effective_headless(headless)
+    headless_flag = " --headless" if effective_headless else ""
     if sys.platform == "win32":
-        return "cmd", ["/c", f"cd {root_dir} & {npx} playwright run-test-mcp-server --headless"]
-    return "bash", ["-c", f"cd {root_dir} && {npx} playwright run-test-mcp-server --headless"]
+        return "cmd", ["/c", f"cd {root_dir} & {npx} playwright run-test-mcp-server{headless_flag}"]
+    return "bash", ["-c", f"cd {root_dir} && {npx} playwright run-test-mcp-server{headless_flag}"]

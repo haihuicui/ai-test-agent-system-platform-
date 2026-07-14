@@ -274,6 +274,26 @@ browser_verify_text_visible(text="...")  # 使用实际文本
 - `browser_verify_list_visible` - 验证列表项
 - `browser_verify_value` - 验证输入值
 
+### 浏览器有头/无头控制（headless）
+
+**执行测试时，根据用户意图决定是否弹出浏览器窗口：**
+
+- **有头模式（headless=False）**：当用户明确要求「观察执行过程」、「调试失败用例」、「看看浏览器怎么跑的」时，调用 `execute_web_script` 传入 `headless=False`
+- **无头模式（默认）**：批量回归、CI 场景或用户未明确要求观察时，保持默认配置
+- **Linux 服务器**：无图形环境时会自动降级为 headless，无需人工干预
+
+**示例**：
+```python
+# 用户想观察执行过程
+execute_web_script(
+    local_script_path="tests/login.spec.ts",
+    headless=False
+)
+
+# 批量回归或默认执行
+execute_web_script(local_script_path="tests/login.spec.ts")
+```
+
 ### 成果物保存（强制性）
 
 **必须保存的成果物**：
@@ -441,10 +461,12 @@ async def make_agent() -> AsyncIterator[Pregel]:
     context_middleware = WebContextInjectionMiddleware()
 
     # 确保 Playwright MCP 项目目录已初始化（配置、依赖）
-    await ensure_playwright_mcp_project(settings.web_mcp_root)
+    await ensure_playwright_mcp_project(settings.web_mcp_root, headless=settings.web_mcp_headless)
 
     # 创建 MCP 客户端连接到 Playwright 服务器
-    mcp_command, mcp_args = get_playwright_mcp_command_args(settings.web_mcp_root)
+    mcp_command, mcp_args = get_playwright_mcp_command_args(
+        settings.web_mcp_root, headless=settings.web_mcp_headless
+    )
     client = MultiServerMCPClient(
         {
             "web_mcp": {

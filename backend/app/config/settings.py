@@ -175,6 +175,8 @@ class Settings(BaseSettings):
     web_mcp_workspace_root: str
     web_mcp_root: str
     web_mcp_skills_root: str
+    # Web MCP 是否使用无头浏览器（false=有头，true=无头）
+    web_mcp_headless: bool = False
 
     # Web CLI 测试工作目录配置
     web_cli_workspace_root: str = "backend/workspace/web_cli"
