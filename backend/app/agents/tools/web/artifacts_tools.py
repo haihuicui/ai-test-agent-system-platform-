@@ -328,8 +328,11 @@ async def save_web_test_cases(
             )
             session.add(attachment)
 
-        # 更新子功能的测试用例统计
-        sub_function.total_test_cases = (sub_function.total_test_cases or 0) + len(test_cases)
+        # 更新子功能的测试用例统计。
+        # 每个子功能只有一份 test-cases.json 产物，每次保存都是整体替换，
+        # 因此用例总数必须“赋值”而非“累加”，否则重新生成会导致计数翻倍
+        # （父级 WebFunction.total_test_cases 为各子功能之和，也会被连带放大）。
+        sub_function.total_test_cases = len(test_cases)
         sub_function.updated_at = datetime.now(timezone.utc)
 
         await session.commit()
