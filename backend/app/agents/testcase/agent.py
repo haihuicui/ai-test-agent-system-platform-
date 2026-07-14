@@ -11,14 +11,15 @@ from typing import AsyncIterator, Callable
 
 from deepagents import create_deep_agent as create_agent
 from deepagents.backends import FilesystemBackend, LocalShellBackend, CompositeBackend
-from deepagents.middleware import SkillsMiddleware
+from deepagents.middleware._utils import append_to_system_message
 from langchain.agents.middleware import AgentMiddleware, ModelRequest, ModelResponse, wrap_model_call
 from langgraph.pregel import Pregel
 
 from app.agents.tools.testcase import get_all_tools, get_local_tools
 from app.agents.tools.error_handler import wrap_tools_with_error_handling
+from app.agents.testcase.case_quality_middleware import CaseQualityGateMiddleware
 from app.agents.testcase.phase_review_middleware import PhaseReviewMiddleware
-from app.agents.testcase.rag_middleware import RAGMiddleware
+from app.agents.testcase.rag_middleware import RAGMiddleware, RagAwareSkillsMiddleware, resolve_enable_rag
 from app.agents.testcase.state_compaction_middleware import StaleToolResultOffloadMiddleware
 from app.agents.testcase.tool_call_validation_middleware import (
     ToolCallAdjacencyMiddleware,
@@ -61,7 +62,7 @@ composite_backend = CompositeBackend(
     },
 )
 
-skills_middleware = SkillsMiddleware(
+skills_middleware = RagAwareSkillsMiddleware(
     backend=composite_backend,
     sources=["/skills/", "/rag/"]
 )
@@ -97,17 +98,15 @@ class ContextInjectionMiddleware(AgentMiddleware):
     ) -> ModelResponse:
         ctx = request.runtime.context
 
-        # 优先从最后一条 human 消息的 additional_kwargs 中读取 RAG 开关
-        last_msg = request.messages[-1] if request.messages else None
-        ak = getattr(last_msg, "additional_kwargs", None) or {} if last_msg else {}
-        msg_enable_rag = ak.get("enable_rag") if isinstance(ak, dict) else None
-        enable_rag = msg_enable_rag if msg_enable_rag is not None else getattr(ctx, "enable_rag", True)
+        # RAG 开关：统一走 resolve_enable_rag（只从 human 消息读取，
+        # 避免从 AI / tool 消息的 additional_kwargs 误读）
+        enable_rag = resolve_enable_rag(request.messages, request.runtime)
 
         rag_instruction = (
             "收到需求后，首先激活 `rag-query` Skill，查询历史测试用例、业务规则、领域知识；"
             "所有分析必须基于 RAG 检索到的上下文展开。"
             if enable_rag
-            else "RAG 检索已关闭，请忽略任何关于 RAG 检索的指令，不要调用任何 RAG 相关工具，直接基于用户提供的原始需求进行分析。"
+            else "RAG 检索已关闭，请忽略任何关于 RAG 检索的指令，不要调用任何 RAG 相关工具，不要激活 rag-query Skill，直接基于用户提供的原始需求进行分析。"
         )
 
         context_info = f"""
@@ -128,7 +127,7 @@ class ContextInjectionMiddleware(AgentMiddleware):
 2. `template_type` 为 `test_case` 时创建普通测试用例（使用 test_case_steps）
 3. `template_type` 为 `test_case_bdd` 时创建 BDD 测试用例（使用 feature/scenario/background）
 4. {rag_instruction}
-5. 阶段报告质量综合评分 ≥ `{getattr(ctx, 'auto_approve_threshold', 100.0)}` 时，系统会自动通过该阶段评审；请在质量评审报告中明确输出 `综合评分：XX 分`
+5. 阶段报告质量综合评分 ≥ `{getattr(ctx, 'auto_approve_threshold', 100.0)}` 时，系统会自动通过该阶段评审；综合评分 < 75 分时系统会自动退回返工；请在质量评审报告中明确输出 `综合评分：XX 分`
 6. `project_identifier` 为空时，提示用户"系统配置错误，缺少项目信息"；`folder_id` 为空表示用户当前位于"全部用例"，此时用例会保存到项目根目录（folder_id 传空字符串或省略均可）
 7. 如果 `folder_id` 非空，必须保持原值，不要替换成其他文件夹
 
@@ -145,27 +144,36 @@ create_test_case_tool(
 ---
 """
 
-        if isinstance(request.system_message.content, list):
-            request.system_message.content = request.system_message.content + [{"type": "text", "text": context_info}]
-        else:
-            request.system_message.content = request.system_message.content + context_info
+        # 不可变模式：通过 request.override 生成新请求，不原地修改
+        # request.system_message / request.messages——后者与 state 共享消息
+        # 对象，原地修改会把动态注入内容永久写进 checkpoint。
+        request = request.override(
+            system_message=append_to_system_message(request.system_message, context_info)
+        )
 
-        # 检测用户消息中的 PDF 附件，追加解析提示
+        # 检测用户消息中的 PDF 附件，追加解析提示（同样走副本，不碰原消息）
         last_msg = request.messages[-1] if request.messages else None
         if last_msg and getattr(last_msg, "type", None) == "human":
             attachments = getattr(last_msg, "additional_kwargs", {}).get("attachments", []) or []
+            pdf_prompts = []
             for att in attachments:
                 if isinstance(att, dict) and att.get("mimeType") == "application/pdf" and att.get("url"):
                     filename = (att.get("metadata") or {}).get("filename", "document.pdf")
-                    pdf_prompt = (
+                    pdf_prompts.append(
                         f"\n\n[系统提示] 用户上传了 PDF 文件 `{filename}`，"
                         f"URL: {att['url']}。请调用 parse_document_from_url("
                         f"url='{att['url']}', document_type='application/pdf') 解析该文件获取上下文。"
                     )
-                    if isinstance(last_msg.content, list):
-                        last_msg.content = last_msg.content + [{"type": "text", "text": pdf_prompt}]
-                    elif isinstance(last_msg.content, str):
-                        last_msg.content = last_msg.content + pdf_prompt
+            if pdf_prompts:
+                pdf_prompt = "".join(pdf_prompts)
+                if isinstance(last_msg.content, list):
+                    new_content = last_msg.content + [{"type": "text", "text": pdf_prompt}]
+                else:
+                    new_content = last_msg.content + pdf_prompt
+                updated_msg = last_msg.model_copy(update={"content": new_content})
+                request = request.override(
+                    messages=[*request.messages[:-1], updated_msg]
+                )
 
         return await handler(request)
 
@@ -215,18 +223,18 @@ SYSTEM_PROMPT = """
 
 # 核心工作铁律
 
-**先 RAG，后分析；无检索，不设计**
+**RAG 开启时：先检索，后分析；RAG 关闭时：直接基于需求原文分析。RAG 开关由系统统一控制（见「运行时上下文」），不要自行判断是否需要检索。**
 
-1. 收到需求后，**首先激活 `rag-query` Skill**，查询历史测试用例、业务规则、领域知识
-2. 所有分析必须基于 RAG 检索到的上下文展开。若检索结果为空，标注「[RAG检索] 未检索到相关历史知识」后继续基于需求原文分析
-3. RAG 完成后，按以下 **强制顺序** 执行：
+1. 当运行时上下文显示 `RAG 检索: 开启` 时，收到需求后**首先激活 `rag-query` Skill**，查询历史测试用例、业务规则、领域知识；所有分析必须基于 RAG 检索到的上下文展开。若检索结果为空，标注「[RAG检索] 未检索到相关历史知识」后继续基于需求原文分析
+2. 当运行时上下文显示 `RAG 检索: 关闭` 时，禁止调用任何 RAG 相关工具、禁止激活 `rag-query` Skill，直接基于用户提供的需求原文分析
+3. 需求分析（及 RAG 检索，如开启）完成后，按以下 **强制顺序** 执行：
 
 | 阶段 | 激活 Skill | 产出要求 | 进入下一阶段条件 |
 |------|-----------|---------|----------------|
 | Phase 1 | `requirement-analysis` | 需求解析报告（功能矩阵 + 风险清单 + 用例预估） | **系统触发人工评审，用户确认后继续** |
 | Phase 2 | `test-strategy` | 测试策略报告（类型选择 + 优先级 + 深度分配） | **系统触发人工评审，用户确认后继续** |
 | Phase 3 | `test-case-design` + `test-data-generator` | 逐模块测试用例 + 具体测试数据 | **系统触发人工评审，用户确认后继续** |
-| Phase 4 | `quality-review` | 质量评审报告 | **系统触发人工评审，用户确认后继续**；综合评分 < 75分需回退修改 |
+| Phase 4 | `quality-review` | 质量评审报告 | **系统触发人工评审，用户确认后继续**；综合评分 < 75 分系统将自动退回返工（最多 2 轮，之后转人工评审） |
 | Phase 5 | `output-formatter` | 最终交付物（用户指定格式） | **系统触发格式选择，用户选择后继续** |
 
 > 红线：未完成 Phase 1（需求分析）和 Phase 2（测试策略）前，**禁止生成具体测试用例**。 Phase 4 评审通过前，禁止进入 Phase 5。
@@ -292,15 +300,9 @@ SYSTEM_PROMPT = """
 
 当用户上传文档或提供需求时，按以下步骤执行：
 
-**第一步：使用 analyzer Skill 分析需求并检索知识库**
+**第一步：分析需求并检索知识库（RAG 开启时）**
 
-1. **判断是否需要知识库检索**：
-   - 需要检索：用户只提供功能名称（如"登录功能"、"订单支付"）
-   - 需要检索：涉及具体业务逻辑或接口
-   - 需要检索：需要了解历史测试数据
-   - 不需要检索：用户已提供非常详细完整的需求描述
-
-2. **执行知识库检索**（如果需要）：
+1. **执行知识库检索**（仅在运行时上下文显示 `RAG 检索: 开启` 时执行；关闭时跳过本步，直接基于需求原文分析）：
    ```python
    rag_query_data(
        query="【功能名称】的需求、业务规则、接口定义和已有测试用例",
@@ -309,19 +311,19 @@ SYSTEM_PROMPT = """
    )
    ```
 
-3. **分析检索结果**：
+2. **分析检索结果**：
    - 提取业务规则（校验规则、业务流程、状态转换等）
    - 提取接口信息（URL、参数、返回值等）
    - 查看已有测试用例，避免重复
 
-**第二步：使用 generator Skill 生成测试用例**
+**第二步：使用 test-case-design Skill 生成测试用例**
 
 基于 analyzer 的分析结果：
 - 设计测试场景（正常、异常、边界）
 - 编写测试用例
 - 设置用例属性
 
-**第三步：使用 reviewer Skill 评审（可选）**
+**第三步：使用 quality-review Skill 评审（可选）**
 
 - 评估用例质量
 - 识别遗漏场景
@@ -458,7 +460,7 @@ export_test_cases_to_excel(
 
 # 用例质量红线（任何情况下不可违背）
 
-以下规则在任何 Skill 的输出中都必须强制执行：
+以下规则在任何 Skill 的输出中都必须强制执行。**系统会在 `create_test_case_tool` / `batch_create_test_cases_tool` 执行前自动校验第 2/3 条及编号、模块字段，校验不通过的调用会被拒绝并返回违规清单，必须修正后重新调用：**
 
 1. **可追溯性**：用例编号格式 `TC-[项目]-[模块]-[序号]`，备注标注关联需求 `REQ-XXX`
 2. **可验证性**：预期结果禁止"正确""成功""正常"等模糊词，必须可客观判定 Pass/Fail
@@ -521,6 +523,8 @@ async def make_agent() -> AsyncIterator[Pregel]:
     stale_offload_middleware = StaleToolResultOffloadMiddleware(backend=composite_backend)
     # 阶段报告人工评审：需求分析、测试策略、质量评审完成后触发 HITL
     phase_review_middleware = PhaseReviewMiddleware()
+    # 用例创建质量门禁：创建前确定性校验质量红线，失败时拦截并返回违规清单
+    case_quality_gate_middleware = CaseQualityGateMiddleware()
     # OpenAI 兼容接口要求 assistant tool_calls 后必须紧跟对应 ToolMessage
     tool_call_validation_middleware = ToolCallAdjacencyMiddleware()
 
@@ -541,6 +545,7 @@ async def make_agent() -> AsyncIterator[Pregel]:
             rag_middleware,
             stale_offload_middleware,
             phase_review_middleware,
+            case_quality_gate_middleware,
             dynamic_model_selection,
             tool_call_validation_middleware,
         ],
