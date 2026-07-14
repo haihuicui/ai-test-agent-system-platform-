@@ -35,6 +35,37 @@ _run_count_locks: Dict[UUID, asyncio.Lock] = {}
 # type: ignore  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2VG5aU1ZRPT06Njc4ZDgzY2U=
 
 
+def decide_final_state(
+    job_statuses: List[tuple],
+) -> TestRunState:
+    """根据全部作业的 (status, failure_category) 决定测试运行的最终状态（纯函数，便于测试）。
+
+    规则：
+    - 仍有 pending/running 作业 → IN_PROGRESS（防御，正常收尾不会出现）；
+    - 无失败作业 → DONE；
+    - 存在环境/基础设施类失败 → REJECTED；
+    - 其余（断言/超时等业务失败）→ DONE_WITH_FAILURES。
+
+    Args:
+        job_statuses: 元素为 (JobStatus, Optional[str]) 的列表，
+                      failure_category 可为 None。
+    """
+    infra_categories = {"environment", "infra"}
+    failed = [c for s, c in job_statuses if s == JobStatus.FAILED]
+    has_infra_error = any(c in infra_categories for c in failed)
+    has_unfinished = any(
+        s in (JobStatus.PENDING, JobStatus.RUNNING) for s, _ in job_statuses
+    )
+
+    if has_unfinished:
+        return TestRunState.IN_PROGRESS
+    if not failed:
+        return TestRunState.DONE
+    if has_infra_error:
+        return TestRunState.REJECTED
+    return TestRunState.DONE_WITH_FAILURES
+
+
 class ScriptExecutionEngine:
     """统一脚本执行引擎"""
 
@@ -196,6 +227,130 @@ class ScriptExecutionEngine:
                 }
         finally:
             _run_count_locks.pop(test_run_id, None)
+
+    async def execute_jobs(
+        self,
+        test_run_id: UUID,
+        job_ids: List[UUID],
+    ) -> Dict[str, Any]:
+        """仅执行指定的脚本作业（用于"重试"场景），随后基于全部作业重新定案。
+
+        与 execute_run 的区别：
+        - 只调度 job_ids 指定的作业，而非全部；
+        - 最终状态由数据库中全部作业的当前状态决定（而非仅本次运行的结果），
+          因此重试部分失败作业后能正确反映整体通过/失败情况。
+        """
+        # 1. 加载 TestRun 与指定作业
+        async with async_session_factory() as session:
+            run_repo = TestRunRepository(session)
+            job_repo = TestRunScriptJobRepository(session)
+
+            test_run = await run_repo.get_by_id(test_run_id)
+            if not test_run:
+                raise ValueError(f"测试运行不存在: {test_run_id}")
+
+            # 兜底确保运行处于进行中（调用方一般已原子抢占执行权）
+            test_run.run_state = TestRunState.IN_PROGRESS
+            await run_repo.update(test_run)
+            await session.commit()
+
+            all_jobs, _ = await job_repo.get_by_test_run(test_run_id, limit=100000)
+            wanted = set(job_ids)
+            jobs = [j for j in all_jobs if j.id in wanted]
+
+            if not jobs:
+                final_state = await self._finalize_run_from_db(test_run_id)
+                return {
+                    "test_run_id": str(test_run_id),
+                    "status": final_state.value,
+                    "retried": 0,
+                    "message": "没有需要重试的脚本作业",
+                }
+
+        # 提取执行配置（session 外访问标量属性安全，expire_on_commit=False）
+        execution_mode = test_run.execution_mode or ExecutionMode.SEQUENTIAL
+        max_concurrency = test_run.max_concurrency or 5
+        failure_policy = test_run.failure_policy or FailurePolicy.CONTINUE
+        project_id = test_run.project_id
+        environment_id = test_run.environment_id
+
+        try:
+            if execution_mode == ExecutionMode.PARALLEL:
+                scheduler = ParallelScheduler()
+            else:
+                scheduler = SequentialScheduler()
+
+            await scheduler.schedule(
+                project_id=project_id,
+                jobs=jobs,
+                run_job=lambda job: self._run_job(
+                    test_run_id, job, environment_id=environment_id
+                ),
+                max_concurrency=max_concurrency,
+                failure_policy=failure_policy,
+            )
+
+            # 清除取消标记
+            _cancelled_runs.discard(test_run_id)
+
+            # 基于全部作业重新定案
+            final_state = await self._finalize_run_from_db(test_run_id)
+
+            logger.info(
+                "[ScriptExecutionEngine] 测试运行 %s 重试执行完成: retried=%s, state=%s",
+                test_run_id,
+                len(jobs),
+                final_state.value,
+            )
+
+            return {
+                "test_run_id": str(test_run_id),
+                "status": final_state.value,
+                "retried": len(jobs),
+            }
+
+        except Exception as e:
+            logger.exception("[ScriptExecutionEngine] 重试执行作业时异常")
+            async with async_session_factory() as session:
+                run_repo = TestRunRepository(session)
+                test_run = await run_repo.get_by_id(test_run_id)
+                test_run.run_state = TestRunState.REJECTED
+                await run_repo.update(test_run)
+                await run_repo.update_counts_from_jobs(test_run_id)
+                await session.commit()
+
+            return {
+                "test_run_id": str(test_run_id),
+                "status": "failed",
+                "error": str(e),
+            }
+        finally:
+            _run_count_locks.pop(test_run_id, None)
+
+    async def _finalize_run_from_db(self, test_run_id: UUID) -> TestRunState:
+        """基于数据库中全部脚本作业的当前状态，计算并写入测试运行的最终状态。
+
+        定案规则见 decide_final_state。重试场景下调用，确保最终状态反映整体结果。
+        """
+        async with async_session_factory() as session:
+            run_repo = TestRunRepository(session)
+            job_repo = TestRunScriptJobRepository(session)
+
+            test_run = await run_repo.get_by_id(test_run_id)
+            jobs, _ = await job_repo.get_by_test_run(test_run_id, limit=100000)
+
+            final_state = decide_final_state(
+                [
+                    (j.status, (j.result_summary or {}).get("failure_category"))
+                    for j in jobs
+                ]
+            )
+
+            test_run.run_state = final_state
+            await run_repo.update(test_run)
+            await run_repo.update_counts_from_jobs(test_run_id)
+            await session.commit()
+            return final_state
 
     async def _run_job(
         self,

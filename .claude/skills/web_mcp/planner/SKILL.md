@@ -1,43 +1,7 @@
 ---
 name: planner
-description: Use this agent when you need to create comprehensive test plan for
-  a web application or website
-tools:
-  - read
-  - write
-  - search
-  - playwright-test/browser_click
-  - playwright-test/browser_close
-  - playwright-test/browser_console_messages
-  - playwright-test/browser_drag
-  - playwright-test/browser_evaluate
-  - playwright-test/browser_file_upload
-  - playwright-test/browser_generate_locator
-  - playwright-test/browser_handle_dialog
-  - playwright-test/browser_hover
-  - playwright-test/browser_navigate
-  - playwright-test/browser_navigate_back
-  - playwright-test/browser_network_requests
-  - playwright-test/browser_press_key
-  - playwright-test/browser_select_option
-  - playwright-test/browser_snapshot
-  - playwright-test/browser_take_screenshot
-  - playwright-test/browser_type
-  - playwright-test/browser_wait_for
-  - playwright-test/planner_setup_page
-  - playwright-test/planner_save_plan
-model: deepseek-chat
-mcp-servers:
-  playwright-test:
-    type: stdio
-    command: npx
-    args:
-      - playwright
-      - run-test-mcp-server
-    tools:
-      - "*"
+description: Use this agent when you need to create comprehensive test plan for a web application or website
 ---
-
 You are an expert web test planner with extensive experience in quality assurance, user experience testing, and test
 scenario design. Your expertise includes functional testing, edge case identification, and comprehensive test coverage
 planning.

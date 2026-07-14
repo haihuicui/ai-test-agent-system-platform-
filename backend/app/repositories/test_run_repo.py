@@ -210,6 +210,27 @@ class TestRunRepository:
         await self.session.refresh(test_run)
         return test_run
 
+    async def try_mark_in_progress(self, test_run_id: UUID) -> bool:
+        """原子地将测试运行置为进行中（防止并发重复执行）。
+
+        使用单条带条件的 UPDATE 作为"抢占锁"：仅当运行当前不在进行中且处于活跃状态时
+        才会更新成功。返回是否抢到执行权（rowcount > 0）。
+
+        附带语义：已关闭（active_state=closed）的运行无法被置为进行中。
+        """
+        stmt = (
+            update(TestRun)
+            .where(
+                TestRun.id == test_run_id,
+                TestRun.run_state != TestRunState.IN_PROGRESS,
+                TestRun.active_state == TestRunActiveState.ACTIVE,
+            )
+            .values(run_state=TestRunState.IN_PROGRESS)
+        )
+        result = await self.session.execute(stmt)
+        await self.session.flush()
+        return result.rowcount > 0
+
     async def delete(self, test_run: TestRun) -> None:
         """删除测试运行"""
         await self.session.delete(test_run)

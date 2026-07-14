@@ -12,11 +12,12 @@ import io
 import os
 import re
 from uuid import UUID, uuid4
-from typing import Optional
+from typing import Optional, Any, Literal
 from datetime import datetime, timezone
 from pathlib import Path
 
 from langchain_core.tools import tool
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -28,6 +29,65 @@ from app.utils.sync_executor import run_sync
 from app.config.minio_client import MinIOClient
 from app.config.database import async_session_factory
 from app.config.settings import settings
+
+
+class TestCaseSchema(BaseModel):
+    """测试用例结构校验（save_test_cases 入库前）。
+
+    只强制约束真正影响可用性的字段（名称/步骤/预期结果），其余字段宽松放行，
+    避免因前端或脚本附带额外字段而误拒。
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    name: str = Field(..., description="用例名称，必填且非空")
+    description: str = Field(default="", description="用例描述")
+    steps: Any = Field(..., description="测试步骤，必填；数组或非空字符串")
+    expected_result: str = Field(..., description="预期结果，必填且非空")
+    priority: Literal["P0", "P1", "P2", "P3"] = Field(default="P2", description="优先级")
+
+    @field_validator("name", "expected_result")
+    @classmethod
+    def _non_blank(cls, v: str) -> str:
+        if not isinstance(v, str) or not v.strip():
+            raise ValueError("不能为空或纯空白字符串")
+        return v
+
+    @field_validator("steps")
+    @classmethod
+    def _steps_non_empty(cls, v: Any) -> Any:
+        # steps 兼容数组与字符串两种形态，但必须非空
+        if isinstance(v, list) and len(v) > 0:
+            return v
+        if isinstance(v, str) and v.strip():
+            return v
+        raise ValueError("steps 必须是非空数组或非空字符串")
+
+
+def _validate_test_cases(test_cases: list[dict]) -> Optional[dict]:
+    """校验测试用例结构。全部通过返回 None，否则返回带中文提示的错误 dict。"""
+    if not isinstance(test_cases, list) or not test_cases:
+        return {"error": "test_cases 必须是非空列表"}
+
+    errors: list[str] = []
+    for idx, case in enumerate(test_cases):
+        try:
+            TestCaseSchema.model_validate(case)
+        except ValidationError as exc:
+            field_errs = []
+            for err in exc.errors():
+                loc = ".".join(str(x) for x in err.get("loc", [])) or "(root)"
+                field_errs.append(f"{loc}: {err.get('msg')}")
+            label = case.get("name") if isinstance(case, dict) and case.get("name") else f"第 {idx + 1} 个用例"
+            errors.append(f"[{label}] " + "; ".join(field_errs))
+
+    if errors:
+        return {
+            "error": "测试用例结构校验失败，请修正后重新调用 save_test_cases",
+            "invalid_cases": errors,
+            "hint": "每个用例必须包含非空的 name、steps、expected_result；priority 可选，取值 P0/P1/P2/P3。",
+        }
+    return None
 
 
 def _resolve_workspace_path(file_path: str) -> Path:
@@ -272,6 +332,11 @@ async def save_test_cases(
     except (ValueError, AttributeError):
         return {"error": f"Invalid endpoint_id format: {endpoint_id}. Must be a valid UUID."}
 
+    # 入库前校验用例结构，避免畸形用例静默落库
+    validation_error = _validate_test_cases(test_cases)
+    if validation_error:
+        return validation_error
+
     async with async_session_factory() as session:
         # 查询 endpoint
         endpoint_stmt = select(APIEndpoint).where(
@@ -306,6 +371,10 @@ async def save_test_cases(
         existing_result = await session.execute(existing_stmt)
         existing_attachment = existing_result.scalar_one_or_none()
 
+        # 记录覆盖前的用例数与是否覆盖，用于返回给调用方（提示发生了整体替换）
+        previous_count = endpoint.total_test_cases or 0
+        overwritten = existing_attachment is not None
+
         if existing_attachment:
             # 更新现有附件
             existing_attachment.file_size = len(cases_bytes)
@@ -327,8 +396,10 @@ async def save_test_cases(
             )
             session.add(attachment)
 
-        # 更新端点的测试用例统计
-        endpoint.total_test_cases = (endpoint.total_test_cases or 0) + len(test_cases)
+        # 更新端点的测试用例统计。
+        # 每个端点只有一份 test-cases.json 产物，每次保存都是整体替换，
+        # 因此用例总数必须“赋值”而非“累加”，否则重新生成会导致计数翻倍。
+        endpoint.total_test_cases = len(test_cases)
         endpoint.updated_at = datetime.now(timezone.utc)
 
         await session.commit()
@@ -339,7 +410,12 @@ async def save_test_cases(
             "attachment_id": str(attachment.id),
             "file_path": object_name,
             "test_cases_count": len(test_cases),
-            "message": f"已保存 {len(test_cases)} 个测试用例"
+            "overwritten": overwritten,
+            "previous_count": previous_count if overwritten else 0,
+            "message": (
+                f"已覆盖原有 {previous_count} 个用例，当前共 {len(test_cases)} 个测试用例"
+                if overwritten else f"已保存 {len(test_cases)} 个测试用例"
+            )
         }
 # pylint: disable  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2WVRoRGJRPT06NzFmNDAzOWI=
 
@@ -351,7 +427,8 @@ async def save_test_script(
     script_content: Optional[str] = None,
     script_language: str = "typescript",
     script_format: str = "playwright",
-    project_identifier: str = ""
+    project_identifier: str = "",
+    force: bool = False
 ) -> dict:
     """
     保存 API 端点的测试脚本到 MinIO
@@ -367,9 +444,12 @@ async def save_test_script(
         script_language: 脚本语言（如: typescript, python）
         script_format: 脚本格式（如: playwright, pytest）
         project_identifier: 项目标识符
+        force: 断言质量门禁开关。默认 False（严格）：纯状态码断言（FAIL）永远拒绝保存；
+               断言偏弱（WEAK）默认拒绝，仅当 force=True 时放行。除非确有必要，不要设 True。
 
     Returns:
-        dict: 包含 attachment_id 和 file_path 的字典
+        dict: 包含 attachment_id 和 file_path 的字典；
+              门禁未通过时返回 error + verdict + metrics + suggestions（不保存）
     """
     # 验证 endpoint_id 是否为有效的 UUID
     try:
@@ -398,6 +478,22 @@ async def save_test_script(
             return {"error": f"Failed to read script file: {str(e)}"}
     elif not script_content:
         return {"error": "Either script_path or script_content must be provided"}
+
+    # 断言质量门禁（默认严格）：保存前静态分析脚本断言分布。
+    # FAIL（纯状态码断言）永远硬拒；WEAK 默认拒绝，仅 force=True 放行。
+    assertion_report = _build_assertion_report(script_content)
+    if assertion_report["verdict"] == "FAIL":
+        return {
+            "error": "断言质量门禁未通过（FAIL）：脚本只包含状态码断言，缺少响应体字段/类型/业务断言，禁止保存。",
+            **assertion_report,
+            "hint": "必须补充结构/业务断言后重新调用 save_test_script。",
+        }
+    if assertion_report["verdict"] == "WEAK" and not force:
+        return {
+            "error": "断言质量门禁未通过（WEAK）：非状态码断言数量不足。",
+            **assertion_report,
+            "hint": "补充断言后重试；如确认可接受，显式传 force=true 放行（不推荐）。",
+        }
 
     async with async_session_factory() as session:
         # 查询 endpoint
@@ -577,19 +673,10 @@ def _analyze_script_assertions(script_content: str) -> dict:
     }
 
 
-@tool
-async def audit_script_assertions(script_content: str) -> dict:
-    """
-    审查生成的测试脚本断言是否充分。
+def _build_assertion_report(script_content: str) -> dict:
+    """静态分析脚本断言分布并生成审查报告（audit 工具与 save_test_script 保存门禁共用）。
 
-    生成测试脚本后、调用 save_test_script 保存前，应先使用本工具检查。
-    如果返回 weak=true，必须补充字段/业务/结构断言后再保存。
-
-    Args:
-        script_content: 测试脚本完整内容
-
-    Returns:
-        dict: 审查结果，包含 verdict、指标和改进建议
+    返回 {verdict, message, metrics, suggestions}；verdict ∈ {OK, WEAK, FAIL}。
     """
     metrics = _analyze_script_assertions(script_content)
 
@@ -614,12 +701,29 @@ async def audit_script_assertions(script_content: str) -> dict:
         ])
 
     return {
-        "success": True,
         "verdict": verdict,
         "message": message,
         "metrics": metrics,
         "suggestions": suggestions,
     }
+
+
+@tool
+async def audit_script_assertions(script_content: str) -> dict:
+    """
+    审查生成的测试脚本断言是否充分。
+
+    生成测试脚本后、调用 save_test_script 保存前，应先使用本工具检查。
+    如果返回 weak=true，必须补充字段/业务/结构断言后再保存。
+
+    Args:
+        script_content: 测试脚本完整内容
+
+    Returns:
+        dict: 审查结果，包含 verdict、指标和改进建议
+    """
+    report = _build_assertion_report(script_content)
+    return {"success": True, **report}
 
 
 @tool

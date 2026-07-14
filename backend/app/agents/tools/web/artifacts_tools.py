@@ -132,7 +132,7 @@ async def save_web_test_plan(
                     "hint": f"Resolved path: {plan_file}",
                     "tried_paths": [
                         f"Current: {Path(plan_path).resolve()}",
-                        f"Workspace: {Path(settings.web_workspace_root).resolve() / plan_path}",
+                        f"Workspace: {Path(settings.web_mcp_workspace_root).resolve() / plan_path}",
                         f"MCP: {os.environ.get('WEB_WORKSPACE_ROOT', 'Not set')}"
                     ]
                 }
@@ -244,6 +244,41 @@ async def save_web_test_plan(
         }
 
 
+def _validate_test_cases(test_cases: list) -> Optional[str]:
+    """
+    宽松校验测试用例结构，只拦截会污染下游 generator 的承重字段问题。
+
+    只校验 generator 真正消费的字段，其余字段（tags/page_elements/prerequisites 等）
+    允许缺失，避免因校验过严导致 Agent 反复返工（"弹皮球"）。
+
+    Returns:
+        None 表示通过；否则返回错误描述字符串。
+    """
+    if not isinstance(test_cases, list) or not test_cases:
+        return "test_cases 必须是非空列表"
+
+    for i, tc in enumerate(test_cases):
+        if not isinstance(tc, dict):
+            return f"test_cases[{i}] 必须是对象(dict)，实际为 {type(tc).__name__}"
+
+        name = tc.get("name")
+        if not isinstance(name, str) or not name.strip():
+            return f"test_cases[{i}].name 缺失或为空"
+
+        steps = tc.get("steps")
+        if not isinstance(steps, list) or not steps:
+            return f"test_cases[{i}].steps 必须是非空列表"
+        for j, step in enumerate(steps):
+            if not isinstance(step, dict) or not step.get("action"):
+                return f"test_cases[{i}].steps[{j}] 必须是含 action 字段的对象"
+
+        vps = tc.get("verification_points")
+        if not isinstance(vps, list) or not vps:
+            return f"test_cases[{i}].verification_points 必须至少包含一个验证点"
+
+    return None
+
+
 @tool
 async def save_web_test_cases(
     sub_function_id: str,
@@ -272,6 +307,11 @@ async def save_web_test_cases(
         sub_function_uuid = UUID(sub_function_id)
     except (ValueError, AttributeError):
         return {"error": f"Invalid sub_function_id format: {sub_function_id}. Must be a valid UUID."}
+
+    # 宽松结构校验：在访问 DB 之前拦截会污染下游生成的承重字段问题
+    validation_error = _validate_test_cases(test_cases)
+    if validation_error:
+        return {"error": f"测试用例结构校验失败: {validation_error}"}
 
     async with async_session_factory() as session:
         # 查询 sub_function
@@ -328,8 +368,11 @@ async def save_web_test_cases(
             )
             session.add(attachment)
 
-        # 更新子功能的测试用例统计
-        sub_function.total_test_cases = (sub_function.total_test_cases or 0) + len(test_cases)
+        # 更新子功能的测试用例统计。
+        # 每个子功能只有一份 test-cases.json 产物，每次保存都是整体替换，
+        # 因此用例总数必须“赋值”而非“累加”，否则重新生成会导致计数翻倍
+        # （父级 WebFunction.total_test_cases 为各子功能之和，也会被连带放大）。
+        sub_function.total_test_cases = len(test_cases)
         sub_function.updated_at = datetime.now(timezone.utc)
 
         await session.commit()
@@ -389,7 +432,7 @@ async def save_web_test_script(
                     "hint": f"Resolved path: {script_file}",
                     "tried_paths": [
                         f"Current: {Path(script_path).resolve()}",
-                        f"Workspace: {Path(settings.web_workspace_root).resolve() / script_path}",
+                        f"Workspace: {Path(settings.web_mcp_workspace_root).resolve() / script_path}",
                         f"MCP: {os.environ.get('WEB_WORKSPACE_ROOT', 'Not set')}"
                     ]
                 }

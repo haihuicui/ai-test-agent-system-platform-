@@ -13,10 +13,9 @@ API 自动化测试智能体
 - Tools: 原子操作（数据库、存储、MCP）
 """
 import asyncio
-from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import AsyncIterator, Callable, TYPE_CHECKING
+from typing import Callable
 from uuid import uuid4
 # pylint: disable  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2YlZsVldBPT06YzRiOTU0ZTI=
 
@@ -24,10 +23,7 @@ from deepagents import create_deep_agent as create_agent
 from deepagents.backends import FilesystemBackend, LocalShellBackend, CompositeBackend
 from deepagents.middleware import SkillsMiddleware
 from langchain.agents.middleware import AgentMiddleware, ModelRequest, ModelResponse
-from langchain_mcp_adapters.client import MultiServerMCPClient
-from langchain_mcp_adapters.tools import load_mcp_tools
 from langgraph.config import get_config
-from langgraph.pregel import Pregel
 
 from app.agents.api.runtime_context import conversation_id_ctx
 from app.agents.tools.api import get_local_tools
@@ -180,10 +176,10 @@ SYSTEM_PROMPT = """# API 自动化测试专家
 3. **分析接口** → 分析接口的 method、path、parameters、request_body、responses，结合环境配置中的 base_url、auth_type
 4. **生成测试计划** → 基于接口信息和环境配置，设计测试策略和用例
 5. **保存计划** → 使用 `save_test_plan(plan_content=...)` 保存到数据库
-6. **生成测试用例** → 根据测试计划生成详细的测试用例列表
+6. **生成测试用例** → 先调用 `derive_test_skeleton(endpoint_id)` 获取确定性用例骨架（覆盖必填缺失/边界/异常/安全测试点），再结合测试计划填充测试数据与断言，生成详细用例列表
 7. **保存用例** → 使用 `save_test_cases(test_cases=[...])` 保存到数据库
 8. **生成测试代码** → 基于测试用例和环境配置生成可执行的测试脚本（脚本中只能使用环境变量，禁止硬编码 URL/token）
-9. **保存脚本** → 使用 `save_test_script(script_content=...)` 保存到数据库
+9. **保存脚本** → 使用 `save_test_script(script_content=...)` 保存到数据库。该工具内置断言质量门禁：纯状态码断言（FAIL）会被直接拒绝；断言偏弱（WEAK）默认拒绝，必须按返回的 suggestions 补充断言后重试
 10. **下载脚本** → 使用 `download_api_script(script_id=...)` 下载到本地测试目录
 11. **确认执行环境** → 调用 `execute_api_script` 前，确保传入 `execution_config`。优先使用 `env_id` 指定环境（从上下文或默认环境获取）；仅在用户显式要求时才直接传 `base_url`
 12. **执行测试** → 使用 `execute_api_script(local_script_path=..., execution_config={...})` 执行脚本
@@ -334,11 +330,11 @@ test('should create user with valid data', async () => {
 1. `get_endpoint_details` 获取端点信息
 2. 分析并生成测试计划（参考 **planner skill**）
 3. `save_test_plan` 保存计划
-4. 生成测试用例（基于测试计划）
+4. 生成测试用例 → 先调用 `derive_test_skeleton(endpoint_id)` 获取确定性用例骨架，再结合测试计划填充测试数据与断言
 5. `save_test_cases` 保存用例
 6. 生成测试代码（参考 **generator skill**）
-7. **断言审查** → 调用 `audit_script_assertions(script_content=...)` 检查脚本断言是否充足；若返回 `FAIL` 或 `WEAK`，必须补充字段/业务/结构断言后重新审查
-8. `save_test_script` 保存脚本
+7. **断言审查** → 调用 `audit_script_assertions(script_content=...)` 预检；`save_test_script` 内置同样门禁，预检通过可避免保存被拒
+8. `save_test_script` 保存脚本（若返回 FAIL/WEAK 门禁错误，按 suggestions 补充断言后重试，不要直接传 force=true）
 9. `download_api_script` 下载脚本到本地测试目录
 10. `execute_api_script` 执行测试，示例：
    ```javascript
@@ -456,6 +452,7 @@ AI：
 |------|-----|------|
 | 🔍 获取端点 | `get_endpoint_details` | 通过 endpoint_id 查看接口完整信息 |
 | 🔍 批量获取端点 | `get_multiple_endpoints_details` | 通过多个 endpoint_id 批量查看接口完整信息 |
+| 🧩 推导用例骨架 | `derive_test_skeleton` | 从 OpenAPI schema 确定性推导测试点骨架（生成用例前先调用，作为用例设计底座）|
 | 🌐 获取环境列表 | `get_project_environments` | 获取项目的所有环境配置（无敏感信息） |
 | 🌐 获取环境详情 | `get_environment_details` | 获取单个环境配置详情（无敏感信息） |
 | 📋 保存计划 | `save_test_plan` | 保存测试计划（使用 `plan_content` 参数）|
@@ -527,57 +524,6 @@ AI：
 - **场景测试**：创建场景 → 添加步骤 → 配置数据依赖 → 添加断言 → 验证数据流 → 执行测试！
 """
 
-@asynccontextmanager
-async def get_gitnexus_tools():
-    async with MultiServerMCPClient(
-        {
-            "gitnexus": {
-                "transport": "stdio",
-                "command": "gitnexus",
-                "args": ["mcp"],
-            },
-        }
-    ) as client:
-        yield await client.get_tools()
-
-
-@asynccontextmanager
-async def make_agent() -> AsyncIterator[Pregel]:
-    """
-    创建 API 测试智能体的工厂函数。
-
-    使用 asynccontextmanager 模式确保：
-    - MCP session 在智能体生命周期内保持活跃
-    - 退出时自动清理资源
-    """
-    # 创建中间件
-    context_middleware = APIContextInjectionMiddleware()
-
-    client = MultiServerMCPClient(
-            {
-                "gitnexus": {
-                    "transport": "stdio",
-                    "command": "gitnexus",
-                    "args": ["mcp"],
-                },
-            }
-    )
-    async with client.session("gitnexus") as session:
-        # 在 session 中加载 MCP 工具
-        # mcp_tools = await load_mcp_tools(session)
-        all_tools = get_local_tools() # + mcp_tools
-        # 创建智能体
-        api_agent = create_agent(
-            model=model,
-            tools=all_tools,
-            system_prompt=SYSTEM_PROMPT,
-            middleware=[skills_middleware, context_middleware],
-            backend=composite_backend,
-            context_schema=APIAgentContext,
-        )
-
-        yield api_agent
-
 # 创建中间件
 context_middleware = APIContextInjectionMiddleware()
 all_tools = get_local_tools()
@@ -589,6 +535,6 @@ api_agent = create_agent(
             backend=composite_backend,
             context_schema=APIAgentContext,
         )
-# 导出 make_agent 供 LangGraph API 使用
+# 导出 agent 供 LangGraph API 使用（langgraph.json: api_agent -> agent.py:agent）
 agent = api_agent
 # pragma: no cover  My80OmFIVnBZMlhsdEpUbXRiZm92b2s2YlZsVldBPT06YzRiOTU0ZTI=

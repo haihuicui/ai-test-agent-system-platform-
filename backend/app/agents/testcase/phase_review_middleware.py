@@ -112,6 +112,11 @@ _QUALITY_SCORE_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"质量得分[：:]?\s*(\d+(?:\.\d+)?)"),
 ]
 
+# 质量红线：综合评分低于该分数时自动退回返工（对齐 SYSTEM_PROMPT 中"综合评分 < 75 分需回退修改"）
+_AUTO_REJECT_SCORE = 75.0
+# 自动退回最大轮次：超限后降级为人工评审，避免模型反复返工仍不达标时死循环
+_MAX_AUTO_REJECT_ROUNDS = 2
+
 
 def _extract_quality_score(content: str) -> float | None:
     """从阶段报告中提取质量综合评分（0-100）。"""
@@ -128,18 +133,23 @@ def _extract_quality_score(content: str) -> float | None:
 
 
 def _get_auto_approve_threshold(runtime: Any, messages: list[Any]) -> float:
-    """读取自动审批阈值，优先从最后一条 human 消息 additional_kwargs 读取。"""
+    """读取自动审批阈值，优先从最近一条 human 消息 additional_kwargs 读取。
+
+    注意：after_model 触发时最后一条消息是刚生成的 AIMessage，
+    必须沿历史倒序找最近一条 human 消息，否则消息级阈值永远不生效。
+    """
     threshold: float | None = None
-    last_msg = messages[-1] if messages else None
-    if last_msg and isinstance(last_msg, HumanMessage):
-        ak = getattr(last_msg, "additional_kwargs", None) or {}
-        if isinstance(ak, dict):
-            raw = ak.get("auto_approve_threshold")
-            if raw is not None:
-                try:
-                    threshold = float(raw)
-                except (ValueError, TypeError):
-                    threshold = None
+    for msg in reversed(messages or []):
+        if isinstance(msg, HumanMessage):
+            ak = getattr(msg, "additional_kwargs", None) or {}
+            if isinstance(ak, dict):
+                raw = ak.get("auto_approve_threshold")
+                if raw is not None:
+                    try:
+                        threshold = float(raw)
+                    except (ValueError, TypeError):
+                        threshold = None
+            break  # 只看最近一条 human 消息
 
     if threshold is None:
         ctx = getattr(runtime, "context", None) if runtime else None
@@ -224,27 +234,58 @@ class PhaseReviewMiddleware(AgentMiddleware):
 
         phase_name = _PHASE_DISPLAY_NAMES[phase]
 
-        # 自动审批：当报告质量评分达到阈值时，跳过人工评审卡片
-        threshold = _get_auto_approve_threshold(runtime, messages)
-        score = _extract_quality_score(content)
-        if score is not None and threshold < 100.0 and score >= threshold:
-            current_round = _compute_review_round(messages, phase)
-            auto_comment = (
-                f"报告综合评分 {score:.0f} 分，达到自动审批阈值 {threshold:.0f} 分，系统自动通过。"
-            )
-            return {
-                "messages": [
-                    _build_review_human_message(
-                        phase=phase,
-                        round=current_round,
-                        feedback=f"报告已确认。{auto_comment} 请继续执行下一阶段。",
-                        decision_type="approve",
-                        comment=auto_comment,
-                        checklist={item["key"]: True for item in _REVIEW_CHECKLIST},
+        # 基于评分的自动决策仅对 quality-review 阶段生效：
+        # 评分模式较宽泛（如"评分：80"），Phase 1/2 报告中出现类似文字时
+        # 不应触发自动通过/退回。
+        if phase == "quality-review":
+            score = _extract_quality_score(content)
+            if score is not None:
+                current_round = _compute_review_round(messages, phase)
+
+                # 自动退回：评分低于质量红线，直接注入返工反馈（确定性执行，
+                # 不依赖模型自觉遵守 prompt 中的"评分 < 75 需回退"规则）。
+                # 超过 _MAX_AUTO_REJECT_ROUNDS 轮后降级为人工评审，避免死循环。
+                if score < _AUTO_REJECT_SCORE and current_round <= _MAX_AUTO_REJECT_ROUNDS:
+                    auto_comment = (
+                        f"报告综合评分 {score:.0f} 分，低于质量红线 {_AUTO_REJECT_SCORE:.0f} 分，"
+                        f"系统自动退回（第 {current_round} 轮自动返工）。"
                     )
-                ],
-                "jump_to": "model",
-            }
+                    return {
+                        "messages": [
+                            _build_review_human_message(
+                                phase=phase,
+                                round=current_round,
+                                feedback=(
+                                    f"{auto_comment} 请根据质量评审报告中指出的问题补充、"
+                                    f"修改测试用例，完成后重新输出质量评审报告。"
+                                ),
+                                decision_type="auto_reject",
+                                comment=auto_comment,
+                                checklist={item["key"]: False for item in _REVIEW_CHECKLIST},
+                            )
+                        ],
+                        "jump_to": "model",
+                    }
+
+                # 自动审批：当报告质量评分达到阈值时，跳过人工评审卡片
+                threshold = _get_auto_approve_threshold(runtime, messages)
+                if threshold < 100.0 and score >= threshold:
+                    auto_comment = (
+                        f"报告综合评分 {score:.0f} 分，达到自动审批阈值 {threshold:.0f} 分，系统自动通过。"
+                    )
+                    return {
+                        "messages": [
+                            _build_review_human_message(
+                                phase=phase,
+                                round=current_round,
+                                feedback=f"报告已确认。{auto_comment} 请继续执行下一阶段。",
+                                decision_type="approve",
+                                comment=auto_comment,
+                                checklist={item["key"]: True for item in _REVIEW_CHECKLIST},
+                            )
+                        ],
+                        "jump_to": "model",
+                    }
 
         action_name = f"{phase}_review"
 

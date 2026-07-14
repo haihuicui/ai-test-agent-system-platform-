@@ -78,6 +78,34 @@ from app.config.database import async_session_factory
 
 logger = logging.getLogger(__name__)
 
+# 模块级后台任务集合：持有 asyncio.create_task 的引用，避免事件循环仅持弱引用导致
+# 任务被 GC（"Task was destroyed but it is pending"）而遗留 IN_PROGRESS 僵尸运行。
+_background_tasks: set[asyncio.Task] = set()
+
+
+def _spawn_tracked(coro, label: str) -> asyncio.Task:
+    """创建并跟踪一个后台任务。
+
+    - 持有任务引用，防止被垃圾回收；
+    - 任务结束时自动从集合移除；
+    - 任务异常时记录日志，避免静默失败（异常仍由协程内部兜底处理）。
+    """
+    task = asyncio.create_task(coro, name=label)
+    _background_tasks.add(task)
+
+    def _on_done(t: asyncio.Task) -> None:
+        _background_tasks.discard(t)
+        # 取回异常以标记为"已检索"，同时记录，便于排查后台执行失败
+        if t.cancelled():
+            logger.warning("[TestRunService] 后台任务被取消: %s", label)
+            return
+        exc = t.exception()
+        if exc is not None:
+            logger.error("[TestRunService] 后台任务异常 %s: %s", label, exc)
+
+    task.add_done_callback(_on_done)
+    return task
+
 
 class TestRunService:
     """测试运行服务类"""
@@ -1295,7 +1323,7 @@ class TestRunService:
         test_run_identifier: str,
         job_id: str,
     ) -> TestRunScriptJobInfo:
-        """重试单个脚本作业"""
+        """重试单个脚本作业：重置为 pending 并在后台真正重新执行该作业。"""
         project = await self._get_project_by_identifier(project_identifier)
         test_run = await self._require_test_run(project.id, test_run_identifier)
 
@@ -1307,6 +1335,13 @@ class TestRunService:
         if job.status not in (JobStatus.FAILED, JobStatus.SKIPPED, JobStatus.CANCELLED):
             raise BadRequestException(
                 message=f"当前作业状态为 {job.status.value}，不允许重试"
+            )
+
+        # 原子抢占执行权：运行正在执行中时拒绝重试，避免并发执行互相覆盖
+        acquired = await self.repo.try_mark_in_progress(test_run.id)
+        if not acquired:
+            raise BadRequestException(
+                message="测试运行正在执行中，请等待当前执行结束后再重试"
             )
 
         # 重置状态为 pending
@@ -1323,7 +1358,52 @@ class TestRunService:
         )
         await self.session.commit()
 
+        # 后台真正重新执行该作业（任务纳入跟踪，防止被 GC）
+        _spawn_tracked(
+            self._retry_jobs_background(
+                project_identifier=project_identifier,
+                test_run_identifier=test_run_identifier,
+                job_ids=[job.id],
+            ),
+            label=f"retry-job-{test_run.identifier}-{job_id}",
+        )
+
         return self._to_script_job_info(job)
+
+    async def _retry_jobs_background(
+        self,
+        project_identifier: str,
+        test_run_identifier: str,
+        job_ids: list[UUID],
+    ) -> None:
+        """后台重新执行指定的脚本作业（重试场景）。
+
+        使用独立数据库会话；执行完成后由引擎基于全部作业重新定案。
+        """
+        async with async_session_factory() as session:
+            service = TestRunService(session, self.mongodb)
+            try:
+                project = await service._get_project_by_identifier(project_identifier)
+                test_run = await service._require_test_run(
+                    project.id, test_run_identifier
+                )
+                execution_service = TestExecutionService(service.mongodb)
+                await execution_service.execute_jobs(test_run.id, job_ids)
+            except asyncio.CancelledError:
+                logger.warning(
+                    "[TestRunService] 后台重试执行被取消: %s", test_run_identifier
+                )
+                await self._mark_run_rejected(
+                    service, project_identifier, test_run_identifier, session,
+                    reason="重试执行被取消",
+                )
+                raise
+            except Exception:
+                logger.exception("[TestRunService] 后台重试执行失败")
+                await self._mark_run_rejected(
+                    service, project_identifier, test_run_identifier, session,
+                    reason="重试执行异常",
+                )
 
     async def get_job_logs(
         self,
@@ -1350,17 +1430,36 @@ class TestRunService:
         test_run_identifier: str,
         job_ids: list[str],
     ) -> list[TestRunScriptJobInfo]:
-        """批量重试脚本作业"""
+        """批量重试脚本作业：重置为 pending 并在后台真正重新执行这些作业。"""
         project = await self._get_project_by_identifier(project_identifier)
         test_run = await self._require_test_run(project.id, test_run_identifier)
 
-        retried: list[TestRunScriptJobInfo] = []
+        # 先筛选出可重试的作业
+        retryable: list[TestRunScriptJob] = []
         for job_id in job_ids:
             job = await self.script_job_repo.get_by_id(UUID(job_id))
             if not job or job.test_run_id != test_run.id:
                 continue
-            if job.status not in (JobStatus.FAILED, JobStatus.SKIPPED, JobStatus.CANCELLED):
+            if job.status not in (
+                JobStatus.FAILED,
+                JobStatus.SKIPPED,
+                JobStatus.CANCELLED,
+            ):
                 continue
+            retryable.append(job)
+
+        if not retryable:
+            return []
+
+        # 原子抢占执行权：运行正在执行中时拒绝批量重试
+        acquired = await self.repo.try_mark_in_progress(test_run.id)
+        if not acquired:
+            raise BadRequestException(
+                message="测试运行正在执行中，请等待当前执行结束后再重试"
+            )
+
+        retried: list[TestRunScriptJobInfo] = []
+        for job in retryable:
             await self.script_job_repo.update_status(
                 job.id,
                 JobStatus.PENDING,
@@ -1377,6 +1476,17 @@ class TestRunService:
             retried.append(self._to_script_job_info(job))
 
         await self.session.commit()
+
+        # 后台统一重新执行这批作业（任务纳入跟踪，防止被 GC）
+        _spawn_tracked(
+            self._retry_jobs_background(
+                project_identifier=project_identifier,
+                test_run_identifier=test_run_identifier,
+                job_ids=[job.id for job in retryable],
+            ),
+            label=f"batch-retry-{test_run.identifier}",
+        )
+
         return retried
 
     async def get_script_history(
@@ -1940,26 +2050,26 @@ class TestRunService:
         project = await self._get_project_by_identifier(project_identifier)
         test_run = await self._require_test_run(project.id, test_run_identifier)
 
-        # 检查是否已在执行中
-        if test_run.run_state == TestRunState.IN_PROGRESS:
+        # 原子抢占执行权：仅当运行不在进行中且处于活跃状态时成功。
+        # 用单条带条件 UPDATE 消除"读状态→判断→写状态"之间的并发竞态；
+        # 已关闭（active_state=closed）的运行也会被拦截，无法在 API 层执行。
+        acquired = await self.repo.try_mark_in_progress(test_run.id)
+        await self.session.commit()
+        if not acquired:
             return {
                 "status": "in_progress",
                 "test_run_id": str(test_run.id),
                 "identifier": test_run.identifier,
-                "message": "测试运行已在执行中",
+                "message": "测试运行已在执行中或已关闭",
             }
 
-        # 更新状态为进行中并立即提交，确保后台任务能看到状态变更
-        test_run.run_state = TestRunState.IN_PROGRESS
-        await self.repo.update(test_run)
-        await self.session.commit()
-
-        # 在后台执行测试，不阻塞 HTTP 响应
-        asyncio.create_task(
+        # 在后台执行测试，不阻塞 HTTP 响应（任务纳入跟踪，防止被 GC）
+        _spawn_tracked(
             self._execute_test_run_background(
                 project_identifier=project_identifier,
                 test_run_identifier=test_run_identifier,
-            )
+            ),
+            label=f"execute-run-{test_run.identifier}",
         )
 
         return {
@@ -1995,17 +2105,44 @@ class TestRunService:
                 else:
                     # 旧方式：遍历 test_case 关联执行（兼容模式）
                     await service._execute_legacy(test_run)
-            except Exception as e:
+            except asyncio.CancelledError:
+                # 任务被取消（如服务关闭）：CancelledError 是 BaseException，
+                # 不会被下面的 except Exception 接住，需单独处理并置为终态，
+                # 避免运行永远停留在 IN_PROGRESS。
+                logger.warning(
+                    "[TestRunService] 后台执行被取消: %s", test_run_identifier
+                )
+                await self._mark_run_rejected(
+                    service, project_identifier, test_run_identifier, session,
+                    reason="执行被取消",
+                )
+                raise
+            except Exception:
                 logger.exception("[TestRunService] 后台执行测试运行失败")
-                # 后台执行异常时，更新测试运行状态为失败
-                try:
-                    project = await service._get_project_by_identifier(project_identifier)
-                    test_run = await service._require_test_run(project.id, test_run_identifier)
-                    test_run.run_state = TestRunState.REJECTED
-                    await service.repo.update(test_run)
-                    await session.commit()
-                except Exception as inner_e:
-                    logger.error("[TestRunService] 更新失败状态也失败了: %s", inner_e)
+                await self._mark_run_rejected(
+                    service, project_identifier, test_run_identifier, session,
+                )
+
+    async def _mark_run_rejected(
+        self,
+        service: "TestRunService",
+        project_identifier: str,
+        test_run_identifier: str,
+        session: AsyncSession,
+        reason: str = "后台执行异常",
+    ) -> None:
+        """将测试运行置为 REJECTED 终态（后台执行失败/取消时的兜底）。"""
+        try:
+            project = await service._get_project_by_identifier(project_identifier)
+            test_run = await service._require_test_run(project.id, test_run_identifier)
+            test_run.run_state = TestRunState.REJECTED
+            await service.repo.update(test_run)
+            await service.repo.update_counts_from_jobs(test_run.id)
+            await session.commit()
+        except Exception as inner_e:
+            logger.error(
+                "[TestRunService] 置为失败状态也失败了(%s): %s", reason, inner_e
+            )
 
     async def _execute_legacy(self, test_run: TestRun) -> dict:
         """旧模式执行：遍历 test_case 关联执行 API/Web 测试"""

@@ -14,6 +14,10 @@ from app.agents.tools.api.openapi_tools import (
     get_folder_structure,
 )
 
+from app.agents.tools.api.skeleton_tools import (
+    derive_test_skeleton,
+)
+
 from app.agents.tools.api.environment_tools import (
     get_project_environments,
     get_environment_details,
@@ -75,6 +79,10 @@ OPENAPI_TOOLS = [
     get_folder_structure,
 ]
 
+SKELETON_TOOLS = [
+    derive_test_skeleton,
+]
+
 ENVIRONMENT_TOOLS = [
     get_project_environments,
     get_environment_details,
@@ -129,6 +137,7 @@ SCENARIO_TOOLS = [
 
 ALL_API_TOOLS = (
     OPENAPI_TOOLS
+    + SKELETON_TOOLS
     + ENVIRONMENT_TOOLS
     + ARTIFACT_TOOLS
     + SCRIPT_TOOLS
@@ -155,6 +164,8 @@ __all__ = [
     "get_endpoint_details",
     "get_multiple_endpoints_details",
     "get_folder_structure",
+    # 用例骨架
+    "derive_test_skeleton",
     # Environment
     "get_project_environments",
     "get_environment_details",
@@ -193,6 +204,7 @@ __all__ = [
     "execute_scenario",
     # 分类列表
     "OPENAPI_TOOLS",
+    "SKELETON_TOOLS",
     "ARTIFACT_TOOLS",
     "SCRIPT_TOOLS",
     "EXECUTION_TOOLS",

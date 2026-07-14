@@ -136,6 +136,20 @@ async def execute_web_script(
         print(f"[Web Script Execution] 项目根目录: {project_root}")
         print(f"[Web Script Execution] 相对脚本路径: {relative_path}")
 
+        # 4.5 静态校验：先用 --list 确认脚本可被收集（不起浏览器），挡掉语法/import 类错误
+        static_check = await _static_check_script(
+            script_path=str(relative_path),
+            project_root=str(project_root),
+        )
+        if not static_check.get("success"):
+            return json.dumps({
+                "success": False,
+                "stage": "static_check",
+                "error": static_check.get("error"),
+                "detail": (static_check.get("output") or "")[-4000:],
+                "hint": "脚本存在语法/import/收集期错误。此错误不起浏览器即可复现，请修复后重试。",
+            }, ensure_ascii=False, indent=2)
+
         # 5. 执行脚本
         resolved_headless = settings.web_mcp_headless if headless is None else headless
         execution_result = await _execute_script_internal(
@@ -173,7 +187,7 @@ async def execute_web_script(
                         sub_function_result = await db.execute(
                             select(WebSubFunction).where(WebSubFunction.id == UUID(sub_function_id))
                         )
-                        sub_function = sub_function_result.scalar_one_or_or_none()
+                        sub_function = sub_function_result.scalar_one_or_none()
 
                         if sub_function:
                             # 递增测试运行次数
@@ -215,6 +229,62 @@ async def execute_web_script(
             "success": False,
             "error": f"执行脚本时发生错误: {str(e)}"
         }, ensure_ascii=False, indent=2)
+
+
+async def _static_check_script(script_path: str, project_root: str) -> Dict[str, Any]:
+    """
+    静态校验：用 `playwright test --list` 确认脚本可被收集（语法 / import / 收集期错误），
+    不启动浏览器。通过后才进入真实执行，避免为毫秒级就能发现的错误付出一次最长 300s 的浏览器执行。
+
+    选择 --list 而非 tsc --noEmit 的原因：workspace 没有 tsconfig.json，tsc 开箱即用会误报；
+    --list 依赖已有的 playwright.config.js（testDir=./tests），能捕获语法/缺 import/收集错误且不起浏览器。
+
+    Args:
+        script_path: 相对 project_root 的脚本路径
+        project_root: 项目根目录（含 package.json / playwright.config.js）
+
+    Returns:
+        {"success": bool, "error": str|None, "output": str}
+    """
+    try:
+        is_windows = sys.platform == "win32"
+        if is_windows:
+            cmd = f'npx playwright test {script_path} --list'
+        else:
+            npx = shutil.which("npx") or "npx"
+            cmd = [npx, "playwright", "test", script_path, "--list"]
+
+        env = os.environ.copy()
+        env['CI'] = '1'
+
+        result = await run_sync(
+            subprocess.run,
+            cmd,
+            cwd=project_root,
+            capture_output=True,
+            text=True,
+            encoding='utf-8',
+            errors='replace',
+            timeout=120,  # 收集阶段不应超过 2 分钟
+            shell=is_windows,
+            env=env,
+        )
+
+        if result.returncode == 0:
+            return {"success": True, "error": None, "output": result.stdout}
+
+        return {
+            "success": False,
+            "error": "脚本静态校验失败（语法/import/收集期错误），未启动浏览器执行",
+            "output": (result.stdout or "") + "\n" + (result.stderr or ""),
+        }
+    except subprocess.TimeoutExpired:
+        return {"success": False, "error": "静态校验超时（--list 超过 120s）", "output": ""}
+    except Exception as e:
+        # 校验工具本身异常（如 npx 不可用）时 fail-open 放行，由真实执行自行报错，
+        # 避免因环境问题误判而阻断主流程。
+        print(f"[Web Script Execution] 静态校验异常，跳过校验继续执行: {e}")
+        return {"success": True, "error": None, "output": ""}
 
 
 async def _execute_script_internal(
@@ -447,24 +517,3 @@ async def _save_test_report(
         import traceback
         traceback.print_exc()
         return None
-
-
-@tool
-async def get_test_execution_status(
-    execution_id: str
-) -> str:
-    """
-    获取测试执行状态（占位符，未来可扩展为异步执行查询）
-
-    Args:
-        execution_id: 执行 ID
-
-    Returns:
-        JSON 格式的执行状态
-    """
-    return json.dumps({
-        "success": True,
-        "execution_id": execution_id,
-        "status": "completed",
-        "message": "当前版本仅支持同步执行，不支持异步状态查询"
-    }, ensure_ascii=False, indent=2)
