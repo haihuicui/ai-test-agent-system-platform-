@@ -421,8 +421,18 @@ export function useChat({
     onHistoryRevalidate?.();
   }, [stream, onHistoryRevalidate]);
 
+  const stopStream = useCallback(() => {
+    stream.stop();
+  }, [stream]);
+
+  // 记录是否正在从 interrupt 恢复（点击评审卡片按钮后）。
+  // stream.isLoading 在中断出现时仍保持 true，导致评审按钮被长期禁用，
+  // 因此单独维护一个提交 resume 命令期间的本地 loading 状态。
+  const [isResumingInterrupt, setIsResumingInterrupt] = useState(false);
+
   const resumeInterrupt = useCallback(
     (value: any) => {
+      setIsResumingInterrupt(true);
       stream.submit(null, {
         command: { resume: value },
         context: buildAgentContext(),
@@ -433,9 +443,12 @@ export function useChat({
     [stream, buildAgentContext, onHistoryRevalidate]
   );
 
-  const stopStream = useCallback(() => {
-    stream.stop();
-  }, [stream]);
+  // interrupt 消失或流报错时重置恢复状态
+  useEffect(() => {
+    if (!stream.interrupt || stream.error) {
+      setIsResumingInterrupt(false);
+    }
+  }, [stream.interrupt, stream.error]);
 
   return {
     stream,
@@ -448,6 +461,7 @@ export function useChat({
     isLoading: stream.isLoading,
     isThreadLoading: stream.isThreadLoading || paginatedHistory.isLoading,
     interrupt: stream.interrupt,
+    isResumingInterrupt,
     getMessagesMetadata: stream.getMessagesMetadata,
     sendMessage,
     runSingleStep,

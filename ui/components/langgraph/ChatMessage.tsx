@@ -34,6 +34,7 @@ interface ChatMessageProps {
   toolCalls: ToolCall[];
   isLoading?: boolean;
   isStreaming?: boolean;
+  isResumingInterrupt?: boolean;
   actionRequestsMap?: Map<string, ActionRequest>;
   reviewConfigsMap?: Map<string, ReviewConfig>;
   ui?: any[];
@@ -99,6 +100,7 @@ export const ChatMessage = React.memo<ChatMessageProps>(
     toolCalls,
     isLoading,
     isStreaming,
+    isResumingInterrupt,
     actionRequestsMap,
     reviewConfigsMap,
     ui,
@@ -231,6 +233,7 @@ export const ChatMessage = React.memo<ChatMessageProps>(
                     reviewConfig={reviewConfig}
                     onResume={onResumeInterrupt}
                     isLoading={isLoading}
+                    isResumingInterrupt={isResumingInterrupt}
                   />
                 );
               })}
@@ -293,7 +296,8 @@ export const ChatMessage = React.memo<ChatMessageProps>(
       prevProps.onResumeInterrupt === nextProps.onResumeInterrupt &&
       prevProps.graphId === nextProps.graphId &&
       prevProps.isLoading === nextProps.isLoading &&
-      prevProps.isStreaming === nextProps.isStreaming;
+      prevProps.isStreaming === nextProps.isStreaming &&
+      prevProps.isResumingInterrupt === nextProps.isResumingInterrupt;
 
     return (
       isSameMessage &&

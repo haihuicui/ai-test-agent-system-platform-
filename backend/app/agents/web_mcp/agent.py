@@ -31,6 +31,7 @@ from app.agents.tools.web import get_local_tools
 from app.agents.tools.error_handler import wrap_tools_with_error_handling
 from app.config.settings import settings
 from app.core.llms import text_model as model
+from app.utils.shell_env import build_shell_env, get_playwright_mcp_command_args
 
 # =============================================================================
 # 配置
@@ -46,7 +47,7 @@ skills_backend = FilesystemBackend(root_dir=skills_root, virtual_mode=True)
 workspace_backend = FilesystemBackend(root_dir=workspace_root, virtual_mode=True)
 shell_backend = LocalShellBackend(root_dir=Path(settings.web_mcp_workspace_root).resolve(),
                                   inherit_env=True,
-                                  env={"PATH": r"C:\Program Files\nodejs;C:\Users\65132\AppData\Roaming\npm;C:\Windows\System32;C:\Windows",},
+                                  env=build_shell_env(),
                                   timeout=180,
                                   virtual_mode=True)
 composite_backend = CompositeBackend(
@@ -440,13 +441,13 @@ async def make_agent() -> AsyncIterator[Pregel]:
     context_middleware = WebContextInjectionMiddleware()
 
     # 创建 MCP 客户端连接到 Playwright 服务器
+    mcp_command, mcp_args = get_playwright_mcp_command_args(settings.web_mcp_root)
     client = MultiServerMCPClient(
         {
             "web_mcp": {
                 "transport": "stdio",
-                "command": r"cmd",
-                "args": ["/c", f"cd {settings.web_mcp_root} & ",
-                         "npx", "playwright", "run-test-mcp-server"],
+                "command": mcp_command,
+                "args": mcp_args,
             }
         }
     )

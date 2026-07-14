@@ -82,6 +82,7 @@ interface ToolCallBoxProps {
   reviewConfig?: ReviewConfig;
   onResume?: (value: any) => void;
   isLoading?: boolean;
+  isResumingInterrupt?: boolean;
 }
 // WATERMARK  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2YlZCTmVnPT06OWI1ODc5MjA=
 
@@ -95,6 +96,7 @@ export const ToolCallBox = React.memo<ToolCallBoxProps>(
     reviewConfig,
     onResume,
     isLoading,
+    isResumingInterrupt,
   }) => {
     const { name, args, result, status } = useMemo(() => {
       return {
@@ -251,7 +253,7 @@ export const ToolCallBox = React.memo<ToolCallBoxProps>(
                   actionRequest={actionRequest}
                   reviewConfig={reviewConfig}
                   onResume={onResume}
-                  isLoading={isLoading}
+                  isLoading={isResumingInterrupt}
                 />
               </div>
             ) : (
