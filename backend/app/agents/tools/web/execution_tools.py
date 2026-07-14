@@ -105,33 +105,43 @@ async def execute_web_script(
         ... )
     """
     try:
-        # 1. 解析脚本路径
+        # 1. 解析脚本路径（健壮：支持绝对路径 / 相对路径 / 纯文件名）
+        #    历史上这里直接 script_path.relative_to(project_root)，当传入相对路径或
+        #    纯文件名时会抛 ValueError 并被外层兜底成笼统错误，导致 agent 无法定位脚本、
+        #    被迫改用 test_run，测试报告也就无法自动保存到 MinIO。
+        project_root = Path(settings.web_mcp_workspace_root).resolve()
         script_path = Path(local_script_path)
-        project_root = Path(settings.web_mcp_workspace_root)
 
-        relative_path = script_path.relative_to(project_root)
-        # 如果是相对路径，从 workspace 测试目录解析
-        if script_path == relative_path:
-            workspace_tests_dir = get_workspace_tests_dir()
-            script_path = workspace_tests_dir / script_path
+        if not script_path.is_absolute():
+            # 相对路径或纯文件名：优先从 workspace tests 目录解析，其次从 project_root 解析
+            candidate_in_tests = (get_workspace_tests_dir() / script_path).resolve()
+            if await run_sync(candidate_in_tests.exists):
+                script_path = candidate_in_tests
+            else:
+                script_path = (project_root / script_path).resolve()
+        else:
+            script_path = script_path.resolve()
 
         # 2. 验证脚本文件存在
         if not await run_sync(script_path.exists):
             return json.dumps({
                 "success": False,
-                "error": f"脚本文件不存在: {script_path}"
+                "error": (
+                    f"脚本文件不存在: {script_path}。"
+                    f"支持绝对路径，或相对于 {get_workspace_tests_dir()} 的文件名/相对路径。"
+                )
             }, ensure_ascii=False, indent=2)
 
         script_filename = script_path.name
 
         print(f"[Web Script Execution] 准备执行脚本: {script_path}")
 
-        # 3. 确定项目根目录（包含 package.json 和 node_modules）
-        # 项目根目录应该是 backend/mcp/web/
-
-
-        # 4. 确定相对路径（相对于项目根目录）
-        relative_path = script_path.relative_to(project_root)
+        # 3. 确定相对路径（相对于项目根目录，playwright 以 project_root 为工作目录）
+        #    脚本通常位于 project_root/tests 下；若不在 project_root 内，退用文件名
+        try:
+            relative_path = script_path.relative_to(project_root)
+        except ValueError:
+            relative_path = Path(script_filename)
 
         print(f"[Web Script Execution] 项目根目录: {project_root}")
         print(f"[Web Script Execution] 相对脚本路径: {relative_path}")
@@ -249,7 +259,7 @@ async def _static_check_script(script_path: str, project_root: str) -> Dict[str,
     try:
         is_windows = sys.platform == "win32"
         if is_windows:
-            cmd = f'npx playwright test {script_path} --list'
+            cmd = f'npx playwright test "{script_path}" --list'
         else:
             npx = shutil.which("npx") or "npx"
             cmd = [npx, "playwright", "test", script_path, "--list"]
@@ -321,14 +331,14 @@ async def _execute_script_internal(
             if reporter == "html":
                 # HTML 报告需要指定输出目录
                 if is_windows:
-                    cmd = f'npx playwright test {script_filename} --reporter=html {headed_flag}'
+                    cmd = f'npx playwright test "{script_filename}" --reporter=html {headed_flag}'
                 else:
                     cmd = ["npx", "playwright", "test", script_filename, "--reporter=html"]
                     if headed_flag:
                         cmd.append("--headed")
             else:
                 if is_windows:
-                    cmd = f'npx playwright test {script_filename} --reporter={reporter} {headed_flag}'
+                    cmd = f'npx playwright test "{script_filename}" --reporter={reporter} {headed_flag}'
                 else:
                     cmd = ["npx", "playwright", "test", script_filename, f"--reporter={reporter}"]
                     if headed_flag:

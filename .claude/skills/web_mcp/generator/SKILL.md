@@ -35,6 +35,16 @@ locators and the test cases' structure. Do not try to navigate or re-explore the
 ### 2. Analyze prerequisites → setup code
 - Auth required → login steps in `test.beforeEach()`.
 - Data/state required → create/reset in `beforeEach` / `afterEach`.
+- **TestIdAttribute (from the plan)**: if the plan's `**TestIdAttribute**:` is non-default
+  (e.g. `data-test`, `data-cy`, `data-qa`), add this at the TOP of the spec (after imports,
+  before `describe`) so the plan's `getByTestId(...)` locators resolve:
+  ```typescript
+  import { test, expect } from '@playwright/test';
+  test.use({ testIdAttribute: 'data-test' });  // app uses data-test, not data-testid
+  ```
+  If the plan instead recorded CSS attribute selectors (`locator('[data-test=...]')`), use
+  them as-is and skip `test.use()`. Never silently downgrade to `getByText` on an error
+  message — that couples the test to the error's wording.
 
 ### 3. Generate test code from the locator map
 For each structured step, map action → code:
@@ -72,7 +82,10 @@ The page's real text is the only source of truth.
 ### Priority order (when you must infer)
 1. `getByRole('button', { name: 'Submit', exact: true })`  ← most preferred
 2. `getByLabel('Email address')`  ← form inputs
-3. `getByTestId('submit-btn')`  ← when data-testid exists
+3. `getByTestId('submit-btn')`  ← when the app's test-id attr is the default `data-testid`.
+   If the plan's TestIdAttribute is non-default (e.g. `data-test`), add
+   `test.use({ testIdAttribute: 'data-test' })` and keep `getByTestId`, or use
+   `locator('[data-test="submit-btn"]')`.
 4. `getByText('Submit', { exact: true })`  ← unique text
 5. `.first()` / `.filter({ hasText: ... })`  ← last resort for multiple matches
 

@@ -130,19 +130,48 @@ Repeat the investigation and fixing process until the test passes cleanly
 ### 1. **Selector Errors**
 
 #### Element Not Found
-**Symptoms**: `Error: Element not found`, `Timeout waiting for selector`
+**Symptoms**: `Error: Element not found`, `Timeout waiting for selector`, `getByTestId(...) resolved to 0 elements`
 **Root Causes**:
 - Selector changed in application
 - Element rendered conditionally
 - Timing issue (element not yet visible)
+- **testIdAttribute mismatch**: the locator uses `getByTestId()` but the app's test-id
+  attribute is NOT Playwright's default `data-testid` (it is `data-test` / `data-cy` /
+  `data-qa`). `getByTestId()` then matches **0 elements** even though the attribute exists.
 
 **Fix Strategy**:
 1. Use `browser_snapshot` to see current page state
-2. Use `browser_generate_locator` to get updated selector
-3. Update test with new selector
-4. Add appropriate wait conditions
+2. **If a `getByTestId(...)` locator fails but the snapshot shows a `data-test` / `data-cy` /
+   `data-qa` attribute on that element** → it is a testIdAttribute mismatch, not a missing
+   element. Fix by EITHER:
+   - adding `test.use({ testIdAttribute: 'data-test' })` at the top of the spec (keeps
+     `getByTestId` working everywhere in the file), OR
+   - replacing `getByTestId('error')` with the CSS attribute selector
+     `locator('[data-test="error"]')`.
 
-**Example Fix**:
+   ⚠️ Do NOT "fix" it with `getByText('...')` on an error/notification message — that couples
+   the test to the exact wording and breaks whenever the copy changes.
+3. Otherwise use `browser_generate_locator` to get the updated selector
+4. Update test with the new selector
+5. Add appropriate wait conditions
+
+**Example Fix (testIdAttribute mismatch)**:
+```typescript
+// Before (broken): app uses data-test, not data-testid → getByTestId finds 0 elements
+await expect(page.getByTestId('error')).toBeVisible();
+
+// After (fixed) — option A: declare the attribute once at the top of the spec
+test.use({ testIdAttribute: 'data-test' });
+await expect(page.getByTestId('error')).toBeVisible();
+
+// After (fixed) — option B: CSS attribute selector
+await expect(page.locator('[data-test="error"]')).toBeVisible();
+
+// ❌ WRONG: do not couple the test to error wording
+// await expect(page.getByText('Epic sadface:')).toBeVisible();
+```
+
+**Example Fix (generic selector change)**:
 ```typescript
 // Before (broken)
 await page.click('.submit-btn');

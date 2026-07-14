@@ -53,7 +53,8 @@ You will:
    Use `browser_snapshot()` to identify element attributes:
    - Role (button, link, textbox, heading, etc.)
    - Text content
-   - data-testid attribute
+   - **test-id attribute** — detect WHICH one the app uses: `data-testid`, `data-test`,
+     `data-cy`, or `data-qa` (they are NOT interchangeable — see Step 2 Option C)
    - aria-label
    - placeholder
    - label (for form inputs)
@@ -63,25 +64,40 @@ You will:
    **⚠️ CRITICAL: Prefer browser_generate_locator, only build manually if it fails**
 
    **Priority 1: Use browser_generate_locator (Recommended)**
+
+   ⚠️ **CRITICAL — use the correct tool signature.** `browser_generate_locator` does NOT accept a
+   `description=` param. Its params are:
+   - `element` (optional): human-readable description, e.g. `"登录按钮"`
+   - `target` (REQUIRED): the element's `ref` from the latest `browser_snapshot()` output
+     (e.g. the `e12` in `button "Login" [ref=e12]`), or a unique selector.
+
+   Calling it with only a description (no `target`) fails — that is the tool rejecting a missing
+   required param, NOT "ref not applicable". Always pass the ref from the snapshot.
+
    ```
-   1. Call browser_generate_locator(description="element description")
-   2. Test the returned locator by using it in an action (click, fill, etc.)
-   3. If successful, save the locator EXACTLY AS RETURNED without any modification
-   4. ⚠️ CRITICAL: DO NOT change ANY text in the locator
-   5. ⚠️ DO NOT "correct" what you think are typos
-   6. ⚠️ DO NOT "normalize" or "standardize" the text
-   7. ⚠️ DO NOT replace synonyms or similar words
-   8. ⚠️ DO NOT use text from browser_snapshot() if browser_generate_locator already works
-   9. The locator returned by browser_generate_locator is based on the ACTUAL page content
-   10. If it works, it means the page text IS exactly what browser_generate_locator returned
-   11. Save it EXACTLY as returned, character by character
-   12. ⚠️ FORBIDDEN: Using .replace() or manually rewriting the locator text
+   1. Call browser_snapshot() and read the target element's ref, e.g. [ref=e12]
+   2. Call browser_generate_locator(element="登录按钮", target="e12")
+   3. Test the returned locator by using it in an action (click, fill, etc.)
+   4. If successful, save the locator EXACTLY AS RETURNED without any modification
+   5. ⚠️ CRITICAL: DO NOT change ANY text in the locator
+   6. ⚠️ DO NOT "correct" what you think are typos
+   7. ⚠️ DO NOT "normalize" or "standardize" the text
+   8. ⚠️ DO NOT replace synonyms or similar words
+   9. ⚠️ DO NOT use text from browser_snapshot() if browser_generate_locator already works
+   10. The locator returned by browser_generate_locator is based on the ACTUAL page content
+   11. If it works, it means the page text IS exactly what browser_generate_locator returned
+   12. Save it EXACTLY as returned, character by character
+   13. ⚠️ FORBIDDEN: Using .replace() or manually rewriting the locator text
    ```
 
    **Example**:
    ```python
-   # Call browser_generate_locator
-   locator = browser_generate_locator(description="用户名输入框")
+   # Step 1: get the ref from a fresh snapshot
+   snapshot = browser_snapshot()
+   # snapshot shows:  textbox "Username" [ref=e5]
+
+   # Step 2: call with element + target (NOT description=)
+   locator = browser_generate_locator(element="用户名输入框", target="e5")
    # Returns: getByRole('textbox', { name: '账号' })
 
    # Verify it works
@@ -128,12 +144,26 @@ You will:
    → getByLabel('Password')
    ```
 
-   **Option C: getByTestId()** (If data-testid exists)
+   **Option C: getByTestId()** (If a test-id attribute exists)
+
+   ⚠️ **CRITICAL: `getByTestId()` only matches the attribute named by Playwright's
+   `testIdAttribute` (default `data-testid`).** Many apps use `data-test`, `data-cy`, or
+   `data-qa` instead — with those, `getByTestId()` returns **0 elements** even though the
+   attribute clearly exists on the page. (Classic symptom: snapshot shows `data-test="error"`
+   but `getByTestId('error')` finds nothing.)
+
+   **Step C-1 — detect which attribute the app uses** (once per page/app):
    ```
-   If element has data-testid attribute:
-   → getByTestId('submit-btn')
-   → getByTestId('user-menu')
+   browser_run_code_unsafe(code="() => { const el = document.querySelector('[data-testid],[data-test],[data-cy],[data-qa]'); return el ? [...el.attributes].map(a => a.name).filter(n => /^data-(testid|test|cy|qa)$/.test(n)) : 'none'; }")
    ```
+
+   **Step C-2 — choose the locator by the detected attribute:**
+   - Default `data-testid` → use `getByTestId('submit-btn')` directly.
+   - Non-default (e.g. `data-test`) → do NOT use `getByTestId()`. Use the CSS attribute
+     selector `locator('[data-test=\"submit-btn\"]')`, AND record a line
+     `**TestIdAttribute**: data-test` in the test plan so the Generator emits
+     `test.use({ testIdAttribute: 'data-test' })` at the top of the spec (which makes
+     `getByTestId()` work again).
 
    **Option D: getByText()** (For unique text)
    ```
@@ -186,7 +216,7 @@ You will:
    4. **Example of correct handling**:
       ```python
       # Step 1: Get locator
-      locator = browser_generate_locator(description="登录按钮")
+      locator = browser_generate_locator(element="登录按钮", target="e12")  # target=ref from snapshot
       # Returns: getByRole('button', { name: '账户登陆' })
 
       # Step 2: Verify
@@ -212,7 +242,7 @@ You will:
    5. **Example of WRONG handling**:
       ```python
       # ❌ WRONG: Modifying a valid locator
-      locator = browser_generate_locator(description="登录按钮")
+      locator = browser_generate_locator(element="登录按钮", target="e12")  # target=ref from snapshot
       # Returns: getByRole('button', { name: '账户登陆' })
 
       # Verify it works
@@ -256,7 +286,7 @@ You will:
    **Common mistakes to avoid**:
    ```python
    # ❌ WRONG: Modifying locator when writing to test plan
-   locator = browser_generate_locator(description="用户名输入框")
+   locator = browser_generate_locator(element="用户名输入框", target="e5")  # target=ref from snapshot
    # Returns: getByRole('textbox', { name: '账号' })
 
    # DON'T do this:
@@ -275,6 +305,9 @@ You will:
    - User Role: [Admin/User/Guest/etc.]
    - Data Requirements: [List any required data]
    - Initial State: [Describe starting conditions]
+   - **TestIdAttribute**: [data-testid | data-test | data-cy | data-qa | N/A] — the test-id
+     attribute the app actually uses (from Step 2 Option C). If non-default, the Generator
+     must emit `test.use({ testIdAttribute: '<value>' })` at the top of the spec.
 
    ## Test Scenarios
 
