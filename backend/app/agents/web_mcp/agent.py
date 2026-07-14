@@ -31,7 +31,7 @@ from app.agents.tools.web import get_local_tools
 from app.agents.tools.error_handler import wrap_tools_with_error_handling
 from app.config.settings import settings
 from app.core.llms import text_model as model
-from app.utils.shell_env import build_shell_env, get_playwright_mcp_command_args
+from app.utils.shell_env import build_shell_env, ensure_playwright_mcp_project, get_playwright_mcp_command_args
 
 # =============================================================================
 # 配置
@@ -439,6 +439,9 @@ async def make_agent() -> AsyncIterator[Pregel]:
     """
     # 创建中间件
     context_middleware = WebContextInjectionMiddleware()
+
+    # 确保 Playwright MCP 项目目录已初始化（配置、依赖）
+    await ensure_playwright_mcp_project(settings.web_mcp_root)
 
     # 创建 MCP 客户端连接到 Playwright 服务器
     mcp_command, mcp_args = get_playwright_mcp_command_args(settings.web_mcp_root)

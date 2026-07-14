@@ -6,6 +6,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import json
 import os
 import shutil
 import sys
@@ -73,6 +75,88 @@ def build_shell_env(
     return env
 
 
+# 避免并发请求同时触发 npm install 导致 node_modules 损坏。
+_playwright_mcp_init_lock = asyncio.Lock()
+
+
+async def ensure_playwright_mcp_project(root_dir: str) -> None:
+    """确保 Playwright MCP server 所需的配置文件与依赖已就绪。
+
+    ``web_mcp_root`` 是运行时工作区（被 .gitignore 忽略），在新 clone 或清理后可能
+    缺少 ``playwright.config.js`` / ``package.json`` / ``node_modules``，导致调用
+    ``planner_setup_page(project="chromium")`` 时抛出 ``Project chromium not found``，
+    或 seed 文件无法解析 ``@playwright/test``。
+
+    本函数在启动 MCP server 前惰性地初始化这些文件，并在缺少依赖时自动运行
+    ``npm install``。
+    """
+    root = Path(root_dir)
+    root.mkdir(parents=True, exist_ok=True)
+
+    config_file = root / "playwright.config.js"
+    if not config_file.exists():
+        config_file.write_text(
+            """module.exports = {
+  testDir: './tests',
+  timeout: 60000,
+  use: {
+    headless: true,
+    viewport: { width: 1280, height: 720 },
+  },
+  projects: [
+    {
+      name: 'chromium',
+      use: {
+        browserName: 'chromium',
+        viewport: { width: 1280, height: 720 },
+      },
+    },
+  ],
+};
+""",
+            encoding="utf-8",
+        )
+
+    package_file = root / "package.json"
+    if not package_file.exists():
+        package_file.write_text(
+            json.dumps(
+                {
+                    "name": "web-mcp-project",
+                    "version": "1.0.0",
+                    "private": True,
+                    "dependencies": {"@playwright/test": "^1.61.1"},
+                },
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+
+    playwright_test = root / "node_modules" / "@playwright" / "test"
+    if playwright_test.exists():
+        return
+
+    async with _playwright_mcp_init_lock:
+        # 再次检查，防止等待锁期间其他协程已完成安装。
+        if playwright_test.exists():
+            return
+        npm = shutil.which("npm") or "npm"
+        proc = await asyncio.create_subprocess_exec(
+            npm,
+            "install",
+            cwd=str(root),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await proc.communicate()
+        if proc.returncode != 0:
+            raise RuntimeError(
+                f"Failed to install @playwright/test in {root}:"
+                f"\n{stderr.decode('utf-8', errors='replace')}"
+                f"\n{stdout.decode('utf-8', errors='replace')}"
+            )
+
+
 def get_playwright_mcp_command_args(root_dir: str) -> tuple[str, list[str]]:
     """返回适合当前平台的 Playwright MCP server 启动命令与参数。
 
@@ -81,5 +165,5 @@ def get_playwright_mcp_command_args(root_dir: str) -> tuple[str, list[str]]:
     """
     npx = shutil.which("npx") or "npx"
     if sys.platform == "win32":
-        return "cmd", ["/c", f"cd {root_dir} & {npx} playwright run-test-mcp-server"]
-    return "bash", ["-c", f"cd {root_dir} && {npx} playwright run-test-mcp-server"]
+        return "cmd", ["/c", f"cd {root_dir} & {npx} playwright run-test-mcp-server --headless"]
+    return "bash", ["-c", f"cd {root_dir} && {npx} playwright run-test-mcp-server --headless"]
