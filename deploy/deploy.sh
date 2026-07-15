@@ -15,18 +15,19 @@ BRANCH="${1:-main}"
 cd "$DEPLOY_DIR"
 
 # ---- 1. 拉取/更新代码 ----
-if [ -d ".git" ]; then
+# 从 deploy/ 回到项目根判断是否已在仓库中
+REPO_ROOT="$(dirname "$DEPLOY_DIR")"
+if [ -d "$REPO_ROOT/.git" ]; then
     echo ">>> git pull origin $BRANCH ..."
-    git pull origin "$BRANCH"
+    git -C "$REPO_ROOT" pull origin "$BRANCH"
+    cd "$REPO_ROOT/deploy"
 else
     echo ">>> 首次部署: git clone $REPO ..."
-    PARENT="$(dirname "$DEPLOY_DIR")"
-    if [ -f "$PARENT/start_server_postgres.py" ]; then
-        echo "    已在仓库根目录，跳过 clone"
-    else
-        git clone "$REPO" "$PARENT/ai-test-agent"
-        cd "$PARENT/ai-test-agent/deploy"
-    fi
+    CLONE_DIR="${HOME}/ai-test-agent"
+    git clone "$REPO" "$CLONE_DIR"
+    cd "$CLONE_DIR/deploy"
+    DEPLOY_DIR="$CLONE_DIR/deploy"
+    echo "    代码已克隆到 $CLONE_DIR"
 fi
 
 # ---- 2. 首次生成 .env 并自动填充随机密码 ----
