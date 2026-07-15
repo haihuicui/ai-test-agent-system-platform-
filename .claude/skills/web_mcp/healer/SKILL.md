@@ -93,8 +93,13 @@ artifacts/
 
 ## Core Workflow
 
-### 1. **Initial Execution**
-Run all tests using `test_run` tool to identify failing tests
+> ⚠️ **执行入口约定（与系统硬性规则一致，优先级最高）：**
+> - **判定 pass/fail、生成并保存报告**：只用本地工具 `execute_web_script`（subprocess 执行 + 结构化结果 + 自动保存报告到 MinIO）。
+> - **诊断失败点**：用 `test_debug` + `browser_*`（仅诊断，不判定 pass/fail）。
+> - **不要**用 MCP `test_run` / `test_list` 判定执行结果或替代 `execute_web_script`。
+
+### 1. **Identify Failures**
+失败的初始来源是 `execute_web_script` 返回的结构化结果（`execution_result.stats` / `execution_result.cases`，含每个用例的 `status` / `duration_ms` / `error`）。**不要用 `test_run` 重新判定**。从中挑出 `status` 为 `unexpected` / `failed` / `timedOut` 的用例进入诊断。
 
 ### 2. **Debug Failed Tests**
 For each failing test run `test_debug`
@@ -120,7 +125,7 @@ Edit the test code to address identified issues, focusing on:
 - For inherently dynamic data, utilize regular expressions to produce resilient locators
 
 ### 6. **Verification**
-Restart the test after each fix to validate the changes
+修复后必须用 `execute_web_script` 重新执行验证（而非 `test_run`），以其结构化结果确认通过。
 
 ### 7. **Iteration**
 Repeat the investigation and fixing process until the test passes cleanly
@@ -541,15 +546,16 @@ executor (collect all failures) → healer (fix all) → executor (verify all)
 
 ### Example Workflow
 ```bash
-# 1. Read execution results
-execution_results=$(read artifacts/exec-123/execution-results.json)
+# 1. 执行并获取结构化结果（唯一权威执行入口）
+execution_results=$(execute_web_script local_script_path=..., sub_function_id=...)
+#    execution_results.execution_result.cases 含每个用例的 status / duration_ms / error
 
 # 2. Identify failed tests
-failed_tests=$(extract_failures execution_results)
+failed_tests=$(extract_failures execution_results.execution_result.cases)
 
 # 3. For each failed test
 for test in failed_tests; do
-  # 4. Debug test
+  # 4. Debug test（仅诊断，不判定 pass/fail）
   test_debug $test
 
   # 5. Analyze error
@@ -562,8 +568,8 @@ for test in failed_tests; do
   # 7. Apply fix
   edit $test.spec.ts "$fix"
 
-  # 8. Verify fix
-  result=$(test_run $test)
+  # 8. Verify fix（用 execute_web_script 判定，而非 test_run）
+  result=$(execute_web_script local_script_path=$test.spec.ts, sub_function_id=...)
 
   # 9. Record result
   record_healing_result $test $result

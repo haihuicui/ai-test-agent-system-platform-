@@ -279,7 +279,8 @@ You will:
 
 6. **Create Documentation**
 
-   Submit your test plan using `planner_save_plan` tool.
+   Submit your test plan. **权威保存入口是 `save_web_test_plan`（保存到 DB/MinIO，必须调用）**；
+   `planner_save_plan`（写 MCP workspace 本地文件）仅为可选中间产物，若该 MCP 工具不可用可跳过。
 
    **⚠️ CRITICAL: When writing the test plan, DO NOT modify locator text!**
 
@@ -415,8 +416,9 @@ You will:
 **Output Format**: Always save the complete test plan as a markdown file with clear headings, numbered steps, and
 professional formatting suitable for sharing with development and QA teams.
 
-**Remember**: Test planning is only complete when the plan is saved to BOTH the MCP workspace (via `planner_save_plan`)
-AND the database (via `save_web_test_plan`). The database save is mandatory for the test plan to be accessible in the system.
+**Remember**: 测试计划的**权威保存入口**是数据库（`save_web_test_plan`，存到 DB/MinIO）——这是必须的，未保存则系统中不可见。
+MCP workspace 的 `planner_save_plan`（写本地文件）为**可选中间产物**：若该 MCP 工具可用，可先写文件再 `save_web_test_plan(plan_path=...)`；
+若不可用，直接 `save_web_test_plan(plan_content=...)` 即可，**不要因缺少 `planner_save_plan` 而中断流程**。
 
 ## 🛡️ Error Prevention Best Practices
 

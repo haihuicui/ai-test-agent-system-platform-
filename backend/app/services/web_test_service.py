@@ -8,6 +8,7 @@ import asyncio
 import json
 import os
 import tempfile
+import zipfile
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -25,6 +26,8 @@ from app.repositories.web_test_repo import (
 from app.repositories.project_repo import ProjectRepository
 from app.schemas.enums import TestResultStatus
 from app.utils.exceptions import NotFoundException
+from app.utils.playwright_report import map_playwright_status, parse_playwright_json
+from app.utils.sync_executor import run_sync
 from app.config.minio_client import MinIOClient
 from app.config.settings import settings
 from app.config.database import async_session_factory
@@ -378,6 +381,14 @@ class WebTestService:
                     if len(stderr_text) > _MAX_LOG_LENGTH:
                         stderr_text = stderr_text[:_MAX_LOG_LENGTH] + "\n...[truncated]"
 
+                    # 上传报告产物（HTML 报告 + 截图/video/trace）到 MinIO。
+                    # 必须在 with TemporaryDirectory() 块内完成——块结束临时目录即被删除。
+                    report_object_name, screenshots_prefix = await self._upload_run_artifacts(
+                        temp_path=temp_path,
+                        web_test=web_test,
+                        run_id=run_id,
+                    )
+
                     await run_repo.update(
                         await run_repo.get_by_id(run_id),
                         status="completed" if result.get("success") else "failed",
@@ -387,9 +398,33 @@ class WebTestService:
                         skipped_tests=skipped,
                         error_message=error,
                         duration_ms=result.get("duration_ms"),
+                        report_path=report_object_name,
+                        screenshots_path=screenshots_prefix,
                         stdout=stdout_text,
                         stderr=stderr_text,
                     )
+
+                    # 逐用例写 WebTestResult（用例级趋势分析数据源；与 agent 链路口径一致）
+                    cases = result.get("cases") or []
+                    for c in cases:
+                        case_error = c.get("error")
+                        session.add(WebTestResult(
+                            test_run_id=run_id,
+                            web_test_id=web_test.id,
+                            scenario_name=(c.get("title") or "未命名用例")[:500],
+                            page_url=(web_test.base_url or "")[:2048],
+                            test_type="functional",
+                            status=map_playwright_status(c.get("status")),
+                            test_summary={
+                                "file": c.get("file"),
+                                "duration_ms": c.get("duration_ms"),
+                                "retries": c.get("retries"),
+                            },
+                            error_details={"error_message": case_error} if case_error else None,
+                            error_message=case_error,
+                            duration_ms=c.get("duration_ms"),
+                            retry_count=c.get("retries") or 0,
+                        ))
                     await session.commit()
 
             except Exception as e:
@@ -427,6 +462,10 @@ export default defineConfig({{
       slowMo: {slow_mo},
     }},
     viewport: {{ width: {viewport['width']}, height: {viewport['height']} }},
+    // 失败时保留现场，供 HTML 报告与自愈诊断（与 agent 链路口径一致）
+    trace: 'retain-on-failure',
+    video: 'retain-on-failure',
+    screenshot: 'only-on-failure',
   }},
   projects: [
     {{
@@ -436,6 +475,70 @@ export default defineConfig({{
   ],
 }});
 """
+
+    async def _upload_run_artifacts(
+        self,
+        temp_path: Path,
+        web_test: WebTest,
+        run_id: UUID,
+    ) -> tuple[Optional[str], Optional[str]]:
+        """在临时目录删除前，把报告产物上传到 MinIO。
+
+        把 HTML 报告与 test-results（截图/video/trace）打成一个 zip 设到 report_path
+        （保持目录结构，HTML 内的 trace/video 引用不断）；截图再单独上传一份设到
+        screenshots_path，供前端列表直接浏览。同步 IO 经 run_sync 入线程池，避免阻塞事件循环。
+
+        Returns:
+            (report_object_name, screenshots_prefix)；无产物或上传失败时为 None。
+            任何异常都不阻断主流程（仅记录日志）。
+        """
+        report_object_name: Optional[str] = None
+        screenshots_prefix: Optional[str] = None
+        try:
+            html_report_dir = temp_path / "playwright-report"
+            test_results_dir = temp_path / "test-results"
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            base_prefix = f"web-tests/{web_test.project_id}/runs/{run_id}"
+
+            # 1. HTML 报告 + test-results 打包 zip（保持结构，HTML 内 trace/video 引用不断）
+            if html_report_dir.exists():
+                zip_path = temp_path / f"report-{timestamp}.zip"
+
+                def _make_zip() -> None:
+                    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
+                        for root_dir, arc_prefix in ((html_report_dir, "html"), (test_results_dir, "test-results")):
+                            if root_dir.exists():
+                                for fp in root_dir.rglob("*"):
+                                    if fp.is_file():
+                                        zipf.write(fp, f"{arc_prefix}/{fp.relative_to(root_dir)}")
+
+                await run_sync(_make_zip)
+                zip_bytes = await run_sync(zip_path.read_bytes)
+                report_object_name = f"{base_prefix}/report-{timestamp}.zip"
+                await run_sync(
+                    MinIOClient.upload_bytes,
+                    object_name=report_object_name,
+                    data=zip_bytes,
+                    content_type="application/zip",
+                )
+
+            # 2. 截图单独上传一份（retain-on-failure 才产出，量小），供前端列表浏览
+            if test_results_dir.exists():
+                images = [p for p in test_results_dir.rglob("*")
+                          if p.is_file() and p.suffix.lower() in (".png", ".jpg", ".jpeg")]
+                if images:
+                    screenshots_prefix = f"{base_prefix}/screenshots"
+                    for img in images:
+                        img_bytes = await run_sync(img.read_bytes)
+                        await run_sync(
+                            MinIOClient.upload_bytes,
+                            object_name=f"{screenshots_prefix}/{img.name}",
+                            data=img_bytes,
+                            content_type="image/png",
+                        )
+        except Exception as e:
+            print(f"[Web Test Run] 上传报告产物失败（不影响主流程）: {e}")
+        return report_object_name, screenshots_prefix
 
     async def _run_playwright_test(
         self,
@@ -466,10 +569,18 @@ export default defineConfig({{
             if npx_check.returncode != 0:
                 raise Exception("npx 不可用，请确保 Node.js 已安装")
 
+            # 同时产出 JSON（机器解析）与 HTML（人读报告）。JSON 写入文件而非读 stdout，
+            # 因为多 reporter 时 stdout 会被 html reporter 的进度/提示污染，导致解析失败。
+            json_output_file = os.path.join(work_dir, "results.json")
+            html_report_dir = os.path.join(work_dir, "playwright-report")
+            env["CI"] = "1"  # 禁止 html reporter 执行后自动打开浏览器
+            env["PLAYWRIGHT_JSON_OUTPUT_FILE"] = json_output_file
+            env["PLAYWRIGHT_HTML_REPORT"] = html_report_dir
+
             # 运行 Playwright 测试
             proc = await asyncio.create_subprocess_exec(
                 *npx_cmd, "playwright", "test",
-                "--reporter=json",
+                "--reporter=json,html",
                 cwd=work_dir,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
@@ -481,24 +592,28 @@ export default defineConfig({{
 
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
 
-            # 尝试解析 JSON 结果
+            # 尝试解析 JSON 结果（从文件读，而非可能被 html reporter 污染的 stdout）
             stdout_text = stdout.decode("utf-8", errors="replace")
             stderr_text = stderr.decode("utf-8", errors="replace")
             try:
-                result_data = json.loads(stdout_text)
-                stats = result_data.get("stats", {})
+                with open(json_output_file, encoding="utf-8", errors="replace") as f:
+                    result_data = json.load(f)
+                # 解析逻辑与 agent 链路共用（app.utils.playwright_report），保证口径一致。
+                parsed = parse_playwright_json(result_data)
+                stats = parsed["stats"]
                 return {
                     "success": proc.returncode == 0,
-                    "total": stats.get("tests", 0),
-                    "passed": stats.get("expected", 0),
-                    "failed": stats.get("unexpected", 0),
-                    "skipped": stats.get("skipped", 0),
+                    "total": stats["total"],
+                    "passed": stats["passed"],
+                    "failed": stats["failed"],
+                    "skipped": stats["skipped"],
                     "duration_ms": duration_ms,
+                    "cases": parsed["cases"],
                     "error": stderr_text if proc.returncode != 0 else None,
                     "stdout": stdout_text,
                     "stderr": stderr_text,
                 }
-            except json.JSONDecodeError:
+            except (json.JSONDecodeError, OSError):  # OSError 涵盖 results.json 未生成（如执行崩溃）
                 # JSON 解析失败，使用简化结果
                 return {
                     "success": proc.returncode == 0,
@@ -507,6 +622,7 @@ export default defineConfig({{
                     "failed": 0 if proc.returncode == 0 else 1,
                     "skipped": 0,
                     "duration_ms": duration_ms,
+                    "cases": [],
                     "error": stderr_text if proc.returncode != 0 else None,
                     "stdout": stdout_text,
                     "stderr": stderr_text,
@@ -521,6 +637,7 @@ export default defineConfig({{
                 "failed": 1,
                 "skipped": 0,
                 "duration_ms": int((datetime.now() - start_time).total_seconds() * 1000),
+                "cases": [],
                 "error": f"测试执行超时（{timeout}秒）",
                 "stdout": "",
                 "stderr": "",
@@ -533,6 +650,7 @@ export default defineConfig({{
                 "failed": 1,
                 "skipped": 0,
                 "duration_ms": int((datetime.now() - start_time).total_seconds() * 1000),
+                "cases": [],
                 "error": str(e),
                 "stdout": "",
                 "stderr": "",

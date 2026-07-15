@@ -33,7 +33,9 @@ locators and the test cases' structure. Do not try to navigate or re-explore the
   avoids "strict mode violation" errors.
 
 ### 2. Analyze prerequisites → setup code
-- Auth required → login steps in `test.beforeEach()`.
+- Auth required → **优先复用全局登录态**：若 `playwright.config.js` 已注入 `storageState`（系统预留能力），
+  测试会自动携带已登录会话，**不要**再在 `beforeEach` 写 UI 登录步骤；
+  仅在未配置 storageState 时，才把 login 步骤写进 `test.beforeEach()`。
 - Data/state required → create/reset in `beforeEach` / `afterEach`.
 - **TestIdAttribute (from the plan)**: if the plan's `**TestIdAttribute**:` is non-default
   (e.g. `data-test`, `data-cy`, `data-qa`), add this at the TOP of the spec (after imports,

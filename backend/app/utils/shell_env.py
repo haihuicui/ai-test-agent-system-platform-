@@ -112,17 +112,35 @@ async def ensure_playwright_mcp_project(root_dir: str, headless: bool = False) -
     headless_value = "true" if effective_headless else "false"
     workers_value = "4" if effective_headless else "1"
 
+    # 延迟 import，避免与配置加载产生循环依赖。超时/重试预算统一从 settings 读取，
+    # 与 execute_web_script 的命令行覆盖保持一致。
+    from app.config import settings
+    test_timeout = settings.web_exec_test_timeout_ms
+    retries = settings.web_exec_retries
+
+    # 全局登录态（storageState）预留：配置了路径且文件存在时注入 config，使所有测试
+    # 复用已登录会话，避免每条用例都走 UI 登录；未配置或文件缺失则不启用（保持现状）。
+    storage_state_line = ""
+    ss = getattr(settings, "web_mcp_storage_state", None)
+    if ss:
+        ss_path = Path(ss)
+        if ss_path.exists():
+            # JS 中用正斜杠，避免 Windows 反斜杠转义问题
+            storage_state_line = f"    storageState: {json.dumps(ss_path.as_posix())},\n"
+        else:
+            print(f"[Web MCP] 配置的 storageState 文件不存在，跳过注入: {ss_path}")
+
     config_file = root / "playwright.config.js"
     if not config_file.exists():
         config_file.write_text(
             f"""module.exports = {{
   testDir: './tests',
-  timeout: 60000,
-  retries: 2,
+  timeout: {test_timeout},
+  retries: {retries},
   workers: {workers_value},
   use: {{
     headless: {headless_value},
-    viewport: {{ width: 1280, height: 720 }},
+{storage_state_line}    viewport: {{ width: 1280, height: 720 }},
     trace: 'retain-on-failure',
     video: 'retain-on-failure',
     screenshot: 'only-on-failure',

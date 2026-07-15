@@ -24,6 +24,7 @@ _PATH_FIELDS = (
     "perf_workspace_root", "perf_mcp_root", "perf_yaml_tests", "perf_skills_root",
     "api_workspace_root", "api_skills_root",
     "web_mcp_workspace_root", "web_mcp_root", "web_mcp_skills_root",
+    "web_mcp_storage_state",
     "web_cli_workspace_root", "web_cli_skills_root",
     "web_chrome_workspace_root", "web_chrome_mcp_root", "web_chrome_skills_root",
     "testcase_workspace_root", "testcase_skills_root",
@@ -196,6 +197,18 @@ class Settings(BaseSettings):
     web_mcp_skills_root: str = ".claude/skills"
     # Web MCP 是否使用无头浏览器（false=有头，true=无头）
     web_mcp_headless: bool = False
+    # 全局登录态文件（Playwright storageState JSON）路径，相对项目根或绝对路径。
+    # 配置后 ensure_playwright_mcp_project 生成的 playwright.config 会自动注入 storageState，
+    # 使所有测试复用已登录会话，避免每条用例都走 UI 登录。默认 None（不启用）。
+    web_mcp_storage_state: Optional[str] = None
+
+    # Web 测试执行预算（超时/并发/重试，统一在此调整）。
+    # 层级关系：单用例超时(web_exec_test_timeout_ms) < 整脚本执行超时(web_exec_timeout_seconds)。
+    web_exec_test_timeout_ms: int = 60_000   # 单个测试用例超时（写入 playwright.config 的 timeout）
+    web_exec_timeout_seconds: int = 300      # execute_web_script 整脚本 subprocess 总超时
+    web_exec_static_check_timeout: int = 120  # 执行前静态校验(--list)超时
+    web_exec_retries: int = 1                # playwright 自动重试次数；healer 会针对性修复重跑，此处不宜过高以免拉长失败反馈
+    web_exec_max_concurrency: int = 2        # 全局并发执行上限（不同子功能间），防报告/资源互相覆盖
 
     # Web CLI 测试工作目录配置
     web_cli_workspace_root: str = "backend/workspace/web_cli"

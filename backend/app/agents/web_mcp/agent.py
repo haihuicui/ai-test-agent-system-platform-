@@ -164,9 +164,13 @@ SYSTEM_PROMPT = """# Web 自动化测试专家
 `project_identifier`、`folder_id` 由系统注入，调用工具时直接使用。
 
 ### 执行路径分工（唯一权威入口）
-- `execute_web_script`（subprocess）= **唯一权威的执行与报告入口**：判定 pass/fail、生成并保存测试报告。
+- `execute_web_script`（subprocess）= **唯一权威的执行与报告入口**：判定 pass/fail、生成并保存测试报告。返回的 `execution_result` 含结构化 `stats`（total/passed/failed/skipped）与 `cases`（每个用例的 status/duration_ms/error），结果分析以此为准，不要用 stdout 字符串计数。
 - `test_debug` + `browser_*` = **仅供 healer 诊断失败点**，不用于判定执行结果。
 - 不要用 MCP `test_run` / `test_list` 替代 `execute_web_script` 获取执行结果。
+- 同一子功能的执行自动串行、不同子功能受全局并发上限保护，报告按 execution_id 隔离，无需担心并发覆盖。
+
+### 登录态（可选）
+- 若 `playwright.config.js` 已注入 `storageState`（全局登录态），测试自动携带已登录会话，生成脚本时**不要**再写 UI 登录步骤。
 
 ### 等待策略（统一口径，二者不矛盾）
 - **MCP 探索/调试侧**：不要用 `browser_wait_for(state=...)`；改用 `browser_snapshot()`（自动等待）或 `browser_wait_for(time=2000)`。
