@@ -8,11 +8,28 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 # type: ignore  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2WVU5d1lnPT06ZWNiZjc5OWY=
 
+# 项目根目录（本文件位于 backend/app/config/，向上 4 级），与进程启动目录无关
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+
 # 指向项目根目录的 .env（与 start_server_postgres.py 共用）
-_ROOT_ENV = Path(__file__).resolve().parent.parent.parent.parent / ".env"
+_ROOT_ENV = PROJECT_ROOT / ".env"
+
+# 以项目根目录为基准的路径配置字段：
+# 这些字段支持相对路径（相对项目根目录）或绝对路径，加载后统一解析为绝对路径
+_PATH_FIELDS = (
+    "perf_workspace_root", "perf_mcp_root", "perf_yaml_tests", "perf_skills_root",
+    "api_workspace_root", "api_skills_root",
+    "web_mcp_workspace_root", "web_mcp_root", "web_mcp_skills_root",
+    "web_cli_workspace_root", "web_cli_skills_root",
+    "web_chrome_workspace_root", "web_chrome_mcp_root", "web_chrome_skills_root",
+    "testcase_workspace_root", "testcase_skills_root",
+    "security_workspace_root", "security_skills_root",
+    "android_workspace_root", "android_skills_root",
+)
 
 
 class Settings(BaseSettings):
@@ -141,15 +158,17 @@ class Settings(BaseSettings):
     image_parser_model: Optional[str] = None
 
     # 性能测试工作目录配置
-    perf_workspace_root: str = "backend/app/agents/perf/workspace"
+    # 路径字段说明：相对路径基于项目根目录（PROJECT_ROOT）解析，绝对路径原样使用，
+    # 加载后统一转为绝对路径（见 _resolve_project_paths）
+    perf_workspace_root: str = "backend/workspace/perf"
     perf_mcp_root: str = "backend/mcp/perf"
     perf_yaml_tests: str = "backend/app/agents/perf/yaml-tests"
-    perf_skills_root: str = "backend/app/agents/perf/agent_skills"
+    perf_skills_root: str = ".claude/skills"
 
     # 接口测试工作目录配置
-    api_workspace_root: str
+    api_workspace_root: str = "backend/workspace/api"
     # api_mcp_root: str = "backend/mcp/api"
-    api_skills_root: str
+    api_skills_root: str = ".claude/skills"
 
     # 接口测试 trace 配置（同时被场景测试日志格式化复用）
     api_test_sensitive_headers: list[str] = [
@@ -172,24 +191,24 @@ class Settings(BaseSettings):
     api_test_body_preview_length: int = 2_000
 
     # Web 测试工作目录配置
-    web_mcp_workspace_root: str
-    web_mcp_root: str
-    web_mcp_skills_root: str
+    web_mcp_workspace_root: str = "backend/workspace/web_mcp"
+    web_mcp_root: str = "backend/workspace/web_mcp"
+    web_mcp_skills_root: str = ".claude/skills"
     # Web MCP 是否使用无头浏览器（false=有头，true=无头）
     web_mcp_headless: bool = False
 
     # Web CLI 测试工作目录配置
     web_cli_workspace_root: str = "backend/workspace/web_cli"
-    web_cli_skills_root: str = ".claude/skills/web_cli"
+    web_cli_skills_root: str = ".claude/skills"
 
     # Web Chrome 测试工作目录配置
-    web_chrome_workspace_root: str = "C:/Users/65132/Desktop/workspace/testing/ai-test-management/backend/workspace/web_chrome"
+    web_chrome_workspace_root: str = "backend/workspace/web_chrome"
     web_chrome_mcp_root: str = "backend/mcp/web_chrome"
-    web_chrome_skills_root: str = "C:/Users/65132/Desktop/workspace/testing/ai-test-management/backend/workspace/web_chrome"
+    web_chrome_skills_root: str = ".claude/skills"
 
     # 测试用例工作目录配置
-    testcase_workspace_root: str = r"D:\project\ai-test-agent\backend\workspace\testcase"
-    testcase_skills_root: str = ".claude/skills/testcase"
+    testcase_workspace_root: str = "backend/workspace/testcase"
+    testcase_skills_root: str = ".claude/skills"
 
     # 渗透测试工作目录配置
     security_workspace_root: str = "backend/workspace/security"
@@ -200,6 +219,23 @@ class Settings(BaseSettings):
     android_skills_root: str = ".claude/skills/android"
     adb_path: Optional[str] = None  # adb 可执行文件绝对路径（如 C:/Users/xxx/AppData/Local/Android/Sdk/platform-tools/adb.exe）
 # pragma: no cover  My80OmFIVnBZMlhsdEpUbXRiZm92b2s2WVU5d1lnPT06ZWNiZjc5OWY=
+
+    @model_validator(mode="after")
+    def _resolve_project_paths(self) -> "Settings":
+        """将 _PATH_FIELDS 中的路径统一解析为绝对路径。
+
+        - 相对路径：基于项目根目录 PROJECT_ROOT 解析，与进程启动目录（CWD）无关；
+        - 绝对路径：原样保留（.env 中可覆盖到项目外任意位置）。
+        """
+        for field in _PATH_FIELDS:
+            value = getattr(self, field)
+            if not value:
+                continue
+            path = Path(value)
+            if not path.is_absolute():
+                path = PROJECT_ROOT / path
+            setattr(self, field, str(path.resolve()))
+        return self
 
 
 @lru_cache
