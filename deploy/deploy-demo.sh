@@ -5,29 +5,24 @@
 # ==============================================================================
 set -euo pipefail
 
-REPO="https://github.com/haihuicui/ai-test-agent-system-platform-.git"
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-DEPLOY_DIR="$SCRIPT_DIR"
 COMPOSE_FILE="docker-compose.demo.yml"
 ENV_FILE=".env.demo"
-BRANCH="${1:-main}"
 
-cd "$DEPLOY_DIR"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 
-# ---- 1. 拉取/更新代码 ----
-REPO_ROOT="$(dirname "$DEPLOY_DIR")"
-if [ -d "$REPO_ROOT/.git" ]; then
-    echo ">>> git pull origin $BRANCH ..."
-    git -C "$REPO_ROOT" pull origin "$BRANCH"
-    cd "$REPO_ROOT/deploy"
-else
-    echo ">>> 首次部署: git clone $REPO ..."
-    CLONE_DIR="${HOME}/ai-test-agent-demo"
-    git clone "$REPO" "$CLONE_DIR"
-    cd "$CLONE_DIR/deploy"
-    DEPLOY_DIR="$CLONE_DIR/deploy"
-    echo "    代码已克隆到 $CLONE_DIR"
+if [ ! -d "$REPO_ROOT/.git" ]; then
+    echo ">>> 错误: 请先 git clone 仓库，然后在仓库根目录执行: bash deploy/deploy-demo.sh"
+    echo "    git clone https://github.com/haihuicui/ai-test-agent-system-platform-.git"
+    echo "    cd ai-test-agent-system-platform- && bash deploy/deploy-demo.sh"
+    exit 1
 fi
+
+cd "$REPO_ROOT/deploy"
+
+# ---- 1. 更新代码 ----
+echo ">>> git pull origin ${1:-main} ..."
+git -C "$REPO_ROOT" pull origin "${1:-main}"
 
 # ---- 2. 首次生成 demo .env ----
 RAG_PASS="$(openssl rand -hex 12)"
