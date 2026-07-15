@@ -73,6 +73,27 @@ if grep -q "CHANGE_ME" "$ENV_FILE" 2>/dev/null; then
     echo ""
 fi
 
+# ---- 3.1 低内存检测 ----
+TOTAL_MEM_MB=$(free -m 2>/dev/null | awk '/Mem:/{print $2}' || echo "0")
+if [ "$TOTAL_MEM_MB" -gt 0 ] && [ "$TOTAL_MEM_MB" -lt 3000 ]; then
+    SWAP_MB=$(free -m 2>/dev/null | awk '/Swap:/{print $2}' || echo "0")
+    if [ "$SWAP_MB" -lt 2000 ]; then
+        echo "  =============================================="
+        echo "   内存: ${TOTAL_MEM_MB}MB，Swap: ${SWAP_MB}MB"
+        echo "   建议开启 4GB swap 防止 OOM："
+        echo "     sudo fallocate -l 4G /swapfile"
+        echo "     sudo chmod 600 /swapfile"
+        echo "     sudo mkswap /swapfile && sudo swapon /swapfile"
+        echo "   继续部署可能因内存不足失败"
+        echo "  =============================================="
+        echo ""
+        read -p "  是否继续？(y/N) " -r
+        [[ ! "$REPLY" =~ ^[Yy]$ ]] && exit 0
+        # 2GB 机器给 docling 降内存上限
+        export DOCLING_MEMORY_LIMIT=512m
+    fi
+fi
+
 # ---- 4. 构建 ----
 echo ">>> docker compose -f $COMPOSE_FILE --env-file $ENV_FILE build ..."
 docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" build
