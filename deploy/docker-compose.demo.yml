@@ -1,9 +1,10 @@
 # ==============================================================================
-# AI Test Agent 演示/测试环境（5 个容器，轻量级）
+# AI Test Agent 演示/测试环境（8 个容器）
 # 用法: bash deploy/deploy-demo.sh
 # 与生产环境差异:
 #   LangGraph 用 in-memory 模式（无需 Postgres/Redis 存 agent 状态）
-#   去掉: mongo / redis / minio / neo4j / milvus* / docling / lightrag / rag-server
+#   RAG 用本地存储（NetworkX + NanoVectorDB + JSON），无需 Neo4j/Milvus/Redis
+#   去掉: mongo / redis(队列/KV) / minio / neo4j / milvus / milvus-etcd / milvus-minio
 # ==============================================================================
 name: ai-test-agent-demo
 
@@ -32,7 +33,7 @@ services:
       dockerfile: deploy/app.Dockerfile
     image: *app-image
     restart: unless-stopped
-    env_file: [.env]
+    env_file: [.env.demo]
     volumes:
       - backend-workspace-demo:/app/backend/workspace
     shm_size: 1g
@@ -48,7 +49,7 @@ services:
   backend:
     image: *app-image
     restart: unless-stopped
-    env_file: [.env]
+    env_file: [.env.demo]
     volumes:
       - backend-workspace-demo:/app/backend/workspace
     shm_size: 1g
@@ -103,9 +104,73 @@ services:
         condition: service_started
     networks: [internal]
 
+  # ---------- RAG 服务（精简版：本地存储，无需外部存储服务） ----------
+  docling:
+    image: quay.io/docling-project/docling-serve:latest
+    restart: unless-stopped
+    environment:
+      DOCLING_SERVE_LOAD_MODELS_AT_BOOT: "false"
+      HF_ENDPOINT: ${HF_ENDPOINT:-https://hf-mirror.com}
+      HF_HOME: /hf-cache
+    volumes:
+      - docling-models-demo:/hf-cache
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:5001/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 24
+      start_period: 60s
+    networks: [internal]
+
+  lightrag:
+    build:
+      context: ../LightRAG
+      dockerfile: Dockerfile
+    image: ai-test-agent-lightrag:${APP_IMAGE_TAG:-demo}
+    restart: unless-stopped
+    ports:
+      - "${LIGHTRAG_PUBLISH_PORT:-9621}:9621"
+    volumes:
+      - lightrag-storage-demo:/app/data/rag_storage
+      - lightrag-inputs-demo:/app/data/inputs
+      - ./lightrag/.env:/app/.env:ro
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "9621"
+      WORKING_DIR: /app/data/rag_storage
+      INPUT_DIR: /app/data/inputs
+    depends_on:
+      docling:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:9621/health',timeout=3).status<500 else 1)\" || exit 1"]
+      interval: 15s
+      timeout: 8s
+      retries: 24
+      start_period: 60s
+    networks: [internal]
+
+  rag-server:
+    image: *app-image
+    restart: unless-stopped
+    env_file: [.env.demo]
+    environment:
+      RAG_BASE_URL: http://lightrag:9621
+      RAG_USERNAME: admin
+      RAG_PASSWORD: ${RAG_PASSWORD:?}
+      RAG_SPACE_ID: ${RAG_SPACE_ID:-cmp_space}
+    depends_on:
+      lightrag:
+        condition: service_healthy
+    command: ["python", "/app/backend/app/agents/tools/testcase/mcp/rag_server.py", "--transport", "sse", "--port", "8008"]
+    networks: [internal]
+
 volumes:
   pgdata-demo:
   backend-workspace-demo:
+  lightrag-storage-demo:
+  lightrag-inputs-demo:
+  docling-models-demo:
 
 networks:
   internal:

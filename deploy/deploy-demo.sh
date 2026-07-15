@@ -30,6 +30,8 @@ else
 fi
 
 # ---- 2. 首次生成 demo .env ----
+RAG_PASS="$(openssl rand -hex 12)"
+
 if [ ! -f "$ENV_FILE" ]; then
     echo ">>> 生成 $ENV_FILE（自动填充随机密码）..."
     cp .env.demo.example "$ENV_FILE"
@@ -42,9 +44,23 @@ if [ ! -f "$ENV_FILE" ]; then
         -e "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=${PGPASS}|" \
         -e "s|^SECRET_KEY=.*|SECRET_KEY=$(openssl rand -hex 32)|" \
         -e "s|^TESTAGENT_SECRET_KEY=.*|TESTAGENT_SECRET_KEY=$(python3 -c "from cryptography.fernet import Fernet;print(Fernet.generate_key().decode())" 2>/dev/null || echo "demo-$(openssl rand -hex 32)")|" \
+        -e "s|^RAG_PASSWORD=.*|RAG_PASSWORD=${RAG_PASS}|" \
         -e "s|http://AUTO_DETECT_IP/langgraph|http://${SERVER_IP}/langgraph|" \
         "$ENV_FILE"
     rm -f "$ENV_FILE.bak"
+fi
+
+# ---- 2.1 生成 lightrag/.env（从 env.demo 模板复制，自动填充密码） ----
+LIGHTRAG_ENV="lightrag/.env"
+if [ ! -f "$LIGHTRAG_ENV" ]; then
+    echo ">>> 生成 $LIGHTRAG_ENV（自动填充随机密码）..."
+    cp lightrag/env.demo "$LIGHTRAG_ENV"
+    LIGHTRAG_TOKEN="$(openssl rand -hex 32)"
+    sed -i.bak \
+        -e "s/^AUTH_ACCOUNTS=.*/AUTH_ACCOUNTS='admin:${RAG_PASS}'/" \
+        -e "s/^TOKEN_SECRET=.*/TOKEN_SECRET=${LIGHTRAG_TOKEN}/" \
+        "$LIGHTRAG_ENV"
+    rm -f "$LIGHTRAG_ENV.bak"
 fi
 
 # ---- 3. 检查 API key ----
