@@ -14,7 +14,6 @@ import {
   FileTextIcon,
   NetworkIcon,
   SearchIcon,
-  CodeIcon,
   MenuIcon,
   LogOutIcon
 } from 'lucide-react'
@@ -23,8 +22,7 @@ import LogoIcon from '@/components/icons/LogoIcon'
 const navItems = [
   { id: 'documents', titleKey: 'header.documents', icon: FileTextIcon },
   { id: 'knowledge-graph', titleKey: 'header.knowledgeGraph', icon: NetworkIcon },
-  { id: 'retrieval', titleKey: 'header.retrieval', icon: SearchIcon },
-  { id: 'api', titleKey: 'header.api', icon: CodeIcon }
+  { id: 'retrieval', titleKey: 'header.retrieval', icon: SearchIcon }
 ] as const
 
 type Tab = (typeof navItems)[number]['id']

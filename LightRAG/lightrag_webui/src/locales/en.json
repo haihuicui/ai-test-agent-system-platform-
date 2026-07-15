@@ -19,7 +19,7 @@
       "switchToLight": "Switch to light theme",
       "switchToDark": "Switch to dark theme"
     },
-    "tagline": "Docs · Graph · Search · API"
+    "tagline": "Docs · Graph · Search"
   },
   "login": {
     "description": "Please enter your account and password to log in to the system",
