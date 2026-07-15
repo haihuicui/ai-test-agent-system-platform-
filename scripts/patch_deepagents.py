@@ -15,16 +15,20 @@ from __future__ import annotations
 
 import shutil
 import sys
+import sysconfig
 from pathlib import Path
 
 PATCH_MARKER = "PATCH: messages_reducer_sanitized_v1"
 
 
 def _venv_site_packages() -> Path:
-    """定位当前解释器对应的 .venv site-packages 目录。"""
-    # sys.executable 形如 .../.venv/Scripts/python.exe
-    venv_root = Path(sys.executable).parent.parent
-    return venv_root / "Lib" / "site-packages"
+    """定位当前解释器对应的 site-packages 目录（跨平台）。
+
+    Windows venv 布局是 .venv/Lib/site-packages，Linux/macOS 是
+    .venv/lib/pythonX.Y/site-packages。sysconfig 跟随 sys.executable，
+    两种布局都能正确解析，避免硬编码导致 Linux 容器启动即 FileNotFoundError。
+    """
+    return Path(sysconfig.get_paths()["purelib"])
 
 
 def _target_file() -> Path:

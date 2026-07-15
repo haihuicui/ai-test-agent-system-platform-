@@ -1,0 +1,359 @@
+# ==============================================================================
+# AI Test Agent 全栈编排
+# 使用: cp .env.production.example .env → 修改【!】项 → docker compose build → up -d
+# 拓扑: nginx 发布 ${HTTP_PORT:-80}; lightrag 发布 ${LIGHTRAG_PUBLISH_PORT:-9621}(知识库 WebUI);
+#       其余服务仅内部网络可达
+# ==============================================================================
+name: ai-test-agent
+
+x-app-image: &app-image "ai-test-agent-app:${APP_IMAGE_TAG:-latest}"
+
+services:
+  # ---------- 基础设施 ----------
+  postgres:
+    image: postgres:16-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?must set POSTGRES_PASSWORD in deploy/.env}
+      POSTGRES_DB: ${POSTGRES_DB:-ai_test_platform_db}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # 首次初始化时创建 lightrag 数据库（LightRAG PGDocStatusStorage 用）
+      - ./postgres/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 24
+    networks: [internal]
+
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - mongodata:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks: [internal]
+
+  redis:
+    image: redis:7-bookworm
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 24
+    networks: [internal]
+
+  minio:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    restart: unless-stopped
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:?must set MINIO_ACCESS_KEY in deploy/.env}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:?must set MINIO_SECRET_KEY in deploy/.env}
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9000/minio/health/live || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks: [internal]
+
+  minio-init: # 预建 bucket（应用侧首次上传也会惰性自建，此为双保险）
+    image: minio/mc:RELEASE.2025-04-16T18-13-26Z
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_BUCKET: ${MINIO_BUCKET:-test-management}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        mc alias set local http://minio:9000 "$$MINIO_ACCESS_KEY" "$$MINIO_SECRET_KEY"
+        mc mb --ignore-existing "local/$$MINIO_BUCKET"
+        echo "bucket ready"
+    restart: "no"
+    networks: [internal]
+
+  # ---------- RAG 链路基础设施（LightRAG 存储后端） ----------
+  neo4j: # LIGHTRAG_GRAPH_STORAGE=Neo4JStorage
+    image: neo4j:5-community
+    restart: unless-stopped
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:?must set NEO4J_PASSWORD in deploy/.env}
+      NEO4J_dbms_default__database: neo4j
+    volumes:
+      - neo4jdata:/data
+    healthcheck:
+      test: ["CMD-SHELL", "PORT_HEX=$$(printf '%04X' 7687); cat /proc/net/tcp /proc/net/tcp6 2>/dev/null | grep -q \":$$PORT_HEX \""]
+      interval: 10s
+      timeout: 3s
+      retries: 24
+      start_period: 30s
+    networks: [internal]
+
+  milvus-etcd: # Milvus 元数据存储
+    image: quay.io/coreos/etcd:v3.5.25
+    restart: unless-stopped
+    environment:
+      ETCD_AUTO_COMPACTION_MODE: revision
+      ETCD_AUTO_COMPACTION_RETENTION: "1000"
+      ETCD_QUOTA_BACKEND_BYTES: "4294967296"
+      ETCD_SNAPSHOT_COUNT: "50000"
+    command: >
+      etcd
+      -advertise-client-urls=http://0.0.0.0:2379
+      -listen-client-urls=http://0.0.0.0:2379
+      -data-dir /etcd
+    volumes:
+      - milvus-etcd-data:/etcd
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks: [internal]
+
+  milvus-minio: # Milvus 向量数据文件存储（与应用 minio 相互独立）
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    restart: unless-stopped
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+    volumes:
+      - milvus-minio-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9000/minio/health/live || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks: [internal]
+
+  milvus: # LIGHTRAG_VECTOR_STORAGE=MilvusVectorDBStorage（CPU 版；有 GPU 可换 milvusdb/milvus:v2.6.11-gpu）
+    image: milvusdb/milvus:v2.6.11
+    restart: unless-stopped
+    command: ["milvus", "run", "standalone"]
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      ETCD_ENDPOINTS: milvus-etcd:2379
+      MINIO_ADDRESS: milvus-minio:9000
+      MINIO_ACCESS_KEY_ID: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_ACCESS_KEY: ${MINIO_SECRET_KEY}
+    volumes:
+      - milvusdata:/var/lib/milvus
+    depends_on:
+      milvus-etcd:
+        condition: service_healthy
+      milvus-minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "PORT_HEX=$$(printf '%04X' 19530); cat /proc/net/tcp /proc/net/tcp6 2>/dev/null | grep -q \":$$PORT_HEX \""]
+      interval: 10s
+      timeout: 5s
+      retries: 24
+      start_period: 60s
+    networks: [internal]
+
+  docling: # LightRAG 的 PDF 解析服务（docling-serve v1 async API）
+    image: quay.io/docling-project/docling-serve:latest
+    restart: unless-stopped
+    environment:
+      # 启动不预加载模型，首次解析时再加载（首次解析会下载模型，需访问 HuggingFace）
+      DOCLING_SERVE_LOAD_MODELS_AT_BOOT: "false"
+      # 国内服务器默认走 hf-mirror；海外可改回 https://huggingface.co
+      HF_ENDPOINT: ${HF_ENDPOINT:-https://hf-mirror.com}
+      HF_HOME: /hf-cache
+    volumes:
+      - docling-models:/hf-cache
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:5001/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 24
+      start_period: 60s
+    networks: [internal]
+
+  # ---------- 应用（同一镜像，两个角色） ----------
+  langgraph:
+    build:
+      context: ..
+      dockerfile: deploy/app.Dockerfile
+    image: *app-image
+    restart: unless-stopped
+    env_file: [.env]
+    environment:
+      # 从分量派生 DSN 覆盖 env_file，防双写漂移
+      POSTGRES_URI: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-ai_test_platform_db}
+    volumes:
+      - backend-workspace:/app/backend/workspace # 与 backend 容器共享（脚本/trace/报告）
+    shm_size: 1g # chromium /dev/shm，默认 64MB 会使渲染进程崩溃
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:2026/ok || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 180s # 首启: 59 个存储迁移 + 4 个 graph 加载
+    command: ["/app/deploy/docker/entrypoint-langgraph.sh"]
+    networks: [internal]
+
+  backend:
+    image: *app-image
+    restart: unless-stopped
+    env_file: [.env]
+    volumes:
+      - backend-workspace:/app/backend/workspace
+    shm_size: 1g
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8001/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 120s
+    command: ["/app/deploy/docker/entrypoint-backend.sh"]
+    networks: [internal]
+
+  ui:
+    build:
+      context: ..
+      dockerfile: deploy/ui.Dockerfile
+      args:
+        # 构建期内联，改后必须 docker compose build ui
+        NEXT_PUBLIC_LANGGRAPH_API_URL: ${NEXT_PUBLIC_LANGGRAPH_API_URL:?set in deploy/.env, e.g. http://server-ip/langgraph}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-} # 留空 = 浏览器同源相对路径（经 nginx）
+        NEXT_PUBLIC_TESTCASE_GENERATOR_ASSISTANT_ID: ${NEXT_PUBLIC_TESTCASE_GENERATOR_ASSISTANT_ID:-testcase_generator_agent}
+    image: ai-test-agent-ui:${APP_IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      API_INTERNAL_URL: http://backend:8001 # next rewrites 服务端代理目标（运行时生效）
+    depends_on:
+      backend:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3000').then(r=>process.exit(r.status<500?0:1)).catch(()=>process.exit(1))\""]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks: [internal]
+
+  nginx:
+    image: nginx:1.27-bookworm
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-80}:80" # 平台唯一对外端口
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      ui:
+        condition: service_started
+      backend:
+        condition: service_started
+      langgraph:
+        condition: service_started
+    networks: [internal]
+
+  # ---------- RAG 服务链 ----------
+  lightrag: # 本地 fork（含空间管理），必须从源码构建，勿换上游镜像
+    build:
+      context: ../LightRAG
+      dockerfile: Dockerfile
+    image: ai-test-agent-lightrag:${APP_IMAGE_TAG:-latest}
+    restart: unless-stopped
+    ports:
+      # 知识库管理 WebUI 直接暴露（已配 AUTH_ACCOUNTS 认证）；不想暴露则删除本段
+      - "${LIGHTRAG_PUBLISH_PORT:-9621}:9621"
+    volumes:
+      - lightrag-storage:/app/data/rag_storage
+      - lightrag-inputs:/app/data/inputs
+      - lightrag-prompts:/app/data/prompts
+      - ./lightrag/.env:/app/.env:ro # 由 deploy/lightrag/.env.example 复制生成
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "9621"
+      WORKING_DIR: /app/data/rag_storage
+      INPUT_DIR: /app/data/inputs
+      PROMPT_DIR: /app/data/prompts
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+      milvus:
+        condition: service_healthy
+      docling:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:9621/health',timeout=3).status<500 else 1)\" || exit 1"]
+      interval: 15s
+      timeout: 8s
+      retries: 24
+      start_period: 120s # 首启需初始化各存储连接
+    networks: [internal]
+
+  rag-server: # FastMCP SSE 桥：testcase agent ←SSE→ rag-server ←HTTP→ lightrag
+    image: *app-image
+    restart: unless-stopped
+    env_file: [.env]
+    environment:
+      RAG_BASE_URL: http://lightrag:9621
+      RAG_USERNAME: ${RAG_USERNAME:-admin}      # 需与 deploy/lightrag/.env 的 AUTH_ACCOUNTS 一致
+      RAG_PASSWORD: ${RAG_PASSWORD:?must set RAG_PASSWORD in deploy/.env}
+      RAG_SPACE_ID: ${RAG_SPACE_ID:-cmp_space}  # 需在 LightRAG WebUI 中已创建的 space
+    depends_on:
+      lightrag:
+        condition: service_healthy
+    command: ["python", "/app/backend/app/agents/tools/testcase/mcp/rag_server.py", "--transport", "sse", "--port", "8008"]
+    networks: [internal]
+
+volumes:
+  pgdata:
+  mongodata:
+  redisdata:
+  miniodata:
+  neo4jdata:
+  milvus-etcd-data:
+  milvus-minio-data:
+  milvusdata:
+  docling-models:
+  lightrag-storage:
+  lightrag-inputs:
+  lightrag-prompts:
+  backend-workspace: # 首挂自动复制镜像内预烘内容（node_modules）；之后镜像更新不同步，见 README-deploy.md 升级章节
+
+networks:
+  internal:
+    driver: bridge

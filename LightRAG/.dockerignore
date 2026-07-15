@@ -67,3 +67,14 @@ TODO.md
 .github
 .gitignore
 .pre-commit-config.yaml
+
+# --- 部署追加（ai-test-agent deploy/ 构建用） ---
+# 本机运行时产物，不应进入构建上下文（合计 ~2.9GB）
+.venv-docling/
+docling-models/
+lightrag_webui/node_modules/
+lightrag_hku.egg-info/
+*.log
+query_test.json
+start-*.bat
+start-*.ps1

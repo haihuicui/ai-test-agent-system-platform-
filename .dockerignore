@@ -1,0 +1,50 @@
+# Docker 构建上下文忽略清单（两个 Dockerfile 共用，构建上下文 = 项目根）
+# 注意保留:.claude/skills/、storage/、openapi.json、langgraph.json、
+#         langgraph_api/、langgraph_license/、langgraph_runtime_postgres/、
+#         langgraph_source/、patches/、scripts/、deploy/
+
+# 版本控制与 IDE
+.git
+.idea
+.vscode
+.gitnexus
+
+# Python 环境/缓存（镜像内会重新 uv sync）
+.venv/
+venv/
+__pycache__/
+**/__pycache__/
+.pytest_cache/
+.langgraph_api/
+
+# Node（镜像内重新安装；Windows 的 node_modules 进 Linux 镜像会坏）
+node_modules/
+**/node_modules/
+ui/.next/
+ui/tsconfig.tsbuildinfo
+
+# Agent 运行时工作区（runtime 产物;workspace/api 的 package.json 未被 git 跟踪,
+# 由 deploy/docker/workspace-*-package.json 模板在构建期生成）
+backend/workspace/**
+backend/test-results/
+
+# 日志与临时产物
+*.log
+tool_call_validation_dumps/
+
+# 独立子项目与无关工具（LightRAG 单独部署;gitnexus 为开发期工具）
+LightRAG/
+gitnexus-shared/
+gitnexus-web/
+
+# 密钥绝不进镜像
+.env
+.env.*
+!.env.production.example
+
+# 本地开发脚本/文档（与运行时无关）
+test-run-schedule-unification-plan.md
+ag.py
+tewt.py
+transform_skill.py
+update_example.py

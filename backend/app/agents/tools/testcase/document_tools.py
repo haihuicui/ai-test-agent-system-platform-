@@ -5,6 +5,7 @@
 """
 
 import logging
+import os
 from typing import Optional
 
 import httpx
@@ -124,6 +125,10 @@ async def parse_document_from_url(
 async def get_rag_tools() -> list:
     """获取 RAG MCP 工具。
 
+    SSE 地址通过环境变量 RAG_MCP_URL 配置（容器部署时指向 rag-server 服务，
+    如 http://rag-server:8008/sse）；缺省回退到开发环境地址。
+    连接失败时优雅降级为空工具列表，不影响 agent 启动。
+
     Returns:
         RAG 工具列表
     """
@@ -132,7 +137,7 @@ async def get_rag_tools() -> list:
 
         client = MultiServerMCPClient({
             "rag-server": {
-                "url": "http://localhost:8008/sse",
+                "url": os.environ.get("RAG_MCP_URL", "http://192.168.60.103:8008/sse"),
                 "transport": "sse",
             }
         })
