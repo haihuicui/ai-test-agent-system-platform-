@@ -1,0 +1,1 @@
+{"query":"人工分析中有什么操作","mode":"mix","top_k":40,"chunk_top_k":20,"max_entity_tokens":6000,"max_relation_tokens":8000,"max_total_tokens":30000,"enable_rerank":true,"response_type":"Multiple Paragraphs"}
