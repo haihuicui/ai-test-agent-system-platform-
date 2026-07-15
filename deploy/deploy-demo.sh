@@ -73,23 +73,36 @@ if grep -q "CHANGE_ME" "$ENV_FILE" 2>/dev/null; then
     echo ""
 fi
 
-# ---- 3.1 低内存检测 ----
+# ---- 3.1 低内存检测与自动 swap ----
 TOTAL_MEM_MB=$(free -m 2>/dev/null | awk '/Mem:/{print $2}' || echo "0")
 if [ "$TOTAL_MEM_MB" -gt 0 ] && [ "$TOTAL_MEM_MB" -lt 3000 ]; then
     SWAP_MB=$(free -m 2>/dev/null | awk '/Swap:/{print $2}' || echo "0")
     if [ "$SWAP_MB" -lt 2000 ]; then
+        echo ""
         echo "  =============================================="
-        echo "   内存: ${TOTAL_MEM_MB}MB，Swap: ${SWAP_MB}MB"
-        echo "   建议开启 4GB swap 防止 OOM："
-        echo "     sudo fallocate -l 4G /swapfile"
-        echo "     sudo chmod 600 /swapfile"
-        echo "     sudo mkswap /swapfile && sudo swapon /swapfile"
-        echo "   继续部署可能因内存不足失败"
+        echo "   当前内存: ${TOTAL_MEM_MB}MB  Swap: ${SWAP_MB}MB"
+        echo "   内存不足 3GB，建议开启 swap 防止 OOM"
         echo "  =============================================="
         echo ""
-        read -p "  是否继续？(y/N) " -r
-        [[ ! "$REPLY" =~ ^[Yy]$ ]] && exit 0
-        # 2GB 机器给 docling 降内存上限
+        read -p "  自动创建 4GB swap？(Y/n) " -r
+        if [[ ! "$REPLY" =~ ^[Nn]$ ]]; then
+            SWAPFILE="/swapfile"
+            if [ ! -f "$SWAPFILE" ]; then
+                echo "  >>> 创建 swapfile（需要 sudo）..."
+                sudo fallocate -l 4G "$SWAPFILE"
+                sudo chmod 600 "$SWAPFILE"
+                sudo mkswap "$SWAPFILE"
+                sudo swapon "$SWAPFILE"
+                # 持久化
+                if ! grep -q "$SWAPFILE" /etc/fstab 2>/dev/null; then
+                    echo "$SWAPFILE none swap sw 0 0" | sudo tee -a /etc/fstab > /dev/null
+                fi
+                echo "  >>> swap 已开启（$(free -h | awk '/Swap:/{print $2}')），重启后自动挂载"
+            else
+                echo "  >>> $SWAPFILE 已存在，尝试 swapon..."
+                sudo swapon "$SWAPFILE" 2>/dev/null || true
+            fi
+        fi
         export DOCLING_MEMORY_LIMIT=512m
     fi
 fi
