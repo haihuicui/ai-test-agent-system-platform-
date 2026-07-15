@@ -2,7 +2,7 @@ import requests
 import json
 
 def do_auth():
-    url = "https://xcloud-uat-15000.chromxhealth.com/api/auth/token/"
+    url = "https://xcloud-sit-15000.chromxhealth.com/api/auth/token/"
     user_name = "root"
     password = "$2b$12$VWqIzD.bmRdiG5L8aqcEE.PQivLEVPx7d5WdC/rhKGWCFwn2sI3ae"
     data = {
@@ -45,21 +45,21 @@ def create_task_do():
        "deviceSerialNumber": "BA23000029",
        "samples": [
            {
-               "customerId": "2033718019950460929",
-               "samplingSiteId": "2033717943689625601",
-               "tdNumber": "789003",
-               "barcode": "0002",
-               "testItemId": "2075029943523377154",
-               "type": 2
+               "customerId": "1960631620761366529",
+               "samplingSiteId": "1862049511997194242",
+               "tdNumber": "555215",
+               "barcode": "0715005",
+               "testItemId": "2065318688096591874",
+               "type": 1
            }
        ]
    }
 
    headers = {
       'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + "e17984c5-d4ff-4640-b4ea-17e5cc752f61"
+      'Authorization': 'Bearer ' + "fb4d6226-4453-44f5-b434-b1d88ae45ed4"
    }
-   res = requests.request("POST", uurl, headers=headers, json=ub).text
+   res = requests.request("POST", surl, headers=headers, json=sb).text
    print(res)
    # print(eval(res)['data'][0]['testTaskId'])
 

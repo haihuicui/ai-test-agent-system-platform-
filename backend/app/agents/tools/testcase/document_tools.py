@@ -132,7 +132,7 @@ async def get_rag_tools() -> list:
 
         client = MultiServerMCPClient({
             "rag-server": {
-                "url": "http://192.168.60.103:8008/sse",
+                "url": "http://localhost:8008/sse",
                 "transport": "sse",
             }
         })
