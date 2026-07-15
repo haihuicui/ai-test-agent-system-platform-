@@ -39,7 +39,25 @@ def ensure_workspace_tests_dir() -> Path:
         测试目录的绝对路径
     """
     WORKSPACE_TESTS_ROOT.mkdir(parents=True, exist_ok=True)
+    ensure_schema_helpers()
     return WORKSPACE_TESTS_ROOT
+
+
+def ensure_schema_helpers() -> None:
+    """确保契约断言 helper 已就位（惰性脚手架）。
+
+    workspace 被 .gitignore 忽略，全新 clone/清理后可能缺少 tests/_helpers/schema.ts
+    与 schema.py，导致生成脚本 `import './_helpers/schema'` 失败。这里从 git 跟踪的
+    _assets 复制（仅在缺失时），与 ensure_playwright_mcp_project 补齐配置的模式一致。
+    """
+    assets_dir = Path(__file__).parent / "_assets"
+    helpers_dir = WORKSPACE_TESTS_ROOT / "_helpers"
+    for name in ("schema.ts", "schema.py"):
+        src = assets_dir / name
+        dst = helpers_dir / name
+        if not dst.exists() and src.exists():
+            helpers_dir.mkdir(parents=True, exist_ok=True)
+            dst.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
 
 
 @tool

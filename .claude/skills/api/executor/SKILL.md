@@ -61,6 +61,25 @@ const exec_result = await tools.execute_api_script({
 - 只有在用户明确要求时才直接传入 `execution_config.base_url`。
 - 如果返回 `preflight_status` 为 `DNS_FAILED` / `TCP_FAILED` / `MISSING_BASE_URL`，说明测试目标环境不可达，应优先检查项目环境配置，而不是修复测试脚本。
 
+### 1.5 按附件 ID 一步执行已有脚本（前端成果物面板点"执行"）
+
+当用户提供了 **Script ID（附件 ID）** 并要求执行已有脚本时，**不要**重新生成计划或脚本，直接一步执行：
+
+```javascript
+const result = await tools.execute_api_script_by_artifact_id({
+  attachment_id: "550e8400-e29b-41d4-a716-446655440000",  // 即 Script ID / 附件 ID
+  endpoint_id: "xxx",                // 必填，否则报告无法关联到前端成果物面板
+  project_identifier: "{context.project_identifier}",
+  execution_config: { env_id: "environment_id_from_context_or_default" }  // 优先 env_id
+})
+// 该工具自动下载脚本、执行、生成 HTML 报告并保存到 MinIO，返回 report_attachment_id
+```
+
+**重要**:
+- ⚠️ 不要重新生成测试计划或脚本，直接执行用户指定的已有脚本。
+- ⚠️ 必须传入 `endpoint_id`，否则测试报告无法关联到前端成果物面板。
+- ⚠️ `execution_config` 中优先用 `env_id` 指定环境。
+
 ### 2. 查询脚本信息
 
 ```javascript
@@ -104,6 +123,7 @@ const parsed = await tools.parse_test_results(result.stdout)
 | `get_api_script_info` | 查询脚本详细信息 | `script_id` |
 | `download_api_script` | 从 MinIO 下载脚本到本地 | `script_id`, `filename` |
 | `execute_api_script` | 执行已下载的本地脚本 | `local_script_path`, `framework`, `reporter`, `execution_config` |
+| `execute_api_script_by_artifact_id` | 按附件 ID 一步执行已有脚本并生成报告 | `attachment_id`, `endpoint_id`, `execution_config` |
 | `delete_api_script` | 删除本地脚本文件 | `local_path` |
 | `run_tests` | 运行本地测试文件 | `test_path`, `framework`, `reporter` |
 | `run_test_suite` | 批量运行测试 | `project_identifier`, `endpoint_ids` |

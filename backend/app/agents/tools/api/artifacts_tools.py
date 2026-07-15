@@ -10,7 +10,6 @@ API 测试成果物管理工具
 import json
 import io
 import os
-import re
 from uuid import UUID, uuid4
 from typing import Optional, Any, Literal
 from datetime import datetime, timezone
@@ -29,6 +28,7 @@ from app.utils.sync_executor import run_sync
 from app.config.minio_client import MinIOClient
 from app.config.database import async_session_factory
 from app.config.settings import settings
+from app.agents.tools.api.assertion_analyzer import build_assertion_report
 
 
 class TestCaseSchema(BaseModel):
@@ -428,7 +428,6 @@ async def save_test_script(
     script_language: str = "typescript",
     script_format: str = "playwright",
     project_identifier: str = "",
-    force: bool = False
 ) -> dict:
     """
     保存 API 端点的测试脚本到 MinIO
@@ -437,6 +436,11 @@ async def save_test_script(
     1. 通过 script_path 指定由 api_generator 生成的脚本文件路径
     2. 通过 script_content 直接提供脚本内容
 
+    断言质量门禁（硬性，无绕过开关）：保存前静态分析脚本断言分布。
+    - FAIL（只含状态码断言）：拒绝保存。
+    - WEAK（有效业务断言不足）：拒绝保存。
+    两者都必须按返回的 suggestions 补充断言后重新调用，没有放行开关。
+
     Args:
         endpoint_id: API 端点 ID
         script_path: 脚本文件路径（由 api_generator 生成）
@@ -444,8 +448,6 @@ async def save_test_script(
         script_language: 脚本语言（如: typescript, python）
         script_format: 脚本格式（如: playwright, pytest）
         project_identifier: 项目标识符
-        force: 断言质量门禁开关。默认 False（严格）：纯状态码断言（FAIL）永远拒绝保存；
-               断言偏弱（WEAK）默认拒绝，仅当 force=True 时放行。除非确有必要，不要设 True。
 
     Returns:
         dict: 包含 attachment_id 和 file_path 的字典；
@@ -479,20 +481,20 @@ async def save_test_script(
     elif not script_content:
         return {"error": "Either script_path or script_content must be provided"}
 
-    # 断言质量门禁（默认严格）：保存前静态分析脚本断言分布。
-    # FAIL（纯状态码断言）永远硬拒；WEAK 默认拒绝，仅 force=True 放行。
-    assertion_report = _build_assertion_report(script_content)
+    # 断言质量门禁（硬性，无绕过开关）：保存前静态分析脚本断言分布。
+    # FAIL（纯状态码断言）与 WEAK（有效业务断言不足）一律硬拒，须补充断言后重试。
+    assertion_report = _build_assertion_report(script_content, script_language, script_format)
     if assertion_report["verdict"] == "FAIL":
         return {
             "error": "断言质量门禁未通过（FAIL）：脚本只包含状态码断言，缺少响应体字段/类型/业务断言，禁止保存。",
             **assertion_report,
             "hint": "必须补充结构/业务断言后重新调用 save_test_script。",
         }
-    if assertion_report["verdict"] == "WEAK" and not force:
+    if assertion_report["verdict"] == "WEAK":
         return {
-            "error": "断言质量门禁未通过（WEAK）：非状态码断言数量不足。",
+            "error": "断言质量门禁未通过（WEAK）：每个用例的有效业务断言（非状态码、非宽泛）不足 2 个，禁止保存。",
             **assertion_report,
-            "hint": "补充断言后重试；如确认可接受，显式传 force=true 放行（不推荐）。",
+            "hint": "按 suggestions 为每个用例补充到至少 1 个状态码断言 + 2 个有效业务断言后重试。",
         }
 
     async with async_session_factory() as session:
@@ -628,156 +630,34 @@ async def save_test_script(
         }
 
 
-def _analyze_script_assertions(script_content: str) -> dict:
-    """
-    静态分析测试脚本中的断言分布与质量。
-
-    返回指标：
-    - total_tests: 估算的测试用例数
-    - total_expects: expect(...) 调用总数
-    - status_asserts: 状态码相关断言数
-    - non_status_asserts: 非状态码断言总数
-    - weak_asserts: 弱断言数（toBeTruthy/toBeDefined 等宽泛断言）
-    - effective_asserts: 有效业务断言数（非状态码且非弱断言）
-    - status_only: 是否只有状态码断言
-    - weak: 是否判定为断言不足
-    """
-    # 估算测试数量：匹配 test('...', ...) 或 it('...', ...)
-    test_pattern = re.compile(r"(?:test|it)\s*\(\s*['\"`]")
-    # 提取完整 expect 链：expect( receiver ).matcher( args )
-    expect_chain_pattern = re.compile(
-        r"\bexpect\s*\(\s*(.*?)\s*\)\s*\.\s*(\w+)\s*\((.*?)\)",
-        re.DOTALL,
-    )
-    # 状态码断言的接收者特征（扩展识别 response.ok / response.status() / res.status 等）
-    status_receiver_patterns = [
-        re.compile(r"\.status\b"),
-        re.compile(r"\.statusCode\b"),
-        re.compile(r"\.ok\b"),
-        re.compile(r"\.status\s*\(\s*\)"),
-    ]
-    # 简单变量接收者：对这些变量的 toBeDefined/toBeTruthy 视为弱断言
-    weak_receivers = {"body", "response", "data", "result", "res", "json", "error", "resp"}
-    # 无论接收者是什么，这些 matcher 都视为弱断言（无具体值/无字段路径）
-    always_weak_matchers = {"toBeTruthy", "toBeFalsy"}
-    # 接收者是简单变量时视为弱断言；嵌套字段路径时视为有效（字段存在性检查）
-    context_weak_matchers = {"toBeDefined", "toBeUndefined"}
-    # 宽泛 matcher：参数为 Object 或无参数时视为弱
-    broad_matchers = {"toBeInstanceOf"}
-    # 值断言：参数为空或 undefined/null 时视为弱
-    value_matchers = {"toBe", "toEqual", "toStrictEqual"}
-
-    total_tests = len(test_pattern.findall(script_content))
-    chains = expect_chain_pattern.findall(script_content)
-
-    total_expects = len(chains)
-    status_asserts = 0
-    weak_asserts = 0
-    effective_asserts = 0
-
-    for receiver, matcher, args in chains:
-        receiver = receiver.strip()
-        args = args.strip()
-
-        # 1. 状态码断言
-        if any(p.search(receiver) for p in status_receiver_patterns):
-            status_asserts += 1
-            continue
-
-        # 2. 弱断言判定
-        is_weak = False
-        if matcher in always_weak_matchers:
-            is_weak = True
-        elif matcher in context_weak_matchers:
-            if receiver in weak_receivers:
-                is_weak = True
-        elif matcher in broad_matchers:
-            if "Object" in args or args == "":
-                is_weak = True
-        elif matcher in value_matchers:
-            if args in {"", "undefined", "null"}:
-                is_weak = True
-
-        if is_weak:
-            weak_asserts += 1
-        else:
-            effective_asserts += 1
-
-    non_status_asserts = max(0, total_expects - status_asserts)
-
-    # 判定规则
-    status_only = total_expects > 0 and effective_asserts == 0
-    # 每个测试平均有效非状态码断言不足 2 个视为弱
-    avg_effective = effective_asserts / max(total_tests, 1)
-    weak = total_expects > 0 and (total_tests == 0 or avg_effective < 2)
-
-    return {
-        "total_tests": total_tests,
-        "total_expects": total_expects,
-        "status_asserts": status_asserts,
-        "non_status_asserts": non_status_asserts,
-        "weak_asserts": weak_asserts,
-        "effective_asserts": effective_asserts,
-        "avg_effective_per_test": round(avg_effective, 2),
-        "status_only": status_only,
-        "weak": weak,
-    }
-
-
-def _build_assertion_report(script_content: str) -> dict:
+def _build_assertion_report(script_content: str, script_language: str = "typescript",
+                            script_format: str = "playwright") -> dict:
     """静态分析脚本断言分布并生成审查报告（audit 工具与 save_test_script 保存门禁共用）。
 
-    返回 {verdict, message, metrics, suggestions}；verdict ∈ {OK, WEAK, FAIL}。
+    委托给 assertion_analyzer（JS/TS 结构扫描 + Python AST，异常时正则降级）。
+    返回 {verdict, message, metrics, suggestions, parser}；verdict ∈ {OK, WEAK, FAIL}。
     """
-    metrics = _analyze_script_assertions(script_content)
-
-    if metrics["status_only"]:
-        verdict = "FAIL"
-        message = "断言严重不足：脚本只包含状态码断言，必须补充响应体字段/类型/业务断言。"
-    elif metrics["weak"]:
-        verdict = "WEAK"
-        message = (
-            f"断言偏弱：每个测试平均仅 {metrics['avg_effective_per_test']} 个有效业务断言，"
-            "建议为每个测试补充至少 2 个字段存在性/类型/业务值断言。"
-        )
-    else:
-        verdict = "OK"
-        message = "断言基本充足。"
-
-    suggestions = []
-    if metrics["status_only"] or metrics["weak"]:
-        suggestions.extend([
-            "对 2xx 响应补充 body 关键字段存在性断言，如 expect(body.data).toHaveProperty('id')",
-            "根据 OpenAPI responses schema 补充字段类型断言，如 expect(typeof body.data.id).toBe('number')",
-            "对业务状态字段补充枚举断言，如 expect(['pending','paid']).toContain(body.data.status)",
-            "对 4xx 错误响应补充 error message / code 断言，验证具体错误原因",
-            "查询类接口补充数组类型和 total 类型断言，避免空数据误通过",
-            "避免使用 expect(body).toBeTruthy() / expect(response).toBeDefined() 等宽泛断言，应指向具体字段",
-        ])
-
-    return {
-        "verdict": verdict,
-        "message": message,
-        "metrics": metrics,
-        "suggestions": suggestions,
-    }
+    return build_assertion_report(script_content, script_language, script_format)
 
 
 @tool
-async def audit_script_assertions(script_content: str) -> dict:
+async def audit_script_assertions(script_content: str, script_language: str = "typescript",
+                                  script_format: str = "playwright") -> dict:
     """
     审查生成的测试脚本断言是否充分。
 
     生成测试脚本后、调用 save_test_script 保存前，应先使用本工具检查。
-    如果返回 weak=true，必须补充字段/业务/结构断言后再保存。
+    如果返回 verdict 为 FAIL 或 WEAK，必须补充字段/业务/结构断言后再保存。
 
     Args:
         script_content: 测试脚本完整内容
+        script_language: 脚本语言（typescript/javascript/python），用于选择解析方式
+        script_format: 脚本格式（playwright/jest/pytest/postman）
 
     Returns:
-        dict: 审查结果，包含 verdict、指标和改进建议
+        dict: 审查结果，包含 verdict、metrics（含按用例明细 per_test）和 suggestions
     """
-    report = _build_assertion_report(script_content)
+    report = _build_assertion_report(script_content, script_language, script_format)
     return {"success": True, **report}
 
 

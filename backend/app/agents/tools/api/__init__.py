@@ -18,6 +18,10 @@ from app.agents.tools.api.skeleton_tools import (
     derive_test_skeleton,
 )
 
+from app.agents.tools.api.schema_tools import (
+    get_response_schema,
+)
+
 from app.agents.tools.api.environment_tools import (
     get_project_environments,
     get_environment_details,
@@ -83,6 +87,10 @@ SKELETON_TOOLS = [
     derive_test_skeleton,
 ]
 
+SCHEMA_TOOLS = [
+    get_response_schema,
+]
+
 ENVIRONMENT_TOOLS = [
     get_project_environments,
     get_environment_details,
@@ -138,6 +146,7 @@ SCENARIO_TOOLS = [
 ALL_API_TOOLS = (
     OPENAPI_TOOLS
     + SKELETON_TOOLS
+    + SCHEMA_TOOLS
     + ENVIRONMENT_TOOLS
     + ARTIFACT_TOOLS
     + SCRIPT_TOOLS
@@ -166,6 +175,8 @@ __all__ = [
     "get_folder_structure",
     # 用例骨架
     "derive_test_skeleton",
+    # 响应 schema 供给
+    "get_response_schema",
     # Environment
     "get_project_environments",
     "get_environment_details",
@@ -205,6 +216,7 @@ __all__ = [
     # 分类列表
     "OPENAPI_TOOLS",
     "SKELETON_TOOLS",
+    "SCHEMA_TOOLS",
     "ARTIFACT_TOOLS",
     "SCRIPT_TOOLS",
     "EXECUTION_TOOLS",

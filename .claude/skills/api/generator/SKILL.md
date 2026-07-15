@@ -65,7 +65,11 @@ const testPlan = planResult.content
 
 #### 断言生成强制规范（必须遵守）
 
-每个测试函数必须包含**三层断言**，缺少任意一层即为不合格脚本：
+**可度量下限（门禁据此判定，硬性无放行开关）**：每个测试函数至少 **1 个状态码断言 + 2 个有效业务断言**。
+有效业务断言 = 非状态码、非宽泛（`toBeTruthy`/`toBeFalsy`、对裸变量的 `toBeDefined` 不算）的字段存在性/类型/枚举/业务值断言。
+低于下限会被 `save_test_script` 门禁以 WEAK 硬拒；只含状态码以 FAIL 硬拒。
+
+按三层模型组织断言：
 
 1. **协议层**：验证 HTTP 状态码
    ```typescript
@@ -83,9 +87,10 @@ const testPlan = planResult.content
    // 字段类型（动态值只断言类型，不断言具体值）
    expect(typeof body.data.id).toBe('string');
 
-   // 业务状态字段（如有）
-   if (body.success !== undefined) expect(body.success).toBe(true);
-   if (body.code !== undefined) expect(body.code).toBe(0);
+   // 业务状态字段：仅当接口文档定义了 success/code 时才断言，且必须直接断言。
+   // ❌ 禁止 if (body.success !== undefined) expect(...) 这种"条件断言"——字段缺失时会跳过，等于没测。
+   expect(body.success).toBe(true); // 以文档为准；字段不存在时此处失败，正是期望
+   expect(body.code).toBe(0);
 
    // 枚举字段
    expect(['pending', 'paid', 'cancelled']).toContain(body.data.orderStatus);
@@ -103,6 +108,56 @@ const testPlan = planResult.content
 - 字段名必须从 `get_endpoint_details` 返回的 `responses` schema 中提取，**禁止臆测**。
 - 数组/分页接口必须断言 `Array.isArray(body.data.records)` 和 `typeof body.data.total === 'number'`。
 - 生成脚本后、保存前，**必须调用 `audit_script_assertions(script_content=...)`**；若返回 `FAIL` 或 `WEAK`，必须补充断言后再保存。
+
+#### 契约断言（推荐）：整体校验响应体符合 schema
+
+对 **2xx 成功响应**，优先用 schema 整体校验替代一堆手写字段断言——一次调用覆盖字段存在性/类型/必填/枚举，且杜绝字段名臆测。
+
+**步骤：**
+1. 调 `get_response_schema(endpoint_id)` 获取精确 schema（含 `field_types`/`enums`/`required_fields`/`unresolved_refs`）。
+2. 把返回的 `schemas['<status>'].schema` 嵌入脚本为 `const SCHEMA`。
+3. 成功响应用例调用 `validateSchema(body, SCHEMA).valid`（TS）或 `validate_schema(body, SCHEMA)`（Python）断言。
+
+**TypeScript / Playwright**（helper 在 `tests/_helpers/schema.ts`，零依赖内置校验器）：
+```typescript
+import { validateSchema } from './_helpers/schema';
+const SCHEMA = { type: 'object', required: ['data'], properties: { /* 由 get_response_schema 返回 */ } } as const;
+
+test('成功场景', async () => {
+  const response = await fetch(url, { method: 'POST', headers: authHeaders, body: JSON.stringify(payload) });
+  expect(response.status).toBe(200);
+  const body = await response.json();
+  expect(validateSchema(body, SCHEMA).valid).toBe(true); // 整体契约校验（失败自动打印全部错误）
+});
+```
+
+**Python / Pytest**（helper 在 `tests/_helpers/schema.py`，基于 jsonschema）：
+```python
+from _helpers.schema import validate_schema
+
+def test_success():
+    response = requests.post(url, json=payload, headers=get_headers())
+    assert response.status_code == 200
+    valid, errors = validate_schema(response.json(), SCHEMA)
+    assert valid, "\n".join(errors)
+```
+
+**注意：**
+- 门禁已识别 `validateSchema(`/`validate_schema(`/`jsonschema.validate(`，计为有效结构断言（`status + schema 校验` 即合格）。
+- `get_response_schema` 返回的 `unresolved_refs` 部分（完整 spec 未持久化）按"任意"处理，这些字段需结合 `get_endpoint_details` 用手写字段断言补充。
+- schema 校验不替代状态码断言和错误场景断言，二者仍需保留。
+
+#### 脚本生成硬规范（避免 URL 丢失 /api 前缀、避免网关拦截）
+
+1. **URL 用字符串拼接，不要用 `new URL()`**：`new URL(API_PATH, BASE_URL)` 在 `API_PATH` 以 `/` 开头时会丢弃 `BASE_URL` 里的 `/api` 等前缀。必须手动拼接：
+   ```typescript
+   const BASE_URL = (process.env.API_BASE_URL || '').trim();
+   if (!BASE_URL) throw new Error('API_BASE_URL is not set');
+   const url = `${BASE_URL.replace(/\/$/, '')}${API_PATH}`; // 去掉 BASE_URL 尾斜杠，保留 API_PATH 头斜杠
+   ```
+2. **HTTP 请求统一用 Node 原生 `fetch`**：当前网关会拦截 Playwright 的 `request` fixture，不要用 `request`。`body` 必须 `JSON.stringify(payload)` 并显式设置 `'Content-Type': 'application/json'`。
+3. **禁止 fallback token**:`const token = process.env.AUTH_TOKEN || 'test'` 严格禁止，必须 `const token = process.env.AUTH_TOKEN!`（缺失时让脚本显式报错，而非静默用假 token)。
+4. **禁止硬编码**：域名、URL、token、业务唯一值（customerName/phone/email/orderNo）一律用环境变量 + `Date.now()`/`uuid`/`faker` 动态生成。
 
 #### 4.1 Playwright + TypeScript 模板
 
@@ -169,9 +224,9 @@ test.describe('{endpoint_display_name}', () => {
     expect(data.data).toHaveProperty('id');
     expect(typeof data.data.id).toBe('string'); // 或 number，以 schema 为准
 
-    // 若接口文档定义了业务状态字段
-    if (data.success !== undefined) expect(data.success).toBe(true);
-    if (data.code !== undefined) expect(data.code).toBe(0);
+    // 若接口文档定义了业务状态字段，直接断言（禁止 if 条件包裹）
+    expect(data.success).toBe(true);
+    expect(data.code).toBe(0);
   });
 
   test('边界测试 - {boundary_name}', async () => {
@@ -832,7 +887,7 @@ test.describe('User Login API', () => {
     const data = await response.json();
     expect(data).toHaveProperty('token');
     expect(data).toHaveProperty('userId');
-    if (data.success !== undefined) expect(data.success).toBe(true);
+    expect(data.success).toBe(true); // 直接断言，禁止 if 条件包裹
   });
 
   test('should return 401 with invalid credentials', async () => {
