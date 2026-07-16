@@ -34,9 +34,10 @@ RUN uv sync --frozen --no-dev
 #     langgraph_api/ 等本地包靠 start_server_postgres.py 的 sys.path 注入，无需 pip install。
 
 # ---- L3: 应用源码（分层 COPY，定向失效缓存） --------------------------------
-# 注意: langgraph_api/ 不 COPY —— uv sync 已安装 langgraph-api==0.8.7 (pip)，
-# 本地旧版 (v0.5.23) 覆盖 pip 新版会导致 _checkpointer 缺失、protobuf 冲突。
-# langgraph_runtime_postgres/ 和 langgraph_license/ 是项目定制代码，无 pip 包，必须 COPY。
+# langgraph_api/ → postgres 模式需要（本地定制版含 postgres checkpoint/store）。
+# inmem 模式由 entrypoint 启动前改名为 langgraph_api_local，避免与 pip 的
+# langgraph-api==0.8.7 冲突（旧版会导致 _checkpointer 缺失、protobuf 冲突）。
+COPY langgraph_api/              langgraph_api/
 COPY langgraph_license/          langgraph_license/
 COPY langgraph_runtime_postgres/ langgraph_runtime_postgres/
 COPY langgraph_source/           langgraph_source/
