@@ -20,7 +20,7 @@
 
 | # | 用途 | 模型 | API URL | API Key |
 |---|------|------|---------|---------|
-| 3 | **实体/关系提取 + 知识图谱问答**（LightRAG 的核心 LLM） | `deepseek-v4-flash` | `https://api.deepseek.com/v1` | `sk-59bc092274fe4744b4d47a893b95a134` |
+| 3 | **实体/关系提取 + 知识图谱问答**（LightRAG 的核心 LLM） | `deepseek-v4-flash` | `https://api.deepseek.com/v1` | `sk-5840262ccd2a4f4395c18196c0732511` |
 | 4 | **文档向量化 / 语义检索**（Embedding） | `text-embedding-v4`（1024 维） | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `sk-855e3a0919b543ffb2f8ccb2e5ea1d53` |
 | 5 | **检索结果重排序**（Rerank，提升检索精度） | `gte-rerank-v2` | `https://dashscope.aliyuncs.com/api/v1/services/rerank/text-rerank/text-rerank` | `sk-855e3a0919b543ffb2f8ccb2e5ea1d53` |
 | 6 | **PDF 图片/表格/公式视觉理解**（VLM，多模态文档处理） | `doubao-seed-1-6-vision-250815` | `https://ark.cn-beijing.volces.com/api/v3` | `62f7c0e3-2ea5-4323-9f30-b9c62c074e37` |
@@ -38,8 +38,7 @@
 
 | 平台 | API Key | 使用位置 | 所用模型 |
 |------|---------|---------|---------|
-| **DeepSeek** | `sk-5840262ccd2a4f4395c18196c0732511` | `.env` | `deepseek-v4-flash`（agent 对话推理） |
-| **DeepSeek** | `sk-59bc092274fe4744b4d47a893b95a134` | `LightRAG\.env` | `deepseek-v4-flash`（LightRAG 图谱提取/问答） |
+| **DeepSeek** | `sk-5840262ccd2a4f4395c18196c0732511` | `.env` + `LightRAG\.env`（共用） | `deepseek-v4-flash`（agent 对话推理 + LightRAG 图谱提取/问答） |
 | **阿里云 DashScope** | `sk-855e3a0919b543ffb2f8ccb2e5ea1d53` | `LightRAG\.env` | `text-embedding-v4`（向量化）+ `gte-rerank-v2`（重排序） |
 | **火山引擎 (豆包)** | `62f7c0e3-2ea5-4323-9f30-b9c62c074e37` | `.env` + `LightRAG\.env`（共用） | `doubao-seed-2-0-mini-260428`（图片解析）+ `doubao-seed-1-6-vision-250815`（VLM） |
 
