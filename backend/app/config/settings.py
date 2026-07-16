@@ -150,7 +150,7 @@ class Settings(BaseSettings):
 
     # 大模型配置
     # DeepSeek 文本模型（用于 ChatDeepSeek）
-    llm_model: str = "deepseek-chat"
+    llm_model: str = "deepseek-v4-flash"
     deepseek_api_key: Optional[str] = None
 
     # 图片解析模型（OpenAI 兼容接口，用于 ChatOpenAI）

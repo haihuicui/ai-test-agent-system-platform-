@@ -21,7 +21,7 @@ from app.config.settings import settings
 from app.agents.testcase.tool_registry import get_all_tools
 
 # 配置模型和技能目录
-model = init_chat_model("deepseek:deepseek-chat")
+model = init_chat_model("deepseek:deepseek-v4-flash")
 
 skills_root = Path(settings.testcase_skills_root).resolve()
 skills_backend = FilesystemBackend(root_dir=skills_root, virtual_mode=True)
