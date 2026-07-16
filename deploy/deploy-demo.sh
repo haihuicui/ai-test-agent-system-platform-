@@ -59,11 +59,24 @@ if [ ! -f "$LIGHTRAG_ENV" ]; then
 fi
 
 # ---- 3. 检查 API key ----
-if grep -q "CHANGE_ME" "$ENV_FILE" 2>/dev/null; then
+MISSING_KEYS=""
+for key in DEEPSEEK_API_KEY IMAGE_PARSER_API_KEY; do
+    if grep -q "${key}=CHANGE_ME" "$ENV_FILE" 2>/dev/null; then
+        MISSING_KEYS="$MISSING_KEYS  $ENV_FILE: $key"
+    fi
+done
+LIGHTRAG_ENV_FILE="lightrag/.env"
+for key in LLM_BINDING_API_KEY EMBEDDING_BINDING_API_KEY RERANK_BINDING_API_KEY VLM_LLM_BINDING_API_KEY; do
+    if [ -f "$LIGHTRAG_ENV_FILE" ] && grep -q "${key}=CHANGE_ME" "$LIGHTRAG_ENV_FILE" 2>/dev/null; then
+        MISSING_KEYS="$MISSING_KEYS  $LIGHTRAG_ENV_FILE: $key"
+    fi
+done
+
+if [ -n "$MISSING_KEYS" ]; then
     echo ""
     echo "  =============================================="
-    echo "   API key 尚未填写（服务可启动，AI 功能不可用）"
-    echo "   编辑 $ENV_FILE 修改 DEEPSEEK_API_KEY"
+    echo "   以下 API key 尚未填写（服务可启动，对应功能不可用）："
+    echo "$MISSING_KEYS"
     echo "  =============================================="
     echo ""
 fi
