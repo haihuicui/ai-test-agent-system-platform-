@@ -49,7 +49,7 @@ fi
 LIGHTRAG_ENV="lightrag/.env"
 if [ ! -f "$LIGHTRAG_ENV" ]; then
     echo ">>> 生成 $LIGHTRAG_ENV（自动填充随机密码）..."
-    cp lightrag/env.demo "$LIGHTRAG_ENV"
+    cp lightrag/.env.demo.example "$LIGHTRAG_ENV"
     LIGHTRAG_TOKEN="$(openssl rand -hex 32)"
     sed -i.bak \
         -e "s/^AUTH_ACCOUNTS=.*/AUTH_ACCOUNTS='admin:${RAG_PASS}'/" \

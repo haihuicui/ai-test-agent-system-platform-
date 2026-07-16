@@ -171,7 +171,7 @@ services:
     volumes:
       - lightrag-storage-demo:/app/data/rag_storage
       - lightrag-inputs-demo:/app/data/inputs
-      - ./lightrag/.env:/app/.env:ro
+      - ./lightrag/.env:/app/.env:ro         # 由 deploy/lightrag/.env.demo.example 复制生成
     environment:
       HOST: "0.0.0.0"
       PORT: "9621"

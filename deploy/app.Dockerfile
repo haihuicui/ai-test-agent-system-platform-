@@ -45,7 +45,7 @@ COPY backend/app/                backend/app/
 COPY backend/alembic/            backend/alembic/
 COPY backend/alembic.ini         backend/alembic.ini
 COPY .claude/skills/             .claude/skills/
-COPY openapi.json langgraph.json start_server_postgres.py ./
+COPY openapi.json langgraph.json start_server_postgres.py start_server_inmem.py ./
 COPY deploy/docker/              deploy/docker/
 
 # ---- L4: venv 铺层（替代 README 手动步骤 2/3）+ 补丁预写 + 脚本规范化 -------
