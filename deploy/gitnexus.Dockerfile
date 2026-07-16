@@ -7,10 +7,12 @@ FROM node:20-bookworm-slim
 RUN apt-get update && apt-get install -y --no-install-recommends git \
     && rm -rf /var/lib/apt/lists/*
 
-# 预装 gitnexus 到全局，避免容器启动时每次 npx 下载
 RUN npm install -g gitnexus@latest
 
 WORKDIR /repo
 EXPOSE 4747
 
-CMD ["gitnexus", "serve", "--host", "0.0.0.0", "--port", "4747"]
+# 启动时先分析项目，再起服务
+COPY deploy/docker/entrypoint-gitnexus.sh /entrypoint-gitnexus.sh
+RUN chmod +x /entrypoint-gitnexus.sh
+ENTRYPOINT ["/entrypoint-gitnexus.sh"]
