@@ -268,6 +268,24 @@ services:
       start_period: 30s
     networks: [internal]
 
+  # ---------- GitNexus 代码智能分析 ----------
+  gitnexus:
+    build:
+      context: ..
+      dockerfile: deploy/gitnexus.Dockerfile
+    image: ai-test-agent-gitnexus:${APP_IMAGE_TAG:-latest}
+    restart: unless-stopped
+    volumes:
+      - ..:/repo:ro
+      - gitnexus-data:/repo/.gitnexus
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:4747/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks: [internal]
+
   nginx:
     image: nginx:1.27-bookworm
     restart: unless-stopped
@@ -281,6 +299,8 @@ services:
       backend:
         condition: service_started
       langgraph:
+        condition: service_started
+      gitnexus:
         condition: service_started
     networks: [internal]
 
@@ -353,6 +373,7 @@ volumes:
   lightrag-inputs:
   lightrag-prompts:
   backend-workspace: # 首挂自动复制镜像内预烘内容（node_modules）；之后镜像更新不同步，见 README-deploy.md 升级章节
+  gitnexus-data:                           # GitNexus 分析索引（LadybugDB）
 
 networks:
   internal:

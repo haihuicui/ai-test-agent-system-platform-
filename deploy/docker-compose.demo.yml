@@ -118,6 +118,24 @@ services:
       start_period: 20s
     networks: [internal]
 
+  # ---------- GitNexus 代码智能分析 ----------
+  gitnexus:
+    build:
+      context: ..
+      dockerfile: deploy/gitnexus.Dockerfile
+    image: ai-test-agent-gitnexus:${APP_IMAGE_TAG:-demo}
+    restart: unless-stopped
+    volumes:
+      - ..:/repo:ro
+      - gitnexus-data-demo:/repo/.gitnexus
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:4747/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks: [internal]
+
   nginx:
     image: nginx:1.27-bookworm
     restart: unless-stopped
@@ -135,6 +153,8 @@ services:
       backend:
         condition: service_started
       langgraph:
+        condition: service_started
+      gitnexus:
         condition: service_started
     networks: [internal]
 
@@ -216,6 +236,7 @@ volumes:
   backend-workspace-demo:
   lightrag-storage-demo:
   lightrag-inputs-demo:
+  gitnexus-data-demo:                      # GitNexus 分析索引（LadybugDB）
   docling-models-demo:
 
 networks:
