@@ -13,7 +13,6 @@ import type { UseStreamThread } from "@langchain/langgraph-sdk/react";
 import type { TodoItem } from "@/lib/langgraph/types";
 import { useClient } from "@/providers/ClientProvider";
 import { useQueryState } from "nuqs";
-import { usePaginatedThreadHistory } from "./usePaginatedThreadHistory";
 import {
   type ChatAttachmentBlock,
   isImageBlock,
@@ -73,61 +72,26 @@ export function useChat({
     }
   }, [activeAssistant?.assistant_id, assistantId, setAssistantId, setThreadId]);
 
-  // 自定义分页历史：当外部传入 thread 或明确禁用历史加载时不启用内部分页
-  const paginatedHistory = usePaginatedThreadHistory(
-    client,
-    thread ? null : threadId,
-    fetchHistoryOnMount,
-    fetchHistoryOnMount
-  );
-
-  // 兜底：首次挂载时 threadId 可能为 null（nuqs 水合或异步选中），key 变为有效值后
-  // SWRInfinite 不一定会自动拉取首屏历史，导致重新打开 AI 助手后对话记录空白。
-  // 在 threadId 首次变为有效且历史尚未加载时主动触发一次重校验。
-  //
-  // 注意：prevThreadIdRef 在挂载时初始化为 threadId，重新挂载时 threadId 可能已从 URL
-  // 恢复为有效值。此前仅判断 if (prev) return 会错误地跳过重新挂载场景，因为 prev 的
-  // 初始值就是当前 threadId（非 null）。现在改为：仅当 threadId 未变化且历史数据已
-  // 存在时才跳过，其余情况（包括挂载时 threadId 有效但数据尚未拉取）均触发 mutate。
-  const prevThreadIdRef = useRef<string | null | undefined>(threadId);
-  useEffect(() => {
-    const prev = prevThreadIdRef.current;
-    prevThreadIdRef.current = threadId;
-    if (!fetchHistoryOnMount) return;
-    if (!threadId) return;
-    // threadId 未变且已有历史数据 → 无需重复拉取
-    if (prev === threadId && paginatedHistory.data && paginatedHistory.data.length > 0) return;
-    paginatedHistory.mutate();
-  }, [fetchHistoryOnMount, threadId, paginatedHistory.data, paginatedHistory.mutate]);
-
-  // 稳定传入 useStream 的 thread 对象，避免整个 paginatedHistory 对象每次渲染都重建
-  // 导致 useStream 内部 history 引用频繁变化。
-  const threadForStream: UseStreamThread<StateType> = useMemo(
-    () => ({
-      data: paginatedHistory.data,
-      error: paginatedHistory.error,
-      isLoading: paginatedHistory.isLoading,
-      mutate: async (mutateId?: string) => {
-        await paginatedHistory.mutate();
-        return paginatedHistory.data;
-      },
-    }),
-    [
-      paginatedHistory.data,
-      paginatedHistory.error,
-      paginatedHistory.isLoading,
-      paginatedHistory.mutate,
-    ]
-  );
+  // 历史加载交给 LangGraph SDK 内置的 fetchStateHistory，不再使用自定义分页。
+  // 提供兼容接口（stub），ChatInterface 不再展示滚动加载 UI。
+  const paginatedHistory = useMemo(() => ({
+    data: [] as any[],
+    pages: [] as any[],
+    error: undefined as any,
+    isLoading: false,
+    mutate: async () => {},
+    isLoadingMore: false,
+    setSize: () => {},
+    hasMore: false,
+    hasNewMessages: true,
+    loadMore: () => {},
+  }), []);
 
   // 处理流完成事件
   const handleFinish = useCallback(() => {
-    // 新 run 结束后刷新历史第一页，使历史包含最新 checkpoint
-    paginatedHistory.mutate();
     onHistoryRevalidate?.();
-    // 检测是否创建了测试用例（通过检查最后的消息中是否包含工具调用）
     onTestCaseCreated?.();
-  }, [paginatedHistory.mutate, onHistoryRevalidate, onTestCaseCreated]);
+  }, [onHistoryRevalidate, onTestCaseCreated]);
 
   // 包装 onThreadId：stream 在创建新 thread 后回调该函数。
   // 如果用户在此期间已经手动切换到别的历史对话，忽略这次覆盖，防止 URL 被跳回。
@@ -148,92 +112,21 @@ export function useChat({
     threadId: threadId ?? null,
     onThreadId: setThreadIdFromStream,
     defaultHeaders: { "x-auth-scheme": "langsmith" },
-    fetchStateHistory: false,
+    // 使用 SDK 内置历史加载，limit=5 平衡完整性 & 传输量
+    fetchStateHistory: { limit: 5 },
     // Revalidate thread list when stream finishes, errors, or creates new thread
     onFinish: handleFinish,
     onError: onHistoryRevalidate,
     onCreated: onHistoryRevalidate,
-    ...(thread ? { thread } : { thread: threadForStream }),
+    ...(thread ? { thread } : {}),
   });
 
-  // 合并流式消息与分页历史消息（去重，按时间顺序排列）
-  const mergedMessages = useMemo(() => {
-    const streamIds = new Set(
-      stream.messages.map((m) => m.id).filter((id): id is string => !!id)
-    );
-    const seen = new Set<string>(streamIds);
+  // SDK 的 fetchStateHistory 已将历史消息合并到 stream.messages，无需手动合并。
+  const mergedMessages = stream.messages;
 
-    // 辅助：计算消息内容的近似长度，用于同一 id 多版本时择优。
-    const contentLength = (msg: Message): number => {
-      const c = msg.content;
-      if (typeof c === "string") return c.length;
-      if (Array.isArray(c)) {
-        // 直接序列化后比较长度，避免 MessageContent 联合类型推断问题。
-        return JSON.stringify(c).length;
-      }
-      return 0;
-    };
-
-    // checkpoints 按 newest-first 返回；checkpoint 内部消息按时间顺序排列。
-    // 这里从最新 checkpoint 的末尾开始遍历，保证最后反转为 chronological order 时
-    // 消息顺序正确。对于同一 message id 的多个版本（例如 DeltaChannel 重放、
-    // summarization / compaction 把旧工具结果改写为 pointer），优先保留内容更完整的
-    // 版本，避免 head checkpoint 中已被压缩的消息覆盖掉 older checkpoint 里的完整内容。
-    const newestFirst: Message[] = [];
-    const indexById = new Map<string, number>();
-
-    for (const state of paginatedHistory.data) {
-      const stateMessages = state.values?.messages ?? [];
-      for (let i = stateMessages.length - 1; i >= 0; i--) {
-        const msg = stateMessages[i];
-        if (!msg.id) {
-          // 没有 id 的消息无法去重，直接保留；通常不应出现。
-          newestFirst.push(msg);
-          continue;
-        }
-        if (seen.has(msg.id)) continue;
-        const existingIndex = indexById.get(msg.id);
-        if (existingIndex == null) {
-          indexById.set(msg.id, newestFirst.length);
-          newestFirst.push(msg);
-        } else if (contentLength(msg) > contentLength(newestFirst[existingIndex])) {
-          newestFirst[existingIndex] = msg;
-        }
-      }
-    }
-
-    const older = newestFirst.reverse();
-    return [...older, ...stream.messages];
-  }, [stream.messages, paginatedHistory.data]);
-
-  // 追踪连续空加载次数：当向上滚动拉取的 checkpoint 没有带回任何新消息时递增。
-  // 累积型 channel 的更早 checkpoint 只是消息子集，连续 2 次空加载即视为有效尽头，
-  // 避免陷入"向上滚动→加载→无新消息→又提示向上滚动"的死循环。
-  const [consecutiveEmptyLoads, setConsecutiveEmptyLoads] = useState(0);
-  useEffect(() => {
-    const pagesLen = paginatedHistory.pages?.length ?? 0;
-    if (pagesLen <= 1) {
-      setConsecutiveEmptyLoads(0);
-      return;
-    }
-    if (paginatedHistory.hasNewMessages) {
-      setConsecutiveEmptyLoads(0);
-    } else {
-      setConsecutiveEmptyLoads((n) => n + 1);
-    }
-  }, [paginatedHistory.hasNewMessages, paginatedHistory.pages?.length]);
-  // 切换对话时重置计数
-  useEffect(() => {
-    setConsecutiveEmptyLoads(0);
-  }, [threadId]);
-
-  // 历史已到尽头：API 无更多 checkpoint，或连续空加载达到阈值。
-  const EMPTY_LOAD_LIMIT = 2;
-  const isReachingEnd = !paginatedHistory.hasMore || consecutiveEmptyLoads >= EMPTY_LOAD_LIMIT;
-
-  const loadMoreHistory = useCallback(() => {
-    paginatedHistory.loadMore();
-  }, [paginatedHistory.loadMore]);
+  // SDK 内置历史加载已覆盖，不需要手动滚动分页。
+  const isReachingEnd = true;
+  const loadMoreHistory = useCallback(() => {}, []);
 
   // 流式渲染节流：逐 token 推送时，把"每个 token 触发一次渲染"降为"每 ~33ms 一次"，
   // 大幅减少长对话流式过程中的重复渲染。新消息（计数变化）和流结束时立即同步，
@@ -488,7 +381,7 @@ export function useChat({
     setFiles,
     messages: throttledMessages,
     isLoading: stream.isLoading,
-    isThreadLoading: stream.isThreadLoading || paginatedHistory.isLoading,
+    isThreadLoading: stream.isThreadLoading,
     interrupt: stream.interrupt,
     isResumingInterrupt,
     getMessagesMetadata: stream.getMessagesMetadata,
