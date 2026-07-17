@@ -42,17 +42,28 @@ When a test fails, you should **automatically** perform the following steps:
 ### Step 4: Verify Fix
 1. Download the updated script using `download_web_script`
 2. Re-run the test using `execute_web_script`
-3. Check if the test now passes
+3. Check `execution_result.stats` / `execution_result.cases`（同 executor 的 Step 2）
 4. If still failing and retry count < 3, go back to Step 1
-5. If passing or max retries reached, generate healing report
+5. If passing or max retries reached → **进入 Step 5 生成完整报告**
 
-### Step 5: Generate Healing Report
-Document the healing process:
-- Original error and root cause
-- Fix applied (code changes)
-- Verification result (passed/failed)
-- Retry count
-- Recommendations for preventing similar issues
+### Step 5: Generate Reports（MANDATORY — 两份报告缺一不可）
+
+修复验证完成后，**必须**生成以下两份报告：
+
+**报告 A：Healing Report（修复过程记录）**
+- 原始错误和根因
+- 应用的修复（代码变更前后对比）
+- 重新执行验证结果（pass/fail）
+- 重试次数
+- 防止类似问题的建议
+
+**报告 B：Execution Report（执行结果摘要）**
+- ⚠️ **必须**按照 executor SKILL.md 中 "3. Generate Execution Report (MANDATORY)" 的模板生成
+- 基于最后一次 `execute_web_script` 返回的 `execution_result` 数据
+- 包含最终的全量用例执行结果（不仅是被修复的用例）
+- 包含 MinIO 报告链接（`report_url`）
+
+**报告 B 是最终交付物**——用户最关心的是"修复后测试状态如何"，而不仅仅是"修复了哪些代码"。
 
 ## ⚠️ Critical Rules for Auto-Healing
 
