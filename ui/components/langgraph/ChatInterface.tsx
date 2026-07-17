@@ -671,9 +671,7 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
               {((historyPages?.length ?? 0) > 0) && !isReachingEnd && !isLoadingMoreHistory && (
                 <div className="flex items-center justify-center py-2">
                   <span className="text-xs text-muted-foreground">
-                    {historyHasNewMessages
-                      ? "向上滚动加载更多历史消息"
-                      : "同步历史记录..."}
+                    向上滚动加载更多历史消息
                   </span>
                 </div>
               )}
