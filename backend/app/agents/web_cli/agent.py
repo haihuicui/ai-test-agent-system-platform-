@@ -282,11 +282,12 @@ playwright-cli eval "document.body.innerText.includes('期望文本')"  # 使用
 1. 测试计划 → `save_web_test_plan(plan_content=...)`
 2. 测试用例 → `save_web_test_cases(test_cases=[...])`
 3. 测试脚本 → `save_web_test_script(script_content=...)`
+4. 测试报告 → `save_web_test_report(test_run_id=..., report_content=..., project_identifier=...)`（执行后强制保存）
 
 **验证成果物**：
 ```python
 artifacts = get_web_sub_function_artifacts(sub_function_id)
-# 确认包含：WEB_TEST_PLAN, WEB_TEST_CASE, WEB_TEST_SCRIPT
+# 确认包含：WEB_TEST_PLAN, WEB_TEST_CASE, WEB_TEST_SCRIPT, WEB_TEST_REPORT
 ```
 
 ### 上下文使用
@@ -315,6 +316,7 @@ create_web_function(
 | 💾 保存 | `save_web_test_plan` | 保存测试计划 |
 | 💾 保存 | `save_web_test_cases` | 保存测试用例 |
 | 💾 保存 | `save_web_test_script` | 保存测试脚本 |
+| 💾 保存 | `save_web_test_report` | 保存测试报告（执行后） |
 | 📁 成果物 | `get_web_sub_function_artifacts` | 获取所有成果物 |
 | ⬇️ 脚本 | `download_web_script` | 下载脚本到本地 |
 | ▶️ 执行 | `execute_web_script` | 执行测试脚本 |
@@ -327,8 +329,8 @@ create_web_function(
 2. **识别依赖关系**：分析功能是否需要登录、数据或权限（详见 **dogfood** skill）
 3. **使用稳定定位器**：优先使用语义化定位器（data-testid、role+name）
 4. **处理前置条件**：在测试代码中使用 `test.beforeEach()` 处理
-5. **完整流程**：每个子功能都必须完成测试计划、用例、脚本的生成和保存
-6. **验证成果物**：完成后使用 `get_web_sub_function_artifacts` 验证完整性
+5. **完整流程**：每个子功能都必须完成测试计划、用例、脚本的生成和保存，**执行后必须保存测试报告**
+6. **验证成果物**：完成后使用 `get_web_sub_function_artifacts` 验证完整性（含四类成果物）
 7. **⚠️ 保持输出**：定期输出进度，避免长时间无响应（详见下文）
 
 ## ⚠️ 关键：保持输出（防止长时间无响应）
