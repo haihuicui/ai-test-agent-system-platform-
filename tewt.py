@@ -100,3 +100,12 @@ def zhichui2():
 
 if __name__ == "__main__":
     create_task_do()
+    print("-----------------------------------------------------")
+    url3 = "https://xmetrix-sit-15000.chromxhealth.com/api/xmetrix-data/customer"
+    body = {"name":"测试客户-1784256027786","description":"由自动化测试创建的客户","samplingSiteIds":["site-001"]}
+    headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + "81d08712-4862-4478-b857-01478325f336"
+    }
+    res = requests.post(url=url3, json=body, headers=headers).text
+    print(res)
