@@ -206,8 +206,9 @@ export function useChat({
     return [...older, ...stream.messages];
   }, [stream.messages, paginatedHistory.data]);
 
-  // 当分页历史已经到达尽头时，不再自动加载。
-  const isReachingEnd = !paginatedHistory.hasMore;
+  // 历史已到尽头：没有更多 checkpoint，或者最后一页没有带来任何新消息
+  // （累积型 checkpoint 更早页只是子集，重复加载无意义）。
+  const isReachingEnd = !paginatedHistory.hasMore || (!paginatedHistory.hasNewMessages && (paginatedHistory.pages?.length ?? 0) > 1);
 
   const loadMoreHistory = useCallback(() => {
     paginatedHistory.loadMore();
