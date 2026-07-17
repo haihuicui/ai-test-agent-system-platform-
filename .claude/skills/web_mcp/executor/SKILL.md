@@ -114,7 +114,8 @@ Your mission is to ensure tests are executed effectively, results are thoroughly
 ### Standard Test Run
 
 ```bash
-# 1. 执行（唯一权威入口：自动判定 + 生成并保存报告 + 返回结构化结果）
+# 1. 执行（唯一权威入口：自动判定 + 生成 HTML 报告并保存到 MinIO + 创建 WebTestRun + 返回结构化结果）
+# ⚠️ 返回值含 execution_result（stats/cases）+ report_url + test_run_id
 execute_web_script(
   local_script_path="tests/example.spec.ts",
   framework="playwright",
@@ -208,20 +209,27 @@ execute_web_script(
 
 对 Markdown 执行摘要的保存：
 
-1. **优先使用专用工具**：如果可用，调用 `save_web_test_report` 或等效的持久化工具：
+1. **调用 `save_web_test_report` 持久化执行摘要**：
    ```
    save_web_test_report(
-     sub_function_id="...",
-     report_content="<生成的 Markdown 摘要>",
-     execution_result={...}  // 结构化数据一并保存
+     test_run_id="{execute_web_script 返回的 test_run_id}",
+     report_content="<生成的 Markdown 摘要内容>",
+     project_identifier="<项目标识符>",
+     screenshots=[...]  // 可选：截图文件路径列表
    )
    ```
+   - `test_run_id`：**直接从 `execute_web_script` 的返回值中获取**（执行时自动创建了 WebTestRun 记录）
+   - `report_content`：Step 3.2 生成的完整 Markdown 摘要
+   - 保存后报告作为 `WEB_TEST_REPORT` 类型的 Attachment 持久化到 MinIO
+   - 用户可通过 `get_web_sub_function_artifacts(artifact_type="WEB_TEST_REPORT")` 查询到
 
-2. **如果专用工具不可用**：将 Markdown 摘要写入本地文件，并用已有的持久化工具链保存
-   （如通过 `save_web_test_script` 的关联参数或其他可用入口）
+2. **保存失败时的 fallback**：如果 `save_web_test_report` 调用失败（极少情况），
+   在输出报告时明确告知用户：
+   > ⚠️ HTML 报告已保存到 MinIO：{report_url}
+   > ⚠️ Markdown 执行摘要保存失败：{错误原因}。以下为本次执行结果：
 
-3. **如果无任何保存工具可用**：在输出报告时明确告知用户：
-   > ⚠️ Markdown 执行摘要仅存在于本次对话中。HTML 报告已保存到 MinIO：{report_url}
+3. **保存后验证**：保存成功后，`get_web_sub_function_artifacts(sub_function_id=..., artifact_type="WEB_TEST_REPORT")`
+   应能查询到刚才保存的报告，与测试计划/用例/脚本并列展示。
 
 4. **流程闭环检查：**
    - [ ] `execute_web_script` 已执行并返回结构化结果
