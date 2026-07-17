@@ -140,7 +140,7 @@ For each scenario in the test plan:
    - All elements used in the test case
    - Include name, locator, and type
 
-### Step 4: Validate Structure
+### Step 4: Validate Structure & De-duplicate
 
 Ensure each test case has:
 - ✅ Unique name
@@ -149,6 +149,53 @@ Ensure each test case has:
 - ✅ At least one verification point
 - ✅ All locators are valid Playwright API format
 - ✅ Prerequisites are listed
+
+**⚠️ CRITICAL: 用例去重检查（MANDATORY）**
+
+在保存之前，对生成的每个用例逐一比较：
+
+1. **提取步骤指纹**：对每个用例，提取 `steps` 数组中的 `action` 序列和 `locator` 序列（忽略 `data` 字段的值）
+2. **提取验证指纹**：对每个用例，提取 `verification_points` 数组中的 `type` 和 `expected` 序列
+3. **判定重复**：
+   | 差异类型 | 是否算独立用例 |
+   |----------|:------------:|
+   | 仅输入数据不同（用户名/密码/数量） | ❌ → 合并为参数化 |
+   | 操作步骤不同（多一步/少一步/不同元素） | ✅ → 保留为独立 |
+   | 验证点不同（成功 vs 失败/错误提示） | ✅ → 保留为独立 |
+   | 预期结果不同（页面跳转 vs 错误消息） | ✅ → 保留为独立 |
+   | 仅 timeout/test 配置不同 | ❌ → 合并为参数化 |
+
+4. **合并重复用例**：
+   如果判定为重复，**不要**创建多个几乎相同的独立 test case。改为：
+   - 保留一个 test case，将其 `data` 字段扩展为 `data_variants` 数组；
+   - 在 `description` 中注明"参数化用例，覆盖 N 个变体"；
+   - 添加 `is_parameterized: true` 标记和 `parameter_description` 字段说明参数化维度。
+
+   **合并示例**：
+   ```json
+   // ❌ 错误：3 个重复用例，仅 username 不同
+   [
+     { "name": "标准用户登录", "steps": [...], "data": "standard_user" },
+     { "name": "问题用户登录", "steps": [...], "data": "problem_user" },
+     { "name": "性能用户登录", "steps": [...], "data": "performance_glitch_user" }
+   ]
+
+   // ✅ 正确：合并为 1 个参数化用例
+   [
+     {
+       "name": "正常用户登录 - 多账户验证",
+       "description": "验证不同类型的有效用户均可成功登录到商品页面（参数化：3 种账户类型）",
+       "is_parameterized": true,
+       "parameter_description": "username: standard_user / problem_user / performance_glitch_user",
+       "priority": "high",
+       "data_variants": ["standard_user", "problem_user", "performance_glitch_user"],
+       "steps": [...],
+       ...
+     }
+   ]
+   ```
+
+5. **如果去重后只有一个用例**：检查是否覆盖了正常流程即可，不要强行拆分。
 
 ### Step 5: Save Test Cases
 

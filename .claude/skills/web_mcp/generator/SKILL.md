@@ -70,6 +70,44 @@ Report missing locators so the plan can be regenerated.
 - Include prerequisite setup in `test.beforeEach()` when needed.
 - If MCP generator tools are available, use `generator_read_log` then `generator_write_test`.
 
+### 5.5. 生成后自检（MANDATORY — save 之前必须执行）
+
+⚠️ **在调用 `save_web_test_script` 之前，必须完成以下 5 项检查：**
+
+**检查 1: 定位器一致性**
+- 脚本中的每个定位器是否与 test plan 中记录的完全一致（逐字符匹配）？
+- 如果 plan 标注了 `**TestIdAttribute**: data-test`（非默认值），脚本顶部**必须**有：
+  ```typescript
+  test.use({ testIdAttribute: 'data-test' });
+  ```
+  如果缺失 → 在 `import` 语句之后、`test.describe` 之前补上。
+
+**检查 2: 结构完整性**
+- [ ] `import { test, expect } from '@playwright/test';` 存在
+- [ ] 每个 `test()` 内至少有一个 `expect` 断言（关键业务结果验证）
+- [ ] URL 与 test plan 中记录的一致，未被"猜测"或"修正"
+
+**检查 3: Strict Mode 无冲突**
+- [ ] 没有裸的 `getByRole('button')`（不带 `name` 过滤 → strict mode violation）
+- [ ] 没有模糊 CSS 选择器（如仅靠 class 名 `.btn-primary`）
+- [ ] 如有多个匹配风险，已加 `.first()` / `{ exact: true }` / `nth(0)`
+
+**检查 4: waitForLoadState 使用恰当**
+- [ ] 每个 `page.goto()` 后跟 `page.waitForLoadState('networkidle')`
+- [ ] 每次触发导航的点击后跟 `page.waitForLoadState('networkidle')`
+- [ ] 没有多余的中间步骤 `waitForLoadState`（纯填表/普通点击不需要）
+
+**检查 5: 语法自检**
+- [ ] 没有明显的 TypeScript 语法错误（不匹配的括号、引号、分号）
+- [ ] `test.describe` / `test` / `expect` 嵌套层次正确
+- [ ] 字符串内的引号已正确转义
+
+**⚠️ 如果任一检查不通过：**
+1. 用 `edit` / `write` 工具修改脚本
+2. 重新执行全部 5 项检查
+3. 全部通过后 → 才调用 `save_web_test_script`
+4. **禁止跳过检查直接 save**
+
 ### 6. Save to DB (MANDATORY)
 After writing the file, call `save_web_test_script` with `sub_function_id`, `script_content`,
 `script_language="typescript"`, `script_format="playwright"`, `project_identifier`.
