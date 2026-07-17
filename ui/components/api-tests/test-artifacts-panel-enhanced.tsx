@@ -47,6 +47,8 @@ interface TestArtifact {
   content_type: string;
   object_name: string;
   created_at: string;
+  /** 最后更新时间，保存新成果物时更新；用于判断数据是否被刷新过 */
+  updated_at?: string;
 }
 
 interface EnhancedTestArtifactsPanelProps {
@@ -549,7 +551,10 @@ export function EnhancedTestArtifactsPanel({
                         </p>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
                           <Clock className="h-3 w-3" />
-                          <span>{new Date(artifact.created_at).toLocaleString('zh-CN')}</span>
+                          <span>{new Date(artifact.updated_at || artifact.created_at).toLocaleString('zh-CN')}</span>
+                          {artifact.updated_at && (
+                            <span className="text-primary/70">(更新时间)</span>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
@@ -890,7 +895,9 @@ export function EnhancedTestArtifactsPanel({
                 </div>
                 <div className="flex items-center gap-1">
                   <Clock className="h-3 w-3" />
-                  <span>创建于 {new Date(editingArtifact.created_at).toLocaleString('zh-CN')}</span>
+                  <span>
+                    更新于 {new Date(editingArtifact.updated_at || editingArtifact.created_at).toLocaleString('zh-CN')}
+                  </span>
                 </div>
               </div>
               <div className="text-xs text-muted-foreground">

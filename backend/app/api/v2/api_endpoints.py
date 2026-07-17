@@ -615,6 +615,7 @@ async def get_endpoint_artifacts_api(
                 "content_type": attachment.content_type,
                 "object_name": attachment.object_name,
                 "created_at": attachment.created_at.isoformat() if attachment.created_at else None,
+                "updated_at": attachment.updated_at.isoformat() if attachment.updated_at else None,
             }
             print(f"[API Endpoints] Artifact: {artifact_data['type']} - {artifact_data['file_name']}")
             artifacts.append(artifact_data)
@@ -668,18 +669,28 @@ async def get_attachment_content_api(
 
     # 从 MinIO 下载文件
     try:
+        from fastapi.responses import JSONResponse
+
         content_bytes = MinIOClient.download_file(attachment.object_name)
         content = content_bytes.decode('utf-8')
 
-        return {
-            "success": True,
-            "attachment_id": str(attachment.id),
-            "type": attachment.entity_type.value,
-            "file_name": attachment.file_name,
-            "content": content,
-            "content_type": attachment.content_type,
-            "created_at": attachment.created_at.isoformat() if attachment.created_at else None,
-        }
+        return JSONResponse(
+            content={
+                "success": True,
+                "attachment_id": str(attachment.id),
+                "type": attachment.entity_type.value,
+                "file_name": attachment.file_name,
+                "content": content,
+                "content_type": attachment.content_type,
+                "created_at": attachment.created_at.isoformat() if attachment.created_at else None,
+                "updated_at": attachment.updated_at.isoformat() if attachment.updated_at else None,
+            },
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0",
+            },
+        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

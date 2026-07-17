@@ -40,6 +40,7 @@ interface TestArtifact {
   content_type: string;
   object_name: string;
   created_at: string;
+  updated_at?: string;
 }
 
 interface TestArtifactsPanelProps {
@@ -218,7 +219,7 @@ export function TestArtifactsPanel({
   // 对每个分组内的 artifacts 按创建时间降序排序
   Object.keys(groupedArtifacts).forEach(type => {
     groupedArtifacts[type].sort((a, b) =>
-      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime()
     );
   });
 
@@ -332,7 +333,7 @@ export function TestArtifactsPanel({
                       <span>{(artifact.file_size / 1024).toFixed(1)} KB</span>
                       <span>•</span>
                       <span>
-                        {new Date(artifact.created_at).toLocaleDateString()}
+                        {new Date(artifact.updated_at || artifact.created_at).toLocaleDateString()}
                       </span>
                     </div>
                   </div>

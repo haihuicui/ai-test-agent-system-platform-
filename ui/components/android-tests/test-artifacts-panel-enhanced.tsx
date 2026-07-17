@@ -42,6 +42,7 @@ interface TestArtifact {
   type: "plan" | "case" | "script" | "report";
   status: "pending" | "generating" | "completed" | "failed";
   created_at: string;
+  updated_at?: string;
   content?: string;
   file_path?: string;
 }

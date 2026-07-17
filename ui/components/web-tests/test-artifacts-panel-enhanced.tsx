@@ -47,6 +47,7 @@ interface TestArtifact {
   content_type: string;
   object_name: string;
   created_at: string;
+  updated_at?: string;
 }
 // FIXME  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2YkRWb1VnPT06MjEwYTVlODQ=
 
@@ -478,7 +479,7 @@ export function EnhancedTestArtifactsPanel({
   Object.keys(groupedArtifacts).forEach((type) => {
     groupedArtifacts[type].sort(
       (a, b) =>
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime()
     );
   });
 
@@ -634,7 +635,7 @@ export function EnhancedTestArtifactsPanel({
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
                           <Clock className="h-3 w-3" />
                           <span>
-                            {new Date(artifact.created_at).toLocaleString("zh-CN")}
+                            {new Date(artifact.updated_at || artifact.created_at).toLocaleString("zh-CN")}
                           </span>
                         </div>
                       </div>
@@ -1027,7 +1028,7 @@ export function EnhancedTestArtifactsPanel({
                   <Clock className="h-3 w-3" />
                   <span>
                     创建于{" "}
-                    {new Date(editingArtifact.created_at).toLocaleString("zh-CN")}
+                    {new Date(editingArtifact.updated_at || editingArtifact.created_at).toLocaleString("zh-CN")}
                   </span>
                 </div>
               </div>
