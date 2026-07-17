@@ -13,11 +13,16 @@ description: API 场景测试专家 - 编排多接口业务流测试，实现端
 
 **一次对话最终只保留一个测试场景。**
 
-在同一次 AI 对话中，无论调用多少次 `create_test_scenario`，系统都会自动用最新创建的场景覆盖之前的旧场景。因此：
+在同一次 AI 对话中，无论调用多少次 `create_test_scenario`，系统都会**先删除该对话下的旧场景再创建新场景**（`create_test_scenario` 的返回值会包含 `replaced` 字段告知被覆盖的场景）。
 
-- 你应该围绕一个核心业务流程完成步骤编排、数据依赖、断言配置。
-- **场景创建完成后必须立即执行，并根据结果自动修复，确保最终场景可运行。**
-- 如果第一次生成的场景有错误，可以在同一次对话中直接重新生成或修复，系统会替换旧场景。
+**⚠️ 关键限制：**
+- **永远不要在已有可修复场景的情况下调用 `create_test_scenario`！** 这会导致已配置的步骤、提取器、断言全部丢失。
+- 修复优于重建：
+  - step_order 顺序错了 → 用 `update_scenario_step` 逐个修正
+  - 场景少了步骤 → 用 `add_scenario_step` 追加
+  - 断言不完整 → 用 `add_step_assertion` 补充，或用 `update_scenario_step` 一次性设置完整的 assertions 列表
+  - 只有当场景彻底损坏（如步骤关联的 endpoint 全错了、场景被意外清空）才重建
+- 使用 `create_test_scenario` 前，先检查返回值的 `replaced` 字段，确认没有意外覆盖其他场景。
 - 如需同时保留多个场景，必须得到用户明确授权，并且建议开启新的 AI 对话。
 
 ### 1. 理解业务需求
@@ -733,6 +738,31 @@ if (result.data.status !== "completed" || result.data.failed_steps > 0) {
   - 缺少必填参数不能改成 `toBe(200)`
   - 只能调整因业务语义变化导致的非核心断言
 - **说明失败**：如果多次修复仍失败，向用户清楚说明失败原因和已尝试的修复。
+
+### 自动修复熔断规则（新增）
+
+**同一类操作连续失败 3 次后，必须切换策略，禁止继续重试：**
+
+| 失败模式 | 第 4 次起的替代策略 |
+|----------|---------------------|
+| `add_step_assertion` 返回 success 但 `get_scenario_details` 显示断言未持久化 | 1. 使用 `update_scenario_step` 一次性设置完整的 `assertions` 列表（包含 status + jsonpath）。2. 若仍无效，报告后端 JSONB 持久化 bug，设 `skip_assertion_gate=true` 尝试执行。 |
+| `execute_scenario` 被质量门禁拦截（缺少 jsonpath 断言） | 检查是否后端持久化 bug 导致无法保存断言。如果是，用 `skip_assertion_gate=true` 绕过门禁执行。不要反复调用 `add_step_assertion` 重试。 |
+| 所有步骤的 `step_order` 相同 | 使用 `update_scenario_step` 逐个修正为 1, 2, 3...。不要重建场景。 |
+| `add_scenario_step` 报错 | 检查 `scenario_id` 是否有效（场景是否被覆盖删除了），检查 `endpoint_id` 是否正确。 |
+
+**判断系统级 bug 的信号：**
+- 同一操作返回 `"success": true` 但 `get_scenario_details` 显示数据未变更
+- 该问题影响多个步骤（不仅是某个特定步骤）
+- 子代理/其他会话也复现相同问题
+→ 此时应立即停止重试，向用户报告 bug 并使用降级方案（如 `skip_assertion_gate` 或 `update_scenario_step` 一次性设置）。
+
+### 禁止回退到 Playwright/curl（新增）
+
+**严禁用 Playwright 测试脚本替代场景框架执行。** 如果场景框架本身存在 bug 导致场景无法通过 `execute_scenario` 执行：
+1. 明确告知用户「场景配置已完成，但后端存在 bug（具体描述），导致暂时无法通过场景框架执行」
+2. 保留场景配置不动，方便 bug 修复后直接执行
+3. 使用 `skip_assertion_gate=true` 等降级参数尝试绕过
+4. **不要创建 Playwright 脚本作为替代方案** — 这会让用户误以为场景已完成，且丧失了场景框架的编排/依赖管理/报告能力
 
 ## 调试和问题排查
 

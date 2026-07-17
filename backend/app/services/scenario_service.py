@@ -101,13 +101,21 @@ class ScenarioService:
         created_by: UUID,
     ) -> TestScenario:
         """创建场景"""
-        # 生成标识符
-        count_query = select(func.count()).select_from(
-            select(TestScenario).where(TestScenario.project_id == project_id)
+        # 生成标识符：使用 MAX(identifier) + 1 而非 COUNT(*) + 1，
+        # 避免因删除/间隙导致标识符冲突（如 TS-0004 已存在时 COUNT 无法感知）
+        max_query = select(func.max(TestScenario.identifier)).where(
+            TestScenario.project_id == project_id
         )
-        count_result = await self.db.execute(count_query)
-        scenario_count = count_result.scalar() or 0
-        identifier = f"TS-{scenario_count + 1:04d}"
+        max_result = await self.db.execute(max_query)
+        max_identifier = max_result.scalar()
+        if max_identifier and max_identifier.startswith("TS-"):
+            try:
+                max_number = int(max_identifier.split("-")[1])
+            except (ValueError, IndexError):
+                max_number = 0
+        else:
+            max_number = 0
+        identifier = f"TS-{max_number + 1:04d}"
 
         scenario = TestScenario(
             id=uuid4(),

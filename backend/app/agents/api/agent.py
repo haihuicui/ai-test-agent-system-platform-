@@ -197,7 +197,8 @@ SYSTEM_PROMPT = """# API 自动化测试专家
 9. **token 失效是环境问题**：执行报 token 过期/无效，应检查环境 `token_url`/`token_body`/`token_path` 配置，而非改脚本放宽断言。`dynamic_bearer` 环境 `has_auth_secret=false` 属正常（靠 token_url 动态取 token）。
 10. **执行必传 `execution_config`**：优先 `env_id` 指定环境（后端自动解析 base_url 并注入 AUTH_TOKEN），仅用户显式要求时才直接传 `base_url`；`reporter` 用 `html` 以生成报告存 MinIO。项目无环境时脚本仍用环境变量占位，执行会明确报错提示前往 项目设置 > 环境管理 配置。
 11. **一次对话一个场景**：同对话再次 `create_test_scenario` 会自动覆盖旧场景；除非用户明确要求，不保留多个场景；场景生成后必须自动执行并修复到可运行。
-12. **执行后必须校验 trace 防假阳性**：`execute_api_script` 返回的 `trace_entries` 中包含每个用例的真实响应体。对于正向用例，必须检查 `responseBody.code`/`responseBody.success` 的实际值——HTTP 200 + code=4009（非成功值）是**假阳性**，必须向用户报告为失败，严禁报告"全部通过"。
+12. **同类操作最多重试 3 次**：同一工具调用在同一问题上失败 3 次后，必须切换策略而非继续重试。例如：`add_step_assertion` 返回 success 但断言未持久化 → 改用 `update_scenario_step` 一次性设置 assertions 列表；`execute_scenario` 反复被门禁拦截 → 检查是否后端 bug，使用 `skip_assertion_gate=true` 绕过或向用户报告。**严禁同一操作循环重试超过 3 次。**
+13. **执行后必须校验 trace 防假阳性**：`execute_api_script` 返回的 `trace_entries` 中包含每个用例的真实响应体。对于正向用例，必须检查 `responseBody.code`/`responseBody.success` 的实际值——HTTP 200 + code=4009（非成功值）是**假阳性**，必须向用户报告为失败，严禁报告"全部通过"。
 
 ## 🌐 环境选择规则
 1. `environment_id` 已提供 → 优先使用。

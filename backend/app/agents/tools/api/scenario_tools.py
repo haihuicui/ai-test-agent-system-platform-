@@ -74,6 +74,57 @@ def _clear_conversation_scenario_id(conversation_id: str | None, project_id: UUI
     _scenario_conversation_cache.pop(_cache_key(conversation_id, project_id), None)
 
 
+def _build_scenario_warnings(steps_data: list[dict]) -> list[dict]:
+    """分析场景步骤配置，生成诊断警告列表。
+
+    检测以下问题：
+    - 步骤未配置任何断言
+    - 步骤只有 status 断言，缺少 jsonpath/header 业务断言
+    - 所有步骤 step_order 相同（可能的排序 bug）
+    """
+    warnings: list[dict] = []
+    step_orders: set[int] = set()
+
+    for step in steps_data:
+        step_orders.add(step.get("step_order", 0))
+        assertions = step.get("assertions") or []
+
+        if not assertions:
+            warnings.append({
+                "step_order": step["step_order"],
+                "step_name": step["name"],
+                "severity": "error",
+                "issue": "未配置任何断言",
+                "fix": "使用 add_step_assertion 为步骤添加 status + jsonpath 断言",
+            })
+            continue
+
+        has_non_status = any(
+            a.get("type") in ("jsonpath", "header") for a in assertions
+        )
+        if not has_non_status:
+            warnings.append({
+                "step_order": step["step_order"],
+                "step_name": step["name"],
+                "severity": "warning",
+                "issue": "只有 status 断言，缺少 jsonpath/header 业务断言",
+                "fix": "使用 add_step_assertion 添加 jsonpath 断言（如 $.code = \"2000\"）",
+            })
+
+    # 检测所有步骤 step_order 相同的异常情况
+    if len(steps_data) >= 2 and len(step_orders) == 1:
+        warnings.append({
+            "step_order": "all",
+            "step_name": "全部步骤",
+            "severity": "critical",
+            "issue": f"所有 {len(steps_data)} 个步骤的 step_order 都为 {list(step_orders)[0]}，"
+                     f"场景将按数据库插入顺序而非业务顺序执行",
+            "fix": "使用 update_scenario_step 逐个修正 step_order 为 1, 2, 3...",
+        })
+
+    return warnings
+
+
 def _get_current_conversation_id(config: RunnableConfig | None) -> str | None:
     """
     获取当前 AI 会话 ID。
@@ -92,24 +143,35 @@ async def _replace_conversation_scenario(
     session: AsyncSession,
     conversation_id: str | None,
     project_id: UUID,
-) -> None:
+) -> dict | None:
     """
     删除当前 conversation + project 下已创建的场景，以便重新生成。
 
     通过级联删除清理关联的步骤、变量、执行记录等。
+
+    Returns:
+        被删除的场景信息（identifier, name），若无需删除则返回 None。
     """
     if not conversation_id:
-        return
+        return None
 
     existing_id = _get_conversation_scenario_id(conversation_id, project_id)
     if not existing_id:
-        return
+        return None
 
     scenario = await session.get(TestScenario, existing_id)
     if scenario:
+        replaced_info = {
+            "identifier": scenario.identifier,
+            "name": scenario.name,
+        }
         await session.delete(scenario)
         await session.commit()
+        _clear_conversation_scenario_id(conversation_id, project_id)
+        return replaced_info
+
     _clear_conversation_scenario_id(conversation_id, project_id)
+    return None
 
 
 @tool
@@ -166,7 +228,7 @@ async def create_test_scenario(
                 }, ensure_ascii=False, indent=2)
 
             # 2. 同一次对话（conversation）内如果已创建过场景，先删除旧场景以便重新生成
-            await _replace_conversation_scenario(session, conversation_id, project.id)
+            replaced_info = await _replace_conversation_scenario(session, conversation_id, project.id)
 
             # 2.1 检测同 project 下同名场景（跨对话去重提示，避免列表被同名场景刷屏）
             # 不强制阻断创建——用户可能确实需要多版本；但通过 warning 告知 AI，
@@ -188,15 +250,22 @@ async def create_test_scenario(
                 )
 
             # 3. 生成场景标识符
-            # 查询当前项目的场景数量
-            count_stmt = select(TestScenario).where(
+            # 使用 MAX(identifier) + 1 而非 COUNT(*) + 1，避免因删除/间隙导致
+            # 标识符冲突（如 TS-0004 已存在时 COUNT 无法感知而反复失败）
+            from sqlalchemy import func
+            max_stmt = select(func.max(TestScenario.identifier)).where(
                 TestScenario.project_id == project.id
             )
-            count_result = await session.execute(count_stmt)
-            scenario_count = len(count_result.scalars().all())
-# fmt: off  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2VDJWMVlRPT06MTVjYjUwZTk=
-            
-            identifier = f"TS-{scenario_count + 1:04d}"
+            max_result = await session.execute(max_stmt)
+            max_identifier = max_result.scalar()
+            if max_identifier and max_identifier.startswith("TS-"):
+                try:
+                    max_number = int(max_identifier.split("-")[1])
+                except (ValueError, IndexError):
+                    max_number = 0
+            else:
+                max_number = 0
+            identifier = f"TS-{max_number + 1:04d}"
 
             # 4. 创建场景
             scenario = TestScenario(
@@ -227,6 +296,17 @@ async def create_test_scenario(
                     "total_steps": 0,
                 }
             }
+            # 如果覆盖了对话内的旧场景，明确告知 AI
+            if replaced_info:
+                response_data["replaced"] = {
+                    "identifier": replaced_info["identifier"],
+                    "name": replaced_info["name"],
+                    "note": (
+                        f"已删除本对话内之前创建的场景 {replaced_info['identifier']} "
+                        f"({replaced_info['name']})，新场景 {identifier} 将替换它。"
+                        f"如需修复而非重建，请使用 update_test_scenario / update_scenario_step。"
+                    ),
+                }
             if same_name_warning:
                 response_data["warning"] = same_name_warning
 
@@ -566,11 +646,13 @@ async def update_scenario_step(
     headers_override: dict | None = None,
     continue_on_failure: bool | None = None,
     delay_ms: int | None = None,
+    assertions: list[dict] | None = None,
+    extractors: list[dict] | None = None,
 ) -> str:
     """
     更新测试场景步骤的配置
 
-    可以修改步骤的名称、描述、请求参数、请求头等配置。
+    可以修改步骤的名称、描述、请求参数、请求头、断言、提取器等配置。
 
     Args:
         step_id: 步骤 ID
@@ -580,6 +662,11 @@ async def update_scenario_step(
         headers_override: 新的请求头覆盖（可选）
         continue_on_failure: 失败后是否继续执行（可选）
         delay_ms: 执行延迟（毫秒，可选）
+        assertions: 完整的断言列表（可选），会替换现有所有断言。
+            每个断言格式: {"type": "jsonpath", "path": "$.code", "expected": "2000", "operator": "eq"}
+            当 add_step_assertion 持久化异常时，可用此参数一次性设置。
+        extractors: 完整的提取器列表（可选），会替换现有所有提取器。
+            每个提取器格式: {"name": "siteId", "path": "$.data.id", "type": "jsonpath"}
 
     Returns:
         JSON 格式的更新结果
@@ -589,7 +676,11 @@ async def update_scenario_step(
         ...     step_id="uuid-xxx",
         ...     name="更新后的步骤名称",
         ...     request_override={"body": {"new_param": "value"}},
-        ...     continue_on_failure=True
+        ...     continue_on_failure=True,
+        ...     assertions=[
+        ...         {"type": "status", "expected": 200, "operator": "eq"},
+        ...         {"type": "jsonpath", "path": "$.code", "expected": "2000", "operator": "eq"},
+        ...     ]
         ... )
     """
     async with async_session_factory() as session:
@@ -635,6 +726,14 @@ async def update_scenario_step(
                 step.delay_ms = delay_ms
                 updated_fields.append("delay_ms")
 
+            if assertions is not None:
+                step.assertions = assertions
+                updated_fields.append("assertions")
+
+            if extractors is not None:
+                step.extractors = extractors
+                updated_fields.append("extractors")
+
             step.updated_at = datetime.now(timezone.utc)
 
             await session.commit()
@@ -665,6 +764,8 @@ async def update_scenario_step(
                     } if endpoint else None,
                     "continue_on_failure": step.continue_on_failure,
                     "delay_ms": step.delay_ms,
+                    "assertions": step.assertions,
+                    "extractors": step.extractors,
                     "updated_fields": updated_fields,
                 }
             }, ensure_ascii=False, indent=2)
@@ -835,7 +936,7 @@ async def add_step_extractor(
                     "error": f"步骤 {step_id} 不存在"
                 }, ensure_ascii=False, indent=2)
 
-            # 2. 添加提取器到步骤的 extractors 列表
+            # 2. 添加提取器到步骤的 extractors 列表（按 name 去重）
             extractor = {
                 "name": name,
                 "path": path,
@@ -843,26 +944,67 @@ async def add_step_extractor(
             }
 
             extractors = step.extractors or []
-            extractors.append(extractor)
-            step.extractors = extractors
-            step.updated_at = datetime.now(timezone.utc)
+            # 按 name 去重：已存在同名提取器则更新，否则追加
+            updated_existing = False
+            for i, e in enumerate(extractors):
+                if e.get("name") == name:
+                    extractors[i] = extractor
+                    updated_existing = True
+                    break
 
+            if updated_existing:
+                action = "更新"
+            else:
+                extractors.append(extractor)
+                action = "添加"
+
+            # 使用原子 UPDATE 而非 ORM change-tracking，避免 JSONB 变异追踪问题
+            from sqlalchemy import update as sa_update
+            await session.execute(
+                sa_update(ScenarioStep)
+                .where(ScenarioStep.id == step.id)
+                .values(extractors=extractors, updated_at=datetime.now(timezone.utc))
+            )
             await session.commit()
 
-            return json.dumps({
+            # ---- 提交后验证：重新查询数据库确认提取器是否真的持久化 ----
+            verify_stmt = select(ScenarioStep).where(ScenarioStep.id == step.id)
+            verify_result = await session.execute(verify_stmt)
+            verified_step = verify_result.scalar_one_or_none()
+            persisted_extractors = verified_step.extractors if verified_step else None
+            actually_persisted = (
+                persisted_extractors is not None
+                and len(persisted_extractors) == len(extractors)
+            )
+
+            response_data = {
                 "success": True,
-                "message": f"成功添加数据提取器: {name} = {path}",
+                "message": f"成功{action}数据提取器: {name} = {path}",
                 "data": {
+                    "action": action,
                     "extractor": extractor,
                     "total_extractors": len(extractors),
+                    "verified": actually_persisted,
                 }
-            }, ensure_ascii=False, indent=2)
+            }
+
+            if not actually_persisted:
+                response_data["warning"] = (
+                    f"提取器已写入但提交后验证失败：期望 {len(extractors)} 条提取器，"
+                    f"数据库中实际为 {len(persisted_extractors or [])} 条。"
+                    f"这可能是 JSONB 持久化 bug，"
+                    f"建议改用 update_scenario_step 一次性设置完整的 extractors 列表。"
+                )
+
+            return json.dumps(response_data, ensure_ascii=False, indent=2)
 
         except Exception as e:
             await session.rollback()
+            import traceback
             return json.dumps({
                 "success": False,
-                "error": f"添加提取器失败: {str(e)}"
+                "error": f"添加提取器失败: {str(e)}",
+                "stack_trace": traceback.format_exc(),
             }, ensure_ascii=False, indent=2)
 
 
@@ -922,7 +1064,7 @@ async def add_step_assertion(
                     "error": f"步骤 {step_id} 不存在"
                 }, ensure_ascii=False, indent=2)
 
-            # 2. 添加断言到步骤的 assertions 列表
+            # 2. 添加断言到步骤的 assertions 列表（按 type+path 去重）
             assertion = {
                 "type": assertion_type,
                 "expected": expected,
@@ -932,27 +1074,70 @@ async def add_step_assertion(
             if path:
                 assertion["path"] = path
 
-            assertions = step.assertions or []
-            assertions.append(assertion)
-            step.assertions = assertions
-            step.updated_at = datetime.now(timezone.utc)
+            assertions: list[dict] = step.assertions or []
+            # 按 (type, path) 去重：已存在同类型同路径的断言则更新，否则追加
+            dedup_key = (assertion_type, path)
+            updated_existing = False
+            for i, a in enumerate(assertions):
+                if (a.get("type"), a.get("path")) == dedup_key:
+                    assertions[i] = assertion
+                    updated_existing = True
+                    break
 
+            if updated_existing:
+                action = "更新"
+            else:
+                assertions.append(assertion)
+                action = "添加"
+
+            # 使用原子 UPDATE 而非 ORM change-tracking，避免 JSONB 变异追踪问题
+            # 以及并发场景下潜在的丢失更新（Lost Update）
+            from sqlalchemy import update as sa_update
+            await session.execute(
+                sa_update(ScenarioStep)
+                .where(ScenarioStep.id == step.id)
+                .values(assertions=assertions, updated_at=datetime.now(timezone.utc))
+            )
             await session.commit()
 
-            return json.dumps({
+            # ---- 提交后验证：重新查询数据库确认断言是否真的持久化 ----
+            verify_stmt = select(ScenarioStep).where(ScenarioStep.id == step.id)
+            verify_result = await session.execute(verify_stmt)
+            verified_step = verify_result.scalar_one_or_none()
+            persisted_assertions = verified_step.assertions if verified_step else None
+            actually_persisted = (
+                persisted_assertions is not None
+                and len(persisted_assertions) == len(assertions)
+            )
+
+            response_data: dict = {
                 "success": True,
-                "message": f"成功添加断言: {assertion_type}",
+                "message": f"成功{action}断言: {assertion_type}",
                 "data": {
+                    "action": action,
                     "assertion": assertion,
                     "total_assertions": len(assertions),
+                    "verified": actually_persisted,
                 }
-            }, ensure_ascii=False, indent=2)
+            }
+
+            if not actually_persisted:
+                response_data["warning"] = (
+                    f"断言已写入但提交后验证失败：期望 {len(assertions)} 条断言，"
+                    f"数据库中实际为 {len(persisted_assertions or [])} 条。"
+                    f"这可能是 JSONB 持久化 bug，"
+                    f"建议改用 update_scenario_step 一次性设置完整的 assertions 列表。"
+                )
+
+            return json.dumps(response_data, ensure_ascii=False, indent=2)
 
         except Exception as e:
             await session.rollback()
+            import traceback
             return json.dumps({
                 "success": False,
-                "error": f"添加断言失败: {str(e)}"
+                "error": f"添加断言失败: {str(e)}",
+                "stack_trace": traceback.format_exc(),
             }, ensure_ascii=False, indent=2)
 
 
@@ -1049,6 +1234,7 @@ async def get_scenario_details(scenario_id: str) -> str:
                     "total_steps": scenario.total_steps,
                     "steps": steps_data,
                     "global_variables": scenario.global_variables,
+                    "warnings": _build_scenario_warnings(steps_data),
                 }
             }, ensure_ascii=False, indent=2)
 
@@ -1143,6 +1329,7 @@ async def execute_scenario(
     variables: dict | None = None,
     base_url: str = "",
     debug: bool = False,
+    skip_assertion_gate: bool = False,
 ) -> str:
     """
     执行测试场景
@@ -1154,6 +1341,9 @@ async def execute_scenario(
         variables: 运行时变量（可选，如 {"username": "test", "password": "123456"}）
         base_url: API 基础 URL（可选，如 "https://api.example.com"）
         debug: 是否启用调试模式（可选，启用后会返回详细的请求/响应信息）
+        skip_assertion_gate: 是否跳过断言质量门禁（可选，默认 False）。
+            当断言持久化存在后端 bug 导致无法配置断言时，可设为 True 绕过门禁执行。
+            注意：跳过门禁后，步骤即使没有 jsonpath 断言也能执行，但步骤结果中不会有业务断言验证。
 
     Returns:
         JSON 格式的执行结果，包含每个步骤的详细执行信息
@@ -1171,39 +1361,46 @@ async def execute_scenario(
     async with async_session_factory() as session:
         try:
             # ---- 断言质量门禁：执行前校验每个步骤的断言配置 ----
-            steps_stmt = select(ScenarioStep).where(
-                ScenarioStep.scenario_id == UUID(scenario_id)
-            ).order_by(ScenarioStep.step_order)
-            steps_result = await session.execute(steps_stmt)
-            steps = steps_result.scalars().all()
+            if not skip_assertion_gate:
+                steps_stmt = select(ScenarioStep).where(
+                    ScenarioStep.scenario_id == UUID(scenario_id)
+                ).order_by(ScenarioStep.step_order)
+                steps_result = await session.execute(steps_stmt)
+                steps = steps_result.scalars().all()
 
-            invalid_steps: list[dict] = []
-            for step in steps:
-                assertions = step.assertions or []
-                if not assertions:
-                    invalid_steps.append({
-                        "step_order": step.step_order,
-                        "step_name": step.name,
-                        "issue": "未配置任何断言",
-                    })
-                    continue
-                has_non_status = any(
-                    a.get("type") in ("jsonpath", "header") for a in assertions
+                invalid_steps: list[dict] = []
+                for step in steps:
+                    assertions = step.assertions or []
+                    if not assertions:
+                        invalid_steps.append({
+                            "step_order": step.step_order,
+                            "step_name": step.name,
+                            "issue": "未配置任何断言",
+                        })
+                        continue
+                    has_non_status = any(
+                        a.get("type") in ("jsonpath", "header") for a in assertions
+                    )
+                    if not has_non_status:
+                        invalid_steps.append({
+                            "step_order": step.step_order,
+                            "step_name": step.name,
+                            "issue": "只有 status 断言，缺少 jsonpath/header 业务断言",
+                        })
+
+                if invalid_steps:
+                    return json.dumps({
+                        "success": False,
+                        "error": "场景断言质量门禁未通过：每个步骤必须至少包含 1 个非 status 断言（jsonpath/header）",
+                        "invalid_steps": invalid_steps,
+                        "hint": "请使用 add_step_assertion 为缺失步骤补充 jsonpath 或 header 断言后重试执行。"
+                                "如果断言持久化存在后端 bug，可设置 skip_assertion_gate=true 跳过门禁。",
+                    }, ensure_ascii=False, indent=2)
+            else:
+                import logging
+                logging.getLogger(__name__).warning(
+                    "跳过断言质量门禁（skip_assertion_gate=true），步骤可能缺少业务断言"
                 )
-                if not has_non_status:
-                    invalid_steps.append({
-                        "step_order": step.step_order,
-                        "step_name": step.name,
-                        "issue": "只有 status 断言，缺少 jsonpath/header 业务断言",
-                    })
-
-            if invalid_steps:
-                return json.dumps({
-                    "success": False,
-                    "error": "场景断言质量门禁未通过：每个步骤必须至少包含 1 个非 status 断言（jsonpath/header）",
-                    "invalid_steps": invalid_steps,
-                    "hint": "请使用 add_step_assertion 为缺失步骤补充 jsonpath 或 header 断言后重试执行。",
-                }, ensure_ascii=False, indent=2)
 
             # 创建执行引擎
             engine = ScenarioExecutionEngine(session)
