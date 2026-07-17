@@ -128,8 +128,9 @@ execute_web_script(
 # 失败用例(status=unexpected/failed/timedOut) → 交 healer 用 test_debug + browser_* 诊断
 
 # 3. ⚠️ CRITICAL: 生成并输出执行报告（MANDATORY — 不可跳过）
-# execute_web_script 已自动保存 HTML 报告到 MinIO，但 AI **必须**基于 execution_result
-# 生成一份人类可读的 Markdown 执行摘要并输出给用户。这是执行流程的最终交付物。
+# execute_web_script 已自动生成 HTML 报告并保存到 MinIO（返回 report_url），
+# 但 AI **必须**基于 execution_result 再生成一份 Markdown 执行摘要，
+# 输出给用户 **并持久化保存**。这是执行流程的最终交付物。
 # 格式要求见下方 "3. Generate Execution Report (MANDATORY)" 章节。
 # ⚠️ 如果 healer 修复了任何用例，修复后必须重新执行并重新生成完整报告。
 ```
@@ -194,17 +195,50 @@ execute_web_script(
 - 报告 URL（`execute_web_script` 返回的 `report_url`）**必须**明确告知用户
 - 如果有失败用例且已交 healer 修复，报告末尾应注明修复状态
 
-#### Step 3.4: 流程闭环检查
+#### Step 3.4: 持久化 Markdown 报告（MANDATORY）
 
-- [ ] `execute_web_script` 已执行并返回结构化结果
-- [ ] `execution_result.stats` 数据已读取
-- [ ] Markdown 报告已生成并输出给用户
-- [ ] `report_url`（MinIO HTML 报告链接）已告知用户
+⚠️ **Markdown 执行摘要不能只存在于对话中——必须持久化保存。**
+
+报告保存有两个层面，缺一不可：
+
+| 报告类型 | 格式 | 保存方式 | 机制 |
+|----------|------|----------|------|
+| **HTML 报告** | 交互式 HTML | MinIO | `execute_web_script` **自动完成**，返回 `report_url` |
+| **执行摘要** | Markdown | DB + MinIO | AI **必须手动调用**保存工具 |
+
+对 Markdown 执行摘要的保存：
+
+1. **优先使用专用工具**：如果可用，调用 `save_web_test_report` 或等效的持久化工具：
+   ```
+   save_web_test_report(
+     sub_function_id="...",
+     report_content="<生成的 Markdown 摘要>",
+     execution_result={...}  // 结构化数据一并保存
+   )
+   ```
+
+2. **如果专用工具不可用**：将 Markdown 摘要写入本地文件，并用已有的持久化工具链保存
+   （如通过 `save_web_test_script` 的关联参数或其他可用入口）
+
+3. **如果无任何保存工具可用**：在输出报告时明确告知用户：
+   > ⚠️ Markdown 执行摘要仅存在于本次对话中。HTML 报告已保存到 MinIO：{report_url}
+
+4. **流程闭环检查：**
+   - [ ] `execute_web_script` 已执行并返回结构化结果
+   - [ ] `execution_result.stats` 数据已读取
+   - [ ] Markdown 报告已生成并输出给用户
+   - [ ] Markdown 报告已持久化保存（或已明确告知用户未保存）
+   - [ ] `report_url`（MinIO HTML 报告链接）已告知用户
+
+#### Step 3.5: 最终检查
+
+- [ ] HTML 报告：`execute_web_script` 已自动保存到 MinIO（`report_url` 已返回）
+- [ ] Markdown 摘要：已生成、已输出、已持久化（或已明确告知用户保存状态）
 - [ ] 失败用例已记录或交 healer（如适用）
-- [ ] 修复后的重新执行结果也生成了同样的报告
+- [ ] 修复后的重新执行结果也走完了同样的报告流程
 
 > **高级报告需求**：如需生成带图表、趋势分析、多维度可视化的报告，可调用 `reporter` skill。
-> 但 **Markdown 执行摘要是必须生成的底线**——不能因为没有 reporter 而跳过基本报告。
+> 但 **Markdown 执行摘要 + HTML 报告双保存是必须完成的底线**——不能因为没有 reporter 而跳过。
 
 ### Debugging Failed Tests
 
