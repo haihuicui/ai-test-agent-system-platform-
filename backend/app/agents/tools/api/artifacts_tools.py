@@ -17,7 +17,7 @@ from pathlib import Path
 
 from langchain_core.tools import tool
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.attachment import Attachment, AttachmentEntityType
@@ -94,6 +94,13 @@ def _resolve_workspace_path(file_path: str) -> Path:
     """
     解析文件路径，支持 MCP workspace 中的相对路径
 
+    解析优先级（从高到低）：
+    1. 绝对路径 → 直接返回
+    2. workspace 目录 → agent 用 write_file 写到这里，优先匹配
+    3. 当前工作目录 → 向后兼容
+    4. MCP 输出目录 → 兼容 MCP 工具
+    5. workspace 目录（fallback，即使文件不存在也返回此路径）
+
     Args:
         file_path: 文件路径（可以是绝对路径或相对路径）
 
@@ -104,7 +111,6 @@ def _resolve_workspace_path(file_path: str) -> Path:
 
     # 获取 API workspace 根目录
     workspace_root = Path(settings.api_workspace_root).resolve()
-# pragma: no cover  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2WVRoRGJRPT06NzFmNDAzOWI=
 
     # 在 Windows 上，以 / 开头的路径不是真正的绝对路径（没有盘符）
     # 应该被当作相对路径处理，避免解析到 C:\
@@ -119,14 +125,14 @@ def _resolve_workspace_path(file_path: str) -> Path:
     if path.is_absolute():
         return path
 
-    # 检查文件是否在当前工作目录存在
-    if path.exists():
-        return path.resolve()
-
-    # 尝试在 workspace 目录中查找
+    # 优先在 workspace 目录中查找（agent 通过 write_file 写入的首选位置）
     workspace_path = workspace_root / path
     if workspace_path.exists():
         return workspace_path
+
+    # 其次检查当前工作目录（向后兼容）
+    if path.exists():
+        return path.resolve()
 
     # 尝试在 MCP 输出目录中查找（MCP 工具可能使用环境变量指定的目录）
     mcp_output_root = os.environ.get('API_WORKSPACE_ROOT')
@@ -142,11 +148,11 @@ def _resolve_workspace_path(file_path: str) -> Path:
 @tool
 async def save_test_plan(
     endpoint_id: str,
+    project_identifier: str,
     plan_path: Optional[str] = None,
     test_plan: Optional[dict] = None,
     plan_content: Optional[str] = None,
     plan_format: str = "markdown",
-    project_identifier: str = ""
 ) -> dict:
     """
     保存 API 端点的测试计划到 MinIO
@@ -294,6 +300,15 @@ async def save_test_plan(
         await session.commit()
         await session.refresh(attachment)
 
+        # 清理同类型旧附件：同一端点只保留最新一份计划附件
+        delete_stmt = delete(Attachment).where(
+            Attachment.entity_id == endpoint_uuid,
+            Attachment.entity_type == AttachmentEntityType.API_TEST_PLAN,
+            Attachment.id != attachment.id,
+        )
+        await session.execute(delete_stmt)
+        await session.commit()
+
         return {
             "success": True,
             "attachment_id": str(attachment.id),
@@ -398,12 +413,21 @@ async def save_test_cases(
 
         # 更新端点的测试用例统计。
         # 每个端点只有一份 test-cases.json 产物，每次保存都是整体替换，
-        # 因此用例总数必须“赋值”而非“累加”，否则重新生成会导致计数翻倍。
+        # 因此用例总数必须"赋值"而非"累加"，否则重新生成会导致计数翻倍。
         endpoint.total_test_cases = len(test_cases)
         endpoint.updated_at = datetime.now(timezone.utc)
 
         await session.commit()
         await session.refresh(attachment)
+
+        # 清理同类型旧附件：同一端点只保留最新一份用例附件
+        delete_stmt = delete(Attachment).where(
+            Attachment.entity_id == endpoint_uuid,
+            Attachment.entity_type == AttachmentEntityType.API_TEST_CASE,
+            Attachment.id != attachment.id,
+        )
+        await session.execute(delete_stmt)
+        await session.commit()
 
         return {
             "success": True,
@@ -423,11 +447,11 @@ async def save_test_cases(
 @tool
 async def save_test_script(
     endpoint_id: str,
+    project_identifier: str,
     script_path: Optional[str] = None,
     script_content: Optional[str] = None,
     script_language: str = "typescript",
     script_format: str = "playwright",
-    project_identifier: str = "",
 ) -> dict:
     """
     保存 API 端点的测试脚本到 MinIO
@@ -618,6 +642,15 @@ async def save_test_script(
 
         await session.commit()
         await session.refresh(attachment)
+
+        # 清理同类型旧附件：同一端点只保留最新一份脚本附件
+        delete_stmt = delete(Attachment).where(
+            Attachment.entity_id == endpoint_uuid,
+            Attachment.entity_type == AttachmentEntityType.API_TEST_SCRIPT,
+            Attachment.id != attachment.id,
+        )
+        await session.execute(delete_stmt)
+        await session.commit()
 
         return {
             "success": True,

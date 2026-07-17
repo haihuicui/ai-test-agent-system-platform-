@@ -87,10 +87,24 @@ const testPlan = planResult.content
    // 字段类型（动态值只断言类型，不断言具体值）
    expect(typeof body.data.id).toBe('string');
 
-   // 业务状态字段：仅当接口文档定义了 success/code 时才断言，且必须直接断言。
-   // ❌ 禁止 if (body.success !== undefined) expect(...) 这种"条件断言"——字段缺失时会跳过，等于没测。
-   expect(body.success).toBe(true); // 以文档为准；字段不存在时此处失败，正是期望
-   expect(body.code).toBe(0);
+   // ⚠️ 业务状态码断言（正向用例最重要的断言，硬性强制）
+   //
+   // 正向用例必须断言业务成功码的**值**（不是存在性、不是类型），这是区分"真正成功"和
+   // "HTTP 200 + 业务错误码=4009"假阳性的唯一防线。
+   //
+   // 如果 OpenAPI 文档没有明确定义成功值，按以下优先级推断：
+   //   1. responses schema 中 code/success 的 enum/example/default → 取成功值
+   //   2. 调用 get_response_schema(endpoint_id) 获取的 schema 中 code 的默认值
+   //   3. 常见约定：code: 0 | "0" | 200 | "success" | true
+   //   4. 若仍无法确定，必须向用户确认，不得退化为 typeof 类型检查
+   //
+   // ✅ 正确：断言 code 等于成功值
+   expect(body.code).toBe(0);                      // 或 '0' / '200' / 'success'，以文档为准
+   expect(body.success).toBe(true);                 // 如果文档定义了 success 字段
+   //
+   // ❌ 禁止：只检查存在性或类型（code="4009"也能通过！）
+   // expect(typeof body.code).toBe('string');      // ❌ "4009" 也是 string
+   // expect(body).toHaveProperty('code');           // ❌ 错误响应也有 code 字段
 
    // 枚举字段
    expect(['pending', 'paid', 'cancelled']).toContain(body.data.orderStatus);
@@ -98,14 +112,16 @@ const testPlan = planResult.content
 
 3. **边界/错误层**：异常场景验证具体错误信息
    ```typescript
-   // 4xx 场景
+   // 4xx 场景 / 业务错误场景（断言具体的错误码值）
    expect(response.status).toBe(400);
-   expect(body).toHaveProperty('message');
-   expect(body.message).toContain('参数不能为空'); // 以文档 error schema 为准
+   expect(body).toHaveProperty('code');
+   expect(body.code).toBe('4009');                  // 断言具体错误码，不是类型
+   expect(body.message).toContain('参数不能为空');    // 以文档 error schema 为准
    ```
 
 **核心原则：**
 - 字段名必须从 `get_endpoint_details` 返回的 `responses` schema 中提取，**禁止臆测**。
+- **正向用例必须断言 body.code（或 body.success）等于成功值，这是硬性要求**。禁止将 `typeof body.code === 'string'` 作为正向用例的核心业务断言——这无法区分 HTTP 200 + code=4009（业务拒绝）和真正成功。
 - 数组/分页接口必须断言 `Array.isArray(body.data.records)` 和 `typeof body.data.total === 'number'`。
 - 生成脚本后、保存前，**必须调用 `audit_script_assertions(script_content=...)`**；若返回 `FAIL` 或 `WEAK`，必须补充断言后再保存。
 

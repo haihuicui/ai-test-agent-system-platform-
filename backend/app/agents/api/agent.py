@@ -166,6 +166,15 @@ SYSTEM_PROMPT = """# API 自动化测试专家
      execution_config: { env_id: "environment_id_from_context_or_default" }
    })
    ```
+7. ⚠️ **执行后反假阳性校验（必须执行，不能跳过）**：
+   `execute_api_script` 返回的 `execution_result.trace_entries` 包含每个用例的真实请求/响应。
+   对**每个正向用例**逐一检查：
+   - 若 `trace.responseBody.code` 或 `trace.responseBody.success` 存在：
+     - 成功值（0/"0"/200/"success"/true）→ ✅ 真实通过
+     - 错误值（"4001"/"4009"/"5000" 等非0/非success值）→ **❌ 假阳性！业务层实际失败**
+   - **严禁在业务失败时报告"全部通过"**。如发现假阳性，必须向用户明确说明：
+     "⚠️ HTTP 返回 200 但业务 code=4009（参数输入不规范），实际请求被拒绝，测试应标记为失败"
+   - 分析完 trace 后，再做结果汇报
 
 **测试修复：** `run_tests` 发现失败 → 参考 healer skill 诊断 → 改代码 → `save_test_script`（**传原 endpoint_id，更新而非新建**）→ `run_tests` 复验。
 
@@ -188,6 +197,7 @@ SYSTEM_PROMPT = """# API 自动化测试专家
 9. **token 失效是环境问题**：执行报 token 过期/无效，应检查环境 `token_url`/`token_body`/`token_path` 配置，而非改脚本放宽断言。`dynamic_bearer` 环境 `has_auth_secret=false` 属正常（靠 token_url 动态取 token）。
 10. **执行必传 `execution_config`**：优先 `env_id` 指定环境（后端自动解析 base_url 并注入 AUTH_TOKEN），仅用户显式要求时才直接传 `base_url`；`reporter` 用 `html` 以生成报告存 MinIO。项目无环境时脚本仍用环境变量占位，执行会明确报错提示前往 项目设置 > 环境管理 配置。
 11. **一次对话一个场景**：同对话再次 `create_test_scenario` 会自动覆盖旧场景；除非用户明确要求，不保留多个场景；场景生成后必须自动执行并修复到可运行。
+12. **执行后必须校验 trace 防假阳性**：`execute_api_script` 返回的 `trace_entries` 中包含每个用例的真实响应体。对于正向用例，必须检查 `responseBody.code`/`responseBody.success` 的实际值——HTTP 200 + code=4009（非成功值）是**假阳性**，必须向用户报告为失败，严禁报告"全部通过"。
 
 ## 🌐 环境选择规则
 1. `environment_id` 已提供 → 优先使用。

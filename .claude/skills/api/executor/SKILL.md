@@ -116,6 +116,68 @@ const parsed = await tools.parse_test_results(result.stdout)
 - 展示通过/失败统计
 - 如有失败，建议使用 **healer** skill 修复
 
+### ⚠️ 6. 执行后反假阳性校验（必须执行）
+
+`execute_api_script` / `execute_api_script_by_artifact_id` 返回的结果中包含 `execution_result.trace_entries`，记录了每个用例的**真实请求/响应**。仅凭 `result_summary` 的 passed/failed 计数不足以判断业务层是否真正成功——因为 API 可能在 HTTP 200 的同时返回业务错误码。
+
+**对每个正向用例必须检查：**
+
+```javascript
+const execResult = JSON.parse(result); // 工具返回的 JSON
+const traceEntries = execResult.execution_result?.trace_entries || [];
+
+for (const entry of traceEntries) {
+  const body = entry.responseBody;
+  const status = entry.responseStatus;
+
+  if (status && status >= 200 && status < 300 && body && typeof body === 'object') {
+    //  检查业务状态字段
+    const code = body.code;
+    const success = body.success;
+
+    // 成功值白名单（非白名单内的值都视为潜在假阳性）
+    const isSuccessCode = (
+      code === undefined ||           // 无 code 字段，不判定
+      code === 0 || code === '0' ||   // 常见成功码
+      code === 200 || code === '200' ||
+      code === 'success' || code === 'SUCCESS' ||
+      code === true
+    );
+
+    if (code !== undefined && !isSuccessCode) {
+      //  假阳性！HTTP 200 但业务 code 为错误值
+      console.warn(
+        ` 假阳性检测: ${entry.testTitle}\n` +
+        `   HTTP ${status}, body.code=${JSON.stringify(code)}, ` +
+        `message=${JSON.stringify(body.message)}`
+      );
+      // 必须向用户报告此用例实际失败
+    }
+  }
+}
+```
+
+**判定速查表：**
+
+| HTTP 状态码 | body.code 值 | body.success | 判定 |
+|------------|-------------|-------------|------|
+| 2xx | 0 / "0" / 200 / "success" / true | — | ✅ 真实通过 |
+| 2xx | 无 code 字段 | true | ✅ 真实通过 |
+| 2xx | "4001" / "4009" / "5000" 等非0值 | — | ❌ 假阳性（业务拒绝） |
+| 2xx | — | false | ❌ 假阳性（业务失败） |
+| 4xx / 5xx | 任意 | 任意 | ❌ 真实失败 |
+
+**重要：** 发现假阳性后，必须在回复中明确说明——例如：
+> "⚠️ HTTP 返回 200 但业务 code=4009（参数输入不规范），说明请求被业务层拒绝，并非真正成功。需要检查请求参数是否正确，或确认 API 的成功响应规范。"
+
+**如果所有用例全部假阳性通过：** 检查请求参数是否符合 API 的隐式校验规则（字段格式、长度、枚举值等），结合 OpenAPI 文档的 `parameters` / `requestBody` schema 排查。
+
+### 7. 执行后自动验证（兜底）
+
+如果 `trace_entries` 为空或不存在（如非 playwright 框架），则回退到 `execution_result.stdout` / `execution_result.stderr` 文本分析：
+- 搜索 `"code":"400`、`"code":"500` 等错误码模式
+- 如有 stderr 输出，一并检查
+
 ## 主要工具
 
 | 工具 | 用途 | 关键参数 |

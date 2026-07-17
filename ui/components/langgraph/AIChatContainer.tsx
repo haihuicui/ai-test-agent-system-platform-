@@ -24,6 +24,8 @@ interface AIChatContainerProps {
   createNewThread?: boolean;
   onTestCaseCreated?: () => void; // 测试用例创建后的回调（已废弃）
   onTestCreated?: () => void; // 通用回调：测试创建后调用
+  /** 当 save_test_* 工具调用完成时触发，用于实时刷新成果物面板 */
+  onArtifactSaved?: () => void;
   reconnectOnMount?: boolean;
   fetchHistoryOnMount?: boolean;
 }
@@ -36,6 +38,7 @@ export function AIChatContainer({
   createNewThread = false,
   onTestCaseCreated,
   onTestCreated,
+  onArtifactSaved,
   reconnectOnMount,
   fetchHistoryOnMount,
 }: AIChatContainerProps) {
@@ -173,6 +176,7 @@ export function AIChatContainer({
               <ChatInterface
                 assistant={assistant}
                 initialPrompt={initialPrompt}
+                onArtifactSaved={onArtifactSaved}
               />
             </ChatProvider>
           </ResizablePanel>

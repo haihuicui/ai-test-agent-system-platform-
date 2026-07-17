@@ -728,6 +728,9 @@ ${selectedDevice ? `**Device UDID**: ${selectedDevice.udid}` : ""}
                       folderTreeRef.current?.refresh();
                       setArtifactsRefreshTrigger(prev => prev + 1);
                     }}
+                    onArtifactSaved={() => {
+                      setArtifactsRefreshTrigger(prev => prev + 1);
+                    }}
                   />
                 </ClientProvider>
               )}

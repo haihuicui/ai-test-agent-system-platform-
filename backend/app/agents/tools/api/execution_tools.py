@@ -1301,7 +1301,7 @@ async def _create_test_results(
         # 匹配当前用例的 trace 条目并构建请求/响应摘要
         matched_traces = APITestExecutor._match_trace_entries(title, trace_entries)
         request_data, response_data, assertion_results, duration_ms = APITestExecutor._build_trace_summary(
-            matched_traces, status
+            matched_traces, status, stdout=stdout,
         )
 
         # trace 未命中时回退到简单推断

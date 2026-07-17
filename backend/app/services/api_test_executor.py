@@ -959,6 +959,7 @@ class APITestExecutor:
                     status=status,
                     trace_entries=matched_traces,
                     result_repo=result_repo,
+                    stdout=stdout,
                 )
 
             # 更新运行统计
@@ -1059,6 +1060,7 @@ class APITestExecutor:
         trace_entries: List[Dict[str, Any]],
         *,
         result_repo: Optional[APITestResultRepository] = None,
+        stdout: str = "",
     ):
         """
         保存单个测试结果
@@ -1070,6 +1072,7 @@ class APITestExecutor:
             status: 测试状态
             trace_entries: 匹配到的真实请求/响应 trace 条目
             result_repo: 可选的结果仓储（后台任务使用新 session）
+            stdout: Playwright 完整 stdout 输出（用于解析失败用例的错误详情）
         """
         try:
             # 提取端点和 HTTP 方法（从测试名称中解析）
@@ -1077,7 +1080,7 @@ class APITestExecutor:
 
             # 从 trace 中聚合真实请求/响应/断言
             request_data, response_data, assertion_results, duration_ms = self._build_trace_summary(
-                trace_entries, status
+                trace_entries, status, stdout=stdout,
             )
 
             # 处理大响应体：完整 body 上传 MinIO，DB 只存截断预览
@@ -1147,6 +1150,7 @@ class APITestExecutor:
     def _build_trace_summary(
         trace_entries: List[Dict[str, Any]],
         status: TestResultStatus,
+        stdout: str = "",
     ) -> tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]], Optional[List[Dict[str, Any]]], Optional[int]]:
         """
         从 trace 条目中构建请求/响应/断言摘要。
@@ -1155,7 +1159,13 @@ class APITestExecutor:
         - 如果一个用例有多个 trace 条目，优先使用带有 responseBody 的条目；
           若都没有 body，则使用最后一条。
         - duration_ms 取所有条目 duration 的最大值（近似整个用例耗时）。
-        - 断言结果至少包含一个对 status 的隐式断言。
+        - 断言结果包含：status 断言、body 字段/类型断言、业务码断言、
+          Playwright 错误详情解析。
+
+        Args:
+            trace_entries: 匹配到的 trace 条目列表
+            status: 测试最终状态
+            stdout: Playwright 完整 stdout 输出（用于解析失败用例的错误详情）
         """
         if not trace_entries:
             return None, None, None, None
@@ -1206,8 +1216,29 @@ class APITestExecutor:
                 "message": f"HTTP 状态码断言{'通过' if passed else '失败'}: 预期 2xx，实际 {response_status}",
             })
 
-        # 如果 Playwright 测试本身失败，追加一个通用失败断言
-        if status == TestResultStatus.FAILED:
+        #  业务码反假阳性检查：HTTP 2xx 但 body.code 为非成功值时标记失败
+        APITestExecutor._append_business_code_assertion(chosen, assertions)
+
+        #  从 trace 响应 body 生成 body 字段/类型断言（补充 status-only 的信息缺失）
+        APITestExecutor._append_body_structure_assertions(chosen, assertions)
+
+        # 对于失败用例，尝试从 stdout 中解析 Playwright 错误详情
+        if status == TestResultStatus.FAILED and stdout:
+            error_assertions = APITestExecutor._parse_error_assertions_from_stdout(
+                stdout, chosen.get("testTitle") or ""
+            )
+            if error_assertions:
+                # 用解析出的错误断言替换通用 "Playwright 测试执行失败"
+                assertions.extend(error_assertions)
+            else:
+                assertions.append({
+                    "assertion": {"type": "test"},
+                    "passed": False,
+                    "actual": status.value,
+                    "expected": TestResultStatus.PASSED.value,
+                    "message": "Playwright 测试执行失败",
+                })
+        elif status == TestResultStatus.FAILED:
             assertions.append({
                 "assertion": {"type": "test"},
                 "passed": False,
@@ -1223,6 +1254,331 @@ class APITestExecutor:
         ) or None
 
         return request_data, response_data, assertions, duration_ms
+
+    @staticmethod
+    def _append_business_code_assertion(
+        chosen: Optional[Dict[str, Any]],
+        assertions: List[Dict[str, Any]],
+    ) -> None:
+        """如果 trace 中存在业务错误码，追加一条失败断言到 assertions 列表。"""
+        if chosen is None:
+            return
+        bc_assertion = APITestExecutor._check_business_code(chosen)
+        if bc_assertion is not None:
+            assertions.append(bc_assertion)
+
+    @staticmethod
+    def _check_business_code(trace_entry: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """
+        检查响应体中的业务状态码是否为成功值，防 HTTP 200 + 业务错误假阳性。
+
+        如果 body.code 存在且为非成功值（如 "4009"），返回一个 failed 断言；
+        如果无法判定（body 为空/无 code 字段/无明确成功标识），返回 None。
+        """
+        body = trace_entry.get("responseBody")
+        if not body or not isinstance(body, dict):
+            return None
+
+        code = body.get("code")
+        success = body.get("success")
+
+        # 有 success 字段 → 按布尔值判定
+        if success is not None:
+            if success is False or success == "false":
+                return {
+                    "assertion": {"type": "business_code", "field": "success", "expected": True},
+                    "passed": False,
+                    "actual": success,
+                    "expected": True,
+                    "message": (
+                        f"⚠️ 业务层失败（假阳性）: HTTP 2xx 但 body.success={success}, "
+                        f"code={code}, message={body.get('message', '')}"
+                    ),
+                }
+            return None  # success=true → 判定成功
+
+        # 有 code 字段 → 判断是否为已知成功值
+        if code is not None:
+            _SUCCESS_CODES = {0, "0", 200, "200", "success", "SUCCESS", True}
+            if code not in _SUCCESS_CODES:
+                return {
+                    "assertion": {"type": "business_code", "field": "code", "expected": "success"},
+                    "passed": False,
+                    "actual": code,
+                    "expected": "0 / '0' / 200 / 'success'",
+                    "message": (
+                        f"⚠️ 业务层失败（假阳性）: HTTP 2xx 但 body.code={code}, "
+                        f"message={body.get('message', '')}"
+                    ),
+                }
+        return None
+
+    # ------------------------------------------------------------------
+    # body 结构断言：从 trace 响应体自动生成字段存在性/类型断言
+    # ------------------------------------------------------------------
+
+    # 常见 API 响应体中值得断言的 key（按优先级排序）
+    _BODY_KEY_PRIORITY = [
+        "code", "message", "data", "success", "total", "msg",
+        "error", "status", "result", "list", "items", "rows",
+        "page", "pageSize", "pageNum", "pages",
+    ]
+
+    @staticmethod
+    def _append_body_structure_assertions(
+        trace_entry: Optional[Dict[str, Any]],
+        assertions: List[Dict[str, Any]],
+    ) -> None:
+        """
+        从 trace 响应 body 生成字段存在性（body_field）和类型（body_type）断言。
+
+        仅对 JSON 对象类型的响应体生效，补充 status-only 断言的信息缺口。
+        - body_field: 断言某字段存在于响应体顶层
+        - body_type: 断言某字段的 JS 类型
+        最多生成 6 条，避免冗余。
+        """
+        if trace_entry is None:
+            return
+        body = trace_entry.get("responseBody")
+        if not body or not isinstance(body, dict):
+            return
+
+        status_code = trace_entry.get("status")
+        # 非 2xx 时 body 结构可能不符合预期，跳过自动生成
+        if not isinstance(status_code, int) or not (200 <= status_code < 300):
+            return
+
+        generated = 0
+        max_assertions = 6
+
+        # 按优先级排序 body 的 key，优先断言常见字段
+        ordered_keys = sorted(
+            body.keys(),
+            key=lambda k: (
+                k not in APITestExecutor._BODY_KEY_PRIORITY,
+                APITestExecutor._BODY_KEY_PRIORITY.index(k) if k in APITestExecutor._BODY_KEY_PRIORITY else 999,
+            ),
+        )
+
+        for key in ordered_keys:
+            if generated >= max_assertions:
+                break
+            value = body[key]
+
+            # body_field: 字段存在性断言
+            assertions.append({
+                "assertion": {"type": "body_field", "field": key},
+                "passed": True,
+                "actual": key,
+                "expected": key,
+                "message": f"响应体包含字段 '{key}'",
+            })
+            generated += 1
+
+            if generated >= max_assertions:
+                break
+
+            # body_type: 字段类型断言
+            js_type = APITestExecutor._js_typeof(value)
+            assertions.append({
+                "assertion": {"type": "body_type", "field": key, "expected": js_type},
+                "passed": True,
+                "actual": js_type,
+                "expected": js_type,
+                "message": f"字段 '{key}' 类型为 {js_type}",
+            })
+            generated += 1
+
+    @staticmethod
+    def _js_typeof(value: Any) -> str:
+        """返回值的 JavaScript 风格类型名称。"""
+        if value is None:
+            return "null"
+        if isinstance(value, bool):
+            return "boolean"
+        if isinstance(value, int):
+            return "number"
+        if isinstance(value, float):
+            return "number"
+        if isinstance(value, str):
+            return "string"
+        if isinstance(value, list):
+            return "array"
+        if isinstance(value, dict):
+            return "object"
+        return type(value).__name__
+
+    # ------------------------------------------------------------------
+    # Playwright stdout 错误详情解析
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _parse_error_assertions_from_stdout(
+        stdout: str,
+        test_title: str,
+    ) -> List[Dict[str, Any]]:
+        """
+        从 Playwright stdout 中解析失败测试的错误详情。
+
+        Playwright list reporter 输出格式（失败用例）：
+          1) [chromium] › example.spec.ts:3:1 › GET /api/users
+
+            Error: expect(received).toBe(expected)
+
+            Expected: 200
+            Received: 404
+
+        或自定义断言：
+            Error: 期望 200，实际 404
+
+        Returns:
+            解析出的断言结果列表；若无法解析则返回空列表。
+        """
+        if not stdout or not test_title:
+            return []
+
+        import re
+
+        # 定位当前用例的错误块：从 "N) ... test_title" 到下一个 "N) " 或文件末尾
+        escaped_title = re.escape(test_title)
+        # 也尝试匹配使用 ' › ' 分隔的原始标题
+        alt_title = re.escape(test_title.replace("›", ">").replace("  ", " ").strip())
+
+        block_pattern = re.compile(
+            rf"^\s*\d+\)\s+[^\n]*?(?:{escaped_title}|{alt_title})[^\n]*\n(.*?)(?=^\s*\d+\)\s|\Z)",
+            re.MULTILINE | re.DOTALL,
+        )
+        match = block_pattern.search(stdout)
+        if not match:
+            return []
+
+        error_block = match.group(1)
+
+        assertions: List[Dict[str, Any]] = []
+
+        # 模式 1: Playwright expect 框架错误
+        expect_pattern = re.compile(
+            r"Error:\s*expect\(received\)\.(\w+)\([^)]*\)\s*\n\s*Expected:\s*(.+?)\n\s*Received:\s*(.+?)(?:\n|$)",
+            re.IGNORECASE,
+        )
+        em = expect_pattern.search(error_block)
+        if em:
+            matcher = em.group(1).lower()
+            expected_raw = em.group(2).strip()
+            actual_raw = em.group(3).strip()
+
+            assertion_type = APITestExecutor._classify_playwright_matcher(matcher)
+            assertions.append({
+                "assertion": {"type": assertion_type, "matcher": matcher},
+                "passed": False,
+                "actual": APITestExecutor._normalize_assertion_value(actual_raw),
+                "expected": APITestExecutor._normalize_assertion_value(expected_raw),
+                "message": f"断言失败: expect(received).{matcher}() — 预期 {expected_raw}，实际 {actual_raw}",
+            })
+            return assertions
+
+        # 模式 2: expect(...).toHaveProperty 错误
+        prop_pattern = re.compile(
+            r"Error:\s*expect\(received\)\.toHaveProperty[^(]*\([^)]*\)\s*\n\s*Expected path:\s*[\"'](.+?)[\"']",
+            re.IGNORECASE,
+        )
+        pm = prop_pattern.search(error_block)
+        if pm:
+            field = pm.group(1)
+            assertions.append({
+                "assertion": {"type": "body_field", "field": field},
+                "passed": False,
+                "actual": None,
+                "expected": field,
+                "message": f"断言失败: 响应体缺少字段 '{field}'",
+            })
+            return assertions
+
+        # 模式 3: 广义 Error 行提取（兜底）
+        error_line_pattern = re.compile(r"^\s*Error:\s*(.+?)$", re.MULTILINE)
+        elm = error_line_pattern.search(error_block)
+        if elm:
+            error_msg = elm.group(1).strip()
+            if error_msg and "ignored" not in error_msg.lower():
+                assertions.append({
+                    "assertion": {"type": "error"},
+                    "passed": False,
+                    "actual": error_msg,
+                    "expected": "通过",
+                    "message": f"测试失败: {error_msg}",
+                })
+        else:
+            # 模式 4: 没有任何 Error: 行，取第一段非空文本
+            lines = [l.strip() for l in error_block.split("\n") if l.strip()]
+            non_frame_lines = [
+                l for l in lines
+                if not l.startswith("at ") and "node:" not in l and "node_modules" not in l
+            ]
+            if non_frame_lines:
+                snippet = non_frame_lines[0][:200]
+                assertions.append({
+                    "assertion": {"type": "error"},
+                    "passed": False,
+                    "actual": snippet,
+                    "expected": "通过",
+                    "message": f"测试失败: {snippet}",
+                })
+
+        return assertions
+
+    @staticmethod
+    def _classify_playwright_matcher(matcher: str) -> str:
+        """将 Playwright expect matcher 映射为断言类型。"""
+        status_matchers = {"tobe", "toequal", "tostrictequal"}
+        type_matchers = {"tobeinstanceof"}
+        field_matchers = {"tohaveproperty"}
+        length_matchers = {"tohavelength", "tobegreaterthan", "tobelessthan"}
+        content_matchers = {"tocontain", "tocontainequal", "tomatch"}
+
+        m = matcher.lower()
+        if m in field_matchers:
+            return "body_field"
+        if m in type_matchers:
+            return "body_type"
+        if m in length_matchers:
+            return "body_value"
+        if m in content_matchers:
+            return "body_value"
+        if m in status_matchers:
+            return "status"
+        return "body_value"
+
+    @staticmethod
+    def _normalize_assertion_value(raw: str) -> Any:
+        """将 Playwright 输出的原始字符串值规范化。"""
+        raw = raw.strip().rstrip(".")
+        if raw in ("undefined",):
+            return None
+        if raw in ("true",):
+            return True
+        if raw in ("false",):
+            return False
+        if raw in ("null",):
+            return None
+        # 尝试解析数字
+        try:
+            return int(raw)
+        except (ValueError, TypeError):
+            pass
+        try:
+            return float(raw)
+        except (ValueError, TypeError):
+            pass
+        # 尝试解析 JSON 字符串
+        if (raw.startswith("{") and raw.endswith("}")) or (raw.startswith("[") and raw.endswith("]")):
+            try:
+                return json.loads(raw)
+            except (json.JSONDecodeError, Exception):
+                pass
+        # 去除引号
+        if len(raw) >= 2 and raw[0] == raw[-1] and raw[0] in ("'", '"'):
+            return raw[1:-1]
+        return raw
 
     @staticmethod
     def _truncate_body_in_data(

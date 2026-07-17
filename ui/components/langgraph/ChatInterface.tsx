@@ -54,6 +54,8 @@ import {
 interface ChatInterfaceProps {
   assistant: Assistant | null;
   initialPrompt?: string;
+  /** 当 save_test_* 工具调用完成时触发，用于刷新成果物面板 */
+  onArtifactSaved?: () => void;
 }
 // eslint-disable  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2Tm5obVRnPT06Njg2NGJhMDY=
 
@@ -84,7 +86,7 @@ const getStatusIcon = (status: TodoItem["status"], className?: string) => {
 };
 // FIXME  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2Tm5obVRnPT06Njg2NGJhMDY=
 
-export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initialPrompt }) => {
+export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initialPrompt, onArtifactSaved }) => {
   const { t } = useLanguage();
   const [metaOpen, setMetaOpen] = useState<"tasks" | "files" | null>(null);
   const tasksContainerRef = useRef<HTMLDivElement | null>(null);
@@ -475,6 +477,56 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
     const allToolCalls = processedMessages.flatMap((m) => m.toolCalls);
     return extractCreatedTestCaseIds(allToolCalls);
   }, [processedMessages]);
+
+  // =========================================================================
+  // 检测 save_test_* 工具调用完成，自动触发成果物面板刷新
+  // =========================================================================
+  const lastArtifactSaveCountRef = useRef(0);
+  const artifactSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const SAVE_ARTIFACT_TOOLS = ["save_test_plan", "save_test_cases", "save_test_script"];
+
+  useEffect(() => {
+    // 统计已完成 (status === "completed") 的 save_test_* 工具调用数
+    const allToolCalls = processedMessages.flatMap((m) => m.toolCalls);
+    const completedSaveCount = allToolCalls.filter(
+      (tc) =>
+        SAVE_ARTIFACT_TOOLS.includes(tc.name) &&
+        tc.status === "completed"
+    ).length;
+
+    // 首次检测不触发（初始历史加载），仅在增量变化时触发
+    if (lastArtifactSaveCountRef.current === 0) {
+      lastArtifactSaveCountRef.current = completedSaveCount;
+      return;
+    }
+
+    if (completedSaveCount > lastArtifactSaveCountRef.current) {
+      lastArtifactSaveCountRef.current = completedSaveCount;
+
+      // 防抖：短时间内多次 save 调用只触发一次刷新
+      if (artifactSaveTimerRef.current) {
+        clearTimeout(artifactSaveTimerRef.current);
+      }
+      artifactSaveTimerRef.current = setTimeout(() => {
+        onArtifactSaved?.();
+      }, 300);
+    }
+
+    // 新对话开始时重置计数
+    if (completedSaveCount === 0 && lastArtifactSaveCountRef.current > 0) {
+      lastArtifactSaveCountRef.current = 0;
+    }
+  }, [processedMessages, onArtifactSaved]);
+
+  // 清理防抖定时器
+  useEffect(() => {
+    return () => {
+      if (artifactSaveTimerRef.current) {
+        clearTimeout(artifactSaveTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleDownloadExcel = useCallback(async () => {
     const projectId = assistant?.config?.configurable

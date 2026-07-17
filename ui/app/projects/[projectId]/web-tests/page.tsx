@@ -767,6 +767,9 @@ export default function WebTestsPage() {
                       folderTreeRef.current?.refresh();
                       setArtifactsRefreshTrigger(prev => prev + 1);
                     }}
+                    onArtifactSaved={() => {
+                      setArtifactsRefreshTrigger(prev => prev + 1);
+                    }}
                   />
                 </ClientProvider>
               )}

@@ -322,7 +322,7 @@ def _build_success_assertion_hints(responses: Optional[dict], success_status: in
             hints.append(f"断言响应体包含字段 {fname}（类型 {ftype}）")
     else:
         hints.append("断言响应体结构与 2xx schema 一致（字段存在性 + 类型）")
-    hints.append("业务状态字段（success/code 等）按文档断言")
+    hints.append("断言 body.code（或 body.success）等于成功值——根据文档中 {} 响应的 schema 确定具体值（如 0/'0'/200/'success'/true）。这是正向用例最重要的断言，禁止退化为 typeof 类型检查——'4009'也是 string 但表示业务失败".format(success_status))
     return hints
 
 

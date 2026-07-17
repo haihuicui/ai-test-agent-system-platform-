@@ -884,6 +884,11 @@ export default function APITestsPage() {
                         setScenarioRefreshTrigger(prev => prev + 1);
                       }
                     }}
+                    onArtifactSaved={() => {
+                      if (testMode === "endpoint") {
+                        setArtifactsRefreshTrigger(prev => prev + 1);
+                      }
+                    }}
                   />
                 </ClientProvider>
               )}
