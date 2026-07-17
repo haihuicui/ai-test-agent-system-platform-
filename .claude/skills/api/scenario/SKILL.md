@@ -81,7 +81,7 @@ const step2 = await tools.add_scenario_step({
 
 ### 4. 配置数据映射
 
-配置步骤间的数据依赖关系，使前一个步骤的响应数据传递给后续步骤：
+配置步骤间的数据依赖关系，使前一个步骤的响应数据传递给后续步骤。
 
 **数据映射类型：**
 | source_type | 说明 | 使用场景 |
@@ -90,17 +90,44 @@ const step2 = await tools.add_scenario_step({
 | `variable` | 场景变量 | 全局变量、环境变量 |
 | `static` | 静态值 | 固定的配置值 |
 
+**`source_path` 解析规则：**
+`source_path` 支持两种路径格式，按优先级匹配：
+1. **提取后的变量名**（优先）：如 `$.siteId`（对应步骤中 `add_step_extractor` 配置的 name）
+2. **原始 API 响应路径**（回退）：如 `$.data.records[0].id`（直接对应 API 响应 JSON 结构）
+
+两种写法均可正确解析，**推荐使用提取器变量名**（更简洁且不易出错）。
+
+**数据映射与模板变量的关系：**
+数据映射的 `target_path` 最后一段会自动注册为上下文变量。例如 `target_path: "body.siteId"` → 变量 `siteId` 可在后续步骤中通过 `{{siteId}}` 引用。
+
 ```javascript
 // 将步骤 1 的 token 传递给步骤 2 的请求头
 await tools.add_data_mapping({
   step_id: "{step2_id}",
   source_type: "previous_response",
   source_step_id: "{step1_id}",
-  source_path: "$.data.token",
+  source_path: "$.token",       // 推荐：使用提取器变量名
   target_path: "headers.Authorization",
   transform_expression: "'Bearer ' + value",
   description: "将登录接口返回的 token 传递给后续接口"
 })
+
+// 传递路径参数（如 siteId）
+// 方式 A：数据映射 + 模板变量（推荐）
+await tools.add_data_mapping({
+  step_id: "{step3_id}",
+  source_type: "previous_response",
+  source_step_id: "{step2_id}",
+  source_path: "$.siteId",
+  target_path: "path.siteId",    // target_path 末段自动注册为上下文变量
+})
+// 然后在 add_scenario_step 的 request_override 中使用：
+// { "path": "/api/sampling-site/{{siteId}}" }
+// ↑ {{siteId}} 会被自动替换为数据映射的值
+
+// 方式 B：纯提取器 + 模板变量（无需数据映射）
+// 步骤 2 的提取器 siteId 已自动注册为上下文变量，
+// 步骤 3 可直接在 request_override 中使用 {{siteId}}，无需 add_data_mapping
 ```
 
 ### 5. 添加数据提取器

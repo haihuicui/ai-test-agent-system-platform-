@@ -61,10 +61,23 @@ class ExecutionContext:
         self.step_data[step_id] = data
 
     def get_step_data(self, step_id: str, path: str | None = None) -> Any:
-        """获取步骤数据"""
+        """获取步骤数据
+
+        数据映射的 ``source_path`` 可能指向：
+        1. 提取后的变量名（如 ``$.siteId``）—— 优先匹配
+        2. 原始 API 响应路径（如 ``$.data.records[0].id``）—— 回退匹配
+        """
         data = self.step_data.get(step_id, {})
         if path:
-            return self._extract_by_jsonpath(data, path)
+            # 优先：在提取后的变量中查找
+            result = self._extract_by_jsonpath(data, path)
+            if result is not None:
+                return result
+            # 回退：在原始响应体中查找（兼容 source_path 使用原始 API 路径的场景）
+            response_body = data.get("_response_body")
+            if response_body:
+                return self._extract_by_jsonpath(response_body, path)
+            return None
         return data
 
     def _extract_by_jsonpath(self, data: dict, path: str) -> Any:
@@ -348,6 +361,13 @@ class DataDependencyResolver:
                 f"数据映射: {mapping.source_type} -> {mapping.target_path} = {value}"
             )
             self._set_nested_value(request, mapping.target_path, value)
+            # 同时将映射值写入上下文变量，使 {{variable}} 模板替换可以生效。
+            # 变量名取 target_path 的最后一段（如 body.siteId → siteId，
+            # headers.Authorization → Authorization）。
+            if value is not None:
+                var_name = mapping.target_path.rsplit(".", 1)[-1] if "." in mapping.target_path else mapping.target_path
+                self.context.set_variable(var_name, value)
+                logger.debug(f"数据映射同时设置上下文变量: {var_name} = {value}")
 
         # 6. 替换模板变量 {{variable}}（路径参数 {key} 在发送请求时处理）
         request = self._substitute_variables(request)
@@ -1032,7 +1052,7 @@ class ScenarioExecutionEngine:
         import logging
         logger = logging.getLogger(__name__)
 
-        extracted = {}
+        extracted: dict = {}
         warnings: list[dict] = []
 
         # 获取响应体，如果是 JSON 字符串则先解析（只解析一次，供所有 extractor 复用）
@@ -1043,6 +1063,11 @@ class ScenarioExecutionEngine:
                 body = json.loads(body)
             except Exception:
                 pass  # 如果解析失败，保持原样
+
+        # 存储原始响应体，供数据映射的 source_path 回退解析使用
+        # （add_data_mapping 的 source_path 可能指向原始响应路径如 $.data.records[0].id，
+        #   而不仅是提取后的变量名如 $.siteId）
+        extracted["_response_body"] = body
 
         for extractor in extractors or []:
             name = extractor["name"]
