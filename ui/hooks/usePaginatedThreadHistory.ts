@@ -1,7 +1,7 @@
 "use client";
 
 import useSWRInfinite from "swr/infinite";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import type { Client, Config, ThreadState } from "@langchain/langgraph-sdk";
 import type { StateType } from "./useChat";
 
@@ -145,24 +145,41 @@ export function usePaginatedThreadHistory(
   // 挂载或切换 thread 后，在后台自动加载更早的 checkpoint，直到历史完整或到达安全上限。
   // 这样关闭并重新打开 AI 助手时，无需用户手动滚动即可看到全部历史对话。
   //
-  // 注意：此处直接调用 setSize，不使用 setTimeout(…, 0) 包装。原因是 React 18 的
-  // 自动批处理可能导致 effect 在 0ms 定时器触发前就重新执行，cleanup 中的 clearTimeout
-  // 会取消掉待执行的 setSize，导致自动加载链静默断裂 → 对话记录展示不全。
-  // isLoadingMore 守卫已可防止级联（setSize 后 isLoadingMore 立即变为 true，
-  // effect 再次触发时会因 isLoadingMore 而提前返回），因此无需额外异步包装。
+  // 使用 requestAnimationFrame 而非 setTimeout(…, 0)：
+  // - setTimeout(0) 在微任务中触发，可能在 React 批处理完成前就执行，
+  //   导致 cleanup 取消掉待执行的 setSize → 链条静默断裂。
+  // - rAF 在下一帧（~16ms）触发，保证所有 React 状态更新已提交完毕，
+  //   配合 ref 门控防止 Strict Mode 双击。
+  const autoLoadRafRef = useRef<number | null>(null);
+
   useEffect(() => {
     if (!enabled || !autoLoadAll || !threadId) return;
+    // 首页数据尚未到达，不触发自动加载，避免 setSize 在 SWR 未就绪时被调用
+    if (!swr.data || swr.data.length === 0) return;
     if (!hasMore) return;
     if (isLoadingMore) return;
     if ((swr.data?.length ?? 0) >= MAX_AUTO_LOAD_PAGES) return;
+    // rAF 已在等待中，防止 Strict Mode 双击导致 size 被重复递增
+    if (autoLoadRafRef.current != null) return;
 
-    swr.setSize((size) => size + 1);
+    autoLoadRafRef.current = requestAnimationFrame(() => {
+      autoLoadRafRef.current = null;
+      swr.setSize((size) => size + 1);
+    });
+
+    return () => {
+      if (autoLoadRafRef.current != null) {
+        cancelAnimationFrame(autoLoadRafRef.current);
+        autoLoadRafRef.current = null;
+      }
+    };
   }, [
     enabled,
     autoLoadAll,
     threadId,
     hasMore,
     isLoadingMore,
+    swr.data,
     swr.data?.length,
     swr.setSize,
   ]);
