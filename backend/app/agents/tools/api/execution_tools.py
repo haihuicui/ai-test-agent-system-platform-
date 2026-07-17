@@ -1320,6 +1320,22 @@ async def _create_test_results(
                 }
             ]
 
+        # 根据断言结果修正用例整体状态：如果断言中有失败的，应覆盖为 FAILED
+        # 解决 HTTP 200 + 业务错误码假阳性（body.code=3001 等）时用例仍显示"通过"的问题
+        if status == TestResultStatus.PASSED and assertion_results:
+            if any(a.get("passed") is False for a in assertion_results):
+                status = TestResultStatus.FAILED
+
+        # 当断言反假阳性检测到失败时，生成更有意义的 error_message
+        if status == TestResultStatus.FAILED:
+            failed_assertions = [
+                a.get("message", "") for a in assertion_results
+                if a.get("passed") is False
+            ]
+            error_message = "; ".join(failed_assertions) if failed_assertions else "测试失败（断言未通过）"
+        else:
+            error_message = None
+
         await result_repo.create(
             test_run_id=test_run_id,
             api_test_id=api_test.id,
@@ -1332,7 +1348,7 @@ async def _create_test_results(
             request_data=request_data,
             response_data=response_data,
             assertion_results=assertion_results,
-            error_message=None if status == TestResultStatus.PASSED else "测试失败",
+            error_message=error_message,
             duration_ms=duration_ms,
             retry_count=0,
         )

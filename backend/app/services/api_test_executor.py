@@ -935,32 +935,43 @@ class APITestExecutor:
 
             for item in parsed:
                 total_tests += 1
-                if item["status"] == "passed":
-                    passed_tests += 1
-                elif item["status"] == "failed":
-                    failed_tests += 1
-                elif item["status"] == "skipped":
-                    skipped_tests += 1
 
-                status = TestResultStatus.PASSED
+                # Playwright 报告的初始状态（会在 _save_test_result 中根据断言结果修正）
+                pw_status = TestResultStatus.PASSED
                 if item["status"] == "failed":
-                    status = TestResultStatus.FAILED
+                    pw_status = TestResultStatus.FAILED
                 elif item["status"] == "skipped":
-                    status = TestResultStatus.SKIPPED
+                    pw_status = TestResultStatus.SKIPPED
 
                 # 匹配当前用例的 trace 条目
                 matched_traces = self._match_trace_entries(item["title"], trace_entries)
                 logger.info("[APITestExecutor] test=%s matched_traces=%d", item["title"], len(matched_traces))
 
-                await self._save_test_result(
+                actual_status = await self._save_test_result(
                     run_id=run_id,
                     api_test=api_test,
                     test_name=item["title"],
-                    status=status,
+                    status=pw_status,
                     trace_entries=matched_traces,
                     result_repo=result_repo,
                     stdout=stdout,
                 )
+
+                # 使用断言修正后的最终状态进行统计
+                if actual_status == TestResultStatus.PASSED:
+                    passed_tests += 1
+                elif actual_status == TestResultStatus.FAILED:
+                    failed_tests += 1
+                elif actual_status == TestResultStatus.SKIPPED:
+                    skipped_tests += 1
+                # actual_status 为 None 时（保存失败），按 Playwright 原始状态回退
+                else:
+                    if pw_status == TestResultStatus.PASSED:
+                        passed_tests += 1
+                    elif pw_status == TestResultStatus.FAILED:
+                        failed_tests += 1
+                    elif pw_status == TestResultStatus.SKIPPED:
+                        skipped_tests += 1
 
             # 更新运行统计
             _run_repo = run_repo or self.api_test_run_repo
@@ -1083,6 +1094,12 @@ class APITestExecutor:
                 trace_entries, status, stdout=stdout,
             )
 
+            # 根据断言结果修正用例整体状态：如果断言中有失败的，应覆盖为 FAILED
+            # 解决 HTTP 200 + 业务错误码假阳性（body.code=3001 等）时用例仍显示"通过"的问题
+            if status == TestResultStatus.PASSED and assertion_results:
+                if any(a.get("passed") is False for a in assertion_results):
+                    status = TestResultStatus.FAILED
+
             # 处理大响应体：完整 body 上传 MinIO，DB 只存截断预览
             if response_data and response_data.get("body_meta", {}).get("truncated"):
                 try:
@@ -1119,7 +1136,14 @@ class APITestExecutor:
                 request_data=request_data,
                 response_data=response_data,
                 assertion_results=assertion_results,
-                error_message=None if status == TestResultStatus.PASSED else "测试失败",
+                error_message=(
+                    None if status == TestResultStatus.PASSED
+                    else "; ".join(
+                        a.get("message", "")
+                        for a in (assertion_results or [])
+                        if a.get("passed") is False
+                    ) or "测试失败（断言未通过）"
+                ),
                 duration_ms=duration_ms,
                 retry_count=0,
             )
@@ -1143,8 +1167,12 @@ class APITestExecutor:
                 if detail_log_id:
                     result.detail_log_id = detail_log_id
 
+            # 返回最终状态（可能因断言反假阳性检测被覆盖为 FAILED）
+            return status
+
         except Exception as e:
             logger.error("[APITestExecutor] 保存测试结果失败: %s", e)
+            return None
 
     @staticmethod
     def _build_trace_summary(
@@ -1305,7 +1333,7 @@ class APITestExecutor:
                     "assertion": {"type": "business_code", "field": "code", "expected": "success"},
                     "passed": False,
                     "actual": code,
-                    "expected": "0 / '0' / 200 / 'success'",
+                    "expected": "0 / '0' / 200 / 2000 / 'success'",
                     "message": (
                         f"⚠️ 业务层失败（假阳性）: HTTP 2xx 但 body.code={code}, "
                         f"message={body.get('message', '')}"
