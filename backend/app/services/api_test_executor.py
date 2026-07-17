@@ -1327,7 +1327,7 @@ class APITestExecutor:
 
         # 有 code 字段 → 判断是否为已知成功值
         if code is not None:
-            _SUCCESS_CODES = {0, "0", 200, "200", "2000", "success", "SUCCESS", True}
+            _SUCCESS_CODES = {0, "0", 200, "200", 2000, "2000", "success", "SUCCESS", True}
             if code not in _SUCCESS_CODES:
                 return {
                     "assertion": {"type": "business_code", "field": "code", "expected": "success"},
