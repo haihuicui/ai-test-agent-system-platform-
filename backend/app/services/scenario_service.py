@@ -68,18 +68,80 @@ class ScenarioService:
         query = query.order_by(TestScenario.created_at.desc())
         query = query.offset((page - 1) * page_size).limit(page_size)
         result = await self.db.execute(query)
-        scenarios = result.scalars().all()
+        scenarios = list(result.scalars().all())
+
+        # 对 last_run_status 为空的场景，从最新 ScenarioRun 派生状态
+        # （兼容修复上线前的历史执行记录）
+        await self._backfill_last_run_status(scenarios)
 
         return {
             "total": total,
             "items": scenarios,
         }
 
+    async def _backfill_last_run_status(
+        self, scenarios: list[TestScenario]
+    ) -> None:
+        """对 last_run_status 为空的场景，从 ScenarioRun 派生最新执行状态。
+
+        同时写回数据库，确保下次查询不再需要回退。
+        """
+        # 筛选需要回退的场景
+        stale = [s for s in scenarios if not s.last_run_status]
+        if not stale:
+            return
+
+        scenario_ids = [s.id for s in stale]
+
+        # 批量查询每个场景的最新一次执行记录
+        from sqlalchemy import distinct, desc
+        latest_runs_stmt = (
+            select(
+                ScenarioRun.scenario_id,
+                ScenarioRun.status,
+                ScenarioRun.completed_at,
+                ScenarioRun.started_at,
+            )
+            .where(ScenarioRun.scenario_id.in_(scenario_ids))
+            .order_by(desc(ScenarioRun.created_at))
+        )
+        latest_runs_result = await self.db.execute(latest_runs_stmt)
+        latest_runs = latest_runs_result.all()
+
+        # 按 scenario_id 分组，只取每个场景的第一条（即最新）
+        run_by_scenario: dict[UUID, tuple] = {}
+        for row in latest_runs:
+            if row.scenario_id not in run_by_scenario:
+                run_by_scenario[row.scenario_id] = row
+
+        # 更新场景对象的内存属性 + 批量写回 DB
+        from sqlalchemy import update
+        for scenario in stale:
+            row = run_by_scenario.get(scenario.id)
+            if row and row.status:
+                status_val = row.status
+                at_val = row.completed_at or row.started_at
+                scenario.last_run_status = status_val
+                scenario.last_run_at = at_val
+                # 写回 DB，下次直接命中
+                await self.db.execute(
+                    update(TestScenario)
+                    .where(TestScenario.id == scenario.id)
+                    .values(last_run_status=status_val, last_run_at=at_val)
+                )
+
+        if run_by_scenario:
+            await self.db.commit()
+
     async def get_scenario(self, scenario_id: UUID) -> Optional[TestScenario]:
         """获取场景详情"""
         query = select(TestScenario).where(TestScenario.id == scenario_id)
         result = await self.db.execute(query)
-        return result.scalar_one_or_none()
+        scenario = result.scalar_one_or_none()
+        if scenario:
+            # 如果 last_run_status 为空，从最新 ScenarioRun 派生
+            await self._backfill_last_run_status([scenario])
+        return scenario
 
     async def get_scenario_by_identifier(
         self,
