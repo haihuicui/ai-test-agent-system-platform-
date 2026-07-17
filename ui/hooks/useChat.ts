@@ -206,8 +206,30 @@ export function useChat({
     return [...older, ...stream.messages];
   }, [stream.messages, paginatedHistory.data]);
 
-  // 历史已到尽头：API 没有更多 checkpoint 可返回了。
-  const isReachingEnd = !paginatedHistory.hasMore;
+  // 追踪连续空加载次数：当向上滚动拉取的 checkpoint 没有带回任何新消息时递增。
+  // 累积型 channel 的更早 checkpoint 只是消息子集，连续 2 次空加载即视为有效尽头，
+  // 避免陷入"向上滚动→加载→无新消息→又提示向上滚动"的死循环。
+  const [consecutiveEmptyLoads, setConsecutiveEmptyLoads] = useState(0);
+  useEffect(() => {
+    const pagesLen = paginatedHistory.pages?.length ?? 0;
+    if (pagesLen <= 1) {
+      setConsecutiveEmptyLoads(0);
+      return;
+    }
+    if (paginatedHistory.hasNewMessages) {
+      setConsecutiveEmptyLoads(0);
+    } else {
+      setConsecutiveEmptyLoads((n) => n + 1);
+    }
+  }, [paginatedHistory.hasNewMessages, paginatedHistory.pages?.length]);
+  // 切换对话时重置计数
+  useEffect(() => {
+    setConsecutiveEmptyLoads(0);
+  }, [threadId]);
+
+  // 历史已到尽头：API 无更多 checkpoint，或连续空加载达到阈值。
+  const EMPTY_LOAD_LIMIT = 2;
+  const isReachingEnd = !paginatedHistory.hasMore || consecutiveEmptyLoads >= EMPTY_LOAD_LIMIT;
 
   const loadMoreHistory = useCallback(() => {
     paginatedHistory.loadMore();
