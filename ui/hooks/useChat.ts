@@ -13,6 +13,7 @@ import type { UseStreamThread } from "@langchain/langgraph-sdk/react";
 import type { TodoItem } from "@/lib/langgraph/types";
 import { useClient } from "@/providers/ClientProvider";
 import { useQueryState } from "nuqs";
+import { usePaginatedThreadHistory } from "./usePaginatedThreadHistory";
 import {
   type ChatAttachmentBlock,
   isImageBlock,
@@ -72,20 +73,14 @@ export function useChat({
     }
   }, [activeAssistant?.assistant_id, assistantId, setAssistantId, setThreadId]);
 
-  // 历史加载交给 LangGraph SDK 内置的 fetchStateHistory，不再使用自定义分页。
-  // 提供兼容接口（stub），ChatInterface 不再展示滚动加载 UI。
-  const paginatedHistory = useMemo(() => ({
-    data: [] as any[],
-    pages: [] as any[],
-    error: undefined as any,
-    isLoading: false,
-    mutate: async () => {},
-    isLoadingMore: false,
-    setSize: () => {},
-    hasMore: false,
-    hasNewMessages: true,
-    loadMore: () => {},
-  }), []);
+  // 自定义分页用于用户手动向上滚动时加载更早的 checkpoint。
+  // autoLoadAll=false：不在挂载时自动预加载，仅响应用户滚动操作。
+  const paginatedHistory = usePaginatedThreadHistory(
+    client,
+    thread ? null : threadId,
+    fetchHistoryOnMount,
+    false
+  );
 
   // 处理流完成事件
   const handleFinish = useCallback(() => {
@@ -112,8 +107,8 @@ export function useChat({
     threadId: threadId ?? null,
     onThreadId: setThreadIdFromStream,
     defaultHeaders: { "x-auth-scheme": "langsmith" },
-    // 使用 SDK 内置历史加载，limit=5 平衡完整性 & 传输量
-    fetchStateHistory: { limit: 5 },
+    // 使用 SDK 内置历史加载，limit=20 覆盖增量存储等长历史场景
+    fetchStateHistory: { limit: 20 },
     // Revalidate thread list when stream finishes, errors, or creates new thread
     onFinish: handleFinish,
     onError: onHistoryRevalidate,
@@ -121,12 +116,52 @@ export function useChat({
     ...(thread ? { thread } : {}),
   });
 
-  // SDK 的 fetchStateHistory 已将历史消息合并到 stream.messages，无需手动合并。
-  const mergedMessages = stream.messages;
+  // 合并 SDK 历史 (stream.messages) + 自定义分页 (paginatedHistory.data)。去重，时间序。
+  const mergedMessages = useMemo(() => {
+    const streamIds = new Set(
+      stream.messages.map((m) => m.id).filter((id): id is string => !!id)
+    );
 
-  // SDK 内置历史加载已覆盖，不需要手动滚动分页。
-  const isReachingEnd = true;
-  const loadMoreHistory = useCallback(() => {}, []);
+    const contentLength = (msg: Message): number => {
+      const c = msg.content;
+      if (typeof c === "string") return c.length;
+      if (Array.isArray(c)) return JSON.stringify(c).length;
+      return 0;
+    };
+
+    // checkpoints 按 newest-first；内部消息按时间序。从最新 checkpoint 末尾遍历，
+    // 最后 reverse 得到时间序。同一 id 多版本时取内容更长的。
+    const newestFirst: Message[] = [];
+    const indexById = new Map<string, number>();
+
+    for (const state of paginatedHistory.data) {
+      const msgs = state.values?.messages ?? [];
+      for (let i = msgs.length - 1; i >= 0; i--) {
+        const msg = msgs[i];
+        if (!msg.id) { newestFirst.push(msg); continue; }
+        if (streamIds.has(msg.id)) continue;
+        const existing = indexById.get(msg.id);
+        if (existing == null) {
+          indexById.set(msg.id, newestFirst.length);
+          newestFirst.push(msg);
+        } else if (contentLength(msg) > contentLength(newestFirst[existing])) {
+          newestFirst[existing] = msg;
+        }
+      }
+    }
+    return [...newestFirst.reverse(), ...stream.messages];
+  }, [stream.messages, paginatedHistory.data]);
+
+  // API 返回空页才是真尽头。仅在有新消息或尚未加载额外页时提示可滚动，
+  // 避免累积型 checkpoint（子集无新消息）反复提示用户白滚。
+  const isReachingEnd = !paginatedHistory.hasMore;
+  const showScrollHint =
+    !isReachingEnd &&
+    (paginatedHistory.hasNewMessages || (paginatedHistory.pages?.length ?? 0) <= 1);
+
+  const loadMoreHistory = useCallback(() => {
+    paginatedHistory.loadMore();
+  }, [paginatedHistory.loadMore]);
 
   // 流式渲染节流：逐 token 推送时，把"每个 token 触发一次渲染"降为"每 ~33ms 一次"，
   // 大幅减少长对话流式过程中的重复渲染。新消息（计数变化）和流结束时立即同步，
@@ -392,6 +427,7 @@ export function useChat({
     markCurrentThreadAsResolved,
     resumeInterrupt,
     isReachingEnd,
+    showScrollHint,
     // 历史分页
     loadMoreHistory,
     isLoadingMoreHistory: paginatedHistory.isLoadingMore,
