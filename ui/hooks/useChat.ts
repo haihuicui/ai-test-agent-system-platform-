@@ -84,14 +84,19 @@ export function useChat({
   // 兜底：首次挂载时 threadId 可能为 null（nuqs 水合或异步选中），key 变为有效值后
   // SWRInfinite 不一定会自动拉取首屏历史，导致重新打开 AI 助手后对话记录空白。
   // 在 threadId 首次变为有效且历史尚未加载时主动触发一次重校验。
+  //
+  // 注意：prevThreadIdRef 在挂载时初始化为 threadId，重新挂载时 threadId 可能已从 URL
+  // 恢复为有效值。此前仅判断 if (prev) return 会错误地跳过重新挂载场景，因为 prev 的
+  // 初始值就是当前 threadId（非 null）。现在改为：仅当 threadId 未变化且历史数据已
+  // 存在时才跳过，其余情况（包括挂载时 threadId 有效但数据尚未拉取）均触发 mutate。
   const prevThreadIdRef = useRef<string | null | undefined>(threadId);
   useEffect(() => {
     const prev = prevThreadIdRef.current;
     prevThreadIdRef.current = threadId;
     if (!fetchHistoryOnMount) return;
     if (!threadId) return;
-    if (prev) return;
-    if (paginatedHistory.data && paginatedHistory.data.length > 0) return;
+    // threadId 未变且已有历史数据 → 无需重复拉取
+    if (prev === threadId && paginatedHistory.data && paginatedHistory.data.length > 0) return;
     paginatedHistory.mutate();
   }, [fetchHistoryOnMount, threadId, paginatedHistory.data, paginatedHistory.mutate]);
 

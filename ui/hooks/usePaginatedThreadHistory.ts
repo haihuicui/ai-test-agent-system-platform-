@@ -72,6 +72,11 @@ export function usePaginatedThreadHistory(
   enabled: boolean = true,
   autoLoadAll: boolean = true
 ) {
+  // 当 threadId 在挂载时已有效（例如从 URL 恢复），直接初始化为 1 页，
+  // 确保 SWR 立即发起首页历史请求，不再依赖自动加载 effect 的异步触发。
+  // 当 threadId 为 null 时保持 initialSize: 0，由自动加载 effect 在
+  // threadId 变为有效值后触发首屏拉取。
+  const initialSize = threadId ? 1 : 0;
   const swr = useSWRInfinite(
     getKey(client, enabled, threadId),
     (key) => {
@@ -79,7 +84,7 @@ export function usePaginatedThreadHistory(
       return fetcher(client, key);
     },
     {
-      initialSize: 0,
+      initialSize,
       revalidateOnMount: true,
       revalidateFirstPage: false,
       revalidateOnFocus: false,
