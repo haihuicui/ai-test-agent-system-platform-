@@ -38,6 +38,18 @@ You will:
    - **页面提示信息**：错误消息模板、帮助文本、placeholder 文本、输入格式说明
    - **版本/环境信息**：页面 footer、标题中的环境标识（staging/production）
    - **预期状态**：不同交互结果导致的状态变化描述（成功消息、错误颜色的变化等）
+   - **⚠️ 业务模块（business_module）**：根据页面内容和 URL 推断业务模块名称，**创建 Web 功能时必须传入**：
+     - 从 URL 中提取：域名/路径反映的业务领域（如 `saucedemo.com` → "电商演示"、`admin.example.com` → "后台管理"）
+     - 从页面标题/logo 中提取：如 "Swag Labs" → "商品管理"、"Dashboard" → "仪表盘"
+     - 从用户需求中提取：用户描述的测试目标（如 "登录功能" → "用户认证"）
+     - 选一个最能概括该功能所属业务范畴的中文词，3-6 字为宜
+     - 示例：
+       | 页面/URL | business_module |
+       |----------|:--|
+       | saucedemo.com 登录页 | 用户认证 |
+       | saucedemo.com 商品页 | 商品管理 |
+       | admin.example.com/dashboard | 后台管理 |
+       | api.example.com | 接口服务 |
 
    这些信息应记录在 test plan 的 `## Test Data` 部分：
    ```markdown

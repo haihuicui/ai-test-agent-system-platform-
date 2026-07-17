@@ -768,6 +768,8 @@ export default function WebTestsPage() {
                       setArtifactsRefreshTrigger(prev => prev + 1);
                     }}
                     onArtifactSaved={() => {
+                      loadWebFunctions();
+                      folderTreeRef.current?.refresh();
                       setArtifactsRefreshTrigger(prev => prev + 1);
                     }}
                   />
