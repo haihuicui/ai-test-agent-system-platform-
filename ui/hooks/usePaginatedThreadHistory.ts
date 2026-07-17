@@ -18,9 +18,15 @@ import type { StateType } from "./useChat";
 //   对累积型 checkpoint 来说，older checkpoint 不会增加新消息，但去重由 useChat 负责；
 //   这里宁可多请求几页，也要保证 DeltaChannel / summarization 等场景下的历史完整。
 // - 自动加载额外受 MAX_AUTO_LOAD_PAGES 限制，防止极端 checkpoint 数量导致无限请求。
+// 首页：仅拉取最新的 1 个 head checkpoint，确保首屏立即渲染。
+// head checkpoint 在 LangGraph 标准模式下已包含全部消息（cumulative channel），
+// 仅 DeltaChannel / summarization 等特殊场景需要回溯更早的 checkpoint。
 const PAGE_SIZE = 1;
-// 自动加载历史时的安全上限，防止极端 checkpoint 数量导致无限请求
-const MAX_AUTO_LOAD_PAGES = 50;
+// 后续页：批量拉取剩余所有更早的 checkpoint，将原先 N 次串行请求合并为 1 次，
+// 根除逐页自动加载链条因竞态/网络波动中断导致「对话记录展示不全」的问题。
+const BULK_FETCH_SIZE = 100;
+// 自动加载历史时的安全上限。因 bulk fetch 一页即可覆盖绝大多数场景，大幅降低该值。
+const MAX_AUTO_LOAD_PAGES = 4;
 
 interface HistoryKey {
   kind: "thread-history";
@@ -44,7 +50,9 @@ function getKey(
     const before =
       previousPageData?.[previousPageData.length - 1]?.checkpoint?.checkpoint_id ??
       undefined;
-    return { kind: "thread-history", threadId, limit: PAGE_SIZE, before };
+    // 首页仅取 head checkpoint（快速首屏），后续页批量拉取剩余所有 checkpoint。
+    const limit = pageIndex === 0 ? PAGE_SIZE : BULK_FETCH_SIZE;
+    return { kind: "thread-history", threadId, limit, before };
   };
 }
 
