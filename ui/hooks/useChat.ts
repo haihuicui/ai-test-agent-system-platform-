@@ -443,12 +443,14 @@ export function useChat({
     [stream, buildAgentContext, onHistoryRevalidate]
   );
 
-  // interrupt 消失或流报错时重置恢复状态
+  // 恢复状态重置：resumeInterrupt 调用 stream.submit 后，interrupt 不会立即变化——
+  // SDK 先检查 values.__interrupt__（旧值），之后才检查 stream.isLoading。
+  // 当服务端开始处理（stream.isLoading → true）时说明 resume 已被消费；
+  // 当 interrupt 变化/消失/报错时也说明处理完成。三者任一变化都应重置，
+  // 否则按钮会永久卡死在"提交中..."。
   useEffect(() => {
-    if (!stream.interrupt || stream.error) {
-      setIsResumingInterrupt(false);
-    }
-  }, [stream.interrupt, stream.error]);
+    setIsResumingInterrupt(false);
+  }, [stream.isLoading, stream.interrupt, stream.error]);
 
   return {
     stream,
