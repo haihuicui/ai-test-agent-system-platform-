@@ -139,8 +139,8 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
     loadMoreHistory,
     isLoadingMoreHistory,
     isReachingEnd,
-    showScrollHint,
     historyPages,
+    historyHasNewMessages,
   } = useChatContext();
 
   // 保持 sendMessage 的最新引用，并自动带上当前 RAG / 自动审批设置
@@ -668,10 +668,12 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
                   </span>
                 </div>
               )}
-              {showScrollHint && !isLoadingMoreHistory && (
+              {((historyPages?.length ?? 0) > 0) && !isReachingEnd && !isLoadingMoreHistory && (
                 <div className="flex items-center justify-center py-2">
                   <span className="text-xs text-muted-foreground">
-                    向上滚动加载更多历史消息
+                    {historyHasNewMessages
+                      ? "向上滚动加载更多历史消息"
+                      : "同步历史记录..."}
                   </span>
                 </div>
               )}
