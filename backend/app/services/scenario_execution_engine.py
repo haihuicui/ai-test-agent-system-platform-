@@ -568,6 +568,15 @@ class ScenarioExecutionEngine:
                 run.execution_config = {"env_id": str(env_id)}
                 await self.session.commit()
 
+            # 同步场景的 last_run_status = "running"，前端可据此显示执行中状态
+            from sqlalchemy import update
+            await self.session.execute(
+                update(TestScenario)
+                .where(TestScenario.id == scenario.id)
+                .values(last_run_status="running", last_run_at=run.started_at)
+            )
+            await self.session.commit()
+
             # 3. 初始化上下文
             self.context.initialize(scenario.global_variables, variables)
 
@@ -632,6 +641,17 @@ class ScenarioExecutionEngine:
                     completed_at=run.completed_at,
                     duration_ms=run.duration_ms,
                     error_message=run.error_message
+                )
+            )
+
+            # 同步更新场景的 last_run_status / last_run_at，避免前端执行历史
+            # 列表因 last_run_status 为 null/旧值而持续显示加载中（转圈）
+            await self.session.execute(
+                update(TestScenario)
+                .where(TestScenario.id == scenario.id)
+                .values(
+                    last_run_status=run.status,
+                    last_run_at=run.completed_at or run.started_at,
                 )
             )
 
