@@ -144,16 +144,19 @@ export function usePaginatedThreadHistory(
 
   // 挂载或切换 thread 后，在后台自动加载更早的 checkpoint，直到历史完整或到达安全上限。
   // 这样关闭并重新打开 AI 助手时，无需用户手动滚动即可看到全部历史对话。
+  //
+  // 注意：此处直接调用 setSize，不使用 setTimeout(…, 0) 包装。原因是 React 18 的
+  // 自动批处理可能导致 effect 在 0ms 定时器触发前就重新执行，cleanup 中的 clearTimeout
+  // 会取消掉待执行的 setSize，导致自动加载链静默断裂 → 对话记录展示不全。
+  // isLoadingMore 守卫已可防止级联（setSize 后 isLoadingMore 立即变为 true，
+  // effect 再次触发时会因 isLoadingMore 而提前返回），因此无需额外异步包装。
   useEffect(() => {
     if (!enabled || !autoLoadAll || !threadId) return;
     if (!hasMore) return;
     if (isLoadingMore) return;
     if ((swr.data?.length ?? 0) >= MAX_AUTO_LOAD_PAGES) return;
 
-    const timer = setTimeout(() => {
-      swr.setSize((size) => size + 1);
-    }, 0);
-    return () => clearTimeout(timer);
+    swr.setSize((size) => size + 1);
   }, [
     enabled,
     autoLoadAll,
