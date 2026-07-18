@@ -251,6 +251,8 @@ def _validate_test_cases(test_cases: list) -> Optional[str]:
     只校验 generator 真正消费的字段，其余字段（tags/page_elements/prerequisites 等）
     允许缺失，避免因校验过严导致 Agent 反复返工（"弹皮球"）。
 
+    支持参数化用例：is_parameterized / data_variants / parameter_description。
+
     Returns:
         None 表示通过；否则返回错误描述字符串。
     """
@@ -276,6 +278,15 @@ def _validate_test_cases(test_cases: list) -> Optional[str]:
         if not isinstance(vps, list) or not vps:
             return f"test_cases[{i}].verification_points 必须至少包含一个验证点"
 
+        # 参数化用例校验
+        is_parameterized = tc.get("is_parameterized")
+        data_variants = tc.get("data_variants")
+        if is_parameterized is True:
+            if not isinstance(data_variants, list) or not data_variants:
+                return f"test_cases[{i}] 标记为参数化用例，但 data_variants 为空或非列表"
+        if data_variants is not None and not isinstance(data_variants, list):
+            return f"test_cases[{i}].data_variants 必须是列表"
+
     return None
 
 
@@ -297,6 +308,9 @@ async def save_web_test_cases(
             - expected_result: 预期结果
             - priority: 优先级
             - page_elements: 涉及的页面元素
+            - is_parameterized: 是否为参数化用例（可选）
+            - data_variants: 参数化数据变体列表（可选，对象或字符串）
+            - parameter_description: 参数化维度说明（可选）
         project_identifier: 项目标识符
 
     Returns:

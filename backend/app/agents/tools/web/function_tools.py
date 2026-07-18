@@ -317,10 +317,10 @@ async def create_web_function(
     project_identifier: str,
     display_name: str,
     name: str,
+    business_module: str,
     folder_id: Optional[str] = None,
     description: Optional[str] = None,
     base_url: Optional[str] = None,
-    business_module: Optional[str] = None,
     navigation: Optional[dict] = None,
     pages: Optional[list] = None,
     tags: Optional[list] = None,
@@ -333,10 +333,10 @@ async def create_web_function(
         project_identifier: 项目标识符
         display_name: 显示名称
         name: 功能名称（英文标识）
+        business_module: 业务模块（必填），用于功能分类，如"用户认证"、"商品管理"
         folder_id: 所属文件夹 ID（可选）
         description: 功能描述（可选）
         base_url: 基础 URL（可选）
-        business_module: 业务模块（可选）
         navigation: 导航配置（可选）
         pages: 页面列表（可选）
         tags: 标签列表（可选）
@@ -356,6 +356,13 @@ async def create_web_function(
 
         if not project:
             return {"error": f"Project {project_identifier} not found"}
+
+        # business_module 为必填字段，用于功能分类与模块化管理
+        if not business_module or not business_module.strip():
+            return {
+                "success": False,
+                "error": "business_module 为必填参数，用于标识业务模块（如：用户认证、商品管理）"
+            }
 
         # 使用仓库创建功能
         repo = WebFunctionRepository(session)

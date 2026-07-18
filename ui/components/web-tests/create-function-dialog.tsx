@@ -97,6 +97,10 @@ export function CreateWebFunctionDialog({
       toast.error("请输入英文名称");
       return;
     }
+    if (!businessModule.trim()) {
+      toast.error("请输入业务模块");
+      return;
+    }
 
     // 验证英文名称格式（只允许字母、数字、连字符和下划线）
     const nameRegex = /^[a-zA-Z0-9-_]+$/;
@@ -215,7 +219,9 @@ export function CreateWebFunctionDialog({
 
           {/* 业务模块 */}
           <div className="space-y-2">
-            <Label htmlFor="businessModule">业务模块</Label>
+            <Label htmlFor="businessModule">
+              业务模块 <span className="text-destructive">*</span>
+            </Label>
             <Input
               id="businessModule"
               value={businessModule}

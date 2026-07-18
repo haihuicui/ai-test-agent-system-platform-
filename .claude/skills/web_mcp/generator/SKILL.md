@@ -39,13 +39,14 @@ locators and the test cases' structure. Do not try to navigate or re-explore the
 - Data/state required → create/reset in `beforeEach` / `afterEach`.
 - **TestIdAttribute (from the plan)**: if the plan's `**TestIdAttribute**:` is non-default
   (e.g. `data-test`, `data-cy`, `data-qa`), add this at the TOP of the spec (after imports,
-  before `describe`) so the plan's `getByTestId(...)` locators resolve:
+  before `describe`):
   ```typescript
   import { test, expect } from '@playwright/test';
   test.use({ testIdAttribute: 'data-test' });  // app uses data-test, not data-testid
   ```
-  If the plan instead recorded CSS attribute selectors (`locator('[data-test=...]')`), use
-  them as-is and skip `test.use()`. Never silently downgrade to `getByText` on an error
+  Then prefer `getByTestId('submit-btn')` for all elements that have a test-id attribute.
+  Only fall back to CSS attribute selectors (`locator('[data-test="submit-btn"]')`) if the
+  element has no usable test-id value. Never silently downgrade to `getByText` on an error
   message — that couples the test to the error's wording.
 
 ### 3. Generate test code from the locator map
@@ -55,6 +56,44 @@ For each structured step, map action → code:
 - `click` → `await page.{locator}.click()`
 - `select` / `check` → `await page.{locator}.selectOption(data)` / `.check()`
 - `verify` → `await expect(page.{locator}).{assertion}()`
+
+### 3.5. Parameterized test generation
+
+When a test case has `is_parameterized: true` or `data_variants` (list), do **NOT** create
+multiple independent `test()` blocks. Generate a single parameterized loop inside one
+`test.describe`:
+
+```typescript
+const variants = [
+  { username: 'standard_user', password: 'secret_sauce', expected: 'success' },
+  { username: 'locked_out_user', password: 'secret_sauce', expected: 'failure' },
+  { username: 'invalid_user', password: 'wrong_password', expected: 'failure' }
+];
+
+test.describe('用户登录 - 多账户验证', () => {
+  for (const data of variants) {
+    test(`登录: ${data.username}`, async ({ page }) => {
+      await page.goto('https://www.saucedemo.com/');
+      await page.waitForLoadState('networkidle');
+      await page.getByTestId('username').fill(data.username);
+      await page.getByTestId('password').fill(data.password);
+      await page.getByTestId('login-button').click();
+      if (data.expected === 'success') {
+        await expect(page.getByTestId('inventory-list')).toBeVisible();
+      } else {
+        await expect(page.getByTestId('error')).toBeVisible();
+      }
+    });
+  }
+});
+```
+
+Rules:
+- Extract `data_variants` into a top-level `const variants = [...]` array.
+- Replace step `data` placeholders like `"{{username}}"` with `data.username`.
+- Use conditional assertions (`if` / `switch`) when `verification_points` contain a `condition`
+  field or when `expected_result` differs per variant.
+- One parameterized scenario = one `test.describe`; never duplicate the whole file for each variant.
 
 ### 4. Handle missing locators
 If a step has no locator in the plan, infer semantically and add a comment:
@@ -74,18 +113,20 @@ Report missing locators so the plan can be regenerated.
 
 ⚠️ **在调用 `save_web_test_script` 之前，必须完成以下 5 项检查：**
 
-**检查 1: 定位器一致性**
+**检查 1: 定位器一致性与 TestIdAttribute**
 - 脚本中的每个定位器是否与 test plan 中记录的完全一致（逐字符匹配）？
 - 如果 plan 标注了 `**TestIdAttribute**: data-test`（非默认值），脚本顶部**必须**有：
   ```typescript
   test.use({ testIdAttribute: 'data-test' });
   ```
   如果缺失 → 在 `import` 语句之后、`test.describe` 之前补上。
+- 当使用非默认 test-id 属性时，应优先使用 `getByTestId(...)`；只有没有 test-id 的元素才降级为 CSS 属性选择器。
 
 **检查 2: 结构完整性**
 - [ ] `import { test, expect } from '@playwright/test';` 存在
 - [ ] 每个 `test()` 内至少有一个 `expect` 断言（关键业务结果验证）
 - [ ] URL 与 test plan 中记录的一致，未被"猜测"或"修正"
+- [ ] 参数化用例使用 `for (const data of variants)` 或 `test.each`，没有拆成多个重复文件
 
 **检查 3: Strict Mode 无冲突**
 - [ ] 没有裸的 `getByRole('button')`（不带 `name` 过滤 → strict mode violation）
@@ -101,6 +142,7 @@ Report missing locators so the plan can be regenerated.
 - [ ] 没有明显的 TypeScript 语法错误（不匹配的括号、引号、分号）
 - [ ] `test.describe` / `test` / `expect` 嵌套层次正确
 - [ ] 字符串内的引号已正确转义
+- [ ] 参数化数据表内没有未闭合的对象/数组
 
 **⚠️ 如果任一检查不通过：**
 1. 用 `edit` / `write` 工具修改脚本
@@ -122,10 +164,11 @@ The page's real text is the only source of truth.
 ### Priority order (when you must infer)
 1. `getByRole('button', { name: 'Submit', exact: true })`  ← most preferred
 2. `getByLabel('Email address')`  ← form inputs
-3. `getByTestId('submit-btn')`  ← when the app's test-id attr is the default `data-testid`.
+3. `getByTestId('submit-btn')`  ← preferred whenever the app uses any test-id attribute.
    If the plan's TestIdAttribute is non-default (e.g. `data-test`), add
-   `test.use({ testIdAttribute: 'data-test' })` and keep `getByTestId`, or use
-   `locator('[data-test="submit-btn"]')`.
+   `test.use({ testIdAttribute: 'data-test' })` at the top of the spec and keep using
+   `getByTestId`. Only fall back to `locator('[data-test="submit-btn"]')` if the element
+   has no usable test-id value.
 4. `getByText('Submit', { exact: true })`  ← unique text
 5. `.first()` / `.filter({ hasText: ... })`  ← last resort for multiple matches
 
@@ -191,3 +234,5 @@ test('should login successfully', async ({ page }) => {
 - **⚠️ 原样使用计划定位器，不要修改文本。**
 - **⚠️ 导航后加 `waitForLoadState('networkidle')`；前置条件放 `test.beforeEach()`。**
 - **⚠️ 每步前加步骤注释；断言聚焦关键结果；每个定位器保证唯一。**
+- **⚠️ 非默认 test-id 属性时脚本顶部必须加 `test.use({ testIdAttribute: '...' })`。**
+- **⚠️ 参数化用例禁止拆成多个重复文件，使用 `for (const data of variants)` 循环。**

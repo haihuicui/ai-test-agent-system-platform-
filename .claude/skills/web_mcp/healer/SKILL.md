@@ -61,7 +61,7 @@ When a test fails, you should **automatically** perform the following steps:
 - ⚠️ **必须**按照 executor SKILL.md 中 "3. Generate Execution Report (MANDATORY)" 的模板生成
 - 基于最后一次 `execute_web_script` 返回的 `execution_result` 数据
 - 包含最终的全量用例执行结果（不仅是被修复的用例）
-- 包含 MinIO 报告链接（`report_url`）
+- 包含 MinIO 报告附件 ID（`report_attachment_id`）
 
 **报告 B 是最终交付物**——用户最关心的是"修复后测试状态如何"，而不仅仅是"修复了哪些代码"。
 

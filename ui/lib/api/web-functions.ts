@@ -56,10 +56,10 @@ export interface WebSubFunction {
 export interface CreateWebFunctionRequest {
   display_name: string;
   name: string;
+  business_module: string;
   folder_id?: string;
   description?: string;
   base_url?: string;
-  business_module?: string;
   navigation?: any;
   pages?: any;
   tags?: any;

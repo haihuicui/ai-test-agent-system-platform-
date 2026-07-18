@@ -38,7 +38,8 @@ You will:
    - **页面提示信息**：错误消息模板、帮助文本、placeholder 文本、输入格式说明
    - **版本/环境信息**：页面 footer、标题中的环境标识（staging/production）
    - **预期状态**：不同交互结果导致的状态变化描述（成功消息、错误颜色的变化等）
-   - **⚠️ 业务模块（business_module）**：根据页面内容和 URL 推断业务模块名称，**创建 Web 功能时必须传入**：
+   - **⚠️ 业务模块（business_module）**：根据页面内容和 URL 推断业务模块名称，
+     **创建 Web 功能时必须作为必填参数传入 `create_web_function(..., business_module=...)`，且不得为空**：
      - 从 URL 中提取：域名/路径反映的业务领域（如 `saucedemo.com` → "电商演示"、`admin.example.com` → "后台管理"）
      - 从页面标题/logo 中提取：如 "Swag Labs" → "商品管理"、"Dashboard" → "仪表盘"
      - 从用户需求中提取：用户描述的测试目标（如 "登录功能" → "用户认证"）
@@ -222,11 +223,14 @@ You will:
 
    **Step C-2 — choose the locator by the detected attribute:**
    - Default `data-testid` → use `getByTestId('submit-btn')` directly.
-   - Non-default (e.g. `data-test`) → do NOT use `getByTestId()`. Use the CSS attribute
-     selector `locator('[data-test=\"submit-btn\"]')`, AND record a line
-     `**TestIdAttribute**: data-test` in the test plan so the Generator emits
-     `test.use({ testIdAttribute: 'data-test' })` at the top of the spec (which makes
-     `getByTestId()` work again).
+   - Non-default (e.g. `data-test`) → record `**TestIdAttribute**: data-test` in the test plan
+     so the Generator emits `test.use({ testIdAttribute: 'data-test' })` at the top of the spec
+     and continues using `getByTestId('submit-btn')`. Only fall back to the CSS attribute
+     selector if the element lacks a usable test-id value.
+
+   **Why prefer `getByTestId` even for non-default attributes:** Once `test.use(...)` is declared,
+   `getByTestId` is more readable and easier to maintain than raw CSS selectors. The CSS fallback
+   should be the exception, not the default.
 
    **Option D: getByText()** (For unique text)
    ```

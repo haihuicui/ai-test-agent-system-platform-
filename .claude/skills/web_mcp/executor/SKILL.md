@@ -115,7 +115,7 @@ Your mission is to ensure tests are executed effectively, results are thoroughly
 
 ```bash
 # 1. 执行（唯一权威入口：自动判定 + 生成 HTML 报告并保存到 MinIO + 创建 WebTestRun + 返回结构化结果）
-# ⚠️ 返回值含 execution_result（stats/cases）+ report_url + test_run_id
+# ⚠️ 返回值含 execution_result（stats/cases）+ report_attachment_id + test_run_id
 execute_web_script(
   local_script_path="tests/example.spec.ts",
   framework="playwright",
@@ -129,7 +129,7 @@ execute_web_script(
 # 失败用例(status=unexpected/failed/timedOut) → 交 healer 用 test_debug + browser_* 诊断
 
 # 3. ⚠️ CRITICAL: 生成并输出执行报告（MANDATORY — 不可跳过）
-# execute_web_script 已自动生成 HTML 报告并保存到 MinIO（返回 report_url），
+# execute_web_script 已自动生成 HTML 报告并保存到 MinIO（返回 report_attachment_id），
 # 但 AI **必须**基于 execution_result 再生成一份 Markdown 执行摘要，
 # 输出给用户 **并持久化保存**。这是执行流程的最终交付物。
 # 格式要求见下方 "3. Generate Execution Report (MANDATORY)" 章节。
@@ -145,7 +145,7 @@ execute_web_script(
 `execute_web_script` 返回的 `execution_result` 已包含完整结构化数据：
 - `execution_result.stats`：`{ total, passed, failed, skipped, flaky, duration_ms }`
 - `execution_result.cases`：每个用例的 `{ title, status, duration_ms, retries, error }`
-- 报告 URL：`execute_web_script` 已自动上传到 MinIO 并返回 `report_url`
+- 报告附件 ID：`execute_web_script` 已自动上传到 MinIO 并返回 `report_attachment_id`
 
 #### Step 3.2: 生成 Markdown 执行摘要
 
@@ -180,7 +180,7 @@ execute_web_script(
   - 重试次数：{case.retries}
 
 ## 📎 产物链接
-- **HTML 报告**：{report_url}（MinIO，自动生成）
+- **HTML 报告附件 ID**：{report_attachment_id}（MinIO，自动生成，可通过 `get_artifact_content(attachment_id=...)` 或前端附件列表查看）
 - **脚本文件**：{script_path}
 
 ## 🏁 结论
@@ -193,7 +193,7 @@ execute_web_script(
 #### Step 3.3: 输出报告
 
 - **必须**将上述 Markdown 报告完整输出给用户（不作为思考过程，而作为最终交付物）
-- 报告 URL（`execute_web_script` 返回的 `report_url`）**必须**明确告知用户
+- 报告附件 ID（`execute_web_script` 返回的 `report_attachment_id`）**必须**明确告知用户
 - 如果有失败用例且已交 healer 修复，报告末尾应注明修复状态
 
 #### Step 3.4: 持久化 Markdown 报告（MANDATORY）
@@ -204,7 +204,7 @@ execute_web_script(
 
 | 报告类型 | 格式 | 保存方式 | 机制 |
 |----------|------|----------|------|
-| **HTML 报告** | 交互式 HTML | MinIO | `execute_web_script` **自动完成**，返回 `report_url` |
+| **HTML 报告** | 交互式 HTML | MinIO | `execute_web_script` **自动完成**，返回 `report_attachment_id` |
 | **执行摘要** | Markdown | DB + MinIO | AI **必须手动调用**保存工具 |
 
 对 Markdown 执行摘要的保存：
@@ -225,7 +225,7 @@ execute_web_script(
 
 2. **保存失败时的 fallback**：如果 `save_web_test_report` 调用失败（极少情况），
    在输出报告时明确告知用户：
-   > ⚠️ HTML 报告已保存到 MinIO：{report_url}
+   > ⚠️ HTML 报告附件 ID：{report_attachment_id}
    > ⚠️ Markdown 执行摘要保存失败：{错误原因}。以下为本次执行结果：
 
 3. **保存后验证**：保存成功后，`get_web_sub_function_artifacts(sub_function_id=..., artifact_type="WEB_TEST_REPORT")`
@@ -236,11 +236,11 @@ execute_web_script(
    - [ ] `execution_result.stats` 数据已读取
    - [ ] Markdown 报告已生成并输出给用户
    - [ ] Markdown 报告已持久化保存（或已明确告知用户未保存）
-   - [ ] `report_url`（MinIO HTML 报告链接）已告知用户
+   - [ ] `report_attachment_id`（MinIO HTML 报告附件 ID）已告知用户
 
 #### Step 3.5: 最终检查
 
-- [ ] HTML 报告：`execute_web_script` 已自动保存到 MinIO（`report_url` 已返回）
+- [ ] HTML 报告：`execute_web_script` 已自动保存到 MinIO（`report_attachment_id` 已返回）
 - [ ] Markdown 摘要：已生成、已输出、已持久化（或已明确告知用户保存状态）
 - [ ] 失败用例已记录或交 healer（如适用）
 - [ ] 修复后的重新执行结果也走完了同样的报告流程

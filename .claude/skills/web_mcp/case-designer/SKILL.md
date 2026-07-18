@@ -195,6 +195,20 @@ Ensure each test case has:
    ]
    ```
 
+   **参数化数据可以是对象**：当不同变体除了输入值外还有额外维度（如预期结果、错误类型），
+   使用对象列表：
+   ```json
+   "data_variants": [
+     {"username": "standard_user", "password": "secret_sauce", "expected": "success"},
+     {"username": "locked_out_user", "password": "secret_sauce", "expected": "locked"},
+     {"username": "invalid_user", "password": "wrong_password", "expected": "invalid"}
+   ]
+   ```
+
+   **必须合并的典型场景**：登录、表单校验、搜索等“同流程不同数据”的场景，应合并为 1 个
+   参数化用例，禁止拆成多个子功能。generator 会据此生成 `for (const data of variants)` 循环，
+   而不是多个重复脚本。
+
 5. **如果去重后只有一个用例**：检查是否覆盖了正常流程即可，不要强行拆分。
 
 ### Step 5: Save Test Cases

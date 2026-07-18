@@ -22,10 +22,10 @@ class CreateWebFunctionRequest(BaseModel):
     """创建 Web 功能请求"""
     display_name: str
     name: str
+    business_module: str
     folder_id: Optional[str] = None
     description: Optional[str] = None
     base_url: Optional[str] = None
-    business_module: Optional[str] = None
     navigation: Optional[dict] = None
     pages: Optional[list] = None
     tags: Optional[list] = None
