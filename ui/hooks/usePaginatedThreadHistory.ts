@@ -20,7 +20,9 @@ import type { StateType } from "./useChat";
 // - 自动加载额外受 MAX_AUTO_LOAD_PAGES 限制，防止极端 checkpoint 数量导致无限请求。
 const PAGE_SIZE = 1;
 // 自动加载历史时的安全上限，防止极端 checkpoint 数量导致无限请求
-const MAX_AUTO_LOAD_PAGES = 50;
+const MAX_AUTO_LOAD_PAGES = 20;
+// 自动加载间隔，避免连续触发 setSize 造成时序竞争与过度请求
+const AUTO_LOAD_INTERVAL_MS = 300;
 
 interface HistoryKey {
   kind: "thread-history";
@@ -108,43 +110,77 @@ export function usePaginatedThreadHistory(
     return lastPage != null && lastPage.length > 0;
   }, [swr.data, swr.isValidating, swr.size]);
 
-  // 计算上一页是否带来了新的 message id（仅用于 UI 提示）。
-  const hasNewMessages = useMemo(() => {
-    if (!swr.data || swr.data.length <= 1) return true;
-    const lastPage = swr.data[swr.data.length - 1];
-    if (!lastPage || lastPage.length === 0) return false;
-
-    const seen = new Set<string>();
-    for (let i = 0; i < swr.data.length - 1; i++) {
-      for (const state of swr.data[i]) {
+  // 已加载的所有 message id（跨所有 checkpoint）。仅用于调试与提示，不用于
+  // 阻断自动加载，避免 DeltaChannel / summarization 场景下误拦真实历史消息。
+  const loadedMessageIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const page of swr.data ?? []) {
+      for (const state of page) {
         for (const msg of state.values?.messages ?? []) {
-          if (msg.id) seen.add(msg.id);
+          if (msg.id) ids.add(msg.id);
         }
       }
     }
-    for (const state of lastPage) {
-      for (const msg of state.values?.messages ?? []) {
-        if (msg.id && !seen.has(msg.id)) return true;
+    return ids;
+  }, [swr.data]);
+
+  // 最近一次分页加载带来的新 message id 数量（仅用于 UI 提示）。
+  const lastPageNewMessageCount = useMemo(() => {
+    if (!swr.data || swr.data.length <= 1) return null;
+    const lastPage = swr.data[swr.data.length - 1];
+    if (!lastPage || lastPage.length === 0) return 0;
+
+    const previousIds = new Set<string>();
+    for (let i = 0; i < swr.data.length - 1; i++) {
+      for (const state of swr.data[i]) {
+        for (const msg of state.values?.messages ?? []) {
+          if (msg.id) previousIds.add(msg.id);
+        }
       }
     }
-    return false;
+    let count = 0;
+    for (const state of lastPage) {
+      for (const msg of state.values?.messages ?? []) {
+        if (msg.id && !previousIds.has(msg.id)) count++;
+      }
+    }
+    return count;
   }, [swr.data]);
+
+  // 仅作为 UI 提示参考，不用于阻断自动加载。
+  const hasNewMessages =
+    lastPageNewMessageCount === null ? true : lastPageNewMessageCount > 0;
 
   // 正在拉取更多历史（size 已增加但对应页数据尚未返回）
   const isLoadingMore =
     swr.isValidating && swr.data != null && swr.size > swr.data.length;
 
-  // 挂载或切换 thread 后，在后台自动加载更早的 checkpoint，直到历史完整或到达安全上限。
-  // 这样关闭并重新打开 AI 助手时，无需用户手动滚动即可看到全部历史对话。
+  // 挂载或切换 thread 后，在后台自动加载更早的 checkpoint。
+  // 注意：这里只依赖服务端是否返回了空页（hasMore）和硬上限，不依赖
+  // hasNewMessages 做阻断，避免 DeltaChannel / summarization 场景下误拦真实历史。
   useEffect(() => {
     if (!enabled || !autoLoadAll || !threadId) return;
     if (!hasMore) return;
     if (isLoadingMore) return;
-    if ((swr.data?.length ?? 0) >= MAX_AUTO_LOAD_PAGES) return;
+    if ((swr.data?.length ?? 0) >= MAX_AUTO_LOAD_PAGES) {
+      if (process.env.NODE_ENV === "development") {
+        // eslint-disable-next-line no-console
+        console.debug(
+          `[usePaginatedThreadHistory] 已达自动加载上限 ${MAX_AUTO_LOAD_PAGES}, threadId=${threadId}`
+        );
+      }
+      return;
+    }
 
     const timer = setTimeout(() => {
+      if (process.env.NODE_ENV === "development") {
+        // eslint-disable-next-line no-console
+        console.debug(
+          `[usePaginatedThreadHistory] 自动加载第 ${(swr.data?.length ?? 0) + 1} 页, threadId=${threadId}, loadedMessageIds=${loadedMessageIds.size}`
+        );
+      }
       swr.setSize((size) => size + 1);
-    }, 0);
+    }, AUTO_LOAD_INTERVAL_MS);
     return () => clearTimeout(timer);
   }, [
     enabled,
@@ -154,6 +190,7 @@ export function usePaginatedThreadHistory(
     isLoadingMore,
     swr.data?.length,
     swr.setSize,
+    loadedMessageIds.size,
   ]);
 
   return {
