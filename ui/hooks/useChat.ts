@@ -108,7 +108,11 @@ export function useChat({
       error: paginatedHistory.error,
       isLoading: paginatedHistory.isLoading,
       mutate: async (mutateId?: string) => {
-        await paginatedHistory.mutate();
+        // SDK 在流正常结束后会 await history.mutate()，然后才进入 finally 重置
+        // stream.isLoading。如果这里 await paginatedHistory.mutate()（默认会重新验证
+        // 所有已加载的历史分页），长对话时可能阻塞数秒，导致 AI 已经回复完毕，
+        // "停止"按钮仍不恢复为"发送"。
+        // 这里直接返回当前缓存数据，把实际历史刷新交给 onFinish -> handleFinish。
         return paginatedHistory.data;
       },
     }),
@@ -116,7 +120,6 @@ export function useChat({
       paginatedHistory.data,
       paginatedHistory.error,
       paginatedHistory.isLoading,
-      paginatedHistory.mutate,
     ]
   );
 
