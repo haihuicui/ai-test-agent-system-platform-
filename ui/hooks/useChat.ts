@@ -90,30 +90,23 @@ export function useChat({
     false  // 关闭自动加载，避免与 threadMessages 双通道重复请求
   );
 
-  // 兜底：首次挂载时 threadId 可能为 null（nuqs 水合或异步选中），key 变为有效值后
-  // SWRInfinite 不一定会自动拉取首屏历史，导致重新打开 AI 助手后对话记录空白。
-  // 在 threadId 首次变为有效且历史尚未加载时主动触发一次重校验。
+  // 兜底：首次挂载或切换 thread 时，如果当前 threadId 有效但历史数据尚未加载，
+  // 主动触发一次重校验。注意：依赖项只放 threadId，不要放 messages / data 数组，
+  // 否则数据变化会再次触发 mutate，形成无限重新验证循环，导致前端闪烁。
   const prevThreadIdRef = useRef<string | null | undefined>(threadId);
   useEffect(() => {
     const prev = prevThreadIdRef.current;
     prevThreadIdRef.current = threadId;
     if (!fetchHistoryOnMount) return;
     if (!threadId) return;
-    // threadId 未变且已有历史消息 → 无需重复拉取
-    if (
-      prev === threadId &&
-      threadMessages.messages.length > 0 &&
-      paginatedHistory.data.length > 0
-    )
-      return;
+    if (prev === threadId) return;
+
     threadMessages.mutate();
     paginatedHistory.mutate();
   }, [
     fetchHistoryOnMount,
     threadId,
-    threadMessages.messages,
     threadMessages.mutate,
-    paginatedHistory.data,
     paginatedHistory.mutate,
   ]);
 
