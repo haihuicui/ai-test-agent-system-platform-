@@ -112,7 +112,14 @@ export function useChat({
         // stream.isLoading。如果这里 await paginatedHistory.mutate()（默认会重新验证
         // 所有已加载的历史分页），长对话时可能阻塞数秒，导致 AI 已经回复完毕，
         // "停止"按钮仍不恢复为"发送"。
-        // 这里直接返回当前缓存数据，把实际历史刷新交给 onFinish -> handleFinish。
+        // 因此采用 fire-and-forget：立即返回当前缓存数据，同时触发后台重新验证，
+        // 保证最新对话记录能被加载，且不阻塞 SDK 重置 isLoading。
+        paginatedHistory.mutate().catch((err) => {
+          if (process.env.NODE_ENV === "development") {
+            // eslint-disable-next-line no-console
+            console.error("[useChat] background history revalidate failed", err);
+          }
+        });
         return paginatedHistory.data;
       },
     }),
@@ -120,12 +127,17 @@ export function useChat({
       paginatedHistory.data,
       paginatedHistory.error,
       paginatedHistory.isLoading,
+      paginatedHistory.mutate,
     ]
   );
 
   // 处理流完成事件
   const handleFinish = useCallback(() => {
-    // 新 run 结束后刷新历史第一页，使历史包含最新 checkpoint
+    // 新 run 结束后刷新历史，使历史包含最新 checkpoint
+    if (process.env.NODE_ENV === "development") {
+      // eslint-disable-next-line no-console
+      console.debug("[useChat] handleFinish: revalidating history");
+    }
     paginatedHistory.mutate();
     onHistoryRevalidate?.();
     // 检测是否创建了测试用例（通过检查最后的消息中是否包含工具调用）
