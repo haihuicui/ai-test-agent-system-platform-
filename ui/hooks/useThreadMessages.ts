@@ -29,15 +29,29 @@ export function useThreadMessages(
       pageIndex: number,
       previousPageData: ThreadMessagesResponse | null
     ): MessagesKey | null => {
-      if (!enabled || !client || !threadId) return null;
+      if (!enabled || !client || !threadId) {
+        if (process.env.NODE_ENV === "development") {
+          // eslint-disable-next-line no-console
+          console.debug(
+            "[useThreadMessages] getKey returns null",
+            JSON.stringify({ enabled, hasClient: !!client, threadId, pageIndex })
+          );
+        }
+        return null;
+      }
       if (previousPageData && !previousPageData.has_more) return null;
 
-      return {
-        kind: "thread-messages",
+      const key = {
+        kind: "thread-messages" as const,
         threadId,
         limit: MESSAGES_PAGE_SIZE,
         beforeCheckpointId: previousPageData?.next_checkpoint_id ?? undefined,
       };
+      if (process.env.NODE_ENV === "development") {
+        // eslint-disable-next-line no-console
+        console.debug("[useThreadMessages] getKey", key);
+      }
+      return key;
     },
     [client, enabled, threadId]
   );
@@ -50,12 +64,23 @@ export function useThreadMessages(
       params.before_checkpoint_id = key.beforeCheckpointId;
     }
 
+    if (process.env.NODE_ENV === "development") {
+      // eslint-disable-next-line no-console
+      console.debug("[useThreadMessages] fetching", `/threads/${key.threadId}/messages`, params);
+    }
+
     // SDK 尚未暴露 /messages 端点，通过底层 fetch 调用。
     // BaseClient.fetch 在运行时是存在的，只是类型声明为 protected。
     const result = await (client as any).fetch(
       `/threads/${key.threadId}/messages`,
       { params }
     );
+
+    if (process.env.NODE_ENV === "development") {
+      // eslint-disable-next-line no-console
+      console.debug("[useThreadMessages] response", result);
+    }
+
     return result as ThreadMessagesResponse;
   };
 
