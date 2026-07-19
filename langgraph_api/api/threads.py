@@ -277,6 +277,31 @@ async def get_thread_history_post(
 
 
 @retry_db
+async def get_thread_messages(
+    request: ApiRequest,
+):
+    """Get a chronological, deduplicated page of messages for a thread.
+
+    Unlike /history which returns raw checkpoints, this endpoint merges messages
+    across checkpoints and returns a simple message list with a cursor. Callers
+    do not need to understand DeltaChannel or cumulative checkpoint semantics.
+    """
+    thread_id = request.path_params["thread_id"]
+    validate_uuid(thread_id, "Invalid thread ID: must be a UUID")
+    limit_ = request.query_params.get("limit", 20)
+    try:
+        limit = int(limit_)
+    except ValueError:
+        raise HTTPException(status_code=422, detail=f"Invalid limit {limit_}") from None
+    before = request.query_params.get("before_checkpoint_id")
+    async with connect() as conn:
+        result = await Threads.State.list_messages(
+            conn, thread_id=thread_id, limit=limit, before=before
+        )
+    return ApiResponse(result)
+
+
+@retry_db
 async def get_thread(
     request: ApiRequest,
 ):
@@ -384,6 +409,11 @@ threads_routes: list[BaseRoute] = [
         "/threads/{thread_id}/history",
         endpoint=get_thread_history_post,
         methods=["POST"],
+    ),
+    ApiRoute(
+        "/threads/{thread_id}/messages",
+        endpoint=get_thread_messages,
+        methods=["GET"],
     ),
     ApiRoute(
         "/threads/{thread_id}/state/{checkpoint_id}",

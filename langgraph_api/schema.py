@@ -173,6 +173,19 @@ class ThreadState(TypedDict):
     """The interrupts for this state."""
 
 
+class ThreadMessagesResponse(TypedDict):
+    """Response for listing messages of a thread."""
+
+    messages: Sequence[dict[str, Any]]
+    """Messages in chronological order."""
+    has_more: bool
+    """Whether there are older messages."""
+    next_checkpoint_id: str | None
+    """Cursor for the next page; null when no more messages."""
+    total_known_messages: NotRequired[int]
+    """Total unique messages seen during scanning (optional, for progress)."""
+
+
 class RunKwargs(TypedDict):
     config: RunnableConfig
     context: dict[str, Any]

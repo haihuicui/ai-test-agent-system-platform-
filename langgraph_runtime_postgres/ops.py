@@ -16,6 +16,7 @@ from typing import (  # noqa: UP035
 )
 from uuid import UUID, uuid4
 
+import json
 import orjson
 import psycopg.errors
 import redis.exceptions
@@ -69,6 +70,7 @@ from langgraph_api.schema import (
     RunStatus,
     StreamMode,
     Thread,
+    ThreadMessagesResponse,
     ThreadSelectField,
     ThreadStatus,
     ThreadStreamMode,
@@ -128,6 +130,61 @@ def _snapshot_defaults():
     if not hasattr(StateSnapshot, "interrupts"):
         return {}
     return {"interrupts": tuple()}
+
+
+def _message_content_length(msg: dict[str, Any]) -> int:
+    """Approximate length of a message's content for tie-breaking merges."""
+    content = msg.get("content")
+    if isinstance(content, str):
+        return len(content)
+    if isinstance(content, list):
+        return len(json.dumps(content, ensure_ascii=False))
+    return 0
+
+
+def _merge_messages_from_snapshots(
+    snapshots: list[StateSnapshot],
+) -> list[dict[str, Any]]:
+    """Merge messages from multiple checkpoints into a chronological list.
+
+    Checkpoints are returned newest-first by LangGraph. We iterate from oldest
+    to newest so that later versions of the same message id overwrite earlier
+    ones, matching the behavior of the messages delta reducer.
+
+    For the same message id across checkpoints (e.g. due to summarization or
+    compaction rewriting an old tool result), keep the version with the longest
+    content so the UI shows the most complete payload.
+    """
+    seen: set[str] = set()
+    merged: list[dict[str, Any]] = []
+
+    for snapshot in reversed(snapshots):
+        values = snapshot.values or {}
+        messages = values.get("messages", []) if isinstance(values, dict) else []
+        for msg in messages:
+            if not isinstance(msg, dict):
+                continue
+            msg_id = msg.get("id")
+            if not msg_id:
+                # Messages without ids cannot be deduplicated; preserve them.
+                merged.append(msg)
+                continue
+
+            if msg_id not in seen:
+                seen.add(msg_id)
+                merged.append(msg)
+                continue
+
+            existing_idx = next(
+                (i for i, m in enumerate(merged) if m.get("id") == msg_id),
+                None,
+            )
+            if existing_idx is not None and _message_content_length(
+                msg
+            ) > _message_content_length(merged[existing_idx]):
+                merged[existing_idx] = msg
+
+    return merged
 
 
 def _compare_stream_ids(stream_id_a: bytes, stream_id_b: bytes) -> int:
@@ -1979,6 +2036,145 @@ class Threads(Authenticated):
                     ]
             else:
                 return []
+
+        @staticmethod
+        async def list_messages(
+            conn: AsyncConnection[DictRow],
+            *,
+            thread_id: str,
+            before: str | Checkpoint | None = None,
+            limit: int = 20,
+            ctx: Auth.types.BaseAuthContext | None = None,
+        ) -> ThreadMessagesResponse:
+            """Get a chronological, deduplicated page of messages for a thread.
+
+            This method scans the checkpoint chain backwards, merges messages from
+            each checkpoint, and returns a single page with a checkpoint-based
+            cursor. Callers do not need to understand DeltaChannel vs cumulative
+            checkpoints; the merge logic mirrors the front-end `mergedMessages`.
+            """
+            MAX_SCAN_CHECKPOINTS = 100
+            MESSAGES_TARGET = max(limit * 2, limit + 20)
+            CHECKPOINT_PAGE_SIZE = 10
+
+            config: Config = {
+                "configurable": {
+                    "thread_id": thread_id,
+                    "checkpoint_ns": "",
+                }
+            }
+
+            async with conn.pipeline():
+                thread, run_graph_id = await asyncio.gather(
+                    Threads.get(conn, thread_id, ctx=ctx),
+                    conn.execute(
+                        "select kwargs -> 'config' -> 'configurable' ->> 'graph_id' as graph_id from run where thread_id = %(thread_id)s limit 1",
+                        {"thread_id": thread_id},
+                    ),
+                )
+            thread = await fetchone(thread)
+            if thread is None:
+                raise HTTPException(
+                    status_code=404, detail=f"Thread '{thread_id}' not found."
+                )
+
+            thread_metadata = json_loads(thread["metadata"])
+            thread_config = json_loads(thread["config"])
+            thread_config = {
+                **thread_config,
+                "configurable": {
+                    **thread_config.get("configurable", {}),
+                    **config.get("configurable", {}),
+                },
+            }
+            graph_id_row = await run_graph_id.fetchone()
+            graph_id = (
+                graph_id_row["graph_id"]
+                if graph_id_row
+                else thread_metadata.get("graph_id")
+            )
+            if not graph_id:
+                return {
+                    "messages": [],
+                    "has_more": False,
+                    "next_checkpoint_id": None,
+                }
+
+            async with get_graph(
+                graph_id,
+                thread_config,
+                checkpointer=Checkpointer(
+                    conn, unpack_hook=_msgpack_ext_hook_to_json
+                ),
+                store=(await api_store.get_store()),
+            ) as graph:
+                all_snapshots: list[StateSnapshot] = []
+                cursor_before = (
+                    {"configurable": {"checkpoint_id": before}}
+                    if isinstance(before, str)
+                    else before
+                )
+                last_page_full = False
+
+                while len(all_snapshots) < MAX_SCAN_CHECKPOINTS:
+                    page = [
+                        c
+                        async for c in graph.aget_state_history(
+                            config,
+                            limit=CHECKPOINT_PAGE_SIZE,
+                            before=cursor_before,
+                        )
+                    ]
+                    if not page:
+                        last_page_full = False
+                        break
+
+                    all_snapshots.extend(page)
+                    last_page_full = len(page) == CHECKPOINT_PAGE_SIZE
+
+                    merged = _merge_messages_from_snapshots(all_snapshots)
+                    if len(merged) >= MESSAGES_TARGET:
+                        break
+
+                    cursor_before = {
+                        "configurable": {
+                            "checkpoint_id": page[-1].config["configurable"][
+                                "checkpoint_id"
+                            ]
+                        }
+                    }
+
+                merged = _merge_messages_from_snapshots(all_snapshots)
+                messages = merged[:limit]
+
+                next_checkpoint_id: str | None = None
+                if len(merged) > limit and all_snapshots:
+                    cutoff_msg = merged[limit]
+                    cutoff_id = cutoff_msg.get("id")
+                    if cutoff_id:
+                        for snapshot in all_snapshots:
+                            values = snapshot.values or {}
+                            snapshot_messages = (
+                                values.get("messages", [])
+                                if isinstance(values, dict)
+                                else []
+                            )
+                            if any(
+                                isinstance(m, dict) and m.get("id") == cutoff_id
+                                for m in snapshot_messages
+                            ):
+                                next_checkpoint_id = snapshot.config[
+                                    "configurable"
+                                ]["checkpoint_id"]
+                                break
+
+                has_more = next_checkpoint_id is not None or last_page_full
+
+                return {
+                    "messages": messages,
+                    "has_more": has_more,
+                    "next_checkpoint_id": next_checkpoint_id,
+                }
 
     @staticmethod
     async def count(
