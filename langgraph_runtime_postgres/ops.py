@@ -16,7 +16,6 @@ from typing import (  # noqa: UP035
 )
 from uuid import UUID, uuid4
 
-import json
 import orjson
 import psycopg.errors
 import redis.exceptions
@@ -93,6 +92,7 @@ from starlette.exceptions import HTTPException
 
 from langgraph_runtime_postgres.checkpoint import Checkpointer
 from langgraph_runtime_postgres.database import connect
+from app.utils.thread_message_utils import merge_messages_from_snapshots
 from langgraph_runtime_postgres.redis import (
     CHANNEL_RUN_CONTROL,
     CHANNEL_RUN_CONTROL_OLD,
@@ -132,59 +132,8 @@ def _snapshot_defaults():
     return {"interrupts": tuple()}
 
 
-def _message_content_length(msg: dict[str, Any]) -> int:
-    """Approximate length of a message's content for tie-breaking merges."""
-    content = msg.get("content")
-    if isinstance(content, str):
-        return len(content)
-    if isinstance(content, list):
-        return len(json.dumps(content, ensure_ascii=False))
-    return 0
-
-
-def _merge_messages_from_snapshots(
-    snapshots: list[StateSnapshot],
-) -> list[dict[str, Any]]:
-    """Merge messages from multiple checkpoints into a chronological list.
-
-    Checkpoints are returned newest-first by LangGraph. We iterate from oldest
-    to newest so that later versions of the same message id overwrite earlier
-    ones, matching the behavior of the messages delta reducer.
-
-    For the same message id across checkpoints (e.g. due to summarization or
-    compaction rewriting an old tool result), keep the version with the longest
-    content so the UI shows the most complete payload.
-    """
-    seen: set[str] = set()
-    merged: list[dict[str, Any]] = []
-
-    for snapshot in reversed(snapshots):
-        values = snapshot.values or {}
-        messages = values.get("messages", []) if isinstance(values, dict) else []
-        for msg in messages:
-            if not isinstance(msg, dict):
-                continue
-            msg_id = msg.get("id")
-            if not msg_id:
-                # Messages without ids cannot be deduplicated; preserve them.
-                merged.append(msg)
-                continue
-
-            if msg_id not in seen:
-                seen.add(msg_id)
-                merged.append(msg)
-                continue
-
-            existing_idx = next(
-                (i for i, m in enumerate(merged) if m.get("id") == msg_id),
-                None,
-            )
-            if existing_idx is not None and _message_content_length(
-                msg
-            ) > _message_content_length(merged[existing_idx]):
-                merged[existing_idx] = msg
-
-    return merged
+# _message_content_length and merge_messages_from_snapshots moved to
+# langgraph_runtime_postgres.message_utils for easier unit testing.
 
 
 def _compare_stream_ids(stream_id_a: bytes, stream_id_b: bytes) -> int:
@@ -2132,7 +2081,7 @@ class Threads(Authenticated):
                     all_snapshots.extend(page)
                     last_page_full = len(page) == CHECKPOINT_PAGE_SIZE
 
-                    merged = _merge_messages_from_snapshots(all_snapshots)
+                    merged = merge_messages_from_snapshots(all_snapshots)
                     if len(merged) >= MESSAGES_TARGET:
                         break
 
@@ -2144,7 +2093,7 @@ class Threads(Authenticated):
                         }
                     }
 
-                merged = _merge_messages_from_snapshots(all_snapshots)
+                merged = merge_messages_from_snapshots(all_snapshots)
                 messages = merged[:limit]
 
                 next_checkpoint_id: str | None = None
