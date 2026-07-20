@@ -220,8 +220,8 @@ execute_web_script(
    ```
    - `test_run_id`：**直接从 `execute_web_script` 的返回值中获取**（执行时自动创建了 WebTestRun 记录）
    - `report_content`：Step 3.2 生成的完整 Markdown 摘要
-   - 保存后报告作为 `WEB_TEST_REPORT` 类型的 Attachment 持久化到 MinIO
-   - 用户可通过 `get_web_sub_function_artifacts(artifact_type="WEB_TEST_REPORT")` 查询到
+   - 工具内部会根据 `test_run_id` 找到对应的 `WebTest.sub_function_id`，将报告作为 `WEB_TEST_REPORT` 类型的 Attachment 持久化到 MinIO，并归属于该子功能
+   - 用户可通过 `get_web_sub_function_artifacts(sub_function_id)` 与测试计划/用例/脚本并列展示该报告
 
 2. **保存失败时的 fallback**：如果 `save_web_test_report` 调用失败（极少情况），
    在输出报告时明确告知用户：

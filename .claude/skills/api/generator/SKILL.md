@@ -163,6 +163,17 @@ def test_success():
 - `get_response_schema` 返回的 `unresolved_refs` 部分（完整 spec 未持久化）按"任意"处理，这些字段需结合 `get_endpoint_details` 用手写字段断言补充。
 - schema 校验不替代状态码断言和错误场景断言，二者仍需保留。
 
+#### 场景测试脚本硬规范（场景框架专用）
+
+使用场景框架（`create_test_scenario` / `add_scenario_step` / `execute_scenario`）时，除上述断言规范外，还必须遵守：
+
+1. **基于接口 schema 生成步骤**：每个 `add_scenario_step` 前必须调用 `get_endpoint_details` 读取 `request_body` / `parameters` / `responses`，`request_body.required` 字段必须出现在 `request_override.body` 中。
+2. **路径参数必须闭环**：URL 中的 `{xxx}` 必须在前序步骤通过 `add_step_extractor` 提取同名变量，并在当前步骤 `request_override.path` 中用 `{{xxx}}` 引用。
+3. **创建类步骤必须提取 ID 并配 teardown**：步骤含"创建/新增/上传/生成"语义时，必须在本步骤提取资源 ID，并调用 `add_teardown_step` 配置清理。
+4. **分页查询先用最小参数**：首次生成时只保留 `page`/`size`（或 `current`/`size`），确认响应结构后再考虑加入 `orders` 等排序参数。
+5. **变量语法**：统一使用 `{{$timestamp}}` / `{{$uuid}}` / `{{$faker.name}}` / `{{variableName}}`，括号内不要加空格；执行时传入的 `variables` 中可配合 `Date.now()` 保证唯一性。
+6. **每个步骤断言下限**：1 个 `status` 断言 + 1 个 `jsonpath`/`header` 业务断言；正向用例必须断言业务成功码具体值。
+
 #### 脚本生成硬规范（避免 URL 丢失 /api 前缀、避免网关拦截）
 
 1. **URL 用字符串拼接，不要用 `new URL()`**：`new URL(API_PATH, BASE_URL)` 在 `API_PATH` 以 `/` 开头时会丢弃 `BASE_URL` 里的 `/api` 等前缀。必须手动拼接：

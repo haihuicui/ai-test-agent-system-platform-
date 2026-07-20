@@ -675,6 +675,35 @@ const result = await tools.execute_scenario({
 })
 ```
 
+## 生成前自检（必须）
+
+每完成一个步骤的配置，在继续下一步之前，必须先对照以下检查表自检；若发现违规，立即用 `update_scenario_step` / `add_step_assertion` / `add_step_extractor` / `add_data_mapping` 修复，不要留到执行阶段。
+
+### 检查表 A：请求体与参数
+- [ ] 是否已调用 `get_endpoint_details` 读取当前步骤接口的 `request_body` / `parameters` / `responses`？
+- [ ] `request_body.required` 中的所有字段是否都已出现在 `request_override.body` 中？
+- [ ] 唯一性字段（如 `name` / `address` / `email` / `phone` / `title`）是否使用动态占位符（`{{$timestamp}}` / `{{$uuid}}` / `{{$faker.*}}`）避免重复？
+- [ ] 路径参数 `{xxx}` 是否已在 `request_override.path` 中写成 `{{xxx}}` 占位符？
+- [ ] 分页/列表查询首次执行时，是否只保留 `page`/`size`（或 `current`/`size`）等最小参数，未使用未经验证的 `orders` 排序参数？
+
+### 检查表 B：数据依赖
+- [ ] 当前步骤是否需要前序步骤的数据（token / siteId / orderId 等）？
+- [ ] 需要的前序字段是否已用 `add_step_extractor` 提取为同名变量？
+- [ ] 是否已通过 `add_data_mapping` 或 `{{varName}}` 占位符完成数据传递？
+- [ ] 路径参数映射是否同时满足：`target_path="path.siteId"` + `request_override.path=".../{{siteId}}"`？
+
+### 检查表 C：断言
+- [ ] 每个步骤是否至少包含 1 个 `status` 断言？
+- [ ] 每个步骤是否至少包含 1 个 `jsonpath` 或 `header` 业务断言？
+- [ ] 正向用例是否断言了业务成功码的具体值（如 `$.code="2000"` / `$.success=true`），而不仅是存在性或类型？
+- [ ] 从本步骤提取出来供后续步骤使用的字段（如 `siteId`），是否在本步骤追加 `ne null` / `ne ""` 断言？
+- [ ] 分页/列表步骤是否断言了 `$.data.records`（或 `$.data.list`）非空、`$.data.total` 为数字？
+
+### 检查表 D：清理
+- [ ] 场景中是否存在「创建/新增/上传/生成」类步骤？
+- [ ] 是否已在该步骤中提取资源 ID？
+- [ ] 是否已调用 `add_teardown_step` 添加对应的清理步骤（如 DELETE）？
+
 ## 生成后自动验证与修复
 
 **场景生成不是终点，必须通过执行验证其正确性。**
@@ -792,6 +821,26 @@ if (result.data.status !== "completed" || result.data.failed_steps > 0) {
 4. **不要创建 Playwright 脚本作为替代方案** — 这会让用户误以为场景已完成，且丧失了场景框架的编排/依赖管理/报告能力
 
 ## 调试和问题排查
+
+### 生成前主动校验
+
+完成场景编排后、执行前，建议先调用 `validate_scenario_design` 做一次静态预检，提前发现必填字段缺失、路径参数未映射、创建类步骤缺 teardown 等问题：
+
+```javascript
+const designCheck = await tools.validate_scenario_design({
+  scenario_id: scenarioId
+})
+
+// 如果返回 valid=false，根据 issues 列表逐项修复后再执行
+if (!designCheck.data.valid) {
+  console.log("场景设计问题:", designCheck.data.issues)
+  // 例如：为缺失的必填字段补充 request_override
+  await tools.update_scenario_step({
+    step_id: step1Id,
+    request_override: { body: { name: "测试_{{$timestamp}}", address: "{{$faker.address}}" } }
+  })
+}
+```
 
 ### 调试数据依赖
 
