@@ -221,7 +221,7 @@ class TestRunSchedulerService:
             )
 
             # 更新调度上次执行时间，并重新计算下次执行时间
-            schedule.last_run_at = datetime.utcnow()
+            schedule.last_run_at = datetime.now(timezone.utc)
             schedule.next_run_at = self.compute_next_run_at(
                 schedule.trigger_type.value,
                 schedule.trigger_config,

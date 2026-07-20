@@ -2022,7 +2022,7 @@ class TestRunService:
         await self.execute_test_run(project_identifier, test_run.identifier)
 
         # 更新调度上次执行时间，并重新计算下次执行时间
-        schedule.last_run_at = datetime.utcnow()
+        schedule.last_run_at = datetime.now(timezone.utc)
         from app.services.scheduler_service import get_scheduler_service
 
         scheduler = get_scheduler_service()
