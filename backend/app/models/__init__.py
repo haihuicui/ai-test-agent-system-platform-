@@ -19,6 +19,7 @@ from .test_plan import TestPlan
 from .api_test import APITest, APITestRun, APITestResult
 from .api_endpoint import APIEndpoint
 from .environment import ProjectEnvironment, AuthType
+from .storage_state_job import StorageStateJob
 from .android_test import AndroidTest, AndroidTestRun, AndroidTestResult
 from .web_test import WebTest, WebTestRun, WebTestResult
 from .web_function import WebFunction, WebSubFunction
@@ -69,6 +70,7 @@ __all__ = [
     "APIEndpoint",
     "ProjectEnvironment",
     "AuthType",
+    "StorageStateJob",
     "AndroidTest",
     "AndroidTestRun",
     "AndroidTestResult",

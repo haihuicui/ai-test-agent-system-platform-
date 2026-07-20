@@ -7,15 +7,17 @@ Web 测试服务
 import asyncio
 import json
 import os
-import tempfile
+import shutil
 import zipfile
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
 from uuid import UUID, uuid4
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.storage_state_job import StorageStateJob
 from app.models.web_test import WebTest, WebTestRun, WebTestResult
 from app.models.web_function import WebFunction, WebSubFunction
 from app.repositories.web_test_repo import (
@@ -27,6 +29,7 @@ from app.repositories.project_repo import ProjectRepository
 from app.schemas.enums import TestResultStatus
 from app.utils.exceptions import NotFoundException
 from app.utils.playwright_report import map_playwright_status, parse_playwright_json
+from app.utils.shell_env import ensure_playwright_mcp_project
 from app.utils.sync_executor import run_sync
 from app.config.minio_client import MinIOClient
 from app.config.settings import settings
@@ -308,6 +311,7 @@ class WebTestService:
             status="pending",
             execution_config=execution_config or {},
         )
+        await self.session.commit()
 
         # 在后台异步执行测试
         asyncio.create_task(
@@ -346,23 +350,36 @@ class WebTestService:
                 script_content = script_content.decode("utf-8")
 
                 # 3. 准备执行环境
-                with tempfile.TemporaryDirectory() as temp_dir:
-                    temp_path = Path(temp_dir)
+                # 复用已安装 @playwright/test 的 web_mcp 工作区，在其下创建按 run_id
+                # 隔离的子目录，避免临时目录缺少 Playwright 依赖而重复 npm install。
+                workspace_root = Path(settings.web_mcp_workspace_root).resolve()
+                storage_state_path = await self._resolve_storage_state_path(web_test.project_id)
+                await ensure_playwright_mcp_project(
+                    str(workspace_root),
+                    headless=execution_config.get("headless", True),
+                    storage_state=storage_state_path,
+                )
+                exec_root = workspace_root / ".web_test_runs" / str(run_id)
+                await run_sync(lambda: exec_root.mkdir(parents=True, exist_ok=True))
+                temp_path = exec_root
 
-                    # 写入测试脚本
-                    script_file = temp_path / "web-test.spec.ts"
-                    script_file.write_text(script_content, encoding="utf-8")
+                # 写入测试脚本
+                script_file = temp_path / "web-test.spec.ts"
+                await run_sync(script_file.write_text, script_content, encoding="utf-8")
 
-                    # 创建 Playwright 配置
-                    playwright_config = self._generate_playwright_config(
-                        web_test, execution_config
-                    )
-                    config_file = temp_path / "playwright.config.ts"
-                    config_file.write_text(playwright_config, encoding="utf-8")
+                # 创建 Playwright 配置
+                playwright_config = self._generate_playwright_config(
+                    web_test, execution_config, storage_state_path=storage_state_path
+                )
+                config_file = temp_path / "playwright.config.ts"
+                await run_sync(config_file.write_text, playwright_config, encoding="utf-8")
 
-                    # 4. 执行测试
+                try:
+                    # 4. 执行测试（在 workspace_root 下运行 npx，避免临时目录缺少 node_modules）
                     result = await self._run_playwright_test(
-                        temp_dir, execution_config
+                        workspace_root=str(workspace_root),
+                        config_path=str(config_file),
+                        execution_config=execution_config,
                     )
 
                     # 5. 解析结果并更新
@@ -382,7 +399,6 @@ class WebTestService:
                         stderr_text = stderr_text[:_MAX_LOG_LENGTH] + "\n...[truncated]"
 
                     # 上传报告产物（HTML 报告 + 截图/video/trace）到 MinIO。
-                    # 必须在 with TemporaryDirectory() 块内完成——块结束临时目录即被删除。
                     report_object_name, screenshots_prefix = await self._upload_run_artifacts(
                         temp_path=temp_path,
                         web_test=web_test,
@@ -426,26 +442,67 @@ class WebTestService:
                             retry_count=c.get("retries") or 0,
                         ))
                     await session.commit()
+                finally:
+                    # 清理隔离执行目录，避免占用磁盘。
+                    def _cleanup() -> None:
+                        if exec_root.exists():
+                            shutil.rmtree(exec_root, ignore_errors=True)
+                    await run_sync(_cleanup)
 
             except Exception as e:
-                await run_repo.update(
-                    await run_repo.get_by_id(run_id),
-                    status="failed",
-                    error_message=str(e),
-                    stdout="",
-                    stderr=str(e),
-                )
-                await session.commit()
-                print(f"Web 测试执行失败: {e}")
+                import traceback
+                tb = traceback.format_exc()
+                print(f"Web 测试执行失败: {e}\n{tb}")
+                try:
+                    run = await run_repo.get_by_id(run_id)
+                    if run:
+                        await run_repo.update(
+                            run,
+                            status="failed",
+                            error_message=str(e) or tb[:4000],
+                            stdout="",
+                            stderr=tb,
+                        )
+                        await session.commit()
+                except Exception as inner:
+                    print(f"Web 测试失败状态写入也失败了: {inner}")
+
+    async def _resolve_storage_state_path(self, project_id: UUID) -> Optional[str]:
+        """查询项目最近一次成功生成的 storageState 本地路径。
+
+        直接查 storage_state_jobs 表，避免引入 StorageStateService 造成服务循环依赖。
+        """
+        result = await self.session.execute(
+            select(StorageStateJob)
+            .where(
+                StorageStateJob.project_id == project_id,
+                StorageStateJob.status == "completed",
+                StorageStateJob.output_path.isnot(None),
+            )
+            .order_by(StorageStateJob.completed_at.desc())
+            .limit(1)
+        )
+        job = result.scalar_one_or_none()
+        return job.output_path if job else None
 
     def _generate_playwright_config(
-        self, web_test: WebTest, execution_config: dict
+        self,
+        web_test: WebTest,
+        execution_config: dict,
+        storage_state_path: Optional[str] = None,
     ) -> str:
         """生成 Playwright 配置文件"""
         headless = execution_config.get("headless", True)
         browser = execution_config.get("browser", "chromium")
         viewport = execution_config.get("viewport", {"width": 1280, "height": 720})
         slow_mo = execution_config.get("slow_mo", 0)
+
+        # 注入全局登录态（storageState）：文件存在时才写入，避免 Playwright 因缺失文件报错退出
+        storage_state_line = ""
+        if storage_state_path:
+            ss_path = Path(storage_state_path)
+            if ss_path.exists():
+                storage_state_line = f"    storageState: {json.dumps(ss_path.as_posix())},\n"
 
         return f"""
 import {{ defineConfig, devices }} from '@playwright/test';
@@ -462,7 +519,7 @@ export default defineConfig({{
       slowMo: {slow_mo},
     }},
     viewport: {{ width: {viewport['width']}, height: {viewport['height']} }},
-    // 失败时保留现场，供 HTML 报告与自愈诊断（与 agent 链路口径一致）
+{storage_state_line}    // 失败时保留现场，供 HTML 报告与自愈诊断（与 agent 链路口径一致）
     trace: 'retain-on-failure',
     video: 'retain-on-failure',
     screenshot: 'only-on-failure',
@@ -542,12 +599,18 @@ export default defineConfig({{
 
     async def _run_playwright_test(
         self,
-        work_dir: str,
+        workspace_root: str,
+        config_path: str,
         execution_config: dict,
     ) -> dict:
-        """运行 Playwright 测试"""
+        """运行 Playwright 测试。
+
+        在 workspace_root（含 node_modules）下执行 npx，但通过 --config 指定
+        隔离目录中的 playwright.config.ts，使输出与依赖分离。
+        """
         start_time = datetime.now()
         timeout = execution_config.get("timeout", 300)
+        work_dir = os.path.dirname(config_path)
 
         # 准备环境变量：确保 PATH 包含 Node.js
         env = _ensure_node_in_path({**os.environ})
@@ -564,6 +627,7 @@ export default defineConfig({{
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 env=env,
+                cwd=workspace_root,
             )
             await asyncio.wait_for(npx_check.communicate(), timeout=10)
             if npx_check.returncode != 0:
@@ -580,8 +644,9 @@ export default defineConfig({{
             # 运行 Playwright 测试
             proc = await asyncio.create_subprocess_exec(
                 *npx_cmd, "playwright", "test",
+                "--config", config_path,
                 "--reporter=json,html",
-                cwd=work_dir,
+                cwd=workspace_root,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 env=env,

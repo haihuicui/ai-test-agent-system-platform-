@@ -21,6 +21,7 @@ class AuthType(str, PyEnum):
     DYNAMIC_BEARER = "dynamic_bearer"
     API_KEY = "api_key"
     OAUTH2 = "oauth2"
+    FORM_LOGIN = "form_login"  # Web 表单登录，用于生成 Playwright storageState
 
 
 class ProjectEnvironment(Base, UUIDMixin, TimestampMixin):

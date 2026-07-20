@@ -90,7 +90,11 @@ def resolve_effective_headless(headless: bool) -> bool:
     return headless
 
 
-async def ensure_playwright_mcp_project(root_dir: str, headless: bool = False) -> None:
+async def ensure_playwright_mcp_project(
+    root_dir: str,
+    headless: bool = False,
+    storage_state: str | None = None,
+) -> None:
     """确保 Playwright MCP server 所需的配置文件与依赖已就绪。
 
     ``web_mcp_root`` 是运行时工作区（被 .gitignore 忽略），在新 clone 或清理后可能
@@ -104,6 +108,9 @@ async def ensure_playwright_mcp_project(root_dir: str, headless: bool = False) -
     Args:
         root_dir: Playwright MCP 工作区根目录。
         headless: 是否以无头模式运行浏览器。``False`` 表示弹出真实浏览器窗口。
+        storage_state: 全局登录态文件路径；未传入时使用 ``settings.web_mcp_storage_state``。
+            每次调用都会重写 ``playwright.config.js``，确保 ``storageState`` 配置项
+            与当前设置保持一致。
     """
     root = Path(root_dir)
     root.mkdir(parents=True, exist_ok=True)
@@ -118,10 +125,10 @@ async def ensure_playwright_mcp_project(root_dir: str, headless: bool = False) -
     test_timeout = settings.web_exec_test_timeout_ms
     retries = settings.web_exec_retries
 
-    # 全局登录态（storageState）预留：配置了路径且文件存在时注入 config，使所有测试
-    # 复用已登录会话，避免每条用例都走 UI 登录；未配置或文件缺失则不启用（保持现状）。
+    # 全局登录态（storageState）：传入路径优先，其次 settings.web_mcp_storage_state。
+    # 文件存在时注入 config；未配置或文件缺失则不启用（保持现状）。
     storage_state_line = ""
-    ss = getattr(settings, "web_mcp_storage_state", None)
+    ss = storage_state or getattr(settings, "web_mcp_storage_state", None)
     if ss:
         ss_path = Path(ss)
         if ss_path.exists():
@@ -131,9 +138,9 @@ async def ensure_playwright_mcp_project(root_dir: str, headless: bool = False) -
             print(f"[Web MCP] 配置的 storageState 文件不存在，跳过注入: {ss_path}")
 
     config_file = root / "playwright.config.js"
-    if not config_file.exists():
-        config_file.write_text(
-            f"""module.exports = {{
+    # 每次调用都重写配置，确保 headless / timeout / retries / storageState 变更生效。
+    config_file.write_text(
+        f"""module.exports = {{
   testDir: './tests',
   timeout: {test_timeout},
   retries: {retries},
@@ -141,9 +148,9 @@ async def ensure_playwright_mcp_project(root_dir: str, headless: bool = False) -
   use: {{
     headless: {headless_value},
 {storage_state_line}    viewport: {{ width: 1280, height: 720 }},
-    trace: 'retain-on-failure',
-    video: 'retain-on-failure',
-    screenshot: 'only-on-failure',
+    trace: 'on',
+    video: 'on',
+    screenshot: 'on',
     launchOptions: {{
       handleSIGINT: true,
       handleSIGTERM: true,
@@ -161,8 +168,8 @@ async def ensure_playwright_mcp_project(root_dir: str, headless: bool = False) -
   ],
 }};
 """,
-            encoding="utf-8",
-        )
+        encoding="utf-8",
+    )
 
     package_file = root / "package.json"
     if not package_file.exists():

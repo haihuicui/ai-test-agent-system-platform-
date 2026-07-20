@@ -7,7 +7,7 @@ API 路由模块
 from fastapi import APIRouter
 # type: ignore  MC8yOmFIVnBZMlhsdEpUbXRiZm92b2s2VUhSRlNRPT06Y2VkNWYzZjY=
 
-from .v2 import projects, folders, test_cases, test_runs, test_results, attachments, configurations, test_plans, documents, api_tests, api_tests_extended, api_endpoints, scenarios, web_tests, web_functions, pentests, mcp_proxy, android_tests, agent_files, environments
+from .v2 import projects, folders, test_cases, test_runs, test_results, attachments, configurations, test_plans, documents, api_tests, api_tests_extended, api_endpoints, scenarios, web_tests, web_functions, pentests, mcp_proxy, android_tests, agent_files, environments, storage_state
 
 # 创建 API v2 路由
 api_router = APIRouter(prefix="/api/v2")
@@ -30,6 +30,7 @@ api_router.include_router(api_tests.router, tags=["API 测试管理"])
 api_router.include_router(api_tests_extended.router, tags=["API 测试扩展"])
 api_router.include_router(api_endpoints.router, tags=["API 端点管理"])
 api_router.include_router(environments.router, tags=["项目环境管理"])
+api_router.include_router(storage_state.router, tags=["Web 登录态"])
 api_router.include_router(scenarios.router, prefix="/scenarios", tags=["场景测试管理"])
 api_router.include_router(web_tests.router, tags=["Web 测试管理"])
 api_router.include_router(web_functions.router, tags=["Web 功能管理"])
