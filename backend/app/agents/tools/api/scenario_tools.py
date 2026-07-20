@@ -25,6 +25,7 @@ from app.models.test_scenario import (
     StepDataMapping,
     ScenarioVariable,
 )
+from app.utils.assertion_operators import normalize_operator
 
 
 # 同一次 AI 对话（conversation）内创建场景的去重缓存。
@@ -936,31 +937,49 @@ async def add_data_mapping(
                         "error": f"源步骤 {source_step_id} 不存在"
                     }, ensure_ascii=False, indent=2)
 
-            # 3. 创建数据映射
-            mapping = StepDataMapping(
-                id=uuid4(),
-                step_id=UUID(step_id),
-                source_type=source_type,
-                source_step_id=UUID(source_step_id) if source_step_id else None,
-                source_path=source_path,
-                target_path=target_path,
-                transform_expression=transform_expression,
-                description=description,
+            # 3. 按 target_path 去重：同一目标路径已有映射则更新，避免重复配置
+            existing_mapping_stmt = select(StepDataMapping).where(
+                StepDataMapping.step_id == UUID(step_id),
+                StepDataMapping.target_path == target_path,
             )
-            session.add(mapping)
+            existing_mapping_result = await session.execute(existing_mapping_stmt)
+            existing_mapping = existing_mapping_result.scalar_one_or_none()
+
+            if existing_mapping:
+                existing_mapping.source_type = source_type
+                existing_mapping.source_step_id = UUID(source_step_id) if source_step_id else None
+                existing_mapping.source_path = source_path
+                existing_mapping.transform_expression = transform_expression
+                existing_mapping.description = description
+                mapping = existing_mapping
+                action = "更新"
+            else:
+                mapping = StepDataMapping(
+                    id=uuid4(),
+                    step_id=UUID(step_id),
+                    source_type=source_type,
+                    source_step_id=UUID(source_step_id) if source_step_id else None,
+                    source_path=source_path,
+                    target_path=target_path,
+                    transform_expression=transform_expression,
+                    description=description,
+                )
+                session.add(mapping)
+                action = "添加"
             await session.commit()
             await session.refresh(mapping)
 # noqa  My80OmFIVnBZMlhsdEpUbXRiZm92b2s2VDJWMVlRPT06MTVjYjUwZTk=
 
             return json.dumps({
                 "success": True,
-                "message": f"成功添加数据映射: {source_path} → {target_path}",
+                "message": f"成功{action}数据映射: {source_path} → {target_path}",
                 "data": {
                     "mapping_id": str(mapping.id),
                     "source_type": mapping.source_type,
                     "source_path": mapping.source_path,
                     "target_path": mapping.target_path,
                     "transform": mapping.transform_expression,
+                    "action": action,
                 }
             }, ensure_ascii=False, indent=2)
 
@@ -1144,6 +1163,15 @@ async def add_step_assertion(
                     "error": f"步骤 {step_id} 不存在"
                 }, ensure_ascii=False, indent=2)
 
+            # 归一化操作符，防止 AI 传入空字符串或非法值
+            try:
+                operator = normalize_operator(operator, default="eq")
+            except ValueError as e:
+                return json.dumps({
+                    "success": False,
+                    "error": str(e),
+                }, ensure_ascii=False, indent=2)
+
             # 2. 添加断言到步骤的 assertions 列表（按 type+path 去重）
             assertion = {
                 "type": assertion_type,
@@ -1289,6 +1317,8 @@ async def get_scenario_details(scenario_id: str) -> str:
                         "path": endpoint.path,
                         "display_name": endpoint.display_name,
                     } if endpoint else None,
+                    "request_override": step.request_override,
+                    "headers_override": step.headers_override,
                     "extractors": step.extractors,
                     "assertions": step.assertions,
                     "data_mappings": [

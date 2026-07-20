@@ -5,6 +5,7 @@ API 场景测试工具单元测试
 重点验证：不同 AI 对话（conversation_id 不同）不会互相覆盖场景。
 """
 
+import json
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID, uuid4
@@ -22,6 +23,7 @@ from app.agents.tools.api.scenario_tools import (
     _replace_conversation_scenario,
     _scenario_conversation_cache,
     _set_conversation_scenario_id,
+    add_step_assertion,
 )
 
 
@@ -369,3 +371,80 @@ class TestValidateScenarioDesign:
         )
 
         assert any(w["category"] == "unverified_param" for w in result["warnings"])
+
+
+class TestAddStepAssertion:
+    """测试 add_step_assertion 操作符归一化"""
+
+    @pytest.fixture
+    def mock_session_factory(self):
+        """构造一个可 yield mock session 的 async_session_factory 替身"""
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        step_id = uuid4()
+        step = MagicMock()
+        step.id = step_id
+        step.assertions = []
+
+        session = AsyncMock()
+        # 第一次 execute 查询步骤，第二次 execute 做 UPDATE，第三次 execute 验证
+        session.execute = AsyncMock(side_effect=[
+            MagicMock(scalar_one_or_none=MagicMock(return_value=step)),
+            MagicMock(),
+            MagicMock(scalar_one_or_none=MagicMock(return_value=step)),
+        ])
+
+        class _AsyncCtx:
+            async def __aenter__(self):
+                return session
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+        with patch(
+            "app.agents.tools.api.scenario_tools.async_session_factory",
+            return_value=_AsyncCtx(),
+        ):
+            yield step_id, session
+
+    @pytest.mark.asyncio
+    async def test_normalizes_legacy_operator_alias(self, mock_session_factory):
+        step_id, _ = mock_session_factory
+        result = await add_step_assertion.coroutine(
+            step_id=str(step_id),
+            assertion_type="status",
+            expected=200,
+            operator="equals",
+        )
+        data = json.loads(result)
+        assert data["success"] is True
+        assert data["data"]["assertion"]["operator"] == "eq"
+
+    @pytest.mark.asyncio
+    async def test_defaults_empty_operator_to_eq(self, mock_session_factory):
+        step_id, _ = mock_session_factory
+        result = await add_step_assertion.coroutine(
+            step_id=str(step_id),
+            assertion_type="status",
+            expected=200,
+            operator="",
+        )
+        data = json.loads(result)
+        assert data["success"] is True
+        assert data["data"]["assertion"]["operator"] == "eq"
+
+    @pytest.mark.asyncio
+    async def test_rejects_invalid_operator(self, mock_session_factory):
+        step_id, session = mock_session_factory
+        result = await add_step_assertion.coroutine(
+            step_id=str(step_id),
+            assertion_type="status",
+            expected=200,
+            operator="regex",
+        )
+        data = json.loads(result)
+        assert data["success"] is False
+        assert "不支持的比较运算符" in data["error"]
+        # 非法 operator 不应触发 UPDATE
+        assert session.commit.call_count == 0
+

@@ -57,6 +57,7 @@ import {
   addDataMapping as addDataMappingAPI,
   deleteDataMapping as deleteDataMappingAPI,
 } from "@/lib/api/scenarios";
+import { OPERATOR_LABELS, normalizeAssertions, normalizeOperator } from "@/lib/assertion-utils";
 import type { ScenarioStep, StepExtractor, StepAssertion } from "@/types/scenario";
 // WATERMARK  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2WTNKcFdnPT06MTdhZTQ4OWU=
 
@@ -129,7 +130,7 @@ export function StepEditDialog({
       setDelayMs(data.delay_ms || 0);
       setRetryCount(data.retry_count || 0);
       setExtractors(data.extractors || []);
-      setAssertions(data.assertions || []);
+      setAssertions(normalizeAssertions(data.assertions || []));
       setDataMappings(data.data_mappings || []);
     } catch (error) {
       console.error("Failed to load step:", error);
@@ -246,7 +247,7 @@ export function StepEditDialog({
 
   // 添加断言
   const addAssertion = () => {
-    setAssertions([...assertions, { type: "status", expected: 200 }]);
+    setAssertions([...assertions, { type: "status", expected: 200, operator: "eq" }]);
   };
 
   // 更新断言
@@ -707,7 +708,7 @@ export function StepEditDialog({
                         <div className="space-y-1">
                           <Label className="text-xs">操作符</Label>
                           <Select
-                            value={assertion.operator || "equals"}
+                            value={normalizeOperator(assertion.operator)}
                             onValueChange={(value) =>
                               updateAssertion(index, "operator", value)
                             }
@@ -716,11 +717,9 @@ export function StepEditDialog({
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="equals">等于</SelectItem>
-                              <SelectItem value="not_equals">不等于</SelectItem>
-                              <SelectItem value="contains">包含</SelectItem>
-                              <SelectItem value="greater_than">大于</SelectItem>
-                              <SelectItem value="less_than">小于</SelectItem>
+                              {Object.entries(OPERATOR_LABELS).map(([value, label]) => (
+                                <SelectItem key={value} value={value}>{label}</SelectItem>
+                              ))}
                             </SelectContent>
                           </Select>
                         </div>

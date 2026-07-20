@@ -35,6 +35,7 @@ from app.models.test_scenario import (
     TestScenario,
 )
 from app.services.environment_service import EnvironmentService
+from app.utils.assertion_operators import normalize_operator
 
 
 class ExecutionContext:
@@ -336,8 +337,14 @@ class DataDependencyResolver:
             request["params"].update(request_override["params"])
 
         # 处理路径参数（如 {orderId}）
+        # request_override.path 可能是 URL 模板字符串，也可能是路径参数字典
         if "path" in request_override:
-            request["path"] = request_override["path"]
+            path_value = request_override["path"]
+            if isinstance(path_value, dict):
+                request["path"] = path_value
+            else:
+                # 字符串 URL 模板：路径参数由数据映射填充到 request["path"]
+                request["path"] = {}
 
         # 4. 应用步骤的请求头覆盖
         headers_override = self._ensure_dict(step.headers_override)
@@ -1166,29 +1173,36 @@ class ScenarioExecutionEngine:
         for assertion in assertions or []:
             assertion_type = assertion["type"]
             expected = assertion["expected"]
-            operator = assertion.get("operator", "eq")
             path = assertion.get("path")
 
-            if assertion_type == "status":
-                actual = response["status"]
-            elif assertion_type == "jsonpath":
-                actual = self.context._extract_by_jsonpath(response["body"], path)
-            elif assertion_type == "header":
-                actual = response["headers"].get(path)
-            else:
-                actual = None
+            try:
+                operator = normalize_operator(assertion.get("operator"), default="eq")
 
-            # 比较
-            passed = self._compare(actual, expected, operator)
+                if assertion_type == "status":
+                    actual = response["status"]
+                elif assertion_type == "jsonpath":
+                    actual = self.context._extract_by_jsonpath(response["body"], path)
+                elif assertion_type == "header":
+                    actual = response["headers"].get(path)
+                else:
+                    actual = None
+
+                passed = self._compare(actual, expected, operator)
+                message = self._build_assertion_message(
+                    assertion_type, passed, actual, expected, operator, path
+                )
+            except ValueError as exc:
+                passed = False
+                actual = None
+                operator = assertion.get("operator") or "eq"
+                message = f"断言失败: {exc}"
 
             results.append({
                 "assertion": assertion,
                 "passed": passed,
                 "actual": actual,
                 "expected": expected,
-                "message": self._build_assertion_message(
-                    assertion_type, passed, actual, expected, operator, path
-                ),
+                "message": message,
             })
 
         return results
@@ -1239,7 +1253,7 @@ class ScenarioExecutionEngine:
         elif operator == "contains":
             return expected in actual
         else:
-            return False
+            raise ValueError(f"不支持的比较运算符: {operator!r}")
 
     async def _record_result(
         self,

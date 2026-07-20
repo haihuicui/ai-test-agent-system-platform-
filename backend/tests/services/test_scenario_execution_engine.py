@@ -86,3 +86,54 @@ class TestTemplateVariableParsing:
         assert result["name"][3:].isdigit()
         assert UUID(result["uuid"]).version == 4
         assert result["count"] == 1
+
+
+class TestAssertionOperators:
+    """测试断言操作符归一化与执行"""
+
+    @pytest.fixture
+    def engine(self):
+        # _compare / _run_assertions 不依赖 session，可直接传 None
+        from app.services.scenario_execution_engine import ScenarioExecutionEngine
+        return ScenarioExecutionEngine(session=None)
+
+    def test_compare_canonical_operators(self, engine):
+        assert engine._compare(200, 200, "eq") is True
+        assert engine._compare(200, 201, "ne") is True
+        assert engine._compare(201, 200, "gt") is True
+        assert engine._compare(199, 200, "lt") is True
+        assert engine._compare([1, 2, 3], 2, "contains") is True
+
+    def test_compare_returns_false_for_mismatch(self, engine):
+        assert engine._compare(200, 201, "eq") is False
+        assert engine._compare(200, 200, "ne") is False
+        assert engine._compare(199, 200, "gt") is False
+        assert engine._compare(201, 200, "lt") is False
+        assert engine._compare([1, 2, 3], 4, "contains") is False
+
+    def test_compare_raises_for_unknown_operator(self, engine):
+        with pytest.raises(ValueError, match="不支持的比较运算符"):
+            engine._compare(200, 200, "regex")
+
+    def test_run_assertions_normalizes_legacy_aliases(self, engine):
+        response = {"status": 200, "body": {"success": True}, "headers": {}}
+        assertions = [
+            {"type": "status", "expected": 200, "operator": "equals"},
+            {"type": "jsonpath", "path": "$.success", "expected": True, "operator": "equals"},
+        ]
+        results = engine._run_assertions(response, assertions)
+        assert len(results) == 2
+        assert all(r["passed"] for r in results)
+
+    def test_run_assertions_defaults_missing_operator_to_eq(self, engine):
+        response = {"status": 200, "body": {}, "headers": {}}
+        assertions = [{"type": "status", "expected": 200}]
+        results = engine._run_assertions(response, assertions)
+        assert results[0]["passed"] is True
+
+    def test_run_assertions_fails_with_message_for_invalid_operator(self, engine):
+        response = {"status": 200, "body": {}, "headers": {}}
+        assertions = [{"type": "status", "expected": 200, "operator": "regex"}]
+        results = engine._run_assertions(response, assertions)
+        assert results[0]["passed"] is False
+        assert "不支持的比较运算符" in results[0]["message"]

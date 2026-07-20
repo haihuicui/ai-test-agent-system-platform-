@@ -54,6 +54,7 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { addScenarioStep, listScenarioSteps, addDataMapping } from "@/lib/api/scenarios";
 import { listAPIEndpoints } from "@/lib/api/api-endpoints";
+import { OPERATOR_LABELS, normalizeOperator } from "@/lib/assertion-utils";
 import type { StepExtractor, StepAssertion } from "@/types/scenario";
 // NOTE  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2TldSVk5nPT06ZTAxMjNiM2I=
 
@@ -253,7 +254,7 @@ export function StepCreateDialog({
 
   // 添加断言
   const addAssertion = () => {
-    setAssertions([...assertions, { type: "status", expected: 200 }]);
+    setAssertions([...assertions, { type: "status", expected: 200, operator: "eq" }]);
   };
 
   // 更新断言
@@ -711,18 +712,16 @@ export function StepCreateDialog({
                           <div className="space-y-1">
                             <Label className="text-xs">操作符</Label>
                             <Select
-                              value={assertion.operator || "equals"}
+                              value={normalizeOperator(assertion.operator)}
                               onValueChange={(value) => updateAssertion(index, "operator", value)}
                             >
                               <SelectTrigger className="h-8 text-sm">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="equals">等于</SelectItem>
-                                <SelectItem value="not_equals">不等于</SelectItem>
-                                <SelectItem value="contains">包含</SelectItem>
-                                <SelectItem value="greater_than">大于</SelectItem>
-                                <SelectItem value="less_than">小于</SelectItem>
+                                {Object.entries(OPERATOR_LABELS).map(([value, label]) => (
+                                  <SelectItem key={value} value={value}>{label}</SelectItem>
+                                ))}
                               </SelectContent>
                             </Select>
                           </div>

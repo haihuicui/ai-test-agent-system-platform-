@@ -6,7 +6,9 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from app.utils.assertion_operators import normalize_operator
 
 # pragma: no cover  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2VkhCa2FBPT06N2ZjYWUyNTI=
 
@@ -101,6 +103,11 @@ class StepAssertion(BaseModel):
     expected: Any
     path: Optional[str] = None
     operator: str = Field("eq", description="比较运算符")
+
+    @field_validator("operator", mode="before")
+    @classmethod
+    def _normalize_operator(cls, v):
+        return normalize_operator(v, default="eq")
 
 
 class ScenarioStepCreate(BaseModel):
