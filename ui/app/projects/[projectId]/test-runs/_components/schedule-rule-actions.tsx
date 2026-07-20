@@ -17,7 +17,6 @@ import {
   Code,
   Layers,
   Globe,
-  PlayCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -372,10 +371,11 @@ export function ScheduleRuleActions({
   return (
     <>
       {showViewButton && (
-        <>
+        <div className="inline-flex -space-x-px rounded-md shadow-sm">
           <Button
             variant="outline"
             size="sm"
+            className="rounded-r-none focus:z-10"
             onClick={() => handleView(schedule)}
             disabled={viewLoading && viewingSchedule?.id === schedule.id}
           >
@@ -389,17 +389,19 @@ export function ScheduleRuleActions({
           <Button
             variant="outline"
             size="sm"
+            className="rounded-l-none focus:z-10"
             title="查看最新运行"
             onClick={() => handleViewLatestRun(schedule)}
             disabled={latestRunLoading && latestRunSchedule?.id === schedule.id}
           >
             {latestRunLoading && latestRunSchedule?.id === schedule.id ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
-              <PlayCircle className="h-4 w-4" />
+              <History className="mr-2 h-4 w-4" />
             )}
+            最新
           </Button>
-        </>
+        </div>
       )}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>

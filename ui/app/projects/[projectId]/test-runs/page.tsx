@@ -281,7 +281,7 @@ export default function TestRunsPage() {
           search: searchQuery || undefined,
           run_state: runStateFilter === "all" ? undefined : runStateFilter,
           include_closed: includeClosed,
-          trigger_type: activeTab === "all" ? undefined : activeTab,
+          trigger_type: activeTab === "all" ? "manual" : activeTab,
         }),
         activeTab === "all"
           ? getSchedules(projectId, { page: 1, page_size: 5 })
