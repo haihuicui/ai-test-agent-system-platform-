@@ -66,13 +66,21 @@ import {
   updateFolder,
   deleteFolder,
 } from "@/lib/api/folders";
-import { listEnvironments } from "@/lib/api/environments";
+import { listEnvironments, updateEnvironment } from "@/lib/api/environments";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { getAttachmentDownloadUrl } from "@/lib/api/attachments";
 import {
   generateStorageState,
   getLatestStorageState,
   getStorageStateJob,
   type StorageStateGenerateRequest,
   type StorageStateLatestInfo,
+  type StorageStateJobInfo,
 } from "@/lib/api/storage-state";
 import type {
   FolderInfo,
@@ -207,13 +215,16 @@ export default function WebTestsPage() {
     captcha: "",
     selectors: {
       login_url: "",
-      username_selector: "input[name='username']",
-      password_selector: "input[name='password']",
-      captcha_selector: "input[name='captcha']",
-      submit_selector: "button[type='submit']",
-      success_selector: ".dashboard",
+      username_selector: "",
+      password_selector: "",
+      captcha_selector: "",
+      submit_selector: "",
+      success_selector: "",
     },
   });
+  const [storageStateJobResult, setStorageStateJobResult] = React.useState<StorageStateJobInfo | null>(null);
+  const [screenshotPreviewOpen, setScreenshotPreviewOpen] = React.useState(false);
+  const [screenshotPreviewUrl, setScreenshotPreviewUrl] = React.useState<string | null>(null);
 
   // 使用 useMemo 稳定 assistant 对象
   const assistant = React.useMemo<Assistant | null>(() => {
@@ -361,27 +372,25 @@ export default function WebTestsPage() {
     folderTreeRef.current?.refresh();
   };
 
-  // 打开登录态弹窗，优先从环境 auth_config 预填充
+  // 打开登录态弹窗，优先从环境 auth_config.storage_state 预填充
   const handleOpenStorageStateDialog = () => {
-    const formLogin = (defaultEnv?.auth_config as any)?.form_login;
+    const authConfig = (defaultEnv?.auth_config as any) || {};
+    const stored = authConfig.storage_state || authConfig.form_login || {};
+    const storedSelectors = stored.selectors || {};
     setStorageStateForm((prev) => ({
-      password: "",
+      password: stored.password || "",
       captcha: "",
-      username: formLogin?.username || "",
+      username: stored.username || "",
       selectors: {
-        login_url: formLogin?.login_url || prev.selectors?.login_url || "",
-        username_selector:
-          formLogin?.selectors?.username_selector || prev.selectors?.username_selector || "input[name='username']",
-        password_selector:
-          formLogin?.selectors?.password_selector || prev.selectors?.password_selector || "input[name='password']",
-        captcha_selector:
-          formLogin?.selectors?.captcha_selector || prev.selectors?.captcha_selector || "input[name='captcha']",
-        submit_selector:
-          formLogin?.selectors?.submit_selector || prev.selectors?.submit_selector || "button[type='submit']",
-        success_selector:
-          formLogin?.selectors?.success_selector || prev.selectors?.success_selector || ".dashboard",
+        login_url: stored.login_url || prev.selectors?.login_url || "",
+        username_selector: storedSelectors.username_selector || "",
+        password_selector: storedSelectors.password_selector || "",
+        captcha_selector: storedSelectors.captcha_selector || "",
+        submit_selector: storedSelectors.submit_selector || "",
+        success_selector: storedSelectors.success_selector || "",
       },
     }));
+    setStorageStateJobResult(null);
     setStorageStateDialogOpen(true);
   };
 
@@ -392,20 +401,39 @@ export default function WebTestsPage() {
       for (let i = 0; i < maxAttempts; i++) {
         await new Promise((resolve) => setTimeout(resolve, 2000));
         const response = await getStorageStateJob(projectId, envId, jobId);
-        const job = (response as any).data;
+        const job = (response as any).data as StorageStateJobInfo;
         if (job?.status === "completed") {
           toast.success("登录态已更新，后续 Web 测试将自动携带会话");
+          setStorageStateJobResult(null);
+          // 成功后把本次输入的选择器保存到环境配置，下次打开自动回填
+          try {
+            await updateEnvironment(projectId, envId, {
+              auth_config: {
+                ...(defaultEnv?.auth_config || {}),
+                storage_state: {
+                  username: storageStateForm.username,
+                  password: storageStateForm.password,
+                  login_url: storageStateForm.selectors?.login_url,
+                  selectors: storageStateForm.selectors,
+                },
+              },
+            });
+          } catch (saveErr) {
+            console.error("Failed to save storage state selectors:", saveErr);
+          }
           await loadStorageStateStatus(envId);
           return;
         }
         if (job?.status === "failed") {
+          setStorageStateJobResult(job);
           toast.error(`登录态生成失败：${job.error_message || "未知错误"}`);
           return;
         }
       }
+      setStorageStateJobResult(null);
       toast.warning("登录态生成超时，请稍后刷新页面查看状态");
     },
-    [projectId, loadStorageStateStatus]
+    [projectId, loadStorageStateStatus, defaultEnv, storageStateForm]
   );
 
   // 提交登录态生成
@@ -431,17 +459,29 @@ export default function WebTestsPage() {
     }
 
     setGeneratingStorageState(true);
+    setStorageStateJobResult(null);
     try {
       const response = await generateStorageState(projectId, defaultEnv.id, storageStateForm);
       const job = (response as any).data;
       toast.info("正在后台生成登录态...");
-      setStorageStateDialogOpen(false);
       await pollStorageStateJob(job.job_id, defaultEnv.id);
     } catch (error: any) {
       console.error("Failed to generate storage state:", error);
       toast.error(error?.message || "生成登录态失败");
     } finally {
       setGeneratingStorageState(false);
+    }
+  };
+
+  const handleViewScreenshot = async (attachmentId: string) => {
+    setScreenshotPreviewUrl(null);
+    try {
+      const url = await getAttachmentDownloadUrl(projectId, attachmentId);
+      setScreenshotPreviewUrl(url);
+      setScreenshotPreviewOpen(true);
+    } catch (error: any) {
+      console.error("Failed to get screenshot url:", error);
+      toast.error("获取截图链接失败");
     }
   };
 
@@ -1171,7 +1211,15 @@ export default function WebTestsPage() {
         </Dialog>
 
         {/* 登录态管理对话框 */}
-        <Dialog open={storageStateDialogOpen} onOpenChange={setStorageStateDialogOpen}>
+        <Dialog
+          open={storageStateDialogOpen}
+          onOpenChange={(open) => {
+            if (!open) {
+              setStorageStateJobResult(null);
+            }
+            setStorageStateDialogOpen(open);
+          }}
+        >
           <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle>登录态管理</DialogTitle>
@@ -1201,7 +1249,6 @@ export default function WebTestsPage() {
                   <Label htmlFor="ss-password">密码</Label>
                   <Input
                     id="ss-password"
-                    type="password"
                     value={storageStateForm.password}
                     onChange={(e) =>
                       setStorageStateForm({ ...storageStateForm, password: e.target.value })
@@ -1248,6 +1295,7 @@ export default function WebTestsPage() {
                           selectors: { ...storageStateForm.selectors, username_selector: e.target.value },
                         })
                       }
+                      placeholder="input[data-test='username']"
                     />
                   </div>
                   <div className="space-y-2">
@@ -1261,6 +1309,7 @@ export default function WebTestsPage() {
                           selectors: { ...storageStateForm.selectors, password_selector: e.target.value },
                         })
                       }
+                      placeholder="input[data-test='password']"
                     />
                   </div>
                   <div className="space-y-2">
@@ -1274,6 +1323,7 @@ export default function WebTestsPage() {
                           selectors: { ...storageStateForm.selectors, captcha_selector: e.target.value },
                         })
                       }
+                      placeholder="input[data-test='captcha']（无需验证码请留空）"
                     />
                   </div>
                   <div className="space-y-2">
@@ -1287,6 +1337,7 @@ export default function WebTestsPage() {
                           selectors: { ...storageStateForm.selectors, submit_selector: e.target.value },
                         })
                       }
+                      placeholder="input[data-test='login-button']"
                     />
                   </div>
                   <div className="space-y-2">
@@ -1300,10 +1351,77 @@ export default function WebTestsPage() {
                           selectors: { ...storageStateForm.selectors, success_selector: e.target.value },
                         })
                       }
+                      placeholder="[data-test='inventory-container']"
                     />
                   </div>
                 </div>
               </div>
+
+              {storageStateJobResult?.status === "failed" && (
+                <div className="space-y-3 rounded-md border border-destructive/50 bg-destructive/5 p-3">
+                  <div className="text-sm font-medium text-destructive">
+                    生成失败
+                  </div>
+                  {storageStateJobResult.error_message && (
+                    <p className="text-sm text-destructive whitespace-pre-wrap">
+                      {storageStateJobResult.error_message}
+                    </p>
+                  )}
+                  <div className="flex flex-wrap gap-2">
+                    {storageStateJobResult.failure_screenshot_attachment_id && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          handleViewScreenshot(storageStateJobResult.failure_screenshot_attachment_id!)
+                        }
+                      >
+                        查看截图
+                      </Button>
+                    )}
+                  </div>
+                  {(storageStateJobResult.stdout || storageStateJobResult.stderr) && (
+                    <div className="space-y-2">
+                      {storageStateJobResult.stdout && (
+                        <Collapsible>
+                          <CollapsibleTrigger asChild>
+                            <Button type="button" variant="ghost" size="sm" className="h-auto p-0 text-xs">
+                              <ChevronDown className="h-3 w-3 mr-1" />
+                              查看 stdout
+                            </Button>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent>
+                            <ScrollArea className="h-40 w-full rounded-md border bg-muted/50 p-2">
+                              <pre className="text-xs whitespace-pre-wrap break-all">
+                                {storageStateJobResult.stdout}
+                              </pre>
+                            </ScrollArea>
+                          </CollapsibleContent>
+                        </Collapsible>
+                      )}
+                      {storageStateJobResult.stderr && (
+                        <Collapsible>
+                          <CollapsibleTrigger asChild>
+                            <Button type="button" variant="ghost" size="sm" className="h-auto p-0 text-xs">
+                              <ChevronDown className="h-3 w-3 mr-1" />
+                              查看 stderr
+                            </Button>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent>
+                            <ScrollArea className="h-40 w-full rounded-md border bg-muted/50 p-2">
+                              <pre className="text-xs whitespace-pre-wrap break-all">
+                                {storageStateJobResult.stderr}
+                              </pre>
+                            </ScrollArea>
+                          </CollapsibleContent>
+                        </Collapsible>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
               <DialogFooter>
                 <Button
                   type="button"
@@ -1318,6 +1436,33 @@ export default function WebTestsPage() {
                 </Button>
               </DialogFooter>
             </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* 失败截图预览 */}
+        <Dialog open={screenshotPreviewOpen} onOpenChange={setScreenshotPreviewOpen}>
+          <DialogContent className="max-w-5xl">
+            <DialogHeader>
+              <DialogTitle>登录态生成失败截图</DialogTitle>
+              <DialogDescription>失败时 Playwright 截取的全屏页面快照</DialogDescription>
+            </DialogHeader>
+            <div className="flex items-center justify-center overflow-auto py-2">
+              {screenshotPreviewUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={screenshotPreviewUrl}
+                  alt="登录态生成失败截图"
+                  className="max-w-full rounded-md border"
+                />
+              ) : (
+                <div className="text-sm text-muted-foreground">加载中...</div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button type="button" onClick={() => setScreenshotPreviewOpen(false)}>
+                关闭
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
 
