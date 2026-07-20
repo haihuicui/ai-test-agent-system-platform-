@@ -121,6 +121,12 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
   const isMountedRef = useRef(true);
   const lastScrollTopRef = useRef(0);
   const scrollTopBeforeLoadRef = useRef(0);
+  // 加载更多历史前保存滚动位置，加载后按新增内容高度恢复，
+  // 避免 loadMore 后强制 scrollTop=0 把用户弹回顶部造成闪烁。
+  const scrollPositionRef = useRef<{
+    scrollTop: number;
+    scrollHeight: number;
+  } | null>(null);
 
   const {
     stream,
@@ -268,6 +274,10 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
       if (currentScrollTop > 100) return;
 
       scrollTopBeforeLoadRef.current = currentScrollTop;
+      scrollPositionRef.current = {
+        scrollTop: container.scrollTop,
+        scrollHeight: container.scrollHeight,
+      };
       loadMoreHistory();
     };
 
@@ -294,6 +304,10 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
       if (container.scrollTop > 10) return;
 
       scrollTopBeforeLoadRef.current = container.scrollTop;
+      scrollPositionRef.current = {
+        scrollTop: container.scrollTop,
+        scrollHeight: container.scrollHeight,
+      };
       loadMoreHistory();
     };
 
@@ -307,23 +321,29 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
     loadMoreHistory,
   ]);
 
-  // 历史加载完成后，把滚动位置保持在顶部，让刚加载出来的历史消息直接可见
+  // 历史加载完成后，保持滚动位置不变（新内容在上方，按新增高度偏移）。
+  // 这样用户继续停留在刚刚查看的位置，而不是被弹回顶部。
   useLayoutEffect(() => {
     if (isLoadingMoreHistory) return;
-    if (scrollTopBeforeLoadRef.current === -1) return;
+    if (!scrollPositionRef.current) return;
 
     const container = scrollRef.current;
     if (!container) {
+      scrollPositionRef.current = null;
       scrollTopBeforeLoadRef.current = -1;
       return;
     }
 
-    // 只有原本就在顶部附近才强制回到顶部，避免影响用户在中部/底部的阅读位置
-    if (scrollTopBeforeLoadRef.current <= 100) {
-      // 先同步更新参考值，避免设置 scrollTop 触发的 scroll 事件被误判为向上滚动
-      lastScrollTopRef.current = 0;
-      container.scrollTop = 0;
+    const { scrollTop, scrollHeight } = scrollPositionRef.current;
+    const heightDiff = container.scrollHeight - scrollHeight;
+
+    if (heightDiff > 0) {
+      // 新加载的历史在上方，保持用户视线锚点不变
+      lastScrollTopRef.current = scrollTop + heightDiff;
+      container.scrollTop = scrollTop + heightDiff;
     }
+
+    scrollPositionRef.current = null;
     scrollTopBeforeLoadRef.current = -1;
   }, [isLoadingMoreHistory, messages.length, scrollRef]);
 

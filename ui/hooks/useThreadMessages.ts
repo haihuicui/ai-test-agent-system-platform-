@@ -69,19 +69,41 @@ export function useThreadMessages(
       console.debug("[useThreadMessages] fetching", `/threads/${key.threadId}/messages`, params);
     }
 
-    // SDK 尚未暴露 /messages 端点，通过底层 fetch 调用。
-    // BaseClient.fetch 在运行时是存在的，只是类型声明为 protected。
-    const result = await (client as any).fetch(
-      `/threads/${key.threadId}/messages`,
-      { params }
-    );
+    try {
+      // SDK 尚未暴露 /messages 端点，通过底层 fetch 调用。
+      // 直接用浏览器 fetch，绕过 SDK 的 AsyncCaller 重试/队列，便于在 Network 面板定位请求。
+      const apiUrl =
+        (client as any).apiUrl || process.env.NEXT_PUBLIC_LANGGRAPH_API_URL;
+      const url = new URL(
+        `/threads/${key.threadId}/messages`,
+        apiUrl
+      );
+      url.searchParams.set("limit", String(key.limit));
+      if (key.beforeCheckpointId) {
+        url.searchParams.set("before_checkpoint_id", key.beforeCheckpointId);
+      }
 
-    if (process.env.NODE_ENV === "development") {
-      // eslint-disable-next-line no-console
-      console.debug("[useThreadMessages] response", result);
+      const response = await fetch(url.toString(), {
+        headers: (client as any).defaultHeaders || {},
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+      }
+      const result = await response.json();
+
+      if (process.env.NODE_ENV === "development") {
+        // eslint-disable-next-line no-console
+        console.debug("[useThreadMessages] response", result);
+      }
+
+      return result as ThreadMessagesResponse;
+    } catch (err) {
+      if (process.env.NODE_ENV === "development") {
+        // eslint-disable-next-line no-console
+        console.error("[useThreadMessages] fetch error", err);
+      }
+      throw err;
     }
-
-    return result as ThreadMessagesResponse;
   };
 
   const swr = useSWRInfinite(getKey, fetcher, {
