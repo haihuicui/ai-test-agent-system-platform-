@@ -17,6 +17,7 @@ import {
   Code,
   Layers,
   Globe,
+  PlayCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -49,6 +50,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -74,9 +76,14 @@ import {
   type ExecutionMode,
   type EnvironmentInfo,
   type TestRunListInfo,
+  type TestRunState,
 } from "@/lib/api";
 import { ApiError } from "@/lib/api/client";
 import { ScriptSelector } from "./script-selector";
+import { TestRunExecutionPanel } from "./test-run-execution-panel";
+import {
+  RUN_STATE_BADGE,
+} from "./test-run-shared";
 
 interface TemplateFormValue extends Record<string, unknown> {
   name: string;
@@ -172,6 +179,14 @@ export function ScheduleRuleActions({
 
   const [viewingSchedule, setViewingSchedule] = React.useState<TestRunScheduleInfo | null>(null);
   const [viewLoading, setViewLoading] = React.useState(false);
+
+  const [viewRuns, setViewRuns] = React.useState<TestRunListInfo[]>([]);
+  const [viewRunsTotal, setViewRunsTotal] = React.useState(0);
+  const [viewRunsLoading, setViewRunsLoading] = React.useState(false);
+  const [selectedRunId, setSelectedRunId] = React.useState<string | null>(null);
+
+  const [latestRunSchedule, setLatestRunSchedule] = React.useState<TestRunScheduleInfo | null>(null);
+  const [latestRunLoading, setLatestRunLoading] = React.useState(false);
 
   const [environments, setEnvironments] = React.useState<EnvironmentInfo[]>([]);
   const [environmentsLoading, setEnvironmentsLoading] = React.useState(false);
@@ -271,15 +286,48 @@ export function ScheduleRuleActions({
   async function handleView(s: TestRunScheduleInfo) {
     setViewingSchedule(s);
     setViewLoading(true);
+    setViewRunsLoading(true);
+    setViewRuns([]);
+    setViewRunsTotal(0);
     try {
-      const response = await getSchedule(projectId, s.id);
-      setViewingSchedule(response.data);
+      const [scheduleResponse, runsResponse] = await Promise.all([
+        getSchedule(projectId, s.id),
+        getScheduleRuns(projectId, s.id, { page: 1, page_size: 20 }),
+      ]);
+      setViewingSchedule(scheduleResponse.data);
+      setViewRuns(runsResponse.data.items);
+      setViewRunsTotal(runsResponse.data.total);
+      setSelectedRunId(runsResponse.data.items[0]?.id ?? null);
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : "加载调度详情失败";
       onError?.(msg);
       setViewingSchedule(null);
     } finally {
       setViewLoading(false);
+      setViewRunsLoading(false);
+    }
+  }
+
+  async function handleViewLatestRun(s: TestRunScheduleInfo) {
+    setLatestRunSchedule(s);
+    setLatestRunLoading(true);
+    try {
+      const response = await getScheduleRuns(projectId, s.id, {
+        page: 1,
+        page_size: 1,
+      });
+      const items = response.data.items;
+      if (items.length > 0) {
+        router.push(`/projects/${projectId}/test-runs/${items[0].identifier}`);
+      } else {
+        onError?.("该调度暂无执行记录");
+      }
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : "加载最新运行失败";
+      onError?.(msg);
+    } finally {
+      setLatestRunLoading(false);
+      setLatestRunSchedule(null);
     }
   }
 
@@ -304,22 +352,54 @@ export function ScheduleRuleActions({
     }
   }
 
+  const selectedRun = React.useMemo(
+    () => viewRuns.find((r) => r.id === selectedRunId),
+    [viewRuns, selectedRunId]
+  );
+
+  const runStats = React.useMemo(() => {
+    const total = viewRuns.length;
+    const passed = viewRuns.filter(
+      (r) => r.run_state === "done" || r.run_state === "approved"
+    ).length;
+    const failed = viewRuns.filter(
+      (r) => r.run_state === "rejected" || r.run_state === "done_with_failures"
+    ).length;
+    const successRate = total > 0 ? Math.round((passed / total) * 100) : 0;
+    return { total, passed, failed, successRate };
+  }, [viewRuns]);
+
   return (
     <>
       {showViewButton && (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => handleView(schedule)}
-          disabled={viewLoading && viewingSchedule?.id === schedule.id}
-        >
-          {viewLoading && viewingSchedule?.id === schedule.id ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <Eye className="mr-2 h-4 w-4" />
-          )}
-          查看
-        </Button>
+        <>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleView(schedule)}
+            disabled={viewLoading && viewingSchedule?.id === schedule.id}
+          >
+            {viewLoading && viewingSchedule?.id === schedule.id ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Eye className="mr-2 h-4 w-4" />
+            )}
+            查看
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            title="查看最新运行"
+            onClick={() => handleViewLatestRun(schedule)}
+            disabled={latestRunLoading && latestRunSchedule?.id === schedule.id}
+          >
+            {latestRunLoading && latestRunSchedule?.id === schedule.id ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <PlayCircle className="h-4 w-4" />
+            )}
+          </Button>
+        </>
       )}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -384,6 +464,78 @@ export function ScheduleRuleActions({
                 rows={2}
               />
             </div>
+            <div className="space-y-2">
+              <Label>触发器类型</Label>
+              <Select
+                value={editForm.trigger_type || "cron"}
+                onValueChange={(v) => {
+                  const type = v as ScheduleTriggerType;
+                  let config: Record<string, unknown> = {};
+                  if (type === "cron") config = { cron_expression: "0 9 * * *" };
+                  else if (type === "interval") config = { minutes: 60 };
+                  else if (type === "date") config = { run_date: new Date().toISOString() };
+                  setEditForm({ ...editForm, trigger_type: type, trigger_config: config });
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cron">Cron 表达式</SelectItem>
+                  <SelectItem value="interval">间隔触发</SelectItem>
+                  <SelectItem value="date">一次性</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {editForm.trigger_type === "cron" && (
+              <div className="space-y-2">
+                <Label htmlFor="edit-cron">Cron 表达式</Label>
+                <Input
+                  id="edit-cron"
+                  value={String(editForm.trigger_config?.cron_expression || "")}
+                  onChange={(e) =>
+                    setEditForm({
+                      ...editForm,
+                      trigger_config: { cron_expression: e.target.value },
+                    })
+                  }
+                  placeholder="0 9 * * *"
+                />
+                <p className="text-xs text-muted-foreground">格式: 分 时 日 月 周</p>
+              </div>
+            )}
+            {editForm.trigger_type === "interval" && (
+              <div className="space-y-2">
+                <Label htmlFor="edit-interval">间隔分钟数</Label>
+                <Input
+                  id="edit-interval"
+                  type="number"
+                  value={Number(editForm.trigger_config?.minutes || 60)}
+                  onChange={(e) =>
+                    setEditForm({
+                      ...editForm,
+                      trigger_config: { minutes: Number(e.target.value) },
+                    })
+                  }
+                />
+              </div>
+            )}
+            {editForm.trigger_type === "date" && (
+              <div className="space-y-2">
+                <Label htmlFor="edit-date">执行时间</Label>
+                <Input
+                  id="edit-date"
+                  type="datetime-local"
+                  value={String(editForm.trigger_config?.run_date || "").slice(0, 16)}
+                  onChange={(e) =>
+                    setEditForm({
+                      ...editForm,
+                      trigger_config: { run_date: new Date(e.target.value).toISOString() },
+                    })
+                  }
+                />
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="edit-template-name">测试运行名称模板</Label>
               <Input
@@ -597,9 +749,16 @@ export function ScheduleRuleActions({
       {/* 查看详情 */}
       <Dialog
         open={viewingSchedule !== null}
-        onOpenChange={(open) => !open && setViewingSchedule(null)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setViewingSchedule(null);
+            setViewRuns([]);
+            setViewRunsTotal(0);
+            setSelectedRunId(null);
+          }
+        }}
       >
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>调度规则详情</DialogTitle>
             <DialogDescription>
@@ -615,8 +774,14 @@ export function ScheduleRuleActions({
               加载失败
             </div>
           ) : (
-            <div className="space-y-6 py-4">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="py-4">
+              <Tabs defaultValue="config" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="config">规则配置</TabsTrigger>
+                  <TabsTrigger value="execution">最新执行</TabsTrigger>
+                </TabsList>
+                <TabsContent value="config" className="space-y-6 pt-4">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <Label className="text-muted-foreground">名称</Label>
                   <div className="mt-1 font-medium">{viewingSchedule.name}</div>
@@ -733,15 +898,71 @@ export function ScheduleRuleActions({
                   );
                 })()}
               </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setViewingSchedule(null)}>
-              关闭
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
+
+              </TabsContent>
+              <TabsContent value="execution" className="pt-4">
+                {viewRunsLoading ? (
+                  <div className="flex h-64 items-center justify-center">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : viewRuns.length === 0 ? (
+                  <div className="flex h-64 flex-col items-center justify-center gap-2">
+                    <History className="h-12 w-12 text-muted-foreground/50" />
+                    <p className="text-sm text-muted-foreground">暂无执行历史</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <Label className="text-muted-foreground">选择执行记录</Label>
+                      {viewRunsTotal > viewRuns.length && viewingSchedule && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => loadRunHistory(viewingSchedule)}
+                        >
+                          查看全部
+                        </Button>
+                      )}
+                    </div>
+                    <Select
+                      value={selectedRunId ?? ""}
+                      onValueChange={(v) => setSelectedRunId(v)}
+                    >
+                      <SelectTrigger className="w-full sm:w-[320px]">
+                        <SelectValue placeholder="选择执行记录" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {viewRuns.map((run) => {
+                          const stateInfo = RUN_STATE_BADGE[run.run_state];
+                          return (
+                            <SelectItem key={run.id} value={run.id}>
+                              {run.identifier} · {run.name} · {stateInfo.label}
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                    {selectedRun && (
+                      <TestRunExecutionPanel
+                        projectId={projectId}
+                        runId={selectedRun.identifier}
+                        showViewFullDetail
+                        onError={onError}
+                      />
+                    )}
+                  </div>
+                )}
+              </TabsContent>
+          </Tabs>
+        </div>
+      )}
+      <DialogFooter>
+        <Button variant="outline" onClick={() => setViewingSchedule(null)}>
+          关闭
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
+</>
   );
 }

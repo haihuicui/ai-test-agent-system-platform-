@@ -16,9 +16,7 @@ import {
   Loader2,
   Zap,
   CalendarClock,
-  FileCode,
   FileText,
-  Globe,
   MoreHorizontal,
   Trash2,
   Pencil,
@@ -75,7 +73,6 @@ import {
   batchRetryJobs,
   getScriptHistory,
   getScriptBenchmark,
-  getJobReportPreview,
   mapJobsToTestCases,
   subscribeToTestRunEvents,
   listEnvironments,
@@ -95,87 +92,18 @@ import {
 } from "@/lib/api";
 import { ApiError } from "@/lib/api/client";
 import { ScriptSelector } from "../_components/script-selector";
+import {
+  RUN_STATE_BADGE,
+  RUN_STATE_OPTIONS,
+  EXECUTION_MODE_BADGE,
+  TRIGGER_TYPE_BADGE,
+  SCRIPT_TYPE_ICON,
+  SCRIPT_TYPE_LABEL,
+  JOB_STATUS_BADGE,
+  formatDuration,
+  progressDoneRatio,
+} from "../_components/test-run-shared";
 // NOTE  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2UVZCR1lnPT06Zjc3ZTQ2ZTk=
-
-const RUN_STATE_BADGE: Record<
-  TestRunState,
-  { label: string; variant: "default" | "secondary" | "destructive" | "outline" }
-> = {
-  new_run: { label: "新建", variant: "secondary" },
-  in_progress: { label: "进行中", variant: "default" },
-  under_review: { label: "评审中", variant: "outline" },
-  rejected: { label: "已拒绝", variant: "destructive" },
-  approved: { label: "已批准", variant: "default" },
-  done: { label: "已完成", variant: "default" },
-  done_with_failures: { label: "已完成（含失败）", variant: "destructive" },
-  closed: { label: "已关闭", variant: "secondary" },
-};
-
-const RUN_STATE_OPTIONS: { value: TestRunState; label: string }[] = [
-  { value: "new_run", label: "新建" },
-  { value: "in_progress", label: "进行中" },
-  { value: "under_review", label: "评审中" },
-  { value: "rejected", label: "已拒绝" },
-  { value: "approved", label: "已批准" },
-  { value: "done", label: "已完成" },
-  { value: "done_with_failures", label: "已完成（含失败）" },
-  { value: "closed", label: "已关闭" },
-];
-
-const EXECUTION_MODE_BADGE: Record<ExecutionMode, { label: string }> = {
-  sequential: { label: "顺序执行" },
-  parallel: { label: "并行执行" },
-};
-// NOTE  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2UVZCR1lnPT06Zjc3ZTQ2ZTk=
-
-const TRIGGER_TYPE_BADGE: Record<TriggerType, { label: string }> = {
-  manual: { label: "手动触发" },
-  scheduled: { label: "定时触发" },
-  api: { label: "API 触发" },
-};
-
-const SCRIPT_TYPE_ICON: Record<ScriptType, React.ReactNode> = {
-  api_test: <FileCode className="h-4 w-4" />,
-  scenario: <FileText className="h-4 w-4" />,
-  web_test: <Globe className="h-4 w-4" />,
-  test_case: <FileText className="h-4 w-4" />,
-};
-// NOTE  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2UVZCR1lnPT06Zjc3ZTQ2ZTk=
-
-const SCRIPT_TYPE_LABEL: Record<ScriptType, string> = {
-  api_test: "API 测试",
-  scenario: "场景测试",
-  web_test: "Web 测试",
-  test_case: "测试用例",
-};
-
-const JOB_STATUS_BADGE: Record<
-  JobStatus,
-  { label: string; variant: "default" | "secondary" | "destructive" | "outline" }
-> = {
-  pending: { label: "待执行", variant: "secondary" },
-  running: { label: "执行中", variant: "default" },
-  completed: { label: "已完成", variant: "default" },
-  failed: { label: "失败", variant: "destructive" },
-  skipped: { label: "已跳过", variant: "outline" },
-  cancelled: { label: "已取消", variant: "outline" },
-};
-
-function formatDuration(ms?: number | null): string {
-  if (!ms) return "-";
-  if (ms < 1000) return `${ms}ms`;
-  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
-  return `${(ms / 60000).toFixed(1)}min`;
-}
-// NOTE  My80OmFIVnBZMlhsdEpUbXRiZm92b2s2UVZCR1lnPT06Zjc3ZTQ2ZTk=
-
-function progressDoneRatio(run: TestRunInfo): number {
-  const total = run.test_cases_count;
-  if (!total) return 0;
-  const p = run.overall_progress;
-  const finished = p.passed + p.failed + p.blocked + p.skipped + p.retest;
-  return Math.round((finished / total) * 100);
-}
 
 export default function TestRunDetailPage() {
   const params = useParams();
@@ -206,7 +134,8 @@ export default function TestRunDetailPage() {
 
   // 报告预览弹窗状态
   const [reportDialogJob, setReportDialogJob] = React.useState<TestRunScriptJobInfo | null>(null);
-  const [reportDialogHtml, setReportDialogHtml] = React.useState<string | null>(null);
+  const [reportDialogUrl, setReportDialogUrl] = React.useState<string | null>(null);
+  const [reportDialogError, setReportDialogError] = React.useState<string | null>(null);
   const [reportDialogLoading, setReportDialogLoading] = React.useState(false);
 
   // 历史趋势弹窗状态
@@ -519,12 +448,15 @@ export default function TestRunDetailPage() {
   async function handlePreviewReport(job: TestRunScriptJobInfo) {
     if (!testRun) return;
     setReportDialogJob(job);
+    setReportDialogUrl(null);
+    setReportDialogError(null);
     setReportDialogLoading(true);
     try {
-      const html = await getJobReportPreview(projectId, testRun.identifier, job.id);
-      setReportDialogHtml(html);
+      const response = await getJobReportUrl(projectId, testRun.identifier, job.id);
+      const url = response.data.url;
+      setReportDialogUrl(url.endsWith("/") ? url : `${url}/`);
     } catch (err) {
-      setReportDialogHtml(`<html><body style="color:red;padding:20px">${err instanceof ApiError ? err.message : "加载报告失败"}</body></html>`);
+      setReportDialogError(err instanceof ApiError ? err.message : "加载报告失败");
     } finally {
       setReportDialogLoading(false);
     }
@@ -1391,7 +1323,7 @@ export default function TestRunDetailPage() {
 
       {/* 日志弹窗 */}
       <Dialog open={!!logDialogJob} onOpenChange={(open) => { if (!open) { setLogDialogJob(null); setLogDialogData(null); } }}>
-        <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col overflow-hidden">
+        <DialogContent className="max-w-4xl h-[80vh] max-h-[80vh] flex flex-col overflow-hidden">
           <DialogHeader>
             <DialogTitle>执行日志</DialogTitle>
             <DialogDescription>
@@ -1403,31 +1335,33 @@ export default function TestRunDetailPage() {
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
           ) : logDialogData ? (
-            <ScrollArea className="flex-1 min-h-0 border rounded-md">
-              <div className="p-4 space-y-4">
-                {logDialogData.stdout && (
-                  <div>
-                    <div className="text-xs font-semibold text-muted-foreground mb-1">标准输出 (stdout)</div>
-                    <pre className="text-xs bg-muted p-3 rounded-md overflow-auto whitespace-pre-wrap">{logDialogData.stdout}</pre>
-                  </div>
-                )}
-                {logDialogData.stderr && (
-                  <div>
-                    <div className="text-xs font-semibold text-destructive mb-1">标准错误 (stderr)</div>
-                    <pre className="text-xs bg-destructive/5 text-destructive p-3 rounded-md overflow-auto whitespace-pre-wrap">{logDialogData.stderr}</pre>
-                  </div>
-                )}
-                {!logDialogData.stdout && !logDialogData.stderr && (
-                  <div className="text-sm text-muted-foreground text-center py-8">暂无日志</div>
-                )}
-              </div>
-            </ScrollArea>
+            <div className="min-h-0 flex-1 overflow-hidden">
+              <ScrollArea className="h-full border rounded-md">
+                <div className="p-4 space-y-4">
+                  {logDialogData.stdout && (
+                    <div>
+                      <div className="text-xs font-semibold text-muted-foreground mb-1">标准输出 (stdout)</div>
+                      <pre className="text-xs bg-muted p-3 rounded-md overflow-auto whitespace-pre-wrap">{logDialogData.stdout}</pre>
+                    </div>
+                  )}
+                  {logDialogData.stderr && (
+                    <div>
+                      <div className="text-xs font-semibold text-destructive mb-1">标准错误 (stderr)</div>
+                      <pre className="text-xs bg-destructive/5 text-destructive p-3 rounded-md overflow-auto whitespace-pre-wrap">{logDialogData.stderr}</pre>
+                    </div>
+                  )}
+                  {!logDialogData.stdout && !logDialogData.stderr && (
+                    <div className="text-sm text-muted-foreground text-center py-8">暂无日志</div>
+                  )}
+                </div>
+              </ScrollArea>
+            </div>
           ) : null}
         </DialogContent>
       </Dialog>
 
       {/* 报告预览弹窗 */}
-      <Dialog open={!!reportDialogJob} onOpenChange={(open) => { if (!open) { setReportDialogJob(null); setReportDialogHtml(null); } }}>
+      <Dialog open={!!reportDialogJob} onOpenChange={(open) => { if (!open) { setReportDialogJob(null); setReportDialogUrl(null); setReportDialogError(null); } }}>
         <DialogContent className="max-w-6xl max-h-[90vh] flex flex-col p-0">
           <DialogHeader className="px-6 pt-6">
             <DialogTitle>报告预览</DialogTitle>
@@ -1439,10 +1373,14 @@ export default function TestRunDetailPage() {
             <div className="flex h-96 items-center justify-center">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
-          ) : reportDialogHtml ? (
+          ) : reportDialogError ? (
+            <div className="flex h-96 items-center justify-center px-6">
+              <p className="text-destructive">{reportDialogError}</p>
+            </div>
+          ) : reportDialogUrl ? (
             <div className="flex-1 overflow-hidden border-t">
               <iframe
-                srcDoc={reportDialogHtml}
+                src={reportDialogUrl}
                 className="w-full h-[70vh]"
                 sandbox="allow-scripts allow-same-origin"
                 title="报告预览"
@@ -1454,7 +1392,7 @@ export default function TestRunDetailPage() {
 
       {/* 历史趋势弹窗 */}
       <Dialog open={!!historyDialogJob} onOpenChange={(open) => { if (!open) { setHistoryDialogJob(null); setHistoryDialogData(null); } }}>
-        <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col overflow-hidden">
+        <DialogContent className="max-w-2xl h-[80vh] max-h-[80vh] flex flex-col overflow-hidden">
           <DialogHeader>
             <DialogTitle>执行历史趋势</DialogTitle>
             <DialogDescription>
@@ -1466,44 +1404,46 @@ export default function TestRunDetailPage() {
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
           ) : historyDialogData && typeof historyDialogData === "object" && !("error" in historyDialogData) ? (
-            <ScrollArea className="flex-1 min-h-0">
-              <div className="p-4 space-y-4">
-                <div className="grid grid-cols-4 gap-4">
-                  <div className="rounded-lg border p-3 text-center">
-                    <div className="text-2xl font-bold">{(historyDialogData as any).success_rate}%</div>
-                    <div className="text-xs text-muted-foreground">成功率</div>
+            <div className="min-h-0 flex-1 overflow-hidden">
+              <ScrollArea className="h-full">
+                <div className="p-4 space-y-4">
+                  <div className="grid grid-cols-4 gap-4">
+                    <div className="rounded-lg border p-3 text-center">
+                      <div className="text-2xl font-bold">{(historyDialogData as any).success_rate}%</div>
+                      <div className="text-xs text-muted-foreground">成功率</div>
+                    </div>
+                    <div className="rounded-lg border p-3 text-center">
+                      <div className="text-2xl font-bold text-green-600">{(historyDialogData as any).passed}</div>
+                      <div className="text-xs text-muted-foreground">通过</div>
+                    </div>
+                    <div className="rounded-lg border p-3 text-center">
+                      <div className="text-2xl font-bold text-red-600">{(historyDialogData as any).failed}</div>
+                      <div className="text-xs text-muted-foreground">失败</div>
+                    </div>
+                    <div className="rounded-lg border p-3 text-center">
+                      <div className="text-2xl font-bold text-amber-600">{(historyDialogData as any).total_runs}</div>
+                      <div className="text-xs text-muted-foreground">总执行</div>
+                    </div>
                   </div>
-                  <div className="rounded-lg border p-3 text-center">
-                    <div className="text-2xl font-bold text-green-600">{(historyDialogData as any).passed}</div>
-                    <div className="text-xs text-muted-foreground">通过</div>
-                  </div>
-                  <div className="rounded-lg border p-3 text-center">
-                    <div className="text-2xl font-bold text-red-600">{(historyDialogData as any).failed}</div>
-                    <div className="text-xs text-muted-foreground">失败</div>
-                  </div>
-                  <div className="rounded-lg border p-3 text-center">
-                    <div className="text-2xl font-bold text-amber-600">{(historyDialogData as any).total_runs}</div>
-                    <div className="text-xs text-muted-foreground">总执行</div>
-                  </div>
-                </div>
-                <div className="rounded-lg border">
-                  <div className="border-b px-4 py-2 text-sm font-medium">最近执行记录</div>
-                  <div className="divide-y">
-                    {(historyDialogData as any).history?.map((h: any) => (
-                      <div key={h.job_id} className="flex items-center justify-between px-4 py-2 text-sm">
-                        <div className="flex items-center gap-2">
-                          <Badge variant={h.status === "completed" ? "default" : h.status === "failed" ? "destructive" : "secondary"} className="text-xs">
-                            {h.status}
-                          </Badge>
-                          <span className="text-muted-foreground">{h.duration_ms ? `${(h.duration_ms / 1000).toFixed(1)}s` : "-"}</span>
+                  <div className="rounded-lg border">
+                    <div className="border-b px-4 py-2 text-sm font-medium">最近执行记录</div>
+                    <div className="divide-y">
+                      {(historyDialogData as any).history?.map((h: any) => (
+                        <div key={h.job_id} className="flex items-center justify-between px-4 py-2 text-sm">
+                          <div className="flex items-center gap-2">
+                            <Badge variant={h.status === "completed" ? "default" : h.status === "failed" ? "destructive" : "secondary"} className="text-xs">
+                              {h.status}
+                            </Badge>
+                            <span className="text-muted-foreground">{h.duration_ms ? `${(h.duration_ms / 1000).toFixed(1)}s` : "-"}</span>
+                          </div>
+                          <span className="text-xs text-muted-foreground">{h.completed_at ? new Date(h.completed_at).toLocaleString() : "-"}</span>
                         </div>
-                        <span className="text-xs text-muted-foreground">{h.completed_at ? new Date(h.completed_at).toLocaleString() : "-"}</span>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </ScrollArea>
+              </ScrollArea>
+            </div>
           ) : (
             <div className="text-sm text-destructive text-center py-8">
               {(historyDialogData as any)?.error || "暂无历史数据"}
@@ -1514,7 +1454,7 @@ export default function TestRunDetailPage() {
 
       {/* 性能基准弹窗 */}
       <Dialog open={!!benchmarkDialogJob} onOpenChange={(open) => { if (!open) { setBenchmarkDialogJob(null); setBenchmarkDialogData(null); } }}>
-        <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col overflow-hidden">
+        <DialogContent className="max-w-2xl h-[80vh] max-h-[80vh] flex flex-col overflow-hidden">
           <DialogHeader>
             <DialogTitle>性能基准</DialogTitle>
             <DialogDescription>
@@ -1526,44 +1466,46 @@ export default function TestRunDetailPage() {
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
           ) : benchmarkDialogData && typeof benchmarkDialogData === "object" && !("error" in benchmarkDialogData) ? (
-            <ScrollArea className="flex-1 min-h-0">
-              <div className="p-4 space-y-4">
-                <div className="grid grid-cols-4 gap-4">
-                  <div className="rounded-lg border p-3 text-center">
-                    <div className="text-2xl font-bold">{formatDuration((benchmarkDialogData as any).avg_duration_ms)}</div>
-                    <div className="text-xs text-muted-foreground">平均耗时</div>
+            <div className="min-h-0 flex-1 overflow-hidden">
+              <ScrollArea className="h-full">
+                <div className="p-4 space-y-4">
+                  <div className="grid grid-cols-4 gap-4">
+                    <div className="rounded-lg border p-3 text-center">
+                      <div className="text-2xl font-bold">{formatDuration((benchmarkDialogData as any).avg_duration_ms)}</div>
+                      <div className="text-xs text-muted-foreground">平均耗时</div>
+                    </div>
+                    <div className="rounded-lg border p-3 text-center">
+                      <div className="text-2xl font-bold text-green-600">{formatDuration((benchmarkDialogData as any).min_duration_ms)}</div>
+                      <div className="text-xs text-muted-foreground">最快</div>
+                    </div>
+                    <div className="rounded-lg border p-3 text-center">
+                      <div className="text-2xl font-bold text-red-600">{formatDuration((benchmarkDialogData as any).max_duration_ms)}</div>
+                      <div className="text-xs text-muted-foreground">最慢</div>
+                    </div>
+                    <div className="rounded-lg border p-3 text-center">
+                      <div className="text-2xl font-bold text-amber-600">{formatDuration((benchmarkDialogData as any).median_duration_ms)}</div>
+                      <div className="text-xs text-muted-foreground">中位数</div>
+                    </div>
                   </div>
-                  <div className="rounded-lg border p-3 text-center">
-                    <div className="text-2xl font-bold text-green-600">{formatDuration((benchmarkDialogData as any).min_duration_ms)}</div>
-                    <div className="text-xs text-muted-foreground">最快</div>
-                  </div>
-                  <div className="rounded-lg border p-3 text-center">
-                    <div className="text-2xl font-bold text-red-600">{formatDuration((benchmarkDialogData as any).max_duration_ms)}</div>
-                    <div className="text-xs text-muted-foreground">最慢</div>
-                  </div>
-                  <div className="rounded-lg border p-3 text-center">
-                    <div className="text-2xl font-bold text-amber-600">{formatDuration((benchmarkDialogData as any).median_duration_ms)}</div>
-                    <div className="text-xs text-muted-foreground">中位数</div>
-                  </div>
-                </div>
-                <div className="rounded-lg border">
-                  <div className="border-b px-4 py-2 text-sm font-medium">耗时趋势</div>
-                  <div className="divide-y">
-                    {(benchmarkDialogData as any).runs?.map((r: any) => (
-                      <div key={r.job_id} className="flex items-center justify-between px-4 py-2 text-sm">
-                        <div className="flex items-center gap-2">
-                          <Badge variant={r.status === "completed" ? "default" : r.status === "failed" ? "destructive" : "secondary"} className="text-xs">
-                            {r.status}
-                          </Badge>
-                          <span>{formatDuration(r.duration_ms)}</span>
+                  <div className="rounded-lg border">
+                    <div className="border-b px-4 py-2 text-sm font-medium">耗时趋势</div>
+                    <div className="divide-y">
+                      {(benchmarkDialogData as any).runs?.map((r: any) => (
+                        <div key={r.job_id} className="flex items-center justify-between px-4 py-2 text-sm">
+                          <div className="flex items-center gap-2">
+                            <Badge variant={r.status === "completed" ? "default" : r.status === "failed" ? "destructive" : "secondary"} className="text-xs">
+                              {r.status}
+                            </Badge>
+                            <span>{formatDuration(r.duration_ms)}</span>
+                          </div>
+                          <span className="text-xs text-muted-foreground">{r.date ? new Date(r.date).toLocaleString() : "-"}</span>
                         </div>
-                        <span className="text-xs text-muted-foreground">{r.date ? new Date(r.date).toLocaleString() : "-"}</span>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </ScrollArea>
+              </ScrollArea>
+            </div>
           ) : (
             <div className="text-sm text-destructive text-center py-8">
               {(benchmarkDialogData as any)?.error || "暂无基准数据"}
