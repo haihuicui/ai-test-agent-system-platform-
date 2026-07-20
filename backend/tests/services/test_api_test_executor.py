@@ -13,10 +13,16 @@ APITestExecutor 核心解析/匹配/摘要逻辑单元测试
     pip install pytest pytest-asyncio
 """
 
+import json
+
 import pytest
 
 from app.schemas.enums import TestResultStatus
-from app.services.api_test_executor import APITestExecutor
+from app.services.api_test_executor import (
+    APITestExecutor,
+    API_BUSINESS_SUCCESS_CODES,
+    _get_business_code_env_value,
+)
 
 
 class TestParsePlaywrightListOutput:
@@ -283,3 +289,41 @@ class TestParseEndpointFromTestName:
             "some test name",
             "GET",
         )
+
+
+class TestBusinessCodeCheck:
+    def test_env_value_contains_all_success_codes(self):
+        raw = _get_business_code_env_value()
+        parsed = json.loads(raw)
+        assert isinstance(parsed, list)
+        for code in API_BUSINESS_SUCCESS_CODES:
+            assert code in parsed
+
+    def test_check_business_code_success_values(self):
+        for code in [0, "0", 200, "200", 2000, "2000", "success", "SUCCESS", True]:
+            entry = {"responseBody": {"code": code}}
+            assert APITestExecutor._check_business_code(entry) is None
+
+    def test_check_business_code_failing_values(self):
+        for code in [4001, "4001", 4009, "5000", "failed"]:
+            entry = {"responseBody": {"code": code}}
+            result = APITestExecutor._check_business_code(entry)
+            assert result is not None
+            assert result["passed"] is False
+            assert "body.code" in result["message"]
+
+    def test_check_business_code_success_field_false(self):
+        entry = {"responseBody": {"success": False, "code": "0"}}
+        result = APITestExecutor._check_business_code(entry)
+        assert result is not None
+        assert result["passed"] is False
+        assert "body.success" in result["message"]
+
+    def test_check_business_code_success_field_true(self):
+        entry = {"responseBody": {"success": True, "code": "4001"}}
+        assert APITestExecutor._check_business_code(entry) is None
+
+    def test_check_business_code_missing_body(self):
+        assert APITestExecutor._check_business_code({"responseBody": None}) is None
+        assert APITestExecutor._check_business_code({"responseBody": "plain text"}) is None
+        assert APITestExecutor._check_business_code({}) is None

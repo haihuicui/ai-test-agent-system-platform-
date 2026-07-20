@@ -45,6 +45,7 @@ from app.schemas.enums import TestResultStatus
 from app.services.api_test_executor import (
     APITestExecutor,
     _ensure_trace_helper,
+    _get_business_code_env_value,
     _parse_api_trace,
     _rewrite_script_imports,
 )
@@ -555,6 +556,7 @@ async def _execute_script_internal(
                 helper_file = _ensure_trace_helper(project_root_path)
                 trace_file = project_root_path / f"api-trace-{uuid.uuid4().hex}.jsonl"
                 env["API_TRACE_OUTPUT_FILE"] = str(trace_file)
+                env["API_TEST_SUCCESS_CODES"] = _get_business_code_env_value()
 
                 # 确定脚本的绝对路径
                 if script_abs_path:

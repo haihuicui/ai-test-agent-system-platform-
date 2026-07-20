@@ -14,8 +14,51 @@ function appendTrace(traceFile: string, entry: any): void {
   try {
     ensureDir(traceFile);
     fs.appendFileSync(traceFile, JSON.stringify(entry) + '\n', 'utf-8');
+    if (entry.testName && entry.testName === currentTestName) {
+      currentTestTraces.push(entry);
+    }
   } catch (e) { /* ignore */ }
 }
+
+// 业务成功码白名单（与后端 API_BUSINESS_SUCCESS_CODES 保持一致）
+const DEFAULT_SUCCESS_CODES: any[] = [0, '0', 200, '200', 2000, '2000', 'success', 'SUCCESS', true];
+function parseSuccessCodes(): any[] {
+  const raw = process.env.API_TEST_SUCCESS_CODES;
+  if (!raw) return DEFAULT_SUCCESS_CODES;
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed;
+  } catch { /* ignore */ }
+  return DEFAULT_SUCCESS_CODES;
+}
+const BUSINESS_SUCCESS_CODES = new Set(parseSuccessCodes().map((v) => typeof v === 'string' ? v.toLowerCase() : v));
+
+function checkBusinessCode(body: any): { passed: boolean; message?: string } {
+  if (!body || typeof body !== 'object') return { passed: true };
+  const success = (body as any).success;
+  if (success !== undefined) {
+    if (success === false || success === 'false') {
+      return {
+        passed: false,
+        message: `业务层失败（假阳性）: HTTP 2xx 但 body.success=${JSON.stringify(success)}, code=${JSON.stringify((body as any).code)}, message=${JSON.stringify((body as any).message)}`,
+      };
+    }
+    return { passed: true };
+  }
+  const code = (body as any).code;
+  if (code !== undefined) {
+    const normalized = typeof code === 'string' ? code.toLowerCase() : code;
+    if (!BUSINESS_SUCCESS_CODES.has(normalized)) {
+      return {
+        passed: false,
+        message: `业务层失败（假阳性）: HTTP 2xx 但 body.code=${JSON.stringify(code)}, message=${JSON.stringify((body as any).message)}`,
+      };
+    }
+  }
+  return { passed: true };
+}
+
+let currentTestTraces: any[] = [];
 
 // ---------------------------------------------------------------------------
 // 脱敏与大小配置（支持环境变量覆盖）
@@ -305,12 +348,26 @@ export const test = baseTest.extend({
 test.beforeEach(async ({}, testInfo) => {
   currentTestName = testInfo.titlePath.join(' › ');
   currentTestTitle = testInfo.title;
+  currentTestTraces = [];
   console.log('[api-trace-helper] beforeEach set currentTestName=', currentTestName);
 });
 
 test.afterEach(() => {
+  const failures: string[] = [];
+  for (const entry of currentTestTraces) {
+    const body = entry?.responseBody;
+    if (body === undefined || body === null) continue;
+    const result = checkBusinessCode(body);
+    if (!result.passed && result.message) {
+      failures.push(result.message);
+    }
+  }
   currentTestName = '';
   currentTestTitle = '';
+  currentTestTraces = [];
+  if (failures.length > 0) {
+    throw new Error('\n' + failures.join('\n'));
+  }
 });
 
 export { expect } from '@playwright/test';

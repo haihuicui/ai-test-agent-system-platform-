@@ -14,8 +14,8 @@ from uuid import UUID
 from app.config.database import async_session_factory
 from app.config.minio_client import MinIOClient
 from app.config.settings import settings
-from app.repositories.api_test_repo import APITestRunRepository
-from app.schemas.enums import JobStatus
+from app.repositories.api_test_repo import APITestRunRepository, APITestResultRepository
+from app.schemas.enums import JobStatus, TestResultStatus
 from app.services.execution.log_utils import format_scenario_log
 from app.services.execution.models import ExecutionResult
 from app.services.execution.utils import (
@@ -107,6 +107,24 @@ class PlaywrightExecutor(ScriptExecutor):
                     run_repo = APITestRunRepository(session)
                     run = await run_repo.get_by_id(run_id)
                     if run and run.status in ("completed", "failed", "cancelled"):
+                        # 聚合失败用例的具体原因，用于在 TestRun 面板展示
+                        aggregated_error = None
+                        if run.status != "completed" or (run.failed_tests or 0) > 0:
+                            try:
+                                result_repo = APITestResultRepository(session)
+                                failed_results = await result_repo.get_by_status(
+                                    run_id, TestResultStatus.FAILED.value
+                                )
+                                if failed_results:
+                                    aggregated_error = "\\n".join(
+                                        f"{r.scenario_name}: {r.error_message or '失败'}"
+                                        for r in failed_results
+                                        if r.error_message
+                                    )
+                            except Exception as e:
+                                logger.warning(
+                                    "[PlaywrightExecutor] 聚合失败结果异常: %s", e
+                                )
                         break
                 await asyncio.sleep(interval)
             else:
@@ -131,6 +149,7 @@ class PlaywrightExecutor(ScriptExecutor):
             coerced_summary, has_missing_counts = coerce_result_summary_counts(
                 result_summary
             )
+            coerced_summary["detail_run_id"] = str(run_id)
 
             failure_category = classify_failure_category(
                 success=success,
@@ -150,7 +169,7 @@ class PlaywrightExecutor(ScriptExecutor):
                 skipped_count=coerced_summary["skipped"],
                 error_count=coerced_summary["error"],
                 duration_ms=duration_ms,
-                error_message=run.error_message if not success else None,
+                error_message=(aggregated_error or run.error_message) if not success else None,
                 report_path=run.report_path,
                 result_summary=coerced_summary,
                 stdout=run.stdout or "",
