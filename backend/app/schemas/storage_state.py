@@ -21,6 +21,10 @@ class LoginSelectors(BaseModel):
         default="input[name='password']",
         description="密码输入框 CSS 选择器",
     )
+    captcha_selector: Optional[str] = Field(
+        default=None,
+        description="验证码输入框 CSS 选择器，可选",
+    )
     submit_selector: str = Field(
         default="button[type='submit']",
         description="提交按钮 CSS 选择器",
@@ -36,6 +40,7 @@ class StorageStateGenerateRequest(BaseModel):
 
     username: Optional[str] = Field(default=None, description="登录用户名；不传则从环境配置读取")
     password: str = Field(..., description="登录密码，不会被持久化")
+    captcha: Optional[str] = Field(default=None, description="验证码值，不会被持久化")
     headless: bool = Field(default=True, description="是否使用无头浏览器")
     selectors: Optional[LoginSelectors] = Field(
         default=None,

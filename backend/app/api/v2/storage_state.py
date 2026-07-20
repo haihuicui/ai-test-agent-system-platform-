@@ -41,11 +41,12 @@ async def generate_storage_state(
     - 密码不会被持久化，仅临时传给后台 Playwright 子进程。
     - 若请求中未传 username/selectors，则从 ProjectEnvironment.auth_config.form_login 读取。
     """
-    job, username, selectors, project, _ = await service.create_job(
+    job, username, captcha, selectors, project, _ = await service.create_job(
         project_identifier=project_identifier,
         env_id=env_id,
         username=data.username,
         password=data.password,
+        captcha=data.captcha,
         selectors=data.selectors,
         headless=data.headless,
         save_attachment=data.save_attachment,
@@ -56,6 +57,7 @@ async def generate_storage_state(
         job_id=job.id,
         username=username,
         password=data.password,
+        captcha=captcha,
         selectors=selectors,
         headless=data.headless,
         save_attachment=data.save_attachment,

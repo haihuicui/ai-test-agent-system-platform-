@@ -204,10 +204,12 @@ export default function WebTestsPage() {
   const [generatingStorageState, setGeneratingStorageState] = React.useState(false);
   const [storageStateForm, setStorageStateForm] = React.useState<StorageStateGenerateRequest>({
     password: "",
+    captcha: "",
     selectors: {
       login_url: "",
       username_selector: "input[name='username']",
       password_selector: "input[name='password']",
+      captcha_selector: "input[name='captcha']",
       submit_selector: "button[type='submit']",
       success_selector: ".dashboard",
     },
@@ -364,6 +366,7 @@ export default function WebTestsPage() {
     const formLogin = (defaultEnv?.auth_config as any)?.form_login;
     setStorageStateForm((prev) => ({
       password: "",
+      captcha: "",
       username: formLogin?.username || "",
       selectors: {
         login_url: formLogin?.login_url || prev.selectors?.login_url || "",
@@ -371,6 +374,8 @@ export default function WebTestsPage() {
           formLogin?.selectors?.username_selector || prev.selectors?.username_selector || "input[name='username']",
         password_selector:
           formLogin?.selectors?.password_selector || prev.selectors?.password_selector || "input[name='password']",
+        captcha_selector:
+          formLogin?.selectors?.captcha_selector || prev.selectors?.captcha_selector || "input[name='captcha']",
         submit_selector:
           formLogin?.selectors?.submit_selector || prev.selectors?.submit_selector || "button[type='submit']",
         success_selector:
@@ -416,6 +421,12 @@ export default function WebTestsPage() {
     }
     if (!storageStateForm.selectors?.login_url) {
       toast.error("登录页 URL 不能为空");
+      return;
+    }
+    const hasCaptchaValue = Boolean(storageStateForm.captcha?.trim());
+    const hasCaptchaSelector = Boolean(storageStateForm.selectors?.captcha_selector?.trim());
+    if (hasCaptchaValue !== hasCaptchaSelector) {
+      toast.error("验证码和验证码选择器需同时填写或同时留空");
       return;
     }
 
@@ -1200,6 +1211,17 @@ export default function WebTestsPage() {
                   />
                 </div>
                 <div className="space-y-2">
+                  <Label htmlFor="ss-captcha">验证码</Label>
+                  <Input
+                    id="ss-captcha"
+                    value={storageStateForm.captcha || ""}
+                    onChange={(e) =>
+                      setStorageStateForm({ ...storageStateForm, captcha: e.target.value })
+                    }
+                    placeholder="输入当前验证码（如页面无需验证码请留空）"
+                  />
+                </div>
+                <div className="space-y-2">
                   <Label htmlFor="ss-login-url">登录页 URL</Label>
                   <Input
                     id="ss-login-url"
@@ -1237,6 +1259,19 @@ export default function WebTestsPage() {
                         setStorageStateForm({
                           ...storageStateForm,
                           selectors: { ...storageStateForm.selectors, password_selector: e.target.value },
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="ss-captcha-selector">验证码选择器</Label>
+                    <Input
+                      id="ss-captcha-selector"
+                      value={storageStateForm.selectors?.captcha_selector || ""}
+                      onChange={(e) =>
+                        setStorageStateForm({
+                          ...storageStateForm,
+                          selectors: { ...storageStateForm.selectors, captcha_selector: e.target.value },
                         })
                       }
                     />

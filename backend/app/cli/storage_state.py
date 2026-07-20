@@ -32,6 +32,7 @@ async def _cmd_generate(args: argparse.Namespace) -> None:
             login_url=args.login_url,
             username_selector=args.username_selector,
             password_selector=args.password_selector,
+            captcha_selector=args.captcha_selector,
             submit_selector=args.submit_selector,
             success_selector=args.success_selector,
         )
@@ -45,6 +46,7 @@ async def _cmd_generate(args: argparse.Namespace) -> None:
             env_id=env_id,
             username=args.username,
             password=password,
+            captcha=args.captcha,
             selectors=selectors,
             headless=args.headless,
             save_attachment=args.save_attachment,
@@ -84,12 +86,18 @@ def _build_parser() -> argparse.ArgumentParser:
     gen.add_argument("--env-id", default=None, help="环境配置 ID（省略则使用默认环境）")
     gen.add_argument("--username", default=None, help="登录用户名；省略则从环境配置读取")
     gen.add_argument("--password", default=None, help="登录密码（不推荐命令行明文传入）")
+    gen.add_argument("--captcha", default=None, help="验证码值（不推荐命令行明文传入）")
     gen.add_argument("--login-url", default=None, help="登录页 URL")
     gen.add_argument(
         "--username-selector", default="input[name='username']", help="用户名输入框 CSS 选择器"
     )
     gen.add_argument(
         "--password-selector", default="input[name='password']", help="密码输入框 CSS 选择器"
+    )
+    gen.add_argument(
+        "--captcha-selector",
+        default="input[name='captcha']",
+        help="验证码输入框 CSS 选择器",
     )
     gen.add_argument(
         "--submit-selector", default="button[type='submit']", help="提交按钮 CSS 选择器"

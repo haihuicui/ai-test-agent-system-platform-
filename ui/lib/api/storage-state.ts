@@ -5,6 +5,7 @@ export interface LoginSelectors {
   login_url: string;
   username_selector?: string;
   password_selector?: string;
+  captcha_selector?: string;
   submit_selector?: string;
   success_selector?: string;
 }
@@ -12,6 +13,7 @@ export interface LoginSelectors {
 export interface StorageStateGenerateRequest {
   username?: string;
   password: string;
+  captcha?: string;
   selectors: LoginSelectors;
   headless?: boolean;
   save_attachment?: boolean;

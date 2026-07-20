@@ -55,20 +55,23 @@ class StorageStateService:
         env_id: Optional[UUID | str],
         username: Optional[str],
         password: str,
+        captcha: Optional[str],
         selectors: Optional[LoginSelectors],
         headless: bool,
         save_attachment: bool,
-    ) -> tuple[StorageStateJob, str, LoginSelectors, Project, Optional[ProjectEnvironment]]:
+    ) -> tuple[StorageStateJob, str, Optional[str], LoginSelectors, Project, Optional[ProjectEnvironment]]:
         """创建生成任务并合并配置。
 
-        返回: (job, effective_username, effective_selectors, project, env)
+        返回: (job, effective_username, effective_captcha, effective_selectors, project, env)
         """
         if not password:
             raise BadRequestException("密码不能为空")
 
         project = await self._resolve_project(project_identifier)
         env = await self._resolve_environment(project.id, env_id)
-        effective_username, effective_selectors = self._merge_config(env, username, selectors)
+        effective_username, effective_captcha, effective_selectors = self._merge_config(
+            env, username, captcha, selectors
+        )
 
         output_path = self._resolve_output_path()
 
@@ -92,13 +95,14 @@ class StorageStateService:
             save_attachment,
         )
 
-        return job, effective_username, effective_selectors, project, env
+        return job, effective_username, effective_captcha, effective_selectors, project, env
 
     async def execute_generation(
         self,
         job_id: UUID,
         username: str,
         password: str,
+        captcha: Optional[str],
         selectors: LoginSelectors,
         headless: bool,
         save_attachment: bool,
@@ -111,6 +115,7 @@ class StorageStateService:
                 job_id=job_id,
                 username=username,
                 password=password,
+                captcha=captcha,
                 selectors=selectors,
                 headless=headless,
                 save_attachment=save_attachment,
@@ -148,16 +153,18 @@ class StorageStateService:
         env_id: Optional[UUID | str],
         username: Optional[str],
         password: str,
+        captcha: Optional[str],
         selectors: Optional[LoginSelectors],
         headless: bool,
         save_attachment: bool,
     ) -> StorageStateJobInfo:
         """创建并同步等待任务完成（供 CLI 使用）。"""
-        job, effective_username, effective_selectors, project, _ = await self.create_job(
+        job, effective_username, effective_captcha, effective_selectors, project, _ = await self.create_job(
             project_identifier=project_identifier,
             env_id=env_id,
             username=username,
             password=password,
+            captcha=captcha,
             selectors=selectors,
             headless=headless,
             save_attachment=save_attachment,
@@ -166,6 +173,7 @@ class StorageStateService:
             job_id=job.id,
             username=effective_username,
             password=password,
+            captcha=effective_captcha,
             selectors=effective_selectors,
             headless=headless,
             save_attachment=save_attachment,
@@ -207,10 +215,12 @@ class StorageStateService:
         self,
         env: Optional[ProjectEnvironment],
         username: Optional[str],
+        captcha: Optional[str],
         selectors: Optional[LoginSelectors],
-    ) -> tuple[str, LoginSelectors]:
+    ) -> tuple[str, Optional[str], LoginSelectors]:
         """合并请求参数与环境配置中的 form_login 信息。"""
         effective_username = username
+        effective_captcha = captcha
         effective_selectors = selectors
 
         if env and env.auth_type == "form_login":
@@ -227,6 +237,7 @@ class StorageStateService:
                     password_selector=stored_selectors.get(
                         "password_selector", "input[name='password']"
                     ),
+                    captcha_selector=stored_selectors.get("captcha_selector") or None,
                     submit_selector=stored_selectors.get(
                         "submit_selector", "button[type='submit']"
                     ),
@@ -234,6 +245,24 @@ class StorageStateService:
                         "success_selector", ".dashboard"
                     ),
                 )
+            elif effective_selectors.captcha_selector is None:
+                stored_captcha_selector = (
+                    cfg.get("selectors", {}).get("captcha_selector") or None
+                )
+                if stored_captcha_selector:
+                    effective_selectors.captcha_selector = stored_captcha_selector
+
+            # 将非空的验证码选择器回写到环境配置，方便下次预填充
+            if (
+                effective_selectors is not None
+                and effective_selectors.captcha_selector
+            ):
+                env.auth_config = env.auth_config or {}
+                env.auth_config.setdefault("form_login", {})
+                env.auth_config["form_login"].setdefault("selectors", {})
+                env.auth_config["form_login"]["selectors"][
+                    "captcha_selector"
+                ] = effective_selectors.captcha_selector
 
         if not effective_username:
             raise BadRequestException("用户名不能为空，请在请求或环境配置 auth_config.form_login.username 中提供")
@@ -243,7 +272,10 @@ class StorageStateService:
                 "登录 URL 不能为空，请在请求 selectors 或环境配置 auth_config.form_login 中提供"
             )
 
-        return effective_username, effective_selectors
+        if bool(effective_captcha) != bool(effective_selectors.captcha_selector):
+            raise BadRequestException("验证码和验证码选择器需同时填写或同时留空")
+
+        return effective_username, effective_captcha, effective_selectors
 
     def _resolve_output_path(self) -> str:
         ss = getattr(settings, "web_mcp_storage_state", None)
@@ -271,6 +303,7 @@ class StorageStateService:
         job_id: UUID,
         username: str,
         password: str,
+        captcha: Optional[str],
         selectors: LoginSelectors,
         headless: bool,
         save_attachment: bool,
@@ -308,6 +341,8 @@ class StorageStateService:
                     "LOGIN_URL": selectors.login_url,
                     "LOGIN_USERNAME": username,
                     "LOGIN_PASSWORD": password,
+                    "CAPTCHA": captcha or "",
+                    "CAPTCHA_SELECTOR": selectors.captcha_selector or "",
                     "USERNAME_SELECTOR": selectors.username_selector,
                     "PASSWORD_SELECTOR": selectors.password_selector,
                     "SUBMIT_SELECTOR": selectors.submit_selector,
@@ -450,6 +485,8 @@ test('login and save storage state', async ({ page }) => {
   const loginUrl = process.env.LOGIN_URL;
   const username = process.env.LOGIN_USERNAME;
   const password = process.env.LOGIN_PASSWORD;
+  const captcha = process.env.CAPTCHA;
+  const captchaSelector = process.env.CAPTCHA_SELECTOR;
   const outputPath = process.env.STORAGE_STATE_PATH;
 
   if (!loginUrl || !username || !password || !outputPath) {
@@ -461,6 +498,9 @@ test('login and save storage state', async ({ page }) => {
 
   await page.locator(process.env.USERNAME_SELECTOR).fill(username);
   await page.locator(process.env.PASSWORD_SELECTOR).fill(password);
+  if (captcha && captchaSelector) {
+    await page.locator(captchaSelector).fill(captcha);
+  }
   await page.locator(process.env.SUBMIT_SELECTOR).click();
 
   await page.waitForSelector(process.env.SUCCESS_SELECTOR, {
