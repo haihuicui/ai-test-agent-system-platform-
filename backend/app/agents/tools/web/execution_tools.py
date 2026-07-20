@@ -195,9 +195,12 @@ async def _execute_and_report(
     print(f"[Web Script Execution] 项目根目录: {project_root}")
     print(f"[Web Script Execution] 相对脚本路径: {relative_path}")
 
-    # 4. 静态校验：先用 --list 确认脚本可被收集（不起浏览器），挡掉语法/import 类错误
+    # 4. 静态校验：先用 --list 确认脚本可被收集（不起浏览器），挡掉语法/import 类错误。
+    #    注意：与实际执行保持一致，只传文件名（script_filename），让 Playwright 在
+    #    playwright.config.js 的 testDir 下自动匹配，避免 tests/xxx 这种相对路径在
+    #    --list 阶段因 testDir 前缀重复而找不到文件。
     static_check = await _static_check_script(
-        script_path=str(relative_path),
+        script_path=script_filename,
         project_root=str(project_root),
     )
     if not static_check.get("success"):
@@ -328,7 +331,8 @@ async def _static_check_script(script_path: str, project_root: str) -> Dict[str,
     --list 依赖已有的 playwright.config.js（testDir=./tests），能捕获语法/缺 import/收集错误且不起浏览器。
 
     Args:
-        script_path: 相对 project_root 的脚本路径
+        script_path: 脚本文件名或相对 project_root 的路径。推荐只传文件名，
+                     让 Playwright 按 playwright.config.js 的 testDir 自动查找。
         project_root: 项目根目录（含 package.json / playwright.config.js）
 
     Returns:
@@ -487,6 +491,21 @@ async def _execute_script_internal(
                 report_path = html_report_dir
                 print(f"[Web Script Execution] HTML 报告已生成: {report_path}")
 
+        # 收集 test-results 产出的截图与视频路径，便于下游 save_web_test_report
+        # 直接内联到执行摘要中展示。
+        screenshots: list[str] = []
+        videos: list[str] = []
+        test_output_path = Path(test_output_dir)
+        if await run_sync(test_output_path.exists):
+            for fp in await run_sync(lambda: list(test_output_path.rglob("*"))):
+                if not await run_sync(fp.is_file):
+                    continue
+                suffix = fp.suffix.lower()
+                if suffix in (".png", ".jpg", ".jpeg"):
+                    screenshots.append(str(fp))
+                elif suffix in (".webm", ".mp4", ".mov"):
+                    videos.append(str(fp))
+
         return {
             "success": return_code == 0,
             "return_code": return_code,
@@ -496,7 +515,9 @@ async def _execute_script_internal(
             "report_path": report_path,
             "exec_root": str(Path(html_report_dir).parent),
             "start_time": start_time.isoformat(),
-            "end_time": end_time.isoformat()
+            "end_time": end_time.isoformat(),
+            "screenshots": screenshots,
+            "videos": videos,
         }
 
     except subprocess.TimeoutExpired:

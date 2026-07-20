@@ -919,6 +919,12 @@ async def get_script_benchmark(
 
 
 @router.get(
+    "/{test_run_identifier}/script-jobs/{job_id}/report-preview/",
+    response_class=HTMLResponse,
+    include_in_schema=False,
+    operation_id="get_job_report_preview_slash",
+)
+@router.get(
     "/{test_run_identifier}/script-jobs/{job_id}/report-preview",
     response_class=HTMLResponse,
     summary="预览脚本作业 HTML 报告",

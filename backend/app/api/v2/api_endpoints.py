@@ -779,32 +779,56 @@ async def get_report_viewer_url(
             detail="只支持查看测试报告"
         )
 
-    # 从 MinIO 下载 ZIP 文件
+    # 从 MinIO 下载报告文件
     try:
-        zip_bytes = MinIOClient.download_file(attachment.object_name)
+        report_bytes = MinIOClient.download_file(attachment.object_name)
 
-        # 创建临时目录
+        # 创建临时目录（先清空，避免不同报告结构差异导致旧文件干扰）
         temp_dir = Path(tempfile.gettempdir()) / "test-reports" / str(attachment_id)
+        if temp_dir.exists():
+            shutil.rmtree(temp_dir)
         temp_dir.mkdir(parents=True, exist_ok=True)
 
-        # 解压 ZIP 文件
-        with zipfile.ZipFile(io.BytesIO(zip_bytes), 'r') as zip_ref:
-            zip_ref.extractall(temp_dir)
+        # 判断是否为 ZIP：ZIP 文件以 PK 头开始
+        is_zip = report_bytes.startswith(b"PK")
 
-        # 查找 index.html
-        index_html = temp_dir / "index.html"
-        if not index_html.exists():
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="报告中未找到 index.html"
-            )
+        if is_zip:
+            # 解压 ZIP 文件
+            with zipfile.ZipFile(io.BytesIO(report_bytes), 'r') as zip_ref:
+                zip_ref.extractall(temp_dir)
+
+            # 查找 index.html（支持直接放在根目录或 html/ 等子目录下的报告包）
+            index_html = temp_dir / "index.html"
+            if not index_html.exists():
+                for candidate in temp_dir.rglob("index.html"):
+                    # 取找到的第一个 index.html（Playwright HTML 报告通常仅有一个）
+                    index_html = candidate
+                    break
+
+            if not index_html.exists():
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="报告中未找到 index.html"
+                )
+
+            # 计算 index.html 相对于临时目录的路径，用于构造访问 URL
+            try:
+                rel_index_path = index_html.relative_to(temp_dir).as_posix()
+            except ValueError:
+                rel_index_path = "index.html"
+        else:
+            # 非 ZIP（如 save_web_test_report 保存的单个 HTML 摘要）：
+            # 直接落到临时目录作为 index.html，后续 report-files 统一读取
+            index_html = temp_dir / "index.html"
+            index_html.write_bytes(report_bytes)
+            rel_index_path = "index.html"
 
         # 返回临时目录路径和附件 ID
         return {
             "success": True,
             "attachment_id": str(attachment_id),
             "report_path": str(temp_dir),
-            "index_url": f"/api/v2/attachments/{attachment_id}/report-files/index.html"
+            "index_url": f"/api/v2/attachments/{attachment_id}/report-files/{rel_index_path}"
         }
     except zipfile.BadZipFile:
         raise HTTPException(
@@ -876,13 +900,21 @@ async def get_report_file(
             detail="访问被拒绝"
         )
 
-    # 如果文件不存在，从 MinIO 重新下载并解压
+    # 如果文件不存在，从 MinIO 重新下载并准备
     if not target_file.exists() or not target_file.is_file():
         try:
-            zip_bytes = MinIOClient.download_file(attachment.object_name)
+            file_bytes = MinIOClient.download_file(attachment.object_name)
             temp_dir.mkdir(parents=True, exist_ok=True)
-            with zipfile.ZipFile(io.BytesIO(zip_bytes), 'r') as zip_ref:
-                zip_ref.extractall(temp_dir)
+
+            # 判断是否为 ZIP：ZIP 文件以 PK 头开始
+            if file_bytes.startswith(b"PK"):
+                # ZIP 报告包：解压到临时目录
+                with zipfile.ZipFile(io.BytesIO(file_bytes), 'r') as zip_ref:
+                    zip_ref.extractall(temp_dir)
+            else:
+                # 非 ZIP（如单个 HTML 摘要文件）：直接落到目标路径
+                target_file.parent.mkdir(parents=True, exist_ok=True)
+                target_file.write_bytes(file_bytes)
         except zipfile.BadZipFile:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

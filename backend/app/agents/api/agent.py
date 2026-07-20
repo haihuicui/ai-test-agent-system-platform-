@@ -26,6 +26,7 @@ from langchain.agents.middleware import AgentMiddleware, ModelRequest, ModelResp
 from langgraph.config import get_config
 
 from app.agents.api.runtime_context import conversation_id_ctx
+from app.agents.api.scenario_quality_middleware import ScenarioQualityGateMiddleware
 from app.agents.tools.api import get_local_tools
 from app.config.settings import settings
 from app.core.llms import text_model as model
@@ -180,7 +181,7 @@ SYSTEM_PROMPT = """# API 自动化测试专家
 
 **批量测试：** `list_api_endpoints` → `batch_generate_tests` → `batch_run_tests`。
 
-**场景测试（多接口业务流，参考 scenario skill）：** `create_test_scenario` → `add_scenario_step` → `add_step_extractor`/`add_data_mapping` → `add_step_assertion` → `add_teardown_step` → `execute_scenario`。生成后必须自动执行（建议 debug=true）并修复，最多重试 3 次；仍失败则向用户说明原因，不要无限重试。
+**场景测试（多接口业务流，参考 scenario skill）：** `create_test_scenario` → `add_scenario_step` → `add_step_extractor`/`add_data_mapping` → `add_step_assertion` → `add_teardown_step` → `execute_scenario`。生成场景前必须先调用 `get_endpoint_details` 读取每个接口的 request_body/parameters/responses；每个步骤至少 1 个 status 断言 + 1 个 jsonpath/header 业务断言；路径参数 `{xxx}` 必须与前序提取器同名并用 `{{xxx}}` 在 URL 中引用；创建类步骤必须提取资源 ID 并配置 teardown。生成后必须自动执行（建议 debug=true）并修复，最多重试 3 次；仍失败则向用户说明原因，不要无限重试。
 
 **执行已有脚本（前端成果物面板点"执行"）：** 用户给了 Script ID（附件 ID）就直接 `execute_api_script_by_artifact_id(attachment_id=..., endpoint_id=..., project_identifier=..., execution_config={...})`，不要重新生成计划或脚本；`endpoint_id` 必填（否则报告关联不到成果物面板）。
 
@@ -199,6 +200,11 @@ SYSTEM_PROMPT = """# API 自动化测试专家
 11. **一次对话一个场景**：同对话再次 `create_test_scenario` 会自动覆盖旧场景；除非用户明确要求，不保留多个场景；场景生成后必须自动执行并修复到可运行。
 12. **同类操作最多重试 3 次**：同一工具调用在同一问题上失败 3 次后，必须切换策略而非继续重试。例如：`add_step_assertion` 返回 success 但断言未持久化 → 改用 `update_scenario_step` 一次性设置 assertions 列表；`execute_scenario` 反复被门禁拦截 → 检查是否后端 bug，使用 `skip_assertion_gate=true` 绕过或向用户报告。**严禁同一操作循环重试超过 3 次。**
 13. **执行后必须校验 trace 防假阳性**：`execute_api_script` 返回的 `trace_entries` 中包含每个用例的真实响应体。对于正向用例，必须检查 `responseBody.code`/`responseBody.success` 的实际值——HTTP 200 + code=4009（非成功值）是**假阳性**，必须向用户报告为失败，严禁报告"全部通过"。
+14. **场景步骤必须基于接口 schema**：生成场景前每个步骤必须调用 `get_endpoint_details` 读取 `request_body`/`parameters`/`responses`，`request_body.required` 中的必填字段必须出现在 `request_override.body` 中，禁止以"未提供"为由省略。
+15. **路径参数必须闭环映射**：URL 中的路径参数 `{xxx}` 必须在前序步骤通过 `add_step_extractor` 提取同名变量，并在当前步骤 `request_override.path` 中用 `{{xxx}}` 引用；禁止把 `{siteId}` 等占位符当字面量传递。
+16. **创建类步骤必须提取 ID 并配 teardown**：步骤名或 HTTP 方法含"创建/新增/上传/生成"时，必须在本步骤用 `add_step_extractor` 提取资源 ID（如 `siteId`/`customerId`），并调用 `add_teardown_step` 添加对应清理步骤，避免脏数据堆积。
+17. **分页/列表步骤必须做业务断言**：分页查询步骤除 status 断言外，必须断言 `$.data.records`/`$.data.list` 非空、`$.data.total` 为数字等字段；首次执行禁止使用未经验证的 `orders` 排序参数，先以最小参数（page/size 或 current/size）确认响应结构后再逐步添加。
+18. **模板变量语法必须规范**：统一使用 `{{$timestamp}}` / `{{$uuid}}` / `{{$faker.name}}` / `{{variableName}}`，括号与 `$`/`变量名` 之间不要加空格。虽然执行引擎会兼容带空格写法，但生成时应优先输出规范格式。
 
 ## 🌐 环境选择规则
 1. `environment_id` 已提供 → 优先使用。
@@ -239,7 +245,7 @@ api_agent = create_agent(
             model=model,
             tools=all_tools,
             system_prompt=SYSTEM_PROMPT,
-            middleware=[skills_middleware, context_middleware],
+            middleware=[skills_middleware, context_middleware, ScenarioQualityGateMiddleware()],
             backend=composite_backend,
             context_schema=APIAgentContext,
         )

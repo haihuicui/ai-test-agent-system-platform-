@@ -814,7 +814,9 @@ class TestRunService:
             await self.repo.update_counts_from_jobs(test_run.id)
         else:
             await self.repo.update_counts(test_run.id)
-        await self.session.refresh(test_run)
+        # update_counts* 直接执行 UPDATE 会使当前 session 中的 test_run 对象过期，
+        # 重新查询获取干净对象再返回，避免 async session 中访问过期属性触发 MissingGreenlet。
+        test_run = await self.repo.get_by_id(test_run.id)
         return await self._to_info(test_run, project_identifier)
 
     async def patch_update(
@@ -945,6 +947,11 @@ class TestRunService:
                 await self.repo.update_counts_from_jobs(test_run.id)
             else:
                 await self.repo.update_counts(test_run.id)
+
+        # update_counts* 直接执行 UPDATE 会使当前 session 中的 test_run 对象过期，
+        # 在 async session 中访问过期属性可能报 MissingGreenlet。
+        # 重新查询获取干净对象，避免依赖 refresh 处理过期状态。
+        test_run = await self.repo.get_by_id(test_run.id)
         return await self._to_info(test_run, project_identifier)
 
     async def full_replace(
@@ -1034,7 +1041,9 @@ class TestRunService:
             await self.repo.update_counts_from_jobs(test_run.id)
         else:
             await self.repo.update_counts(test_run.id)
-        await self.session.refresh(test_run)
+        # update_counts* 直接执行 UPDATE 会使当前 session 中的 test_run 对象过期，
+        # 重新查询获取干净对象再返回，避免 async session 中访问过期属性触发 MissingGreenlet。
+        test_run = await self.repo.get_by_id(test_run.id)
         return await self._to_info(test_run, project_identifier)
 
     async def delete(
@@ -1141,7 +1150,9 @@ class TestRunService:
         )
 
         await self.repo.update_counts(test_run.id)
-        await self.session.refresh(test_run)
+        # update_counts 直接执行 UPDATE 会使当前 session 中的 test_run 对象过期，
+        # 重新查询获取干净对象再返回，避免 async session 中访问过期属性触发 MissingGreenlet。
+        test_run = await self.repo.get_by_id(test_run.id)
         return await self._to_info(test_run, project_identifier)
 
     async def remove_test_cases(
@@ -1167,7 +1178,9 @@ class TestRunService:
             )
 
         await self.repo.update_counts(test_run.id)
-        await self.session.refresh(test_run)
+        # update_counts 直接执行 UPDATE 会使当前 session 中的 test_run 对象过期，
+        # 重新查询获取干净对象再返回，避免 async session 中访问过期属性触发 MissingGreenlet。
+        test_run = await self.repo.get_by_id(test_run.id)
         return await self._to_info(test_run, project_identifier)
 
     async def assign(
@@ -1345,9 +1358,9 @@ class TestRunService:
             )
 
         # 重置状态为 pending
-        await self.script_job_repo.update(
-            job,
-            status=JobStatus.PENDING,
+        await self.script_job_repo.update_status(
+            job.id,
+            JobStatus.PENDING,
             retry_count=job.retry_count + 1,
             error_message=None,
             result_summary=None,
@@ -1701,7 +1714,34 @@ class TestRunService:
                     resource_type="报告", resource_id=job_id, message="报告中未找到 index.html"
                 )
 
-            return index_html.read_text(encoding="utf-8")
+            html = index_html.read_text(encoding="utf-8")
+
+            # 根据 index.html 在 ZIP 包中的实际位置计算 base href。
+            # 当前 ZIP 把 playwright-report 目录打包为 html/ 前缀，因此 index.html
+            # 位于 html/index.html；若 base href 仍指向 report-preview/，浏览器解析
+            # 相对路径 data/xxx.png 时会落到 report-preview/data/，而实际资源在
+            # report-preview/html/data/，导致截图/视频/trace 404。
+            try:
+                rel_index_dir = index_html.relative_to(tmp_path).parent.as_posix()
+            except ValueError:
+                rel_index_dir = ""
+
+            base_href = (
+                f"/api/v2/projects/{project_identifier}"
+                f"/test-runs/{test_run_identifier}"
+                f"/script-jobs/{job_id}/report-preview/"
+            )
+            if rel_index_dir:
+                base_href += f"{rel_index_dir}/"
+
+            if "<head>" in html:
+                html = html.replace("<head>", f'<head><base href="{base_href}">', 1)
+            elif "<HEAD>" in html:
+                html = html.replace("<HEAD>", f'<HEAD><base href="{base_href}">', 1)
+            else:
+                html = f'<!DOCTYPE html><base href="{base_href}">' + html
+
+            return html
 
     async def get_job_report_resource(
         self,
@@ -1788,7 +1828,9 @@ class TestRunService:
 
         # 更新 TestRun 统计
         await self.repo.update_counts_from_jobs(test_run.id)
-        await self.session.refresh(test_run)
+        # update_counts_from_jobs 直接执行 UPDATE 会使当前 session 中的 test_run 对象过期，
+        # 重新查询获取干净对象再返回，避免 async session 中访问过期属性触发 MissingGreenlet。
+        test_run = await self.repo.get_by_id(test_run.id)
         return await self._to_info(test_run, project_identifier)
 
     # ============ 调度管理 ============

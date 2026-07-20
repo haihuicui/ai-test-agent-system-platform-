@@ -673,6 +673,7 @@ class APITestExecutor:
                     # 5. 执行测试（非阻塞异步子进程）
                     logger.info("[APITestExecutor DEBUG] running playwright test")
                     result = await self._run_playwright_test(
+                        session=session,
                         run_id=run_id,
                         script_path=script_file,
                         api_test=api_test,
@@ -772,6 +773,7 @@ class APITestExecutor:
         script_path: Path,
         api_test: APITest,
         execution_config: Dict[str, Any],
+        session: AsyncSession,
     ) -> Dict[str, Any]:
         """
         运行 Playwright 测试（非阻塞异步子进程）
@@ -781,6 +783,8 @@ class APITestExecutor:
             script_path: 测试脚本路径
             api_test: API 测试对象
             execution_config: 执行配置
+            session: 当前使用的数据库会话（后台任务使用自己的 session，
+                     避免引用 execute_test 调用方的 session）
 
         Returns:
             dict: 测试结果
@@ -793,7 +797,7 @@ class APITestExecutor:
             env = _ensure_node_in_path({**os.environ})
 
             # 通过 EnvironmentService 解析环境变量（支持 execution_config + 项目环境 fallback）
-            env_service = EnvironmentService(self.session)
+            env_service = EnvironmentService(session)
             try:
                 env_id = execution_config.get("env_id") if execution_config else None
                 env_vars = await env_service.get_execution_env_vars(

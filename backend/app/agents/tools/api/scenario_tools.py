@@ -15,6 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.api.runtime_context import get_conversation_id
+from app.agents.tools.api.scenario_design_validator import _validate_scenario_design
 from app.config.database import async_session_factory
 from app.models.api_endpoint import APIEndpoint
 from app.models.project import Project
@@ -123,6 +124,72 @@ def _build_scenario_warnings(steps_data: list[dict]) -> list[dict]:
         })
 
     return warnings
+
+
+def _generate_default_value_for_field(field_name: str, schema: dict) -> Any:
+    """根据字段名和 schema 为必填字段生成合理的默认值或动态占位符"""
+    field_type = (schema.get("type") or "string").lower()
+    lower_name = field_name.lower()
+
+    if field_type == "string":
+        if "email" in lower_name:
+            return "{{$faker.email}}"
+        if "phone" in lower_name or "mobile" in lower_name or "tel" in lower_name:
+            return "{{$faker.phone_number}}"
+        if "address" in lower_name:
+            return "{{$faker.address}}"
+        if any(k in lower_name for k in ("name", "title", "subject")):
+            return "{{$faker.name}}"
+        return "{{$randomString(8)}}"
+    elif field_type in ("integer", "number"):
+        if any(k in lower_name for k in ("count", "quantity", "size", "page", "limit", "age", "num")):
+            return 1
+        return 0
+    elif field_type == "boolean":
+        return True
+    elif field_type == "array":
+        return []
+    elif field_type == "object":
+        return {}
+    else:
+        return "{{$randomString(8)}}"
+
+
+def _fill_required_body_defaults(
+    endpoint: APIEndpoint,
+    request_override: dict | None,
+) -> tuple[dict, list[str]]:
+    """
+    如果 request_override.body 为空，按 endpoint request_body schema 自动填充必填字段默认值。
+
+    Returns:
+        (新的 request_override, 被填充的字段名列表)
+    """
+    result: dict = dict(request_override or {})
+    body = result.get("body")
+    if body is not None:
+        return result, []
+
+    try:
+        endpoint_body = endpoint.request_body or {}
+        content = endpoint_body.get("content", {})
+        json_schema = content.get("application/json", {}).get("schema", {})
+        required = json_schema.get("required", []) or []
+        properties = json_schema.get("properties", {}) or {}
+        if not required:
+            return result, []
+
+        filled_fields: list[str] = []
+        filled_body: dict = {}
+        for field in required:
+            field_schema = properties.get(field, {}) if isinstance(properties, dict) else {}
+            filled_body[field] = _generate_default_value_for_field(field, field_schema)
+            filled_fields.append(field)
+
+        result["body"] = filled_body
+        return result, filled_fields
+    except Exception:
+        return result, []
 
 
 def _get_current_conversation_id(config: RunnableConfig | None) -> str | None:
@@ -593,6 +660,11 @@ async def add_scenario_step(
                 existing_steps = steps_result.scalars().all()
                 step_order = len(existing_steps) + 1
 
+            # 3.5 按 endpoint schema 自动填充必填字段默认值
+            request_override, auto_filled_fields = _fill_required_body_defaults(
+                endpoint, request_override
+            )
+
             # 4. 创建步骤
             step = ScenarioStep(
                 id=uuid4(),
@@ -613,7 +685,7 @@ async def add_scenario_step(
             await session.commit()
             await session.refresh(step)
 
-            return json.dumps({
+            response_data = {
                 "success": True,
                 "message": f"成功添加步骤 {step_order}: {name}",
                 "data": {
@@ -627,7 +699,15 @@ async def add_scenario_step(
                         "display_name": endpoint.display_name,
                     }
                 }
-            }, ensure_ascii=False, indent=2)
+            }
+            if auto_filled_fields:
+                response_data["data"]["auto_filled_required_fields"] = auto_filled_fields
+                response_data["note"] = (
+                    f"已根据接口 schema 自动填充必填字段: {', '.join(auto_filled_fields)}。"
+                    f"请检查生成的占位符是否符合业务语义，必要时用 update_scenario_step 调整。"
+                )
+
+            return json.dumps(response_data, ensure_ascii=False, indent=2)
 
         except Exception as e:
             await session.rollback()
@@ -1330,6 +1410,7 @@ async def execute_scenario(
     base_url: str = "",
     debug: bool = False,
     skip_assertion_gate: bool = False,
+    skip_design_gate: bool = False,
 ) -> str:
     """
     执行测试场景
@@ -1344,6 +1425,8 @@ async def execute_scenario(
         skip_assertion_gate: 是否跳过断言质量门禁（可选，默认 False）。
             当断言持久化存在后端 bug 导致无法配置断言时，可设为 True 绕过门禁执行。
             注意：跳过门禁后，步骤即使没有 jsonpath 断言也能执行，但步骤结果中不会有业务断言验证。
+        skip_design_gate: 是否跳过场景设计静态预检（可选，默认 False）。
+            当接口 schema 不完整导致误报，或调试生成阶段行为时可设为 True 绕过。
 
     Returns:
         JSON 格式的执行结果，包含每个步骤的详细执行信息
@@ -1360,14 +1443,49 @@ async def execute_scenario(
 
     async with async_session_factory() as session:
         try:
+            # ---- 预加载场景步骤与端点，供设计门禁和断言门禁共用 ----
+            steps_stmt = select(ScenarioStep).where(
+                ScenarioStep.scenario_id == UUID(scenario_id)
+            ).order_by(ScenarioStep.step_order)
+            steps_result = await session.execute(steps_stmt)
+            steps = list(steps_result.scalars().all())
+
+            endpoint_ids = {s.endpoint_id for s in steps if s.endpoint_id}
+            endpoints: dict[UUID, APIEndpoint] = {}
+            if endpoint_ids:
+                endpoints_result = await session.execute(
+                    select(APIEndpoint).where(APIEndpoint.id.in_(endpoint_ids))
+                )
+                endpoints = {e.id: e for e in endpoints_result.scalars().all()}
+
+            scenario = await session.get(TestScenario, UUID(scenario_id))
+            teardown_config = scenario.teardown_config if scenario else None
+
+            # ---- 场景设计静态预检：在执行真实 HTTP 请求前拦截生成侧质量问题 ----
+            design_warnings: list[dict] = []
+            if not skip_design_gate:
+                design_check = await _validate_scenario_design(
+                    session, UUID(scenario_id), steps, endpoints, teardown_config
+                )
+                design_warnings = design_check["warnings"]
+                if design_check["errors"]:
+                    return json.dumps({
+                        "success": False,
+                        "error": "场景设计静态预检未通过，请在执行前修复以下问题",
+                        "issues": design_check["errors"] + design_check["warnings"],
+                        "hint": (
+                            "根据 message/fix 提示修复后重试；"
+                            "如确认是 schema 不全导致误报，可设置 skip_design_gate=true 绕过。"
+                        ),
+                    }, ensure_ascii=False, indent=2)
+            else:
+                import logging
+                logging.getLogger(__name__).warning(
+                    "跳过场景设计静态预检（skip_design_gate=true），生成侧质量问题可能无法提前发现"
+                )
+
             # ---- 断言质量门禁：执行前校验每个步骤的断言配置 ----
             if not skip_assertion_gate:
-                steps_stmt = select(ScenarioStep).where(
-                    ScenarioStep.scenario_id == UUID(scenario_id)
-                ).order_by(ScenarioStep.step_order)
-                steps_result = await session.execute(steps_stmt)
-                steps = steps_result.scalars().all()
-
                 invalid_steps: list[dict] = []
                 for step in steps:
                     assertions = step.assertions or []
@@ -1449,25 +1567,29 @@ async def execute_scenario(
                 debug_info = {
                     "input_variables": variables or {},
                     "runtime_variables": run.runtime_variables,
-                    "global_variables": {},  # 可以从场景获取
+                    "global_variables": scenario.global_variables if scenario else {},
                 }
 
             # 构建结果
+            result_data = {
+                "run_id": str(run.id),
+                "identifier": run.identifier,
+                "status": run.status,
+                "total_steps": run.total_steps,
+                "passed_steps": run.passed_steps,
+                "failed_steps": run.failed_steps,
+                "duration_ms": run.duration_ms,
+                "error_message": run.error_message,
+                "debug_info": debug_info if debug else None,
+                "step_results": detailed_results,
+            }
+            if design_warnings:
+                result_data["design_warnings"] = design_warnings
+
             return json.dumps({
                 "success": True,
                 "message": f"场景执行{'成功' if run.status == 'completed' else '失败'}",
-                "data": {
-                    "run_id": str(run.id),
-                    "identifier": run.identifier,
-                    "status": run.status,
-                    "total_steps": run.total_steps,
-                    "passed_steps": run.passed_steps,
-                    "failed_steps": run.failed_steps,
-                    "duration_ms": run.duration_ms,
-                    "error_message": run.error_message,
-                    "debug_info": debug_info if debug else None,
-                    "step_results": detailed_results,
-                }
+                "data": result_data,
             }, ensure_ascii=False, indent=2)
 
         except Exception as e:

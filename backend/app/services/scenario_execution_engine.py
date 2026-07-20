@@ -213,10 +213,10 @@ class DataDependencyResolver:
         logger = logging.getLogger(__name__)
 
         if isinstance(obj, str):
-            pattern = re.compile(r'\{\{\$(\w+(?:\.\w+)*(?:\([^)]*\))?)\}\}')
+            pattern = re.compile(r'\{\{\s*\$(\s*\w+(?:\.\w+)*(?:\([^)]*\))?\s*)\s*\}\}')
 
             def _replacer(match: re.Match) -> str:
-                full = match.group(1)
+                full = match.group(1).strip()
                 if "(" in full:
                     name = full.split("(", 1)[0]
                     args_str = full[full.find("(") + 1 : full.rfind(")")]
@@ -462,11 +462,11 @@ class DataDependencyResolver:
         """
         if isinstance(obj, str):
             # 替换字符串中的 {{variable}} 占位符
-            pattern = r'\{\{(\w+(?:\.\w+)*)\}\}'
+            pattern = r'\{\{\s*(\w+(?:\.\w+)*)\s*\}\}'
 # type: ignore  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2VW0xMk5RPT06ZmU0ODI2MTM=
 
             def replacer(match):
-                var_name = match.group(1)
+                var_name = match.group(1).strip()
                 value = self.context.get_variable(var_name)
                 if value is not None:
                     return str(value)
@@ -631,21 +631,14 @@ class ScenarioExecutionEngine:
                 (run.completed_at - run.started_at).total_seconds() * 1000
             )
 
-            # 使用 update 语句更新运行记录，避免 refresh 触发的问题
-            from sqlalchemy import update
-            await self.session.execute(
-                update(ScenarioRun)
-                .where(ScenarioRun.id == run.id)
-                .values(
-                    status=run.status,
-                    completed_at=run.completed_at,
-                    duration_ms=run.duration_ms,
-                    error_message=run.error_message
-                )
-            )
+            # run 对象已设置 status / completed_at / duration_ms / error_message，
+            # 直接 commit 即可持久化；避免直接 UPDATE 导致 run 过期，
+            # 在 async session 中访问过期属性会报 MissingGreenlet。
+            await self.session.commit()
 
             # 同步更新场景的 last_run_status / last_run_at，避免前端执行历史
             # 列表因 last_run_status 为 null/旧值而持续显示加载中（转圈）
+            from sqlalchemy import update
             await self.session.execute(
                 update(TestScenario)
                 .where(TestScenario.id == scenario.id)
@@ -654,7 +647,6 @@ class ScenarioExecutionEngine:
                     last_run_at=run.completed_at or run.started_at,
                 )
             )
-
             await self.session.commit()
 
             # 重新查询 run 对象以获取最新状态
@@ -751,20 +743,12 @@ class ScenarioExecutionEngine:
                 step, run, request, response, extracted, assertion_results, status, duration_ms, error_message
             )
 
-            # 8. 更新运行统计（使用 update 语句避免触发 ORM 事件）
-            from sqlalchemy import update
+            # 8. 更新运行统计（使用 ORM 对象避免直接 UPDATE 导致 run 过期，
+            # 在 async session 中访问过期属性会报 MissingGreenlet）
             if status == "passed":
-                await self.session.execute(
-                    update(ScenarioRun)
-                    .where(ScenarioRun.id == run.id)
-                    .values(passed_steps=ScenarioRun.passed_steps + 1)
-                )
+                run.passed_steps = (run.passed_steps or 0) + 1
             else:
-                await self.session.execute(
-                    update(ScenarioRun)
-                    .where(ScenarioRun.id == run.id)
-                    .values(failed_steps=ScenarioRun.failed_steps + 1)
-                )
+                run.failed_steps = (run.failed_steps or 0) + 1
 
             await self.session.commit()
 
@@ -822,13 +806,8 @@ class ScenarioExecutionEngine:
                 error_detail,
             )
 
-            # 使用 update 语句更新失败计数
-            from sqlalchemy import update
-            await self.session.execute(
-                update(ScenarioRun)
-                .where(ScenarioRun.id == run.id)
-                .values(failed_steps=ScenarioRun.failed_steps + 1)
-            )
+            # 使用 ORM 对象更新失败计数（避免直接 UPDATE 导致 run 过期）
+            run.failed_steps = (run.failed_steps or 0) + 1
 
             await self.session.commit()
             return result

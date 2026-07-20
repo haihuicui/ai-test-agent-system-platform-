@@ -282,7 +282,7 @@ playwright-cli eval "document.body.innerText.includes('期望文本')"  # 使用
 1. 测试计划 → `save_web_test_plan(plan_content=...)`
 2. 测试用例 → `save_web_test_cases(test_cases=[...])`
 3. 测试脚本 → `save_web_test_script(script_content=...)`
-4. 测试报告 → `save_web_test_report(test_run_id=..., report_content=..., project_identifier=...)`（执行后强制保存）
+4. 测试报告 → `save_web_test_report(test_run_id=..., report_content=..., project_identifier=...)`（执行后强制保存，Markdown 执行摘要会作为 `WEB_TEST_REPORT` 归属到对应子功能下）
 
 **验证成果物**：
 ```python

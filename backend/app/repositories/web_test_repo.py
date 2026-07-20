@@ -78,6 +78,18 @@ class WebTestRepository(BaseRepository[WebTest]):
 
         return items, total
 
+    async def get_by_sub_function(
+        self,
+        sub_function_id: UUID,
+    ) -> Optional[WebTest]:
+        """根据子功能 ID 获取 Web 测试（取最新一条）"""
+        result = await self.session.execute(
+            select(WebTest)
+            .where(WebTest.sub_function_id == sub_function_id)
+            .order_by(WebTest.created_at.desc())
+        )
+        return result.scalar_one_or_none()
+
 
 class WebTestRunRepository(BaseRepository[WebTestRun]):
     """Web 测试运行仓储类"""

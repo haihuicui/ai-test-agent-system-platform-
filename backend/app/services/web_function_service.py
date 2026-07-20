@@ -4,19 +4,27 @@ Web 功能服务
 处理 Web 功能和子功能相关的业务逻辑
 """
 
+from pathlib import Path
 from typing import Optional
-from uuid import UUID
+from uuid import UUID, uuid4
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 # pylint: disable  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2YW1kalpBPT06NmVmYzI1N2M=
 
+from app.models.attachment import Attachment, AttachmentEntityType
 from app.models.web_function import WebFunction, WebSubFunction
+from app.models.web_test import WebTest
 from app.repositories.web_function_repo import (
     WebFunctionRepository,
     WebSubFunctionRepository,
 )
 from app.repositories.project_repo import ProjectRepository
-from app.utils.exceptions import NotFoundException
+from app.repositories.web_test_repo import WebTestRepository
+from app.schemas.enums import ScriptType, ExecutionMode, FailurePolicy, TriggerType
+from app.schemas.test_run import TestRunCreate, ScriptSelection
+from app.services.test_run_service import TestRunService
+from app.utils.exceptions import NotFoundException, BadRequestException
 
 
 class WebFunctionService:
@@ -27,6 +35,7 @@ class WebFunctionService:
         self.web_function_repo = WebFunctionRepository(session)
         self.web_sub_function_repo = WebSubFunctionRepository(session)
         self.project_repo = ProjectRepository(session)
+        self.web_test_repo = WebTestRepository(session)
 
     async def _get_project_by_identifier(self, identifier: str):
         """获取项目，不存在则抛出异常"""
@@ -34,6 +43,143 @@ class WebFunctionService:
         if not project:
             raise NotFoundException(resource_type="项目", resource_id=identifier)
         return project
+
+    # ==================== Web 功能批量执行 ====================
+
+    async def _get_latest_script_attachment(
+        self,
+        sub_function_id: UUID,
+    ) -> Optional[Attachment]:
+        """获取子功能最新的 WEB_TEST_SCRIPT 附件"""
+        stmt = (
+            select(Attachment)
+            .where(
+                Attachment.entity_id == sub_function_id,
+                Attachment.entity_type == AttachmentEntityType.WEB_TEST_SCRIPT,
+            )
+            .order_by(Attachment.created_at.desc())
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def _ensure_web_test_for_sub_function(
+        self,
+        project_id: UUID,
+        function: WebFunction,
+        sub_function: WebSubFunction,
+        attachment: Attachment,
+    ) -> WebTest:
+        """确保子功能存在对应的 WebTest 记录，不存在则创建"""
+        existing = await self.web_test_repo.get_by_sub_function(sub_function.id)
+        if existing:
+            return existing
+
+        extension = Path(attachment.file_name).suffix.lstrip(".") or "ts"
+        language = {
+            "ts": "typescript",
+            "js": "javascript",
+            "py": "python",
+            "java": "java",
+        }.get(extension, "typescript")
+        script_format = (
+            "playwright" if language in ("typescript", "javascript") else "selenium"
+        )
+
+        return await self.web_test_repo.create(
+            project_id=project_id,
+            identifier=f"WT-{uuid4().hex[:8].upper()}",
+            name=sub_function.display_name or sub_function.name,
+            base_url=function.base_url,
+            script_path=attachment.object_name,
+            script_format=script_format,
+            script_language=language,
+            description=f"批量运行生成：{sub_function.display_name}",
+            function_id=function.id,
+            sub_function_id=sub_function.id,
+            generated_by_agent="batch_run",
+        )
+
+    async def batch_run_web_functions(
+        self,
+        project_identifier: str,
+        function_ids: list[str],
+    ) -> dict:
+        """
+        批量执行一个或多个 Web 功能下的所有子功能测试脚本。
+
+        复用现有 TestRun + TestRunScriptJob + ScriptExecutionEngine 执行框架，
+        默认按顺序执行（SEQUENTIAL），避免并发带来的资源争用。
+
+        Args:
+            project_identifier: 项目标识符
+            function_ids: Web 功能 ID 列表
+
+        Returns:
+            dict: 包含 test_run_id、identifier、status、job_count、skipped_count
+        """
+        project = await self._get_project_by_identifier(project_identifier)
+
+        functions: list[WebFunction] = []
+        for fid in function_ids:
+            function = await self.web_function_repo.get_by_id_with_relations(UUID(fid))
+            if not function or function.project_id != project.id:
+                raise NotFoundException(resource_type="Web 功能", resource_id=fid)
+            functions.append(function)
+
+        scripts: list[ScriptSelection] = []
+        skipped_count = 0
+        for function in functions:
+            for sub_function in sorted(
+                function.sub_functions, key=lambda s: s.sort_order
+            ):
+                attachment = await self._get_latest_script_attachment(sub_function.id)
+                if not attachment:
+                    skipped_count += 1
+                    continue
+
+                web_test = await self._ensure_web_test_for_sub_function(
+                    project.id, function, sub_function, attachment
+                )
+                scripts.append(
+                    ScriptSelection(
+                        script_type=ScriptType.WEB_TEST,
+                        script_id=str(web_test.id),
+                        script_identifier=web_test.identifier,
+                        script_name=web_test.name,
+                        execution_order=len(scripts),
+                    )
+                )
+
+        if not scripts:
+            raise BadRequestException(
+                message="选中的 Web 功能下没有可执行的测试脚本"
+            )
+
+        test_run_service = TestRunService(self.session)
+        test_run = await test_run_service.create(
+            project_identifier,
+            TestRunCreate(
+                name=f"批量运行 Web 功能 ({len(scripts)} 个子功能)",
+                description=f"批量运行 {len(functions)} 个 Web 功能下的子功能测试脚本",
+                execution_mode=ExecutionMode.SEQUENTIAL,
+                max_concurrency=1,
+                failure_policy=FailurePolicy.CONTINUE,
+                trigger_type=TriggerType.MANUAL,
+                scripts=scripts,
+            ),
+        )
+
+        result = await test_run_service.execute_test_run(
+            project_identifier, test_run.identifier
+        )
+
+        return {
+            "test_run_id": result["test_run_id"],
+            "identifier": result["identifier"],
+            "status": result["status"],
+            "job_count": len(scripts),
+            "skipped_count": skipped_count,
+        }
 
     # ==================== Web 功能管理 ====================
 

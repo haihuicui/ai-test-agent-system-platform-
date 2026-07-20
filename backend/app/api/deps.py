@@ -23,6 +23,7 @@ from app.services.test_plan_service import TestPlanService
 from app.services.api_test_service import APITestService
 from app.services.environment_service import EnvironmentService
 from app.services.web_function_service import WebFunctionService
+from app.services.storage_state_service import StorageStateService
 from app.services.pentest_service import PentestService
 from app.schemas.pagination import PaginationParams
 from app.config.database import get_mongodb
@@ -103,6 +104,13 @@ async def get_web_function_service(
     return WebFunctionService(db)
 
 
+async def get_storage_state_service(
+    db: AsyncSession = Depends(get_db),
+) -> StorageStateService:
+    """获取登录态生成服务实例"""
+    return StorageStateService(db)
+
+
 async def get_pentest_service(
     db: AsyncSession = Depends(get_db),
 ) -> PentestService:
@@ -146,6 +154,7 @@ TestPlanServiceDep = Annotated[TestPlanService, Depends(get_test_plan_service)]
 APITestServiceDep = Annotated[APITestService, Depends(get_api_test_service)]
 EnvironmentServiceDep = Annotated[EnvironmentService, Depends(get_environment_service)]
 WebFunctionServiceDep = Annotated[WebFunctionService, Depends(get_web_function_service)]
+StorageStateServiceDep = Annotated[StorageStateService, Depends(get_storage_state_service)]
 PentestServiceDep = Annotated[PentestService, Depends(get_pentest_service)]
 PaginationDep = Annotated[PaginationParams, Depends(get_pagination_params)]
 DbSessionDep = Annotated[AsyncSession, Depends(get_db)]

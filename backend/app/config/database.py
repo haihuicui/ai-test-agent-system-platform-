@@ -5,13 +5,14 @@
 """
 
 from typing import AsyncGenerator
+import asyncio
 
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.pool import NullPool
 
-from app.config.settings import settings
+from app.config.settings import settings, PROJECT_ROOT
 
 # pylint: disable  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2YzNBMGJBPT06M2NmMGZmN2E=
 
@@ -72,6 +73,30 @@ async def init_db() -> None:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
+
+async def run_migrations() -> None:
+    """应用 Alembic 迁移到最新版本（head）。
+
+    生产/开发环境启动时统一调用，确保 SQLAlchemy 模型与数据库 schema 保持一致。
+    该操作是幂等的：若数据库已处于最新 alembic 版本，则不会重复执行任何迁移。
+    """
+    from alembic.config import Config
+    from alembic import command
+
+    alembic_ini = PROJECT_ROOT / "backend" / "alembic.ini"
+    if not alembic_ini.exists():
+        raise RuntimeError(f"Alembic 配置文件不存在: {alembic_ini}")
+
+    def _upgrade() -> None:
+        alembic_cfg = Config(str(alembic_ini))
+        # alembic.ini 里的 script_location 是相对路径，必须解析为绝对路径，
+        # 否则在非 backend 目录启动时会报 "Path doesn't exist: alembic"。
+        alembic_cfg.set_main_option(
+            "script_location", str(PROJECT_ROOT / "backend" / "alembic")
+        )
+        command.upgrade(alembic_cfg, "head")
+
+    await asyncio.to_thread(_upgrade)
 # fmt: off  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2YzNBMGJBPT06M2NmMGZmN2E=
 
 # ==================== MongoDB 配置 ====================

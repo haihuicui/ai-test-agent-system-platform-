@@ -11,13 +11,14 @@ Web 测试成果物管理工具
 import json
 import io
 import os
+import re
 from uuid import UUID, uuid4
 from typing import Optional
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 from langchain_core.tools import tool
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.utils.sync_executor import run_sync
@@ -594,12 +595,325 @@ async def get_web_sub_function_artifacts(
         }
 
 
+def _escape_html(text: str) -> str:
+    """转义 HTML 特殊字符，防止用户内容破坏页面结构。"""
+    return (
+        text.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+    )
+
+
+def _build_execution_detail_html(
+    execution_info: Optional[dict],
+    screenshot_urls: list[dict],
+    video_urls: list[dict],
+) -> str:
+    """生成执行详情 HTML 片段，内嵌到报告 </body> 前。
+
+    包含：执行统计、用例结果表格、截图列表、视频列表。
+    截图/视频使用 MinIO 预签名 URL，便于在浏览器中直接查看。
+    """
+    parts: list[str] = []
+    parts.append("""
+    <div style="margin-top:40px;padding-top:24px;border-top:2px solid #3498db;">
+      <h2 style="color:#2c3e50;border-bottom:2px solid #3498db;padding-bottom:10px;">执行详情</h2>
+    """)
+
+    stats = (execution_info or {}).get("stats") or {}
+    total = stats.get("total", 0)
+    passed = stats.get("passed", 0)
+    failed = stats.get("failed", 0)
+    skipped = stats.get("skipped", 0)
+    parts.append(f"""
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:16px 0;">
+        <div style="background:#f8f9fa;border:1px solid #ddd;border-radius:8px;padding:12px;text-align:center;">
+          <div style="font-size:24px;font-weight:bold;color:#333;">{total}</div>
+          <div style="font-size:12px;color:#666;">总计</div>
+        </div>
+        <div style="background:#d4edda;border:1px solid #c3e6cb;border-radius:8px;padding:12px;text-align:center;">
+          <div style="font-size:24px;font-weight:bold;color:#155724;">{passed}</div>
+          <div style="font-size:12px;color:#155724;">通过</div>
+        </div>
+        <div style="background:#f8d7da;border:1px solid #f5c6cb;border-radius:8px;padding:12px;text-align:center;">
+          <div style="font-size:24px;font-weight:bold;color:#721c24;">{failed}</div>
+          <div style="font-size:12px;color:#721c24;">失败</div>
+        </div>
+        <div style="background:#fff3cd;border:1px solid #ffeeba;border-radius:8px;padding:12px;text-align:center;">
+          <div style="font-size:24px;font-weight:bold;color:#856404;">{skipped}</div>
+          <div style="font-size:12px;color:#856404;">跳过</div>
+        </div>
+      </div>
+    """)
+
+    cases = (execution_info or {}).get("cases") or []
+    if cases:
+        parts.append("""
+          <h3 style="color:#34495e;margin-top:24px;">用例结果</h3>
+          <table style="width:100%;border-collapse:collapse;margin:12px 0;font-size:14px;">
+            <thead>
+              <tr style="background:#f8f9fa;">
+                <th style="border:1px solid #ddd;padding:10px;text-align:left;">用例</th>
+                <th style="border:1px solid #ddd;padding:10px;text-align:center;width:80px;">状态</th>
+                <th style="border:1px solid #ddd;padding:10px;text-align:right;width:100px;">耗时(ms)</th>
+                <th style="border:1px solid #ddd;padding:10px;text-align:left;">错误信息</th>
+              </tr>
+            </thead>
+            <tbody>
+        """)
+        for c in cases:
+            status = c.get("status") or "unknown"
+            if status in ("expected", "flaky"):
+                status_label = "通过"
+                status_color = "#155724"
+                status_bg = "#d4edda"
+            elif status == "unexpected":
+                status_label = "失败"
+                status_color = "#721c24"
+                status_bg = "#f8d7da"
+            elif status == "skipped":
+                status_label = "跳过"
+                status_color = "#856404"
+                status_bg = "#fff3cd"
+            else:
+                status_label = status
+                status_color = "#333"
+                status_bg = "#f8f9fa"
+            title = _escape_html(c.get("title") or "未命名用例")
+            duration = int(c.get("duration_ms") or 0)
+            error = _escape_html(c.get("error") or "")
+            parts.append(f"""
+              <tr>
+                <td style="border:1px solid #ddd;padding:10px;">{title}</td>
+                <td style="border:1px solid #ddd;padding:10px;text-align:center;">
+                  <span style="background:{status_bg};color:{status_color};padding:2px 8px;border-radius:4px;font-size:12px;font-weight:600;">{status_label}</span>
+                </td>
+                <td style="border:1px solid #ddd;padding:10px;text-align:right;">{duration}</td>
+                <td style="border:1px solid #ddd;padding:10px;color:#721c24;">{error}</td>
+              </tr>
+            """)
+        parts.append("""
+            </tbody>
+          </table>
+        """)
+
+    if screenshot_urls:
+        parts.append("""
+          <h3 style="color:#34495e;margin-top:24px;">截图</h3>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;margin:12px 0;">
+        """)
+        for s in screenshot_urls:
+            url = _escape_html(s["url"])
+            name = _escape_html(s.get("name") or "截图")
+            parts.append(f"""
+              <div style="border:1px solid #ddd;border-radius:8px;overflow:hidden;background:#fff;">
+                <img src="{url}" style="width:100%;height:auto;display:block;" />
+                <div style="padding:8px;font-size:12px;color:#666;word-break:break-all;">{name}</div>
+              </div>
+            """)
+        parts.append("</div>")
+
+    if video_urls:
+        parts.append("""
+          <h3 style="color:#34495e;margin-top:24px;">视频</h3>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(400px,1fr));gap:16px;margin:12px 0;">
+        """)
+        for v in video_urls:
+            url = _escape_html(v["url"])
+            name = _escape_html(v.get("name") or "视频")
+            parts.append(f"""
+              <div style="border:1px solid #ddd;border-radius:8px;overflow:hidden;background:#fff;">
+                <video controls src="{url}" style="width:100%;height:auto;display:block;"></video>
+                <div style="padding:8px;font-size:12px;color:#666;word-break:break-all;">{name}</div>
+              </div>
+            """)
+        parts.append("</div>")
+
+    parts.append("</div>")
+    return "".join(parts)
+
+
+def _md_inline(text: str) -> str:
+    """将 Markdown 行内标记转换为 HTML。"""
+    # 加粗 **text** 或 __text__
+    text = re.sub(r"\*\*(.*?)\*\*", r"<strong>\1</strong>", text)
+    text = re.sub(r"__(.*?)__", r"<strong>\1</strong>", text)
+    # 斜体 *text*（避免匹配加粗后残留的单个星号）
+    text = re.sub(r"(?<!\*)\*(?!\*)([^*]+)(?<!\*)\*(?!\*)", r"<em>\1</em>", text)
+    # 行内代码 `code`
+    text = re.sub(r"`([^`]+)`", r"<code>\1</code>", text)
+    return text
+
+
+def _md_table(lines: list[str]) -> str:
+    """将 Markdown 表格行列表转换为 HTML 表格。"""
+    if not lines:
+        return ""
+    cells_list: list[list[str]] = []
+    for line in lines:
+        cells = [c.strip() for c in line.split("|")]
+        # 去掉 Markdown 表格常见的首尾空单元格
+        if cells and cells[0] == "":
+            cells = cells[1:]
+        if cells and cells[-1] == "":
+            cells = cells[:-1]
+        cells_list.append(cells)
+
+    if len(cells_list) < 2:
+        # 不足两行（表头+分隔符），回退为段落
+        return "".join(f"<p>{_md_inline(line)}</p>" for line in lines)
+
+    header = cells_list[0]
+    body_rows = cells_list[2:]  # 跳过分隔符行
+
+    thead = "".join(f"<th>{_md_inline(c)}</th>" for c in header)
+    tbody = ""
+    for row in body_rows:
+        # 补齐列数
+        row = row + [""] * (len(header) - len(row))
+        tbody += "<tr>" + "".join(
+            f"<td>{_md_inline(c)}</td>" for c in row[: len(header)]
+        ) + "</tr>"
+
+    return f"<table><thead><tr>{thead}</tr></thead><tbody>{tbody}</tbody></table>"
+
+
+def _render_report_content(content: str) -> str:
+    """把 Markdown 格式的报告内容渲染成 HTML。
+
+    如果内容看起来已经是 HTML，则原样返回。这样 Agent 仍可自行提供精美 HTML，
+    同时 Markdown 摘要也能在浏览器中直观展示。
+    """
+    if not content:
+        return content
+
+    stripped = content.strip().lower()
+    html_prefixes = ("<!doctype", "<html", "<body", "<div", "<h", "<p", "<table", "<ul", "<ol", "<pre")
+    if stripped.startswith(html_prefixes):
+        return content
+
+    html_parts: list[str] = []
+    lines = content.splitlines()
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        stripped_line = line.strip()
+
+        # 标题
+        if stripped_line.startswith("### "):
+            html_parts.append(f"<h3>{_md_inline(stripped_line[4:])}</h3>")
+        elif stripped_line.startswith("## "):
+            html_parts.append(f"<h2>{_md_inline(stripped_line[3:])}</h2>")
+        elif stripped_line.startswith("# "):
+            html_parts.append(f"<h1>{_md_inline(stripped_line[2:])}</h1>")
+        # 分隔线
+        elif stripped_line == "---":
+            html_parts.append("<hr>")
+        # 表格
+        elif "|" in stripped_line:
+            table_lines: list[str] = []
+            while i < len(lines) and "|" in lines[i].strip():
+                table_lines.append(lines[i].strip())
+                i += 1
+            html_parts.append(_md_table(table_lines))
+            continue
+        # 无序列表
+        elif stripped_line.startswith(("- ", "* ")):
+            html_parts.append("<ul>")
+            while i < len(lines) and lines[i].strip().startswith(("- ", "* ")):
+                item = lines[i].strip()[2:]
+                html_parts.append(f"<li>{_md_inline(item)}</li>")
+                i += 1
+            html_parts.append("</ul>")
+            continue
+        # 空行
+        elif not stripped_line:
+            html_parts.append("<br>")
+        # 普通段落
+        else:
+            html_parts.append(f"<p>{_md_inline(stripped_line)}</p>")
+
+        i += 1
+
+    body = "\n".join(html_parts)
+    return f"""<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>测试执行摘要</title>
+<style>
+body {{
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.6;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px;
+  color: #333;
+  background: #fff;
+}}
+h1 {{
+  color: #2c3e50;
+  border-bottom: 2px solid #3498db;
+  padding-bottom: 10px;
+}}
+h2 {{
+  color: #34495e;
+  border-bottom: 1px solid #bdc3c7;
+  padding-bottom: 6px;
+  margin-top: 32px;
+}}
+h3 {{ color: #34495e; }}
+table {{
+  border-collapse: collapse;
+  width: 100%;
+  margin: 16px 0;
+  font-size: 14px;
+}}
+th, td {{
+  border: 1px solid #ddd;
+  padding: 10px 12px;
+  text-align: left;
+  vertical-align: top;
+}}
+th {{
+  background-color: #f8f9fa;
+  font-weight: 600;
+}}
+tr:nth-child(even) {{ background-color: #f8f9fa; }}
+ul {{
+  padding-left: 20px;
+}}
+li {{ margin: 6px 0; }}
+strong {{ color: #2c3e50; }}
+hr {{
+  border: none;
+  border-top: 1px solid #eee;
+  margin: 24px 0;
+}}
+code {{
+  background: #f4f4f4;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+}}
+</style>
+</head>
+<body>
+{body}
+</body>
+</html>"""
+
+
 @tool
 async def save_web_test_report(
     test_run_id: str,
     report_path: Optional[str] = None,
     report_content: Optional[str] = None,
     screenshots: Optional[list[str]] = None,
+    videos: Optional[list[str]] = None,
+    execution_info: Optional[dict] = None,
     project_identifier: str = ""
 ) -> dict:
     """
@@ -608,12 +922,14 @@ async def save_web_test_report(
     Args:
         test_run_id: 测试运行 ID
         report_path: 报告文件路径（可选）
-        report_content: 报告内容（HTML/JSON），可选
+        report_content: 报告内容（HTML/Markdown），可选
         screenshots: 截图文件路径列表，可选
+        videos: 视频文件路径列表，可选
+        execution_info: 执行结构化信息（stats/cases 等），可选
         project_identifier: 项目标识符
 
     Returns:
-        dict: 包含 attachment_id 和 file_path 的字典
+        dict: 包含 attachment_id、file_path、screenshot_urls、video_urls 的字典
     """
     # 验证 test_run_id 是否为有效的 UUID
     try:
@@ -622,19 +938,129 @@ async def save_web_test_report(
         return {"error": f"Invalid test_run_id format: {test_run_id}. Must be a valid UUID."}
 
     async with async_session_factory() as session:
-        # 查询 test run
-        run_stmt = select(WebTestRun).where(
-            WebTestRun.id == run_uuid
-        )
+        # 仅选择本工具需要的列，避免加载 stdout/stderr 等可能因迁移未应用而缺失的列。
+        # 这种 "column-select" 方式让工具对 schema 小幅落后具有容忍度，同时仍能通过
+        # Core UPDATE 精确更新 report_path / screenshots_path。
+        run_stmt = select(
+            WebTestRun.id,
+            WebTestRun.project_id,
+            WebTestRun.web_test_id,
+            WebTestRun.identifier,
+            WebTestRun.status,
+        ).where(WebTestRun.id == run_uuid)
         run_result = await session.execute(run_stmt)
-        test_run = run_result.scalar_one_or_none()
+        test_run = run_result.one_or_none()
 
-        if not test_run:
+        if test_run is None:
             return {"error": f"Test run {test_run_id} not found"}
+
+        # 解包需要的字段，后续 Core UPDATE 不再依赖 ORM 对象状态
+        run_project_id = test_run.project_id
+        run_web_test_id = test_run.web_test_id
+        run_identifier = test_run.identifier
+
+        # 通过 WebTest 找到关联的子功能，让报告附件挂在 sub_function 下，
+        # 与前文 execute_web_script 自动保存的 HTML 报告归属一致，确保
+        # get_web_sub_function_artifacts(sub_function_id) 能展示该报告。
+        sub_function_id = None
+        sub_function_name = None
+        if run_web_test_id:
+            web_test_result = await session.execute(
+                select(WebTest).where(WebTest.id == run_web_test_id)
+            )
+            web_test = web_test_result.scalar_one_or_none()
+            if web_test:
+                sub_function_id = web_test.sub_function_id
+                sub_function_name = web_test.name
+
+        # 附件归属：优先挂到 sub_function（前端成果物面板可见），
+        # fallback 到 test_run_id（兼容无 sub_function 的场景）
+        artifact_entity_id = sub_function_id or run_uuid
 
         report_object_name = None
         screenshot_dir = None
+        video_dir = None
         attachment_id = None
+        screenshot_urls: list[dict] = []
+        video_urls: list[dict] = []
+
+        # 统一计算媒体文件存放目录
+        if screenshots or videos:
+            if sub_function_id:
+                media_dir = f"web-tests/{project_identifier}/sub-functions/{sub_function_id}"
+            else:
+                media_dir = f"web-tests/{project_identifier}/runs/{test_run_id}"
+
+        # 先上传截图/视频到 MinIO 并收集预签名 URL
+        if screenshots:
+            screenshot_dir = f"{media_dir}/screenshots"
+            for idx, screenshot_path in enumerate(screenshots):
+                try:
+                    screenshot_file = _resolve_workspace_path(screenshot_path)
+                    if not await run_sync(screenshot_file.exists):
+                        continue
+
+                    screenshot_bytes = await run_sync(screenshot_file.read_bytes)
+                    screenshot_name = f"screenshot-{idx + 1}{screenshot_file.suffix}"
+                    screenshot_object_name = f"{screenshot_dir}/{screenshot_name}"
+                    screenshot_content_type = (
+                        "image/jpeg"
+                        if screenshot_file.suffix.lower() in (".jpg", ".jpeg")
+                        else "image/png"
+                    )
+
+                    await run_sync(
+                        MinIOClient.upload_bytes,
+                        object_name=screenshot_object_name,
+                        data=screenshot_bytes,
+                        content_type=screenshot_content_type
+                    )
+                    screenshot_urls.append({
+                        "name": screenshot_name,
+                        "object_name": screenshot_object_name,
+                        "url": await run_sync(
+                            MinIOClient.get_presigned_url,
+                            screenshot_object_name,
+                            expires=timedelta(hours=24)
+                        ),
+                    })
+                except Exception as e:
+                    print(f"Warning: Failed to save screenshot {screenshot_path}: {e}")
+
+        if videos:
+            video_dir = f"{media_dir}/videos"
+            for idx, video_path in enumerate(videos):
+                try:
+                    video_file = _resolve_workspace_path(video_path)
+                    if not await run_sync(video_file.exists):
+                        continue
+
+                    video_bytes = await run_sync(video_file.read_bytes)
+                    video_name = f"video-{idx + 1}{video_file.suffix}"
+                    video_object_name = f"{video_dir}/{video_name}"
+                    video_content_type = {
+                        ".webm": "video/webm",
+                        ".mp4": "video/mp4",
+                        ".mov": "video/quicktime",
+                    }.get(video_file.suffix.lower(), "video/webm")
+
+                    await run_sync(
+                        MinIOClient.upload_bytes,
+                        object_name=video_object_name,
+                        data=video_bytes,
+                        content_type=video_content_type
+                    )
+                    video_urls.append({
+                        "name": video_name,
+                        "object_name": video_object_name,
+                        "url": await run_sync(
+                            MinIOClient.get_presigned_url,
+                            video_object_name,
+                            expires=timedelta(hours=24)
+                        ),
+                    })
+                except Exception as e:
+                    print(f"Warning: Failed to save video {video_path}: {e}")
 
         # 保存报告
         if report_path or report_content:
@@ -647,8 +1073,23 @@ async def save_web_test_report(
                 except Exception as e:
                     return {"error": f"Failed to read report file: {str(e)}"}
 
-            report_bytes = report_content.encode('utf-8')
-            report_object_name = f"web-tests/{project_identifier}/runs/{test_run_id}/report.html"
+            base_html = _render_report_content(report_content)
+
+            # 若提供了截图/视频/执行信息，在报告末尾追加执行详情
+            if screenshot_urls or video_urls or execution_info:
+                detail_html = _build_execution_detail_html(
+                    execution_info,
+                    screenshot_urls,
+                    video_urls,
+                )
+                base_html = base_html.replace("</body>", f"{detail_html}</body>")
+
+            report_bytes = base_html.encode('utf-8')
+            # 报告对象路径：优先按 sub_function 组织，与 execute_web_script 产出同构
+            if sub_function_id:
+                report_object_name = f"web-tests/{project_identifier}/sub-functions/{sub_function_id}/test-report-{run_identifier}.html"
+            else:
+                report_object_name = f"web-tests/{project_identifier}/runs/{test_run_id}/report.html"
 
             await run_sync(
                 MinIOClient.upload_bytes,
@@ -658,51 +1099,38 @@ async def save_web_test_report(
             )
 
             # 创建报告附件记录
+            description = f"Web 测试运行 {run_identifier} 的执行摘要报告"
+            if sub_function_name:
+                description = f"{sub_function_name} - {description}"
+            if screenshot_urls or video_urls:
+                description += f"（含 {len(screenshot_urls)} 张截图、{len(video_urls)} 个视频）"
             attachment = Attachment(
                 entity_type=AttachmentEntityType.WEB_TEST_REPORT,
-                entity_id=run_uuid,
-                project_id=test_run.project_id,
-                file_name=f"test-report-{test_run.identifier}.html",
+                entity_id=artifact_entity_id,
+                project_id=run_project_id,
+                file_name=f"test-report-{run_identifier}.html",
                 file_size=len(report_bytes),
                 content_type="text/html",
                 object_name=report_object_name,
-                description=f"Web 测试运行 {test_run.identifier} 的报告",
+                description=description,
                 created_by="web-agent"
             )
             session.add(attachment)
             await session.flush()
             attachment_id = str(attachment.id)
 
-        # 保存截图
-        if screenshots:
-            screenshot_dir = f"web-tests/{project_identifier}/runs/{test_run_id}/screenshots"
-            for idx, screenshot_path in enumerate(screenshots):
-                try:
-                    screenshot_file = _resolve_workspace_path(screenshot_path)
-                    if not await run_sync(screenshot_file.exists):
-                        continue
-
-                    screenshot_bytes = await run_sync(screenshot_file.read_bytes)
-                    screenshot_name = f"screenshot-{idx + 1}{screenshot_file.suffix}"
-                    screenshot_object_name = f"{screenshot_dir}/{screenshot_name}"
-
-                    await run_sync(
-                        MinIOClient.upload_bytes,
-                        object_name=screenshot_object_name,
-                        data=screenshot_bytes,
-                        content_type="image/png"
-                    )
-                except Exception as e:
-                    # 记录错误但继续处理其他截图
-                    print(f"Warning: Failed to save screenshot {screenshot_path}: {e}")
-
-        # 更新 test run 记录
+        # 更新 test run 记录：仅更新本工具改动的列
+        update_values = {"updated_at": datetime.now(timezone.utc)}
         if report_object_name:
-            test_run.report_path = report_object_name
+            update_values["report_path"] = report_object_name
         if screenshot_dir:
-            test_run.screenshots_path = screenshot_dir
-        test_run.updated_at = datetime.now(timezone.utc)
+            update_values["screenshots_path"] = screenshot_dir
 
+        await session.execute(
+            update(WebTestRun)
+            .where(WebTestRun.id == run_uuid)
+            .values(**update_values)
+        )
         await session.commit()
 
         return {
@@ -710,6 +1138,9 @@ async def save_web_test_report(
             "attachment_id": attachment_id,
             "report_path": report_object_name,
             "screenshots_path": screenshot_dir,
+            "videos_path": video_dir,
+            "screenshot_urls": screenshot_urls,
+            "video_urls": video_urls,
             "message": "测试报告已保存"
         }
 

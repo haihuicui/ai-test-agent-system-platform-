@@ -73,6 +73,9 @@ from app.agents.tools.api.scenario_tools import (
     list_test_scenarios,
     execute_scenario,
 )
+from app.agents.tools.api.scenario_design_validator import (
+    validate_scenario_design,
+)
 # fmt: off  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2UVZkTVF3PT06MjJlNmJjMTM=
 
 # 按业务域分类的工具列表
@@ -141,6 +144,7 @@ SCENARIO_TOOLS = [
     get_scenario_details,
     list_test_scenarios,
     execute_scenario,
+    validate_scenario_design,
 ]
 
 ALL_API_TOOLS = (
@@ -213,6 +217,7 @@ __all__ = [
     "get_scenario_details",
     "list_test_scenarios",
     "execute_scenario",
+    "validate_scenario_design",
     # 分类列表
     "OPENAPI_TOOLS",
     "SKELETON_TOOLS",

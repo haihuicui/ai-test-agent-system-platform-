@@ -14,10 +14,9 @@ from sqlalchemy import select
 
 from app.api import api_router
 from app.config.settings import settings
-from app.config.database import engine, MongoDB, async_session_factory
+from app.config.database import engine, MongoDB, async_session_factory, run_migrations
 from app.middleware.rate_limiter import RateLimiterMiddleware
 from app.middleware.error_handler import setup_exception_handlers
-from app.models.base import Base
 from app.models.user import User
 from app.services.scheduler_service import get_scheduler_service
 
@@ -166,21 +165,20 @@ async def lifespan(app: FastAPI):
     启动时初始化数据库连接，关闭时清理资源
     """
     # 启动时
-    # 连接 MongoDB
+    # 1. 自动应用 Alembic 迁移（生产/开发统一走迁移，保证 schema 与模型一致）
+    await run_migrations()
+    logger.info("[Startup] Alembic 迁移已应用到 head")
+
+    # 2. 连接 MongoDB
     await MongoDB.connect()
 
-    # 创建数据库表（开发环境）
-    if settings.debug:
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-
-    # 确保默认用户存在
+    # 3. 确保默认用户存在
     await ensure_default_user()
 
-    # 启动自洁：重置上次遗留的进行中状态
+    # 4. 启动自洁：重置上次遗留的进行中状态
     await cleanup_stale_execution_state()
 
-    # 启动定时调度器
+    # 5. 启动定时调度器
     scheduler = get_scheduler_service()
     scheduler.start()
     await scheduler.load_schedules_from_db()

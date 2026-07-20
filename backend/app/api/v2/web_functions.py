@@ -81,6 +81,20 @@ class UpdateWebSubFunctionRequest(BaseModel):
     custom_config: Optional[dict] = None
     sort_order: Optional[int] = None
 
+class BatchRunWebFunctionsRequest(BaseModel):
+    """批量运行 Web 功能请求"""
+    function_ids: list[str]
+
+
+class BatchRunWebFunctionsResponse(BaseModel):
+    """批量运行 Web 功能响应"""
+    test_run_id: str
+    identifier: str
+    status: str
+    job_count: int
+    skipped_count: int
+
+
 # noqa  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2TlRRMFNnPT06NmFkNmU1NWI=
 
 # ============ 路由定义 ============
@@ -133,6 +147,26 @@ async def list_web_functions(
     )
 
     return SuccessResponse(data=result)
+
+
+@router.post(
+    "/batch-run",
+    response_model=SuccessResponse,
+    summary="批量运行 Web 功能",
+    description="选中一个或多个 Web 功能，批量执行其下所有子功能的测试脚本",
+)
+async def batch_run_web_functions(
+    project_identifier: str,
+    request: BatchRunWebFunctionsRequest,
+    service: WebFunctionServiceDep,
+):
+    """批量运行 Web 功能"""
+    result = await service.batch_run_web_functions(
+        project_identifier=project_identifier,
+        function_ids=request.function_ids,
+    )
+
+    return SuccessResponse(data=result, message="批量运行已提交")
 
 
 # ============ Web 子功能管理接口 ============

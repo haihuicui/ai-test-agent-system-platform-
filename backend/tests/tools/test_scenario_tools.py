@@ -11,10 +11,12 @@ from uuid import UUID, uuid4
 
 import pytest
 
+from app.agents.tools.api.scenario_design_validator import _validate_scenario_design
 from app.agents.tools.api.scenario_tools import (
     SCENARIO_CONVERSATION_CACHE_TTL_MINUTES,
     _cache_key,
     _clear_conversation_scenario_id,
+    _fill_required_body_defaults,
     _get_conversation_scenario_id,
     _get_current_conversation_id,
     _replace_conversation_scenario,
@@ -149,3 +151,221 @@ def _get_test_scenario_class():
     from app.models.test_scenario import TestScenario
 
     return TestScenario
+
+
+class TestFillRequiredBodyDefaults:
+    """测试 add_scenario_step 自动填充必填字段默认值"""
+
+    def _make_endpoint(self, request_body=None):
+        endpoint = MagicMock()
+        endpoint.request_body = request_body
+        return endpoint
+
+    def test_no_fill_when_body_already_provided(self):
+        endpoint = self._make_endpoint({
+            "content": {
+                "application/json": {
+                    "schema": {"required": ["name"], "properties": {"name": {"type": "string"}}}
+                }
+            }
+        })
+        override = {"body": {"name": "manual"}}
+        result, filled = _fill_required_body_defaults(endpoint, override)
+        assert result["body"]["name"] == "manual"
+        assert filled == []
+
+    def test_fill_string_name_with_faker(self):
+        endpoint = self._make_endpoint({
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "required": ["name", "address"],
+                        "properties": {
+                            "name": {"type": "string"},
+                            "address": {"type": "string"},
+                        },
+                    }
+                }
+            }
+        })
+        result, filled = _fill_required_body_defaults(endpoint, {})
+        assert "name" in filled
+        assert "address" in filled
+        assert result["body"]["name"] == "{{$faker.name}}"
+        assert result["body"]["address"] == "{{$faker.address}}"
+
+    def test_fill_integer_count_with_one(self):
+        endpoint = self._make_endpoint({
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "required": ["pageSize"],
+                        "properties": {"pageSize": {"type": "integer"}},
+                    }
+                }
+            }
+        })
+        result, filled = _fill_required_body_defaults(endpoint, None)
+        assert filled == ["pageSize"]
+        assert result["body"]["pageSize"] == 1
+
+    def test_no_fill_when_no_required(self):
+        endpoint = self._make_endpoint({
+            "content": {
+                "application/json": {
+                    "schema": {"type": "object", "properties": {"name": {"type": "string"}}}
+                }
+            }
+        })
+        result, filled = _fill_required_body_defaults(endpoint, {})
+        assert "body" not in result
+        assert filled == []
+
+
+class TestValidateScenarioDesign:
+    """测试场景设计静态预检"""
+
+    def _make_step(self, step_id, step_order, name, endpoint_id, **kwargs):
+        step = MagicMock()
+        step.id = step_id
+        step.step_order = step_order
+        step.name = name
+        step.endpoint_id = endpoint_id
+        step.request_override = kwargs.get("request_override", {})
+        step.assertions = kwargs.get("assertions", [])
+        step.extractors = kwargs.get("extractors", [])
+        step.continue_on_failure = kwargs.get("continue_on_failure", False)
+        step.delay_ms = kwargs.get("delay_ms", 0)
+        return step
+
+    def _make_endpoint(self, endpoint_id, method="POST", path="/items", request_body=None, parameters=None):
+        endpoint = MagicMock()
+        endpoint.id = endpoint_id
+        endpoint.method = method
+        endpoint.path = path
+        endpoint.request_body = request_body or {}
+        endpoint.parameters = parameters or []
+        return endpoint
+
+    @pytest.mark.asyncio
+    async def test_detects_missing_required_field(self):
+        step_id = uuid4()
+        endpoint_id = uuid4()
+        scenario_id = uuid4()
+
+        step = self._make_step(step_id, 1, "新增", endpoint_id)
+        endpoint = self._make_endpoint(
+            endpoint_id,
+            request_body={
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "required": ["name"],
+                            "properties": {"name": {"type": "string"}},
+                        }
+                    }
+                }
+            },
+        )
+
+        session = AsyncMock()
+        session.get = AsyncMock(return_value=MagicMock(global_variables={}))
+        session.execute = AsyncMock(return_value=MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[])))))
+
+        result = await _validate_scenario_design(
+            session, scenario_id, [step], {endpoint_id: endpoint}, None
+        )
+
+        assert result["valid"] is False
+        assert any(i["category"] == "missing_required_field" for i in result["errors"])
+
+    @pytest.mark.asyncio
+    async def test_detects_unmapped_path_param(self):
+        step_id = uuid4()
+        endpoint_id = uuid4()
+        scenario_id = uuid4()
+
+        step = self._make_step(
+            step_id, 1, "编辑", endpoint_id,
+            request_override={"path": "/items/{itemId}"},
+        )
+        endpoint = self._make_endpoint(endpoint_id, method="PUT", path="/items/{itemId}")
+
+        session = AsyncMock()
+        session.get = AsyncMock(return_value=MagicMock(global_variables={}))
+        session.execute = AsyncMock(return_value=MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[])))))
+
+        result = await _validate_scenario_design(
+            session, scenario_id, [step], {endpoint_id: endpoint}, None
+        )
+
+        assert result["valid"] is False
+        assert any(i["category"] == "unmapped_path_param" for i in result["errors"])
+
+    @pytest.mark.asyncio
+    async def test_passes_when_path_param_extracted(self):
+        step_id = uuid4()
+        endpoint_id = uuid4()
+        scenario_id = uuid4()
+
+        step = self._make_step(
+            step_id, 1, "编辑", endpoint_id,
+            request_override={"path": "/items/{{itemId}}"},
+            extractors=[{"name": "itemId", "path": "$.data.id", "type": "jsonpath"}],
+        )
+        endpoint = self._make_endpoint(endpoint_id, method="PUT", path="/items/{itemId}")
+
+        session = AsyncMock()
+        session.get = AsyncMock(return_value=MagicMock(global_variables={}))
+        session.execute = AsyncMock(return_value=MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[])))))
+
+        result = await _validate_scenario_design(
+            session, scenario_id, [step], {endpoint_id: endpoint}, None
+        )
+
+        assert result["valid"] is True
+
+    @pytest.mark.asyncio
+    async def test_warns_missing_teardown_for_create_step(self):
+        step_id = uuid4()
+        endpoint_id = uuid4()
+        scenario_id = uuid4()
+
+        step = self._make_step(
+            step_id, 1, "新增客户", endpoint_id,
+            assertions=[{"type": "status", "expected": 200}],
+        )
+        endpoint = self._make_endpoint(endpoint_id, method="POST", path="/customers")
+
+        session = AsyncMock()
+        session.get = AsyncMock(return_value=MagicMock(global_variables={}))
+        session.execute = AsyncMock(return_value=MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[])))))
+
+        result = await _validate_scenario_design(
+            session, scenario_id, [step], {endpoint_id: endpoint}, None
+        )
+
+        assert any(w["category"] == "missing_teardown" for w in result["warnings"])
+
+    @pytest.mark.asyncio
+    async def test_warns_unverified_query_param(self):
+        step_id = uuid4()
+        endpoint_id = uuid4()
+        scenario_id = uuid4()
+
+        step = self._make_step(
+            step_id, 1, "分页查询", endpoint_id,
+            request_override={"params": {"orders": "created_at desc"}},
+            assertions=[{"type": "status", "expected": 200}],
+        )
+        endpoint = self._make_endpoint(endpoint_id, method="GET", path="/customers")
+
+        session = AsyncMock()
+        session.get = AsyncMock(return_value=MagicMock(global_variables={}))
+        session.execute = AsyncMock(return_value=MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[])))))
+
+        result = await _validate_scenario_design(
+            session, scenario_id, [step], {endpoint_id: endpoint}, None
+        )
+
+        assert any(w["category"] == "unverified_param" for w in result["warnings"])

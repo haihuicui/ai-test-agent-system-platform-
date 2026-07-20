@@ -20,6 +20,9 @@ ARTIFACTS_PY = BACKEND_ROOT / "app" / "agents" / "tools" / "api" / "artifacts_to
 GENERATOR_SKILL = PROJECT_ROOT / ".claude" / "skills" / "api" / "generator" / "SKILL.md"
 
 
+SCENARIO_SKILL = PROJECT_ROOT / ".claude" / "skills" / "api" / "scenario" / "SKILL.md"
+
+
 def _read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
@@ -66,6 +69,11 @@ def test_system_prompt_is_slimmed():
     "execute_api_script_by_artifact_id",  # 按附件执行已有脚本
     "1 个状态码断言 + 2 个有效业务断言",   # 统一断言口径
     "一次对话一个场景",                  # 场景数量控制
+    "场景步骤必须基于接口 schema",        # 场景必填字段
+    "路径参数必须闭环映射",              # 路径参数映射
+    "创建类步骤必须提取 ID 并配 teardown",  # 创建类步骤 teardown
+    "分页/列表步骤必须做业务断言",        # 分页业务断言
+    "模板变量语法必须规范",              # 模板变量空格
 ])
 def test_system_prompt_keeps_red_lines(red_line: str):
     prompt = _extract_system_prompt()
@@ -85,6 +93,21 @@ def test_generator_skill_does_not_endorse_conditional_assertion():
     occurrences = _antipattern_occurrences(skill)
     bad = [ctx for ctx, is_prohib in occurrences if not is_prohib]
     assert not bad, f"generator skill 中条件断言被用作正面示例: {bad}"
+
+
+@pytest.mark.parametrize("phrase", [
+    "检查表 A：请求体与参数",
+    "检查表 B：数据依赖",
+    "检查表 C：断言",
+    "检查表 D：清理",
+    "request_body.required",
+    "target_path=\"path.siteId\"",
+    "add_teardown_step",
+    "page`/`size",
+])
+def test_scenario_skill_contains_generation_guidelines(phrase: str):
+    skill = _read(SCENARIO_SKILL)
+    assert phrase in skill, f"scenario skill 缺失生成规范: {phrase}"
 
 
 # ---------------------------------------------------------------------------

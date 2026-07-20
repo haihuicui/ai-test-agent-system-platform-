@@ -165,7 +165,7 @@ SYSTEM_PROMPT = """# Web 自动化测试专家
    )`
    → 返回 `execution_result`（stats/cases）+ `report_attachment_id` + `test_run_id`
 4. 读 **executor** skill 分析结果，生成并输出 Markdown 执行摘要
-5. ⚠️ `save_web_test_report(test_run_id=..., report_content="<Markdown 摘要>", project_identifier=...)` **强制保存报告**
+5. ⚠️ `save_web_test_report(test_run_id=..., report_content="<Markdown 摘要>", project_identifier=...)` **强制保存 Markdown 执行摘要**；保存后它会作为 `WEB_TEST_REPORT` 类型出现在 `get_web_sub_function_artifacts(sub_function_id)` 列表中
 6. 失败则进入流程 4️⃣
 
 ### 4️⃣ 自动修复（失败触发，最多 3 次）
@@ -182,7 +182,7 @@ SYSTEM_PROMPT = """# Web 自动化测试专家
 ### 成果物保存（强制）
 每个子功能必须保存三类生成成果物：测试计划、测试用例、测试脚本，完成后用 `get_web_sub_function_artifacts` 验证齐全。
 **生成完成后必须执行“执行邀约”**：向用户说明已保存的成果物，明确告知“尚未执行，暂无 HTML 报告和执行摘要”，并主动询问是否需要立即执行测试。
-**执行测试后必须保存第四类成果物**：调用 `save_web_test_report(test_run_id=..., report_content=..., project_identifier=...)` 将执行报告持久化为 `WEB_TEST_REPORT` 类型的 Attachment。
+**执行测试后必须保存第四类成果物**：调用 `save_web_test_report(test_run_id=..., report_content=..., project_identifier=...)` 将 Markdown 执行摘要持久化为 `WEB_TEST_REPORT` 类型的 Attachment；保存后可通过 `get_web_sub_function_artifacts(sub_function_id)` 与计划/用例/脚本并列查看。
 
 ### 创建功能必填项
 - `create_web_function` 时 **`business_module` 必须传入且非空**，用于业务模块分类。planner 在页面探索阶段即应推断该值。
@@ -256,14 +256,20 @@ async def make_agent() -> AsyncIterator[Pregel]:
     # 使用 async with 保持 session 存活
     async with client.session("web_mcp") as session:
         # 在 session 中加载 MCP 工具
-        mcp_tools = await load_mcp_tools(session)
+        # 过滤掉与本地 save_web_test_plan 职责重叠、且 schema 要求 suites 必填的
+        # planner 工具，避免 LLM 误把 plan_content 传给 MCP 的 planner_save_plan /
+        # planner_submit_plan 导致 suites 缺失而抛 ToolException。
+        excluded_mcp_tools = {"planner_save_plan", "planner_submit_plan"}
+        mcp_tools = [t for t in await load_mcp_tools(session) if t.name not in excluded_mcp_tools]
         all_tools = mcp_tools + get_local_tools()
 # type: ignore  My80OmFIVnBZMlhsdEpUbXRiZm92b2s2TkdSNlVRPT06ZGFhYmJjYWY=
 
-        # 包装工具以处理错误，防止 Agent 执行中断
+        # 包装工具以处理错误，防止 Agent 执行中断。
+        # 覆盖 browser / planner / generator / test 等全部 MCP 工具，避免 MCP server
+        # 侧 schema 校验失败直接抛 ToolException 中断 workflow。
         all_tools = wrap_tools_with_error_handling(
             all_tools,
-            tool_patterns=["browser_", "playwright-test/"]  # 只包装浏览器相关工具
+            tool_patterns=["browser_", "planner_", "generator_", "test_"]
         )
 
         # 创建智能体

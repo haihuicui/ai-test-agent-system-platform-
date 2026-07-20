@@ -32,6 +32,7 @@ class AttachmentEntityType(str, PyEnum):
     WEB_TEST_CASE = "web_test_case"
     WEB_TEST_SCRIPT = "web_test_script"
     WEB_TEST_REPORT = "web_test_report"
+    STORAGE_STATE = "storage_state"  # Playwright 全局登录态文件
     # Android 测试相关实体类型
     ANDROID_TEST_PLAN = "android_test_plan"
     ANDROID_TEST_CASE = "android_test_case"
