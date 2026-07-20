@@ -3,7 +3,7 @@
 
 import * as React from "react";
 import dynamic from "next/dynamic";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   Zap,
@@ -56,6 +56,7 @@ import {
   createWebFunction,
   updateWebFunction,
   deleteWebFunction,
+  batchRunWebFunctions,
   type WebFunction,
   type WebSubFunction,
   type CreateWebFunctionRequest,
@@ -65,9 +66,18 @@ import {
   updateFolder,
   deleteFolder,
 } from "@/lib/api/folders";
+import { listEnvironments } from "@/lib/api/environments";
+import {
+  generateStorageState,
+  getLatestStorageState,
+  getStorageStateJob,
+  type StorageStateGenerateRequest,
+  type StorageStateLatestInfo,
+} from "@/lib/api/storage-state";
 import type {
   FolderInfo,
   FolderCreate,
+  EnvironmentInfo,
 } from "@/lib/api/types";
 // FIXME  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2T0ZGMk5RPT06N2Y2NWVlMGM=
 
@@ -128,6 +138,7 @@ type TestMode = "function";
 
 export default function WebTestsPage() {
   const params = useParams();
+  const router = useRouter();
   const projectId = params.projectId as string;
   const { t } = useLanguage();
 
@@ -144,6 +155,7 @@ export default function WebTestsPage() {
   const [actualTestCasesCounts, setActualTestCasesCounts] = React.useState<Record<string, number>>({});
   const [selectedFolderId, setSelectedFolderId] = React.useState<string | null>(null);
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
+  const [batchRunning, setBatchRunning] = React.useState(false);
   const [selectedSubFunctionId, setSelectedSubFunctionId] = React.useState<string | null>(null);
   const [showSubFunctionSidebar, setShowSubFunctionSidebar] = React.useState(false);
   const [subFunctionDrawerOpen, setSubFunctionDrawerOpen] = React.useState(false);
@@ -183,6 +195,23 @@ export default function WebTestsPage() {
   const renderAIChat = useDelayedUnmount(aiChatOpen, 300);
   const [aiChatInitialPrompt, setAiChatInitialPrompt] = React.useState<string>("");
   const [aiChatKey, setAiChatKey] = React.useState<number>(0);
+
+  // 登录态管理
+  const [defaultEnv, setDefaultEnv] = React.useState<EnvironmentInfo | null>(null);
+  const [storageStateStatus, setStorageStateStatus] = React.useState<"none" | "ok" | "expired">("none");
+  const [storageStateGeneratedAt, setStorageStateGeneratedAt] = React.useState<string | null>(null);
+  const [storageStateDialogOpen, setStorageStateDialogOpen] = React.useState(false);
+  const [generatingStorageState, setGeneratingStorageState] = React.useState(false);
+  const [storageStateForm, setStorageStateForm] = React.useState<StorageStateGenerateRequest>({
+    password: "",
+    selectors: {
+      login_url: "",
+      username_selector: "input[name='username']",
+      password_selector: "input[name='password']",
+      submit_selector: "button[type='submit']",
+      success_selector: ".dashboard",
+    },
+  });
 
   // 使用 useMemo 稳定 assistant 对象
   const assistant = React.useMemo<Assistant | null>(() => {
@@ -258,12 +287,55 @@ export default function WebTestsPage() {
     }
   }, [projectId, selectedFolderId, page, pageSize, searchQuery, formatFilter, testMode, t]);
 
+  // 加载默认环境
+  const loadDefaultEnvironment = React.useCallback(async () => {
+    try {
+      const response = await listEnvironments(projectId);
+      const envs = (response as any).data || (response as any).items || [];
+      const defaultEnv = envs.find((e: EnvironmentInfo) => e.is_default) || envs[0] || null;
+      setDefaultEnv(defaultEnv);
+    } catch (error) {
+      console.error("Failed to load environments:", error);
+    }
+  }, [projectId]);
+
+  // 加载登录态状态
+  const loadStorageStateStatus = React.useCallback(
+    async (envId: string) => {
+      try {
+        const response = await getLatestStorageState(projectId, envId);
+        const data: StorageStateLatestInfo | null = (response as any).data ?? null;
+        if (!data) {
+          setStorageStateStatus("none");
+          setStorageStateGeneratedAt(null);
+          return;
+        }
+        const generatedAt = new Date(data.generated_at);
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        setStorageStateGeneratedAt(data.generated_at);
+        setStorageStateStatus(generatedAt > sevenDaysAgo ? "ok" : "expired");
+      } catch (error) {
+        console.error("Failed to load storage state:", error);
+        setStorageStateStatus("none");
+      }
+    },
+    [projectId]
+  );
+
   // 根据模式加载数据
   React.useEffect(() => {
     if (projectId) {
       loadWebFunctions();
+      loadDefaultEnvironment();
     }
-  }, [projectId, testMode, loadWebFunctions]);
+  }, [projectId, testMode, loadWebFunctions, loadDefaultEnvironment]);
+
+  // 默认环境变化后加载登录态状态
+  React.useEffect(() => {
+    if (defaultEnv?.id) {
+      loadStorageStateStatus(defaultEnv.id);
+    }
+  }, [defaultEnv, loadStorageStateStatus]);
 
   const handleSelectFolder = (folder: FolderInfo | null) => {
     setSelectedFolderId(folder?.id || null);
@@ -285,6 +357,81 @@ export default function WebTestsPage() {
   const handleFunctionCreated = () => {
     loadWebFunctions();
     folderTreeRef.current?.refresh();
+  };
+
+  // 打开登录态弹窗，优先从环境 auth_config 预填充
+  const handleOpenStorageStateDialog = () => {
+    const formLogin = (defaultEnv?.auth_config as any)?.form_login;
+    setStorageStateForm((prev) => ({
+      password: "",
+      username: formLogin?.username || "",
+      selectors: {
+        login_url: formLogin?.login_url || prev.selectors?.login_url || "",
+        username_selector:
+          formLogin?.selectors?.username_selector || prev.selectors?.username_selector || "input[name='username']",
+        password_selector:
+          formLogin?.selectors?.password_selector || prev.selectors?.password_selector || "input[name='password']",
+        submit_selector:
+          formLogin?.selectors?.submit_selector || prev.selectors?.submit_selector || "button[type='submit']",
+        success_selector:
+          formLogin?.selectors?.success_selector || prev.selectors?.success_selector || ".dashboard",
+      },
+    }));
+    setStorageStateDialogOpen(true);
+  };
+
+  // 轮询登录态生成任务
+  const pollStorageStateJob = React.useCallback(
+    async (jobId: string, envId: string) => {
+      const maxAttempts = 120; // 最多轮询 120 次，每次 2 秒
+      for (let i = 0; i < maxAttempts; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        const response = await getStorageStateJob(projectId, envId, jobId);
+        const job = (response as any).data;
+        if (job?.status === "completed") {
+          toast.success("登录态已更新，后续 Web 测试将自动携带会话");
+          await loadStorageStateStatus(envId);
+          return;
+        }
+        if (job?.status === "failed") {
+          toast.error(`登录态生成失败：${job.error_message || "未知错误"}`);
+          return;
+        }
+      }
+      toast.warning("登录态生成超时，请稍后刷新页面查看状态");
+    },
+    [projectId, loadStorageStateStatus]
+  );
+
+  // 提交登录态生成
+  const handleSubmitStorageState = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!defaultEnv?.id) {
+      toast.error("未找到默认环境，无法生成登录态");
+      return;
+    }
+    if (!storageStateForm.password) {
+      toast.error("密码不能为空");
+      return;
+    }
+    if (!storageStateForm.selectors?.login_url) {
+      toast.error("登录页 URL 不能为空");
+      return;
+    }
+
+    setGeneratingStorageState(true);
+    try {
+      const response = await generateStorageState(projectId, defaultEnv.id, storageStateForm);
+      const job = (response as any).data;
+      toast.info("正在后台生成登录态...");
+      setStorageStateDialogOpen(false);
+      await pollStorageStateJob(job.job_id, defaultEnv.id);
+    } catch (error: any) {
+      console.error("Failed to generate storage state:", error);
+      toast.error(error?.message || "生成登录态失败");
+    } finally {
+      setGeneratingStorageState(false);
+    }
   };
 
   const handleTestCasesCountChange = React.useCallback(async (count: number, subFunctionId?: string) => {
@@ -327,11 +474,18 @@ export default function WebTestsPage() {
 **Project ID**: ${projectId}
 **Sub Function ID**: ${selectedSubFunctionId || "N/A"}
 
-请按以下步骤执行测试：
-1. 使用 \`download_web_script\` 工具下载脚本到 测试工作目录（参数：script_id="${artifactId}"）
+请按以下步骤执行测试并保存报告：
+1. 使用 \`download_web_script\` 工具下载脚本到测试工作目录（参数：script_id="${artifactId}"）
 2. 使用 \`execute_web_script\` 工具执行测试（参数：local_script_path=从步骤1获取的路径、framework="playwright"、reporter="html"、project_identifier="${projectId}"、sub_function_id="${selectedSubFunctionId || ""}"）
-3. 解析执行结果并报告测试状态
-4. （可选）使用 \`delete_web_script\` 清理临时脚本`;
+3. 从步骤2返回的 execution_result 中提取：
+   - stats（total/passed/failed/skipped）
+   - cases（用例级结果：title/status/duration_ms/error）
+   - screenshots（截图文件路径列表）
+   - videos（视频文件路径列表）
+4. 生成 Markdown 格式执行摘要（包含执行统计、关键失败信息）
+5. **必须**调用 \`save_web_test_report(test_run_id=<步骤2返回的 test_run_id>, report_content=<Markdown 摘要>, screenshots=<截图路径列表>, videos=<视频路径列表>, execution_info=<步骤2的 execution_result>, project_identifier="${projectId}")\` 将执行摘要持久化到成果物面板；该摘要会内嵌截图、视频和执行信息
+6. 向用户报告：完整 HTML 报告附件 ID（report_attachment_id，含截图/视频/trace）和执行摘要附件 ID（save_web_test_report 返回的 attachment_id）
+7. （可选）使用 \`delete_web_script\` 清理临时脚本`;
 
     setAiChatInitialPrompt(prompt);
     setAiChatKey(prev => prev + 1);
@@ -475,6 +629,34 @@ export default function WebTestsPage() {
     }
   };
 
+  // 处理批量运行 Web 功能
+  const handleBatchRun = async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+
+    try {
+      setBatchRunning(true);
+      const result = await batchRunWebFunctions(projectId, {
+        function_ids: ids,
+      });
+      toast.success(
+        `批量运行已提交: ${result.identifier} (${result.job_count} 个脚本)`
+      );
+      setSelectedIds(new Set());
+      router.push(`/projects/${projectId}/test-runs/${result.identifier}`);
+    } catch (error: any) {
+      console.error("Failed to batch run web functions:", error);
+      console.error("Error details:", {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+      toast.error(`批量运行失败: ${error.message || "Unknown error"}`);
+    } finally {
+      setBatchRunning(false);
+    }
+  };
+
   return (
     <MainLayout title={t("webTests.title")}>
       <div className="relative flex h-[calc(100vh-8rem)] rounded-lg border bg-card overflow-hidden">
@@ -577,6 +759,34 @@ export default function WebTestsPage() {
                 <Button
                   variant="outline"
                   size="sm"
+                  onClick={handleOpenStorageStateDialog}
+                  className={cn(
+                    "relative",
+                    storageStateStatus === "ok" && "border-green-500 text-green-700 hover:bg-green-50",
+                    storageStateStatus === "expired" && "border-red-500 text-red-700 hover:bg-red-50"
+                  )}
+                >
+                  <Globe className="mr-2 h-4 w-4" />
+                  登录态
+                  {storageStateStatus === "ok" && (
+                    <Badge variant="default" className="ml-2 h-5 bg-green-500 hover:bg-green-500 text-[10px]">
+                      已配置
+                    </Badge>
+                  )}
+                  {storageStateStatus === "expired" && (
+                    <Badge variant="destructive" className="ml-2 h-5 text-[10px]">
+                      已过期
+                    </Badge>
+                  )}
+                  {storageStateStatus === "none" && (
+                    <Badge variant="secondary" className="ml-2 h-5 text-[10px]">
+                      未配置
+                    </Badge>
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => loadWebFunctions()}
                 >
                   <RefreshCw className="h-4 w-4" />
@@ -594,6 +804,8 @@ export default function WebTestsPage() {
                   selectedIds={selectedIds}
                   onSelectIds={setSelectedIds}
                   onBulkDelete={handleBulkDelete}
+                  onBatchRun={handleBatchRun}
+                  batchRunning={batchRunning}
                   onDeleteWebFunction={handleDeleteWebFunction}
                   onViewWebFunction={async (webFunction) => {
                     // 设置选中的功能，用于显示标题
@@ -944,6 +1156,133 @@ export default function WebTestsPage() {
                 {t("common.delete")}
               </Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* 登录态管理对话框 */}
+        <Dialog open={storageStateDialogOpen} onOpenChange={setStorageStateDialogOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>登录态管理</DialogTitle>
+              <DialogDescription>
+                配置表单登录信息并生成 Playwright storageState，后续 Web 测试将自动携带已登录会话。
+                {storageStateGeneratedAt && (
+                  <span className="block mt-1">
+                    最近生成时间：{new Date(storageStateGeneratedAt).toLocaleString()}
+                  </span>
+                )}
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleSubmitStorageState}>
+              <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
+                <div className="space-y-2">
+                  <Label htmlFor="ss-username">用户名</Label>
+                  <Input
+                    id="ss-username"
+                    value={storageStateForm.username || ""}
+                    onChange={(e) =>
+                      setStorageStateForm({ ...storageStateForm, username: e.target.value })
+                    }
+                    placeholder="输入登录账号"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="ss-password">密码</Label>
+                  <Input
+                    id="ss-password"
+                    type="password"
+                    value={storageStateForm.password}
+                    onChange={(e) =>
+                      setStorageStateForm({ ...storageStateForm, password: e.target.value })
+                    }
+                    placeholder="输入登录密码"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="ss-login-url">登录页 URL</Label>
+                  <Input
+                    id="ss-login-url"
+                    value={storageStateForm.selectors?.login_url || ""}
+                    onChange={(e) =>
+                      setStorageStateForm({
+                        ...storageStateForm,
+                        selectors: { ...storageStateForm.selectors, login_url: e.target.value },
+                      })
+                    }
+                    placeholder="https://example.com/login"
+                    required
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="ss-username-selector">用户名选择器</Label>
+                    <Input
+                      id="ss-username-selector"
+                      value={storageStateForm.selectors?.username_selector || ""}
+                      onChange={(e) =>
+                        setStorageStateForm({
+                          ...storageStateForm,
+                          selectors: { ...storageStateForm.selectors, username_selector: e.target.value },
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="ss-password-selector">密码选择器</Label>
+                    <Input
+                      id="ss-password-selector"
+                      value={storageStateForm.selectors?.password_selector || ""}
+                      onChange={(e) =>
+                        setStorageStateForm({
+                          ...storageStateForm,
+                          selectors: { ...storageStateForm.selectors, password_selector: e.target.value },
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="ss-submit-selector">提交按钮选择器</Label>
+                    <Input
+                      id="ss-submit-selector"
+                      value={storageStateForm.selectors?.submit_selector || ""}
+                      onChange={(e) =>
+                        setStorageStateForm({
+                          ...storageStateForm,
+                          selectors: { ...storageStateForm.selectors, submit_selector: e.target.value },
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="ss-success-selector">成功标识选择器</Label>
+                    <Input
+                      id="ss-success-selector"
+                      value={storageStateForm.selectors?.success_selector || ""}
+                      onChange={(e) =>
+                        setStorageStateForm({
+                          ...storageStateForm,
+                          selectors: { ...storageStateForm.selectors, success_selector: e.target.value },
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setStorageStateDialogOpen(false)}
+                  disabled={generatingStorageState}
+                >
+                  取消
+                </Button>
+                <Button type="submit" disabled={generatingStorageState}>
+                  {generatingStorageState ? "生成中..." : "生成登录态"}
+                </Button>
+              </DialogFooter>
+            </form>
           </DialogContent>
         </Dialog>
 

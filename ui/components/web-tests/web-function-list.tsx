@@ -13,6 +13,8 @@ import {
   GripVertical,
   Globe,
   FileText,
+  Play,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -54,6 +56,8 @@ interface WebFunctionListProps {
   selectedIds: Set<string>;
   onSelectIds: (ids: Set<string>) => void;
   onBulkDelete?: () => void;
+  onBatchRun?: () => void;
+  batchRunning?: boolean;
   onViewWebFunction: (webFunction: WebFunction) => void;
   onDeleteWebFunction?: (webFunction: WebFunction) => void;
   folderName?: string;
@@ -72,6 +76,8 @@ export function WebFunctionList({
   selectedIds,
   onSelectIds,
   onBulkDelete,
+  onBatchRun,
+  batchRunning,
   onViewWebFunction,
   onDeleteWebFunction,
   folderName,
@@ -274,8 +280,18 @@ export function WebFunctionList({
           <span className="text-sm text-muted-foreground">
             已选择 {selectedIds.size} 项
           </span>
-          <Button variant="outline" size="sm">
-            批量运行
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onBatchRun}
+            disabled={batchRunning}
+          >
+            {batchRunning ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Play className="mr-2 h-4 w-4" />
+            )}
+            {batchRunning ? "提交中..." : "批量运行"}
           </Button>
           <Button
             variant="outline"

@@ -329,3 +329,31 @@ export async function getFolderWebSubFunctions(
   );
   return response.data;
 }
+
+// ==================== Web 功能批量执行 API ====================
+
+export interface BatchRunWebFunctionsRequest {
+  function_ids: string[];
+}
+
+export interface BatchRunWebFunctionsResponse {
+  test_run_id: string;
+  identifier: string;
+  status: string;
+  job_count: number;
+  skipped_count: number;
+}
+
+/**
+ * 批量运行选中的 Web 功能（执行其下所有子功能的测试脚本）
+ */
+export async function batchRunWebFunctions(
+  projectIdentifier: string,
+  data: BatchRunWebFunctionsRequest
+): Promise<BatchRunWebFunctionsResponse> {
+  const response = await apiClient.post<{ data: BatchRunWebFunctionsResponse }>(
+    `/projects/${projectIdentifier}/web-functions/batch-run`,
+    data
+  );
+  return response.data;
+}

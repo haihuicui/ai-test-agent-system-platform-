@@ -692,50 +692,92 @@ export function EnhancedTestArtifactsPanel({
                             </Button>
                           </>
                         ) : artifact.type === "WEB_TEST_REPORT" ? (
-                          <>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-9 px-3 gap-2 hover:bg-pink-50 hover:text-pink-600"
-                              onClick={async () => {
-                                try {
-                                  // 获取报告查看器 URL
-                                  const response = await fetch(
-                                    `/api/v2/attachments/${artifact.id}/report-viewer`
-                                  );
-                                  if (!response.ok) {
-                                    toast.error("无法打开测试报告");
-                                    return;
+                          (artifact.content_type === "application/zip" ||
+                            artifact.file_name.toLowerCase().endsWith(".zip")) ? (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-9 px-3 gap-2 hover:bg-pink-50 hover:text-pink-600"
+                                onClick={async () => {
+                                  try {
+                                    const response = await fetch(
+                                      `/api/v2/attachments/${artifact.id}/report-viewer`
+                                    );
+                                    if (!response.ok) {
+                                      toast.error("无法打开测试报告");
+                                      return;
+                                    }
+                                    const data = await response.json();
+                                    window.open(data.index_url, "_blank");
+                                  } catch (error) {
+                                    console.error("打开报告失败:", error);
+                                    toast.error("打开报告失败");
                                   }
-                                  const data = await response.json();
-                                  // 在新窗口中打开报告
-                                  window.open(data.index_url, "_blank");
-                                } catch (error) {
-                                  console.error("打开报告失败:", error);
-                                  toast.error("打开报告失败");
-                                }
-                              }}
-                              title="查看报告"
-                            >
-                              <Eye className="h-4 w-4" />
-                              <span className="text-xs">查看</span>
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-9 px-3 gap-2 hover:bg-slate-50 hover:text-slate-600"
-                              onClick={() => {
-                                // 下载 ZIP 文件
-                                window.open(
-                                  `/api/v2/attachments/${artifact.id}/download`,
-                                  "_blank"
-                                );
-                              }}
-                              title="下载 ZIP"
-                            >
-                              <Download className="h-4 w-4" />
-                            </Button>
-                          </>
+                                }}
+                                title="查看完整 HTML 报告（含截图、视频、trace）"
+                              >
+                                <Eye className="h-4 w-4" />
+                                <span className="text-xs">查看完整报告</span>
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-9 px-3 gap-2 hover:bg-slate-50 hover:text-slate-600"
+                                onClick={() => {
+                                  window.open(
+                                    `/api/v2/attachments/${artifact.id}/download`,
+                                    "_blank"
+                                  );
+                                }}
+                                title="下载 ZIP"
+                              >
+                                <Download className="h-4 w-4" />
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-9 px-3 gap-2 hover:bg-pink-50 hover:text-pink-600"
+                                onClick={async () => {
+                                  try {
+                                    const response = await fetch(
+                                      `/api/v2/attachments/${artifact.id}/report-viewer`
+                                    );
+                                    if (!response.ok) {
+                                      toast.error("无法打开执行摘要");
+                                      return;
+                                    }
+                                    const data = await response.json();
+                                    window.open(data.index_url, "_blank");
+                                  } catch (error) {
+                                    console.error("打开执行摘要失败:", error);
+                                    toast.error("打开执行摘要失败");
+                                  }
+                                }}
+                                title="查看执行摘要（含统计、截图、视频）"
+                              >
+                                <Eye className="h-4 w-4" />
+                                <span className="text-xs">查看执行摘要</span>
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-9 px-3 gap-2 hover:bg-slate-50 hover:text-slate-600"
+                                onClick={() => {
+                                  window.open(
+                                    `/api/v2/attachments/${artifact.id}/download`,
+                                    "_blank"
+                                  );
+                                }}
+                                title="下载 HTML"
+                              >
+                                <Download className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )
                         ) : (
                           <>
                             <Button

@@ -4,6 +4,10 @@
   "version": "0.1.0",
   "_deployId": "id_MS81OmFIVnBZMlhsdEpUbXRiZm92b2s2ZG0xNFFRPT06YTE3NjllOGY=",
   "private": true,
+  "engines": {
+    "node": ">=20.0.0 <21.0.0",
+    "npm": ">=10.0.0 <11.0.0"
+  },
   "_releaseId": "id_Mi81OmFIVnBZMlhsdEpUbXRiZm92b2s2ZG0xNFFRPT06YTE3NjllOGY=",
   "scripts": {
     "dev": "next dev",
@@ -56,11 +60,13 @@
     "swr": "^2.4.0",
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
-    "use-stick-to-bottom": "^1.1.1"
+    "use-stick-to-bottom": "^1.1.1",
+    "uuid": "^9.0.0"
   },
   "_buildHash": "NC81OmFIVnBZMlhsdEpUbXRiZm92b2s2ZG0xNFFRPT06YTE3NjllOGY=",
   "devDependencies": {
-    "@types/node": "^22.9.0",
+    "@types/node": "^20.17.0",
+    "@types/uuid": "^9.0.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "autoprefixer": "^10.4.20",
