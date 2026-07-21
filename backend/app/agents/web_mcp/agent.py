@@ -23,15 +23,18 @@ from deepagents.backends import FilesystemBackend, LocalShellBackend, CompositeB
 from deepagents.middleware import SkillsMiddleware
 from langchain.agents.middleware import AgentMiddleware, ModelRequest, ModelResponse
 from langchain_core.language_models import ModelProfile
+from langchain_core.runnables import RunnableConfig
+from langgraph.config import get_config
+from langgraph.pregel import Pregel
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_mcp_adapters.tools import load_mcp_tools
-from langgraph.pregel import Pregel
 
 from app.agents.tools.web import get_local_tools
 from app.agents.tools.error_handler import wrap_tools_with_error_handling
 from app.config.settings import settings
 from app.core.llms import text_model as model
 from app.utils.shell_env import build_shell_env, ensure_playwright_mcp_project, get_playwright_mcp_command_args
+from app.utils.web_mcp_storage_state import resolve_project_storage_state_path
 
 # =============================================================================
 # 配置
@@ -196,8 +199,15 @@ SYSTEM_PROMPT = """# Web 自动化测试专家
 - 不要用 MCP `test_run` / `test_list` 替代 `execute_web_script` 获取执行结果。
 - 同一子功能的执行自动串行、不同子功能受全局并发上限保护，报告按 execution_id 隔离，无需担心并发覆盖。
 
-### 登录态（可选）
-- 若 `playwright.config.js` 已注入 `storageState`（全局登录态），测试自动携带已登录会话，生成脚本时**不要**再写 UI 登录步骤。
+### 登录态（探索与生成阶段）
+- 本智能体启动时，系统会自动将当前项目最新的成功 storageState 注入 `playwright.config.js`。
+  因此 `planner_setup_page` + `browser_navigate` 导航到目标 URL 后，**必须立即用 `browser_snapshot()` 检查实际页面**。
+- 如果页面已经显示目标业务内容（没有登录表单、用户名/密码输入框、登录按钮，URL 也未被重定向到登录页），
+  说明 storageState 已生效，**不要执行 UI 登录**，仅在测试计划中记录：
+  `**认证方式**：已通过项目 storageState 自动登录`。
+- 如果页面被重定向到登录页或快照中出现登录表单，则按需执行一次 UI 登录，
+  并将登录步骤作为该场景的 Setup Step 记录。
+- 生成 Playwright 脚本时，**不要**写 UI 登录步骤；执行环境会自动携带已登录会话。
 
 ### 等待策略（统一口径，二者不矛盾）
 - **MCP 探索/调试侧**：不要用 `browser_wait_for(state=...)`；改用 `browser_snapshot()`（自动等待）或 `browser_wait_for(time=2000)`。
@@ -225,7 +235,7 @@ SYSTEM_PROMPT = """# Web 自动化测试专家
 """
 
 @asynccontextmanager
-async def make_agent() -> AsyncIterator[Pregel]:
+async def make_agent(config: RunnableConfig | None = None) -> AsyncIterator[Pregel]:
     """
     创建 Web 测试智能体的工厂函数。
 
@@ -236,8 +246,29 @@ async def make_agent() -> AsyncIterator[Pregel]:
     # 创建中间件
     context_middleware = WebContextInjectionMiddleware()
 
-    # 确保 Playwright MCP 项目目录已初始化（配置、依赖）
-    await ensure_playwright_mcp_project(settings.web_mcp_root, headless=settings.web_mcp_headless)
+    # 解析项目标识符：优先从 LangGraph 工厂 config 读取，其次回退到当前 runnable config
+    project_identifier = ""
+    if config is not None:
+        project_identifier = config.get("configurable", {}).get("project_identifier", "") or ""
+    if not project_identifier:
+        try:
+            project_identifier = get_config()["configurable"].get("project_identifier", "") or ""
+        except RuntimeError:
+            pass
+
+    # 解析项目级 storageState，回退到全局配置
+    storage_state: str | None = None
+    if project_identifier:
+        storage_state = await resolve_project_storage_state_path(project_identifier)
+    if not storage_state:
+        storage_state = settings.web_mcp_storage_state
+
+    # 确保 Playwright MCP 项目目录已初始化（配置、依赖），并注入登录态
+    await ensure_playwright_mcp_project(
+        settings.web_mcp_root,
+        headless=settings.web_mcp_headless,
+        storage_state=storage_state,
+    )
 
     # 创建 MCP 客户端连接到 Playwright 服务器
     mcp_command, mcp_args = get_playwright_mcp_command_args(

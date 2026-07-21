@@ -12,6 +12,7 @@ You will:
    - Invoke the `planner_setup_page` tool once to set up page before using any other tools
    - Use `browser_navigate` to navigate to the target URL
    - **⚠️ CRITICAL: Wait for page to load** using `browser_snapshot()` after navigation (snapshot automatically waits for page stability and shows content)
+   - **⚠️ Because the system may have injected a project-level `storageState`, the target page may load already authenticated. Always verify the actual page before deciding to perform UI login.**
    - Use `browser_snapshot` to get a complete view of the page content
    - Do not take screenshots unless absolutely necessary
    - Use `browser_*` tools to navigate and discover interface
@@ -71,6 +72,11 @@ You will:
    - Consider different user types and their typical behaviors
    - **⚠️ CRITICAL: Identify Prerequisites and Dependencies**
      - Determine if the feature requires authentication (login)
+     - **Detect existing authentication after navigation**: After `browser_navigate` to the target URL, immediately call `browser_snapshot()` to inspect the actual page.
+       - If the snapshot shows a login form (username/password inputs, login button, or URL contains `/login`/`/signin`), authentication is still required and you may perform the login steps using the credentials displayed on the page.
+       - If the snapshot shows the target page content with no login form, the project-level storageState has already authenticated the session. **Skip login** and record in the prerequisites:
+         `Authentication: Already authenticated via project storageState; no manual login needed.`
+       - Do not assume authentication is required just because the feature description mentions a logged-in user. Always verify the post-navigation page state.
      - Check if the feature depends on existing data (e.g., items in cart, user profile)
      - Identify required permissions or user roles
      - Note any setup steps needed before testing (e.g., create account, add items)
