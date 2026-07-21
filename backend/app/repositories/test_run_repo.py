@@ -19,6 +19,113 @@ from app.models.test_plan import TestPlan
 from app.schemas.enums import TestRunState, TestRunActiveState, TestResultStatus, ScriptType, JobStatus, ScheduleTriggerType
 
 
+def _aggregate_progress_from_jobs(jobs: list[TestRunScriptJob]) -> dict[str, int]:
+    """根据 ScriptJob 列表聚合 TestRun 进度统计（纯函数，便于测试）。
+
+    返回的计数字典保证 total == passed + failed + skipped + blocked
+    + in_progress + untested + retest。
+    """
+    total = 0
+    untested = 0
+    passed = 0
+    failed = 0
+    skipped = 0
+    blocked = 0
+    in_progress = 0
+    retest = 0
+
+    for job in jobs:
+        status = job.status
+        summary = job.result_summary or {}
+
+        # 兼容 result_summary 中可能使用的不同 key（passed / passed_count）
+        passed_in_summary = summary.get("passed", summary.get("passed_count", 0)) or 0
+        failed_in_summary = summary.get("failed", summary.get("failed_count", 0)) or 0
+        skipped_in_summary = summary.get("skipped", summary.get("skipped_count", 0)) or 0
+        total_in_summary = summary.get("total")
+
+        # 显式结果：summary 里至少包含一个计数字段。
+        # 仅有 failure_category 等元数据时按状态兜底分配，避免 total=1 但分项全 0。
+        has_explicit_results = any(
+            summary.get(k) is not None
+            for k in ("total", "passed", "failed", "skipped")
+        )
+
+        if has_explicit_results and status in (JobStatus.COMPLETED, JobStatus.FAILED):
+            # 有显式计数：按 summary 分配，并保证 total == passed+failed+skipped。
+            if total_in_summary is not None:
+                job_total = total_in_summary
+            else:
+                job_total = passed_in_summary + failed_in_summary + skipped_in_summary
+            if job_total < 1:
+                job_total = 1
+
+            job_passed = passed_in_summary
+            job_failed = failed_in_summary
+            job_skipped = skipped_in_summary
+            accounted = job_passed + job_failed + job_skipped
+
+            if accounted < job_total:
+                # 分项之和小于 total（如部分用例未执行/中断），差额按状态补齐
+                if status == JobStatus.COMPLETED:
+                    job_passed += job_total - accounted
+                else:
+                    job_failed += job_total - accounted
+            elif accounted > job_total:
+                # 分项之和超过 total（如 total 为 0 但 failed>0），以分项为准扩大 total
+                job_total = accounted
+        elif status == JobStatus.COMPLETED:
+            # 无显式计数但已完成：按 1 个用例全部计入通过
+            job_total = 1
+            job_passed = 1
+            job_failed = 0
+            job_skipped = 0
+        elif status == JobStatus.FAILED:
+            # 无显式计数但失败：按 1 个用例全部计入失败
+            job_total = 1
+            job_passed = 0
+            job_failed = 1
+            job_skipped = 0
+        else:
+            # 其他状态：按 1 个用例计，待状态分配
+            job_total = 1
+            job_passed = 0
+            job_failed = 0
+            job_skipped = 0
+
+        total += job_total
+
+        if status == JobStatus.PENDING:
+            untested += job_total
+        elif status == JobStatus.RUNNING:
+            in_progress += job_total
+        elif status == JobStatus.COMPLETED:
+            passed += job_passed
+            failed += job_failed
+            skipped += job_skipped
+        elif status == JobStatus.FAILED:
+            passed += job_passed
+            failed += job_failed
+            skipped += job_skipped
+        elif status == JobStatus.SKIPPED:
+            skipped += job_total
+        elif status == JobStatus.BLOCKED:
+            blocked += job_total
+        elif status == JobStatus.CANCELLED:
+            blocked += job_total
+
+    return {
+        "test_cases_count": total,
+        "untested_count": untested,
+        "passed_count": passed,
+        "retest_count": retest,
+        "failed_count": failed,
+        "blocked_count": blocked,
+        "skipped_count": skipped,
+        "in_progress_count": in_progress,
+    }
+
+
 class TestRunRepository:
     """测试运行数据仓储"""
 
@@ -330,81 +437,9 @@ class TestRunRepository:
         )
         result = await self.session.execute(stmt)
         jobs = list(result.scalars().all())
-# pragma: no cover  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2VkVOellnPT06ZWRjMDdkNDQ=
 
-        total = 0
-        untested = 0
-        passed = 0
-        failed = 0
-        skipped = 0
-        blocked = 0
-        in_progress = 0
-        retest = 0
-
-        for job in jobs:
-            status = job.status
-            summary = job.result_summary or {}
-            has_explicit_results = bool(summary)
-
-            # 兼容 result_summary 中可能使用的不同 key（passed / passed_count）
-            passed_in_summary = summary.get("passed", summary.get("passed_count", 0)) or 0
-            failed_in_summary = summary.get("failed", summary.get("failed_count", 0)) or 0
-            skipped_in_summary = summary.get("skipped", summary.get("skipped_count", 0)) or 0
-            total_in_summary = summary.get("total")
-
-            # 每个 ScriptJob 的“用例总数”优先取 result_summary.total；
-            # 没有显式 total 时按 passed+failed+skipped 计；
-            # 仍为空则按 1 个用例计，避免整项结果丢失。
-            if has_explicit_results and status in (JobStatus.COMPLETED, JobStatus.FAILED):
-                if total_in_summary is not None:
-                    job_total = total_in_summary
-                else:
-                    job_total = passed_in_summary + failed_in_summary + skipped_in_summary
-                if job_total == 0:
-                    job_total = 1
-            else:
-                job_total = 1
-            total += job_total
-
-            if status == JobStatus.PENDING:
-                untested += job_total
-            elif status == JobStatus.RUNNING:
-                in_progress += job_total
-            elif status == JobStatus.COMPLETED:
-                if has_explicit_results:
-                    passed += passed_in_summary
-                    failed += failed_in_summary
-                    skipped += skipped_in_summary
-                else:
-                    passed += job_total
-            elif status == JobStatus.FAILED:
-                if has_explicit_results:
-                    passed += passed_in_summary
-                    failed += failed_in_summary
-                    skipped += skipped_in_summary
-                else:
-                    failed += job_total
-            elif status == JobStatus.SKIPPED:
-                skipped += job_total
-            elif status == JobStatus.BLOCKED:
-                blocked += job_total
-            elif status == JobStatus.CANCELLED:
-                blocked += job_total
-
-        update_stmt = (
-            update(TestRun)
-            .where(TestRun.id == test_run_id)
-            .values(
-                test_cases_count=total,
-                untested_count=untested,
-                passed_count=passed,
-                retest_count=retest,
-                failed_count=failed,
-                blocked_count=blocked,
-                skipped_count=skipped,
-                in_progress_count=in_progress,
-            )
-        )
+        counts = _aggregate_progress_from_jobs(jobs)
+        update_stmt = update(TestRun).where(TestRun.id == test_run_id).values(**counts)
         await self.session.execute(update_stmt)
         await self.session.flush()
 
