@@ -55,6 +55,7 @@ import { ApiError } from "@/lib/api/client";
 import type { ScenarioStep } from "@/types/scenario";
 import { StepEditDialog } from "./step-edit-dialog";
 import { StepCreateDialog } from "./step-create-dialog";
+import { OPERATOR_LABELS } from "@/lib/assertion-utils";
 // TODO  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2VUhacU9BPT06ZTY1NjFiM2Q=
 
 interface ScenarioOrchestrationViewProps {
@@ -490,14 +491,30 @@ function SortableStepItem({
               {step.assertions && step.assertions.length > 0 && (
                 <div>
                   <h5 className="text-sm font-medium mb-2">断言</h5>
-                  <div className="space-y-1">
+                  <div className="space-y-2">
                     {step.assertions.map((assertion, idx) => (
                       <div
                         key={idx}
-                        className="text-xs bg-muted/50 px-2 py-1 rounded flex items-center gap-2"
+                        className="text-xs bg-muted/50 px-2 py-2 rounded space-y-1"
                       >
-                        <CheckCircle2 className="h-3 w-3 text-green-500" />
-                        <span>{assertion.type}: {JSON.stringify(assertion.expected)}</span>
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="h-3 w-3 text-green-500 flex-shrink-0" />
+                          <span className="font-medium">断言 #{idx + 1}</span>
+                          <span className="text-muted-foreground">类型 {assertion.type}</span>
+                        </div>
+                        {assertion.path && (
+                          <div className="pl-5 text-muted-foreground">
+                            路径 <code className="text-primary">{assertion.path}</code>
+                          </div>
+                        )}
+                        <div className="pl-5 text-muted-foreground">
+                          期望值 <code className="text-primary">{JSON.stringify(assertion.expected)}</code>
+                        </div>
+                        {assertion.operator && (
+                          <div className="pl-5 text-muted-foreground">
+                            操作符 <span className="text-primary">{OPERATOR_LABELS[assertion.operator] || assertion.operator}</span>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
