@@ -11,6 +11,11 @@ TestRunService 单元测试
 from datetime import datetime, timedelta, timezone
 from uuid import UUID, uuid4
 
+import io
+import zipfile
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
 
 from app.api.v2.test_runs import _csv_to_trigger_types, _csv_to_uuids
@@ -18,7 +23,147 @@ from app.schemas.enums import TriggerType
 from app.schemas.test_run import TestRunInfo, TestRunListInfo
 from app.services.scheduler_service import TestRunSchedulerService
 from app.services.test_run_service import TestRunService
-from app.utils.exceptions import BadRequestException
+from app.utils.exceptions import BadRequestException, NotFoundException
+
+
+def _build_report_zip() -> bytes:
+    """构造一个与生产环境同结构的 Playwright 报告 ZIP。"""
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("html/index.html", "<html><head></head><body>report</body></html>")
+        zf.writestr("html/trace/index.html", "<html><head></head><body>trace</body></html>")
+        zf.writestr("html/data/abc.zip", "trace data")
+        zf.writestr("test-results/foo/trace.zip", "trace zip")
+    return buf.getvalue()
+
+
+class TestGetJobReportResource:
+    @pytest.fixture
+    def service(self):
+        svc = TestRunService.__new__(TestRunService)
+        svc.session = MagicMock()
+        return svc
+
+    def _mock_common(self, service, report_path: str = "reports/test.zip"):
+        project_id = uuid4()
+        test_run_id = uuid4()
+        job_id = uuid4()
+
+        async def fake_get_project(identifier):
+            proj = MagicMock()
+            proj.id = project_id
+            return proj
+
+        async def fake_require_run(project_id_arg, identifier):
+            run = MagicMock()
+            run.id = test_run_id
+            return run
+
+        service._get_project_by_identifier = fake_get_project
+        service._require_test_run = fake_require_run
+
+        fake_job = MagicMock()
+        fake_job.id = job_id
+        fake_job.test_run_id = test_run_id
+        fake_job.report_path = report_path
+        service.script_job_repo = MagicMock()
+        service.script_job_repo.get_by_id = AsyncMock(return_value=fake_job)
+        return project_id, test_run_id, job_id
+
+    @pytest.mark.asyncio
+    async def test_returns_resource_with_clean_name(self, service):
+        self._mock_common(service)
+        with patch("app.services.test_run_service.MinIOClient") as mock_minio:
+            mock_minio.download_file.return_value = _build_report_zip()
+            data, content_type = await service.get_job_report_resource(
+                "P-1", "TR-1", str(uuid4()), "trace/index.html"
+            )
+            assert b"trace" in data
+            assert content_type == "text/html"
+
+    @pytest.mark.asyncio
+    async def test_html_path_returns_report_index(self, service):
+        self._mock_common(service)
+        with patch("app.services.test_run_service.MinIOClient") as mock_minio:
+            mock_minio.download_file.return_value = _build_report_zip()
+            data, content_type = await service.get_job_report_resource(
+                "P-1", "TR-1", str(uuid4()), "html"
+            )
+            assert b"report" in data
+            assert b"trace" not in data
+            assert content_type == "text/html"
+
+    @pytest.mark.asyncio
+    async def test_html_slash_path_returns_report_index(self, service):
+        self._mock_common(service)
+        with patch("app.services.test_run_service.MinIOClient") as mock_minio:
+            mock_minio.download_file.return_value = _build_report_zip()
+            data, content_type = await service.get_job_report_resource(
+                "P-1", "TR-1", str(uuid4()), "html/"
+            )
+            assert b"report" in data
+            assert content_type == "text/html"
+
+    @pytest.mark.asyncio
+    async def test_missing_resource_raises_not_found(self, service):
+        self._mock_common(service)
+        with patch("app.services.test_run_service.MinIOClient") as mock_minio:
+            mock_minio.download_file.return_value = _build_report_zip()
+            with pytest.raises(NotFoundException):
+                await service.get_job_report_resource(
+                    "P-1", "TR-1", str(uuid4()), "not/exists.txt"
+                )
+
+
+class TestGetJobReportDownload:
+    @pytest.fixture
+    def service(self):
+        svc = TestRunService.__new__(TestRunService)
+        svc.session = MagicMock()
+        return svc
+
+    def _mock_common(self, service, report_path: str = "reports/test.zip"):
+        project_id = uuid4()
+        test_run_id = uuid4()
+        job_id = uuid4()
+
+        async def fake_get_project(identifier):
+            proj = MagicMock()
+            proj.id = project_id
+            return proj
+
+        async def fake_require_run(project_id_arg, identifier):
+            run = MagicMock()
+            run.id = test_run_id
+            return run
+
+        service._get_project_by_identifier = fake_get_project
+        service._require_test_run = fake_require_run
+
+        fake_job = MagicMock()
+        fake_job.id = job_id
+        fake_job.test_run_id = test_run_id
+        fake_job.report_path = report_path
+        service.script_job_repo = MagicMock()
+        service.script_job_repo.get_by_id = AsyncMock(return_value=fake_job)
+        return project_id, test_run_id, job_id
+
+    @pytest.mark.asyncio
+    async def test_returns_zip_bytes(self, service):
+        project_id, test_run_id, job_id = self._mock_common(service)
+        zip_bytes = _build_report_zip()
+        with patch("app.services.test_run_service.MinIOClient") as mock_minio:
+            mock_minio.download_file.return_value = zip_bytes
+            result = await service.get_job_report_download("P-1", "TR-1", str(job_id))
+            assert result == zip_bytes
+            mock_minio.download_file.assert_called_once_with("reports/test.zip")
+
+    @pytest.mark.asyncio
+    async def test_missing_report_raises_not_found(self, service):
+        self._mock_common(service, report_path=None)
+        with patch("app.services.test_run_service.MinIOClient") as mock_minio:
+            with pytest.raises(NotFoundException):
+                await service.get_job_report_download("P-1", "TR-1", str(uuid4()))
 
 
 class DummySchedule:

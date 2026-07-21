@@ -879,6 +879,40 @@ class TestRunService:
         )
         return {"url": url, "expires_in": 3600}
 
+    async def get_snapshot_job_report_download(
+        self,
+        project_identifier: str,
+        test_run_identifier: str,
+        snapshot_id: str,
+        snapshot_job_id: str,
+    ) -> bytes:
+        """下载快照作业报告 ZIP 文件内容"""
+        project = await self._get_project_by_identifier(project_identifier)
+        test_run = await self._require_test_run(project.id, test_run_identifier)
+
+        try:
+            snapshot_uuid = UUID(snapshot_id)
+            snapshot_job_uuid = UUID(snapshot_job_id)
+        except ValueError:
+            raise BadRequestException(message="快照 ID 或快照作业 ID 格式不正确")
+
+        snapshot = await self.snapshot_repo.get_by_id(snapshot_uuid)
+        if not snapshot or snapshot.test_run_id != test_run.id:
+            raise NotFoundException(resource_type="执行快照", resource_id=snapshot_id)
+
+        snapshot_job = next(
+            (j for j in (snapshot.snapshot_jobs or []) if j.id == snapshot_job_uuid), None
+        )
+        if not snapshot_job:
+            raise NotFoundException(resource_type="快照作业", resource_id=snapshot_job_id)
+
+        if not snapshot_job.report_path:
+            raise NotFoundException(
+                resource_type="报告", resource_id=snapshot_job_id, message="该快照作业暂无报告"
+            )
+
+        return MinIOClient.download_file(snapshot_job.report_path)
+
     async def get_snapshot_job_report_preview(
         self,
         project_identifier: str,
@@ -1651,6 +1685,27 @@ class TestRunService:
         url = MinIOClient.get_presigned_url(job.report_path, expires=timedelta(hours=1))
         return {"url": url, "expires_in": 3600}
 
+    async def get_job_report_download(
+        self,
+        project_identifier: str,
+        test_run_identifier: str,
+        job_id: str,
+    ) -> bytes:
+        """下载脚本作业报告 ZIP 文件内容"""
+        project = await self._get_project_by_identifier(project_identifier)
+        test_run = await self._require_test_run(project.id, test_run_identifier)
+
+        job = await self.script_job_repo.get_by_id(UUID(job_id))
+        if not job or job.test_run_id != test_run.id:
+            raise NotFoundException(resource_type="脚本作业", resource_id=job_id)
+
+        if not job.report_path:
+            raise NotFoundException(
+                resource_type="报告", resource_id=job_id, message="该作业暂无报告"
+            )
+
+        return MinIOClient.download_file(job.report_path)
+
     async def retry_job(
         self,
         project_identifier: str,
@@ -2098,21 +2153,37 @@ class TestRunService:
             with zipfile.ZipFile(zip_file, 'r') as zf:
                 # 查找匹配的资源文件（支持子目录）
                 resource_file = None
-                for name in zf.namelist():
-                    if name.endswith('/') :
-                        continue
-                    # 去除可能的顶级目录前缀
-                    clean_name = name.split('/', 1)[1] if '/' in name else name
-                    if clean_name == resource_path or name == resource_path:
-                        resource_file = zf.read(name)
-                        break
+                matched_name = resource_path
+
+                # 兼容：某些浏览器/代理会去掉 base href 末尾斜杠，请求到 html/
+                # 目录本身，返回报告首页避免白屏。
+                if resource_path in ("html", "html/"):
+                    for name in zf.namelist():
+                        if name.endswith("/"):
+                            continue
+                        if name.endswith("index.html") and name.startswith("html/"):
+                            resource_file = zf.read(name)
+                            matched_name = name
+                            break
+
+                if resource_file is None:
+                    for name in zf.namelist():
+                        if name.endswith('/'):
+                            continue
+                        # 去除可能的顶级目录前缀，兼容 base href 指向 report-preview/ 或
+                        # report-preview/html/ 两种场景。
+                        clean_name = name.split('/', 1)[1] if '/' in name else name
+                        if clean_name == resource_path or name == resource_path:
+                            resource_file = zf.read(name)
+                            matched_name = name
+                            break
 
                 if resource_file is None:
                     raise NotFoundException(
                         resource_type="报告资源", resource_id=resource_path
                     )
 
-                content_type = mimetypes.guess_type(resource_path)[0] or "application/octet-stream"
+                content_type = mimetypes.guess_type(matched_name)[0] or "application/octet-stream"
                 return resource_file, content_type
 
     async def map_jobs_to_test_cases(

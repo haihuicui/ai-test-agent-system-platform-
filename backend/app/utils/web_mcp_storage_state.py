@@ -7,7 +7,9 @@
 import logging
 from pathlib import Path
 from typing import Optional
-from uuid import UUID, ValueError as UUIDValueError
+from uuid import UUID
+
+UUIDValueError = ValueError
 
 from sqlalchemy import select
 

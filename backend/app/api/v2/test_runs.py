@@ -838,6 +838,32 @@ async def get_snapshot_job_report_preview_endpoint(
 
 
 @router.get(
+    "/{test_run_identifier}/snapshots/{snapshot_id}/jobs/{snapshot_job_id}/report-download",
+    summary="下载快照作业报告 ZIP",
+    description="从 MinIO 下载快照作业报告 ZIP 文件并返回，触发浏览器下载",
+)
+async def get_snapshot_job_report_download(
+    project_identifier: str,
+    test_run_identifier: str,
+    snapshot_id: str,
+    snapshot_job_id: str,
+    service: TestRunServiceDep,
+) -> Response:
+    zip_bytes = await service.get_snapshot_job_report_download(
+        project_identifier, test_run_identifier, snapshot_id, snapshot_job_id
+    )
+    filename = f"snapshot-{snapshot_id}-job-{snapshot_job_id}-report.zip"
+    return Response(
+        content=zip_bytes,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Length": str(len(zip_bytes)),
+        },
+    )
+
+
+@router.get(
     "/{test_run_identifier}/snapshots/{snapshot_id}/jobs/{snapshot_job_id}/report-preview/{resource_path:path}",
     summary="获取快照作业报告资源",
     description="从 ZIP 报告中解压并返回指定资源文件（CSS/JS/图片等）",
@@ -895,13 +921,30 @@ async def get_snapshot_job_report_resource(
 
         with zipfile.ZipFile(zip_file, "r") as zf:
             resource_file = None
-            for name in zf.namelist():
-                if name.endswith("/"):
-                    continue
-                clean_name = name.split("/", 1)[1] if "/" in name else name
-                if clean_name == resource_path or name == resource_path:
-                    resource_file = zf.read(name)
-                    break
+            matched_name = resource_path
+
+            # 兼容：某些浏览器/代理会去掉 base href 末尾斜杠，请求到 html/
+            # 目录本身，返回报告首页避免白屏。
+            if resource_path in ("html", "html/"):
+                for name in zf.namelist():
+                    if name.endswith("/"):
+                        continue
+                    if name.endswith("index.html") and name.startswith("html/"):
+                        resource_file = zf.read(name)
+                        matched_name = name
+                        break
+
+            if resource_file is None:
+                for name in zf.namelist():
+                    if name.endswith("/"):
+                        continue
+                    # 去除可能的顶级目录前缀，兼容 base href 指向 report-preview/ 或
+                    # report-preview/html/ 两种场景。
+                    clean_name = name.split("/", 1)[1] if "/" in name else name
+                    if clean_name == resource_path or name == resource_path:
+                        resource_file = zf.read(name)
+                        matched_name = name
+                        break
 
             if resource_file is None:
                 from app.utils.exceptions import NotFoundException
@@ -909,7 +952,7 @@ async def get_snapshot_job_report_resource(
                     resource_type="报告资源", resource_id=resource_path
                 )
 
-            content_type = mimetypes.guess_type(resource_path)[0] or "application/octet-stream"
+            content_type = mimetypes.guess_type(matched_name)[0] or "application/octet-stream"
             return Response(content=resource_file, media_type=content_type)
 
 
@@ -1013,6 +1056,31 @@ async def get_job_report_url(
         f"/script-jobs/{job_id}/report-preview"
     )
     return SuccessResponse(success=True, data={"url": url, "expires_in": 3600})
+
+
+@router.get(
+    "/{test_run_identifier}/script-jobs/{job_id}/report-download",
+    summary="下载脚本作业报告 ZIP",
+    description="从 MinIO 下载脚本作业报告 ZIP 文件并返回，触发浏览器下载",
+)
+async def get_job_report_download(
+    project_identifier: str,
+    test_run_identifier: str,
+    job_id: str,
+    service: TestRunServiceDep,
+) -> Response:
+    zip_bytes = await service.get_job_report_download(
+        project_identifier, test_run_identifier, job_id
+    )
+    filename = f"job-{job_id}-report.zip"
+    return Response(
+        content=zip_bytes,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Length": str(len(zip_bytes)),
+        },
+    )
 
 
 @router.post(
