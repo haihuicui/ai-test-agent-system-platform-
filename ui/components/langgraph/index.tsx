@@ -6,6 +6,7 @@ export { InterruptActions } from "./InterruptActions";
 export { ToolApprovalInterrupt } from "./ToolApprovalInterrupt";
 export { PhaseReviewInterrupt } from "./PhaseReviewInterrupt";
 export { OutputFormatInterrupt } from "./OutputFormatInterrupt";
+export { IntentConfirmationInterrupt } from "./IntentConfirmationInterrupt";
 export { ReviewHistoryTimeline } from "./ReviewHistoryTimeline";
 export { SubAgentIndicator } from "./SubAgentIndicator";
 export { FilesPopover, TasksFilesSidebar } from "./TasksFilesSidebar";

@@ -31,6 +31,7 @@ from langchain_mcp_adapters.tools import load_mcp_tools
 
 from app.agents.tools.web import get_local_tools
 from app.agents.tools.error_handler import wrap_tools_with_error_handling
+from app.agents.web_mcp.intent_confirmation_middleware import WebIntentConfirmationMiddleware
 from app.config.settings import settings
 from app.core.llms import text_model as model
 from app.utils.shell_env import build_shell_env, ensure_playwright_mcp_project, get_playwright_mcp_command_args
@@ -139,8 +140,20 @@ SYSTEM_PROMPT = """# Web 自动化测试专家
 8. `get_web_sub_function_artifacts(sub_function_id)` 验证三类成果物齐全（计划/用例/脚本）
 9. **执行邀约**：向用户说明“测试计划、测试用例、测试脚本已保存；**尚未执行，因此暂无 HTML 报告和执行摘要**”，并主动询问是否需要立即执行测试。若用户确认，进入流程 3️⃣。
 
-### 2️⃣ 创建功能 — 输入：功能描述
-1. `create_web_function(
+### 2️⃣ 创建功能 — 输入：功能描述 / 目标站点
+1. **检查已有匹配功能**：先用 `list_web_functions(project_identifier=...)` 检查项目中是否已有匹配功能。
+   - 若存在匹配功能（如 `base_url` 相同、`display_name` 语义相近、目标站点一致），**不要以开放文字反问用户**。
+   - 输出自然语言推荐说明，例如：
+     > 检测到功能 WF-1008（SauceDemo 登录与购物）与目标站点匹配度 100%，建议扩展已有功能。
+   - 在消息末尾附加意图确认标记（JSON 必须合法、压缩为一行）：
+     ```
+     <INTENT_CONFIRMATION>
+     {"type":"web_intent_confirmation","recommendation":"expand","reason":"检测到功能 WF-1008 与目标站点匹配度 100%，建议扩展","description":"请选择后续操作","existing_function":{"id":"...","identifier":"WF-1008","display_name":"SauceDemo 登录与购物","base_url":"https://www.saucedemo.com"},"alternatives":[{"key":"expand","label":"扩展已有功能"},{"key":"new","label":"新建功能"},{"key":"view_details","label":"先查看详情"}]}
+     </INTENT_CONFIRMATION>
+     ```
+   - 系统将自动弹出结构化按钮；用户选择后自动继续，无需用户打字回复。
+   - 当用户选择"先查看详情"时，调用 `get_function_details(function_id=...)` 展示信息，展示完信息后**再次输出意图确认标记**，等待用户最终选择。
+2. 若没有匹配或用户已选择新建，再调用 `create_web_function(
      project_identifier=...,
      display_name=...,
      name=...,
@@ -148,13 +161,13 @@ SYSTEM_PROMPT = """# Web 自动化测试专家
      folder_id=...
    )`
    - `business_module` 为**必填**，由 planner 根据 URL/页面标题推断业务模块（如 `saucedemo.com` 登录页 → "用户认证"）。
-2. `create_web_sub_function(
+3. `create_web_sub_function(
      project_identifier=...,
      function_id=...,
      display_name=...,
      name=...
    )`
-3. 每创建一个子功能，立即对其执行流程 1️⃣（不要批量创建后再批量生成）
+4. 每创建一个子功能，立即对其执行流程 1️⃣（不要批量创建后再批量生成）
 
 ### 3️⃣ 执行测试（含自动修复）— 输入：子功能 / 脚本 ID
 1. `get_web_sub_function_artifacts(sub_function_id)`
@@ -201,13 +214,18 @@ SYSTEM_PROMPT = """# Web 自动化测试专家
 
 ### 登录态（探索与生成阶段）
 - 本智能体启动时，系统会自动将当前项目最新的成功 storageState 注入 `playwright.config.js`。
+  但 `storageState` 只是“建议”，**不能假设它一定能让目标站点保持登录**。
   因此 `planner_setup_page` + `browser_navigate` 导航到目标 URL 后，**必须立即用 `browser_snapshot()` 检查实际页面**。
 - 如果页面已经显示目标业务内容（没有登录表单、用户名/密码输入框、登录按钮，URL 也未被重定向到登录页），
   说明 storageState 已生效，**不要执行 UI 登录**，仅在测试计划中记录：
   `**认证方式**：已通过项目 storageState 自动登录`。
 - 如果页面被重定向到登录页或快照中出现登录表单，则按需执行一次 UI 登录，
-  并将登录步骤作为该场景的 Setup Step 记录。
-- 生成 Playwright 脚本时，**不要**写 UI 登录步骤；执行环境会自动携带已登录会话。
+  并将登录步骤作为该场景的 **Setup Step** 记录，同时在 `**认证方式**` 中写明：
+  `**认证方式**：需 UI 登录（项目 storageState 对该应用不生效）`。
+- 生成 Playwright 脚本时，**严格遵循测试计划里的 Setup Steps**：
+  - 如果 plan 的 Setup Steps 中包含登录步骤，则必须把这些步骤写进脚本（推荐放在 `test.beforeEach` 中）。
+  - 如果 plan 明确写着 `**认证方式**：已通过项目 storageState 自动登录`，才可以不写 UI 登录步骤。
+  - 绝对禁止因为 `playwright.config.js` 配置了 storageState 就忽略 plan 中的登录 Setup Steps。
 
 ### 等待策略（统一口径，二者不矛盾）
 - **MCP 探索/调试侧**：不要用 `browser_wait_for(state=...)`；改用 `browser_snapshot()`（自动等待）或 `browser_wait_for(time=2000)`。
@@ -219,6 +237,11 @@ SYSTEM_PROMPT = """# Web 自动化测试专家
 
 ### 有头/无头（headless）
 用户明确要求「观察执行/调试」时，`execute_web_script(..., headless=False)` 弹出浏览器；批量回归或用户未要求时保持默认。Linux 无图形环境会自动降级为 headless。
+
+### 意图确认（人机交互面板）
+- 当检测到已有匹配功能时，**禁止以自然语言反问用户**"是沿用并完善/扩展已有的 XXX，还是新建一个功能？"；统一使用系统意图确认面板。
+- 意图确认标记必须紧跟在自然语言推荐说明之后，JSON 必须合法，且 `type` 必须为 `web_intent_confirmation`。
+- 不要在标记外重复询问用户选择，用户会通过面板按钮直接回复。
 
 ## 📚 Skill 路由表
 | Skill | 何时用 |
@@ -308,7 +331,7 @@ async def make_agent(config: RunnableConfig | None = None) -> AsyncIterator[Preg
             model=model,
             tools=all_tools,
             system_prompt=SYSTEM_PROMPT,
-            middleware=[skills_middleware, context_middleware],
+            middleware=[skills_middleware, context_middleware, WebIntentConfirmationMiddleware()],
             backend=composite_backend,
             context_schema=WebAgentContext,
         )

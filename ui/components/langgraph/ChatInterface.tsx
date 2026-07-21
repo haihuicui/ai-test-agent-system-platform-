@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { ChatMessage } from "@/components/langgraph/ChatMessage";
 import { OutputFormatInterrupt } from "@/components/langgraph/OutputFormatInterrupt";
+import { IntentConfirmationInterrupt } from "@/components/langgraph/IntentConfirmationInterrupt";
 import { PhaseReviewInterrupt } from "@/components/langgraph/PhaseReviewInterrupt";
 import { ReviewHistoryTimeline } from "@/components/langgraph/ReviewHistoryTimeline";
 import type {
@@ -627,6 +628,11 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
     return (interrupt?.value as any)?.type === "format_selection";
   }, [interrupt]);
 
+  // Web 意图确认中断
+  const isIntentConfirmationInterrupt = useMemo(() => {
+    return (interrupt?.value as any)?.type === "web_intent_confirmation";
+  }, [interrupt]);
+
   // 从历史消息中提取评审轮次元数据
   const reviewRounds = useMemo(() => {
     const rounds: any[] = [];
@@ -743,6 +749,19 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
                     actionRequest={Array.from(actionRequestsMap!.values())[0]}
                     reviewConfig={Array.from(reviewConfigsMap!.values())[0]}
                     reviewRounds={currentPhaseReviewRounds}
+                    onResume={resumeInterrupt}
+                    isLoading={isResumingInterrupt}
+                  />
+                </div>
+              )}
+              {isIntentConfirmationInterrupt && interrupt && (
+                <div className="mt-4">
+                  <IntentConfirmationInterrupt
+                    recommendation={(interrupt.value as any).recommendation}
+                    reason={(interrupt.value as any).reason}
+                    description={(interrupt.value as any).description}
+                    existing_function={(interrupt.value as any).existing_function}
+                    alternatives={(interrupt.value as any).alternatives}
                     onResume={resumeInterrupt}
                     isLoading={isResumingInterrupt}
                   />
