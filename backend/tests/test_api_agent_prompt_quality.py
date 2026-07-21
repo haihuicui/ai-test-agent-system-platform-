@@ -191,17 +191,21 @@ def test_gate_treats_broad_truthiness_as_weak(report):
 # -----------------------------------------------------------------------------
 
 def test_system_prompt_asks_for_execution_after_generation():
-    """生成流程末尾必须主动说明已保存并询问是否执行。"""
+    """生成流程末尾必须主动说明已保存并输出执行邀约标记。"""
     prompt = _extract_system_prompt()
     assert "执行邀约" in prompt, "缺少执行邀约步骤"
     assert "尚未执行" in prompt, "未明确告知用户尚未执行"
     assert "暂无 HTML 报告" in prompt or "暂无 HTML 报告和执行摘要" in prompt
+    assert "<EXECUTION_INVITATION>" in prompt, "未提供执行邀约标记示例"
+    assert '"type":"execution_invitation"' in prompt, "执行邀约标记类型不正确"
+    assert "不要以开放文字反问用户" in prompt, "未禁止开放文字反问"
 
 
 def test_system_prompt_prohibits_execution_without_confirmation():
-    """必须禁止在用户确认前调用执行类工具。"""
+    """必须通过执行邀约标记获得用户决策后，方可调用执行类工具。"""
     prompt = _extract_system_prompt()
-    assert "未获得用户确认前不得调用任何执行类工具" in prompt
+    assert "[执行邀约]" in prompt or "收到用户通过面板提交的决策" in prompt
+    assert "方可调用执行类工具" in prompt
     assert "execute_api_script" in prompt
     assert "execute_scenario" in prompt
 
@@ -214,19 +218,26 @@ def test_system_prompt_rest_endpoint_generation_only():
 
 
 def test_api_agent_has_hitl_for_dangerous_tools():
-    """危险工具必须注册在 interrupt_on 中。"""
+    """危险工具必须注册在 interrupt_on 中；执行类工具已由执行邀约面板统一 gate。"""
     from app.agents.api.agent import DANGEROUS_TOOLS_HITL
 
     dangerous = {
+        "delete_api_script",
+    }
+    assert dangerous.issubset(DANGEROUS_TOOLS_HITL.keys()), (
+        f"以下危险工具未配置 HITL: {dangerous - set(DANGEROUS_TOOLS_HITL.keys())}"
+    )
+
+    # 执行类工具不再通过 ToolApprovalInterrupt 二次确认
+    execution_tools = {
         "execute_api_script",
         "execute_api_script_by_artifact_id",
         "run_tests",
         "execute_scenario",
         "batch_run_tests",
-        "delete_api_script",
     }
-    assert dangerous.issubset(DANGEROUS_TOOLS_HITL.keys()), (
-        f"以下危险工具未配置 HITL: {dangerous - set(DANGEROUS_TOOLS_HITL.keys())}"
+    assert execution_tools.isdisjoint(DANGEROUS_TOOLS_HITL.keys()), (
+        f"执行类工具应移出 DANGEROUS_TOOLS_HITL，避免双重确认: {execution_tools & set(DANGEROUS_TOOLS_HITL.keys())}"
     )
 
 

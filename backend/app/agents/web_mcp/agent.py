@@ -31,6 +31,7 @@ from langchain_mcp_adapters.tools import load_mcp_tools
 
 from app.agents.tools.web import get_local_tools
 from app.agents.tools.error_handler import wrap_tools_with_error_handling
+from app.agents.web_mcp.execution_invitation_middleware import WebExecutionInvitationMiddleware
 from app.agents.web_mcp.intent_confirmation_middleware import WebIntentConfirmationMiddleware
 from app.config.settings import settings
 from app.core.llms import text_model as model
@@ -138,7 +139,13 @@ SYSTEM_PROMPT = """# Web 自动化测试专家
 6. 读 **generator** skill → **用计划中的定位器**生成脚本，不要重新探索页面
 7. `save_web_test_script(script_content=...)` 保存（强制）
 8. `get_web_sub_function_artifacts(sub_function_id)` 验证三类成果物齐全（计划/用例/脚本）
-9. **执行邀约**：向用户说明“测试计划、测试用例、测试脚本已保存；**尚未执行，因此暂无 HTML 报告和执行摘要**”，并主动询问是否需要立即执行测试。若用户确认，进入流程 3️⃣。
+9. **执行邀约**：向用户说明“测试计划、测试用例、测试脚本已保存；**尚未执行，因此暂无 HTML 报告和执行摘要**”。不要以开放文字反问用户，必须在消息末尾附加执行邀约标记（JSON 必须合法、压缩为一行）：
+   ```
+   <EXECUTION_INVITATION>
+   {"type":"execution_invitation","mode":"web","sub_function_id":"<当前子功能ID>","script_name":"<脚本文件名>","test_count":<用例数量>,"description":"测试计划、测试用例、测试脚本已保存；尚未执行，因此暂无 HTML 测试报告和执行摘要。是否立即执行？","alternatives":[{"key":"execute","label":"立即执行"},{"key":"skip","label":"暂不执行"},{"key":"edit","label":"修改脚本"},{"key":"other","label":"其他"}]}
+   </EXECUTION_INVITATION>
+   ```
+   系统将自动弹出结构化按钮；用户选择后自动继续，无需用户打字回复。若用户选择“立即执行”，进入流程 3️⃣；若选择“修改脚本”，请询问用户具体修改需求；若选择“暂不执行”，礼貌等待用户后续指令；若选择“其他”，请按用户补充说明处理。
 
 ### 2️⃣ 创建功能 — 输入：功能描述 / 目标站点
 1. **检查已有匹配功能**：先用 `list_web_functions(project_identifier=...)` 检查项目中是否已有匹配功能。
@@ -197,7 +204,7 @@ SYSTEM_PROMPT = """# Web 自动化测试专家
 
 ### 成果物保存（强制）
 每个子功能必须保存三类生成成果物：测试计划、测试用例、测试脚本，完成后用 `get_web_sub_function_artifacts` 验证齐全。
-**生成完成后必须执行“执行邀约”**：向用户说明已保存的成果物，明确告知“尚未执行，暂无 HTML 报告和执行摘要”，并主动询问是否需要立即执行测试。
+**生成完成后必须执行“执行邀约”**：向用户说明已保存的成果物，明确告知“尚未执行，暂无 HTML 报告和执行摘要”，并主动输出执行邀约标记。收到用户通过面板提交的决策（以 `[执行邀约]` 开头的 HumanMessage）后，方可调用执行类工具。不要在标记外重复询问用户选择。
 **执行测试后必须保存第四类成果物**：调用 `save_web_test_report(test_run_id=..., report_content=..., project_identifier=...)` 将 Markdown 执行摘要持久化为 `WEB_TEST_REPORT` 类型的 Attachment；保存后可通过 `get_web_sub_function_artifacts(sub_function_id)` 与计划/用例/脚本并列查看。
 
 ### 创建功能必填项
@@ -332,7 +339,12 @@ async def make_agent(config: RunnableConfig | None = None) -> AsyncIterator[Preg
             model=model,
             tools=all_tools,
             system_prompt=SYSTEM_PROMPT,
-            middleware=[skills_middleware, context_middleware, WebIntentConfirmationMiddleware()],
+            middleware=[
+                skills_middleware,
+                context_middleware,
+                WebIntentConfirmationMiddleware(),
+                WebExecutionInvitationMiddleware(),
+            ],
             backend=composite_backend,
             context_schema=WebAgentContext,
         )

@@ -25,6 +25,7 @@ from deepagents.middleware import SkillsMiddleware
 from langchain.agents.middleware import AgentMiddleware, ModelRequest, ModelResponse, InterruptOnConfig
 from langgraph.config import get_config
 
+from app.agents.api.execution_invitation_middleware import APIExecutionInvitationMiddleware
 from app.agents.api.runtime_context import conversation_id_ctx
 from app.agents.api.scenario_quality_middleware import ScenarioQualityGateMiddleware
 from app.agents.tools.api import get_local_tools
@@ -158,7 +159,13 @@ SYSTEM_PROMPT = """# API 自动化测试专家
 3. 生成测试计划 → `save_test_plan(plan_content=...)` 立即保存
 4. `derive_test_skeleton(endpoint_id)` 获取确定性用例骨架，再结合计划填充数据与断言 → `save_test_cases(test_cases=[...])` 立即保存
 5. `get_response_schema(endpoint_id)` 获取响应 schema（字段名/类型/必填/枚举）→ 生成可执行脚本（参考 generator skill；2xx 用例用 `validateSchema(body, SCHEMA)` 做整体契约校验）→ `audit_script_assertions(script_content=...)` 预检 → `save_test_script(script_content=...)` 保存
-6. **执行邀约（必须）**：脚本保存后，向用户说明"测试计划、测试用例、测试脚本已保存；**尚未执行，因此暂无 HTML 测试报告和执行摘要**，并主动询问是否需要立即执行测试。若用户确认，再进入第 7 步；否则停止等待用户进一步指示。
+6. **执行邀约（必须）**：脚本保存后，向用户说明“测试计划、测试用例、测试脚本已保存；**尚未执行，因此暂无 HTML 测试报告和执行摘要**”。不要以开放文字反问用户，必须在消息末尾附加执行邀约标记（JSON 必须合法、压缩为一行）：
+   ```
+   <EXECUTION_INVITATION>
+   {"type":"execution_invitation","mode":"api","endpoint_id":"<当前端点ID>","script_name":"<脚本文件名>","test_count":<用例数量>,"description":"测试计划、测试用例、测试脚本已保存；尚未执行，因此暂无 HTML 测试报告和执行摘要。是否立即执行？","alternatives":[{"key":"execute","label":"立即执行"},{"key":"skip","label":"暂不执行"},{"key":"edit","label":"修改脚本"},{"key":"other","label":"其他"}]}
+   </EXECUTION_INVITATION>
+   ```
+   系统将自动弹出结构化按钮；用户选择后自动继续。若用户选择“立即执行”，进入第 7 步；若选择“修改脚本”，请询问用户具体修改需求；若选择“暂不执行”，停止等待用户进一步指示；若选择“其他”，请按用户补充说明处理。
 7. `download_api_script` 下载 → `execute_api_script` 执行：
    ```javascript
    await tools.execute_api_script({
@@ -199,7 +206,7 @@ SYSTEM_PROMPT = """# API 自动化测试专家
 9. **token 失效是环境问题**：执行报 token 过期/无效，应检查环境 `token_url`/`token_body`/`token_path` 配置，而非改脚本放宽断言。`dynamic_bearer` 环境 `has_auth_secret=false` 属正常（靠 token_url 动态取 token）。
 10. **执行必传 `execution_config`**：优先 `env_id` 指定环境（后端自动解析 base_url 并注入 AUTH_TOKEN），仅用户显式要求时才直接传 `base_url`；`reporter` 用 `html` 以生成报告存 MinIO。项目无环境时脚本仍用环境变量占位，执行会明确报错提示前往 项目设置 > 环境管理 配置。
 11. **一次对话一个场景**：同对话再次 `create_test_scenario` 会自动覆盖旧场景；除非用户明确要求，不保留多个场景；场景生成后必须自动执行并修复到可运行。
-12. **生成后必须执行“执行邀约”**：脚本/场景保存后，必须明确告知用户“尚未执行，暂无 HTML 报告和执行摘要”，并主动询问是否立即执行；未获得用户确认前不得调用任何执行类工具（`execute_api_script` / `execute_api_script_by_artifact_id` / `run_tests` / `execute_scenario` / `batch_run_tests` 等）。
+12. **生成后必须执行“执行邀约”**：脚本/场景保存后，必须明确告知用户“尚未执行，暂无 HTML 报告和执行摘要”，并主动输出执行邀约标记。收到用户通过面板提交的决策（以 `[执行邀约]` 开头的 HumanMessage）后，方可调用执行类工具（`execute_api_script` / `execute_api_script_by_artifact_id` / `run_tests` / `execute_scenario` / `batch_run_tests` 等）。不要在标记外重复询问用户选择。
 13. **REST 生成端口仅生成不执行**：通过 `generate-from-schema` 等一次性接口调用时，只完成计划/用例/脚本生成并保存，不要调用执行工具，避免非流式接口无法处理中断。
 14. **同类操作最多重试 3 次**：同一工具调用在同一问题上失败 3 次后，必须切换策略而非继续重试。例如：`add_step_assertion` 返回 success 但断言未持久化 → 改用 `update_scenario_step` 一次性设置 assertions 列表；`execute_scenario` 反复被门禁拦截 → 检查是否后端 bug，使用 `skip_assertion_gate=true` 绕过或向用户报告。**严禁同一操作循环重试超过 3 次。**
 15. **执行后必须校验 trace 防假阳性**：`execute_api_script` 返回的 `trace_entries` 中包含每个用例的真实响应体。对于正向用例，必须检查 `responseBody.code`/`responseBody.success` 的实际值——HTTP 200 + code=4009（非成功值）是**假阳性**，必须向用户报告为失败，严禁报告"全部通过"。
@@ -246,11 +253,6 @@ SYSTEM_PROMPT = """# API 自动化测试专家
 # =============================================================================
 
 DANGEROUS_TOOLS_HITL = {
-    "execute_api_script": InterruptOnConfig(allowed_decisions=["approve", "reject", "edit"]),
-    "execute_api_script_by_artifact_id": InterruptOnConfig(allowed_decisions=["approve", "reject", "edit"]),
-    "run_tests": InterruptOnConfig(allowed_decisions=["approve", "reject", "edit"]),
-    "execute_scenario": InterruptOnConfig(allowed_decisions=["approve", "reject", "edit"]),
-    "batch_run_tests": InterruptOnConfig(allowed_decisions=["approve", "reject"]),
     "delete_api_script": InterruptOnConfig(allowed_decisions=["approve", "reject"]),
 }
 
@@ -265,6 +267,7 @@ api_agent = create_agent(
                 skills_middleware,
                 context_middleware,
                 ScenarioQualityGateMiddleware(),
+                APIExecutionInvitationMiddleware(),
             ],
             backend=composite_backend,
             context_schema=APIAgentContext,

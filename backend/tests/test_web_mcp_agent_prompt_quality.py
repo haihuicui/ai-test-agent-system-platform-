@@ -43,11 +43,14 @@ def _extract_system_prompt() -> str:
 # -----------------------------------------------------------------------------
 
 def test_system_prompt_asks_for_execution_after_generation():
-    """生成流程末尾必须主动说明已保存并询问是否执行。"""
+    """生成流程末尾必须主动说明已保存并输出执行邀约标记。"""
     prompt = _extract_system_prompt()
     assert "执行邀约" in prompt, "缺少执行邀约步骤"
     assert "尚未执行" in prompt, "未明确告知用户尚未执行"
     assert "暂无 HTML 报告" in prompt or "暂无 HTML 报告和执行摘要" in prompt
+    assert "<EXECUTION_INVITATION>" in prompt, "未提供执行邀约标记示例"
+    assert '"type":"execution_invitation"' in prompt, "执行邀约标记类型不正确"
+    assert "不要以开放文字反问用户" in prompt, "未禁止开放文字反问"
 
 
 def test_system_prompt_uses_report_attachment_id_not_url():

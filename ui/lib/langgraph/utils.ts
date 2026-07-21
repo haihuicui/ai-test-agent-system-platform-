@@ -8,10 +8,15 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-const INTENT_CONFIRMATION_RE = /<INTENT_CONFIRMATION>[\s\S]*?<\/INTENT_CONFIRMATION>/gi;
+const HIDDEN_MARKERS_RE = /<INTENT_CONFIRMATION>[\s\S]*?<\/INTENT_CONFIRMATION>|<EXECUTION_INVITATION>[\s\S]*?<\/EXECUTION_INVITATION>/gi;
 
+export function stripHiddenMarkers(content: string): string {
+  return content.replace(HIDDEN_MARKERS_RE, "").trim();
+}
+
+/** @deprecated 使用 stripHiddenMarkers，保留此别名以兼容旧代码 */
 export function stripHiddenIntentMarkers(content: string): string {
-  return content.replace(INTENT_CONFIRMATION_RE, "").trim();
+  return stripHiddenMarkers(content);
 }
 
 export function extractStringFromMessageContent(message: Message): string {
