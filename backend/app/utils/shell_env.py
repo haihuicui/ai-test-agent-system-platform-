@@ -138,6 +138,13 @@ async def ensure_playwright_mcp_project(
             print(f"[Web MCP] 配置的 storageState 文件不存在，跳过注入: {ss_path}")
 
     config_file = root / "playwright.config.js"
+    # 删除旧配置，避免从 Windows 开发机拷入的绝对路径等残留配置干扰 Linux 运行。
+    if config_file.exists():
+        config_file.unlink()
+    # 在 Docker/CI 等无 sandbox 环境自动注入 --no-sandbox。
+    no_sandbox_args = ""
+    if os.environ.get("PLAYWRIGHT_NO_SANDBOX", "").lower() in ("1", "true", "yes"):
+        no_sandbox_args = "\n      args: ['--no-sandbox', '--disable-setuid-sandbox'],"
     # 每次调用都重写配置，确保 headless / timeout / retries / storageState 变更生效。
     config_file.write_text(
         f"""module.exports = {{
@@ -154,7 +161,7 @@ async def ensure_playwright_mcp_project(
     launchOptions: {{
       handleSIGINT: true,
       handleSIGTERM: true,
-      handleSIGHUP: true,
+      handleSIGHUP: true,{no_sandbox_args}
     }},
   }},
   projects: [

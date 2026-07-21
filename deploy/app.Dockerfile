@@ -12,6 +12,8 @@ ENV PYTHONUNBUFFERED=1 \
     UV_LINK_MODE=copy \
     # 浏览器统一装到 /ms-playwright（构建期 root 安装 / 运行期 app 使用，同一路径）
     PLAYWRIGHT_BROWSERS_PATH=/ms-playwright \
+    # 非 root 用户在容器内运行 Chromium 需要关闭 sandbox
+    PLAYWRIGHT_NO_SANDBOX=1 \
     NPM_CONFIG_AUDIT=false \
     NPM_CONFIG_FUND=false
 
