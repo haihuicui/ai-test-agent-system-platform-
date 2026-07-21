@@ -58,6 +58,9 @@ class StorageStateJobInfo(BaseModel):
     status: str = Field(..., description="任务状态: pending/running/completed/failed")
     output_path: Optional[str] = Field(default=None, description="生成的 storageState.json 本地路径")
     attachment_id: Optional[UUID] = Field(default=None, description="MinIO 附件 ID")
+    failure_screenshot_attachment_id: Optional[UUID] = Field(
+        default=None, description="失败时页面截图附件 ID"
+    )
     error_message: Optional[str] = Field(default=None, description="错误信息")
     stdout: Optional[str] = Field(default=None, description="Playwright 标准输出")
     stderr: Optional[str] = Field(default=None, description="Playwright 标准错误")

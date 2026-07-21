@@ -78,6 +78,14 @@ class StorageStateJob(Base, UUIDMixin, TimestampMixin):
         comment="Playwright 标准错误",
     )
 
+    failure_screenshot_attachment_id: Mapped[UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("attachments.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        comment="失败时页面截图附件 ID",
+    )
+
     started_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
