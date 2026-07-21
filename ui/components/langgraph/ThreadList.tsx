@@ -222,18 +222,25 @@ export function ThreadList({
       setDeletingThreadId(threadId);
       try {
         await client.threads.delete(threadId);
-
-        if (currentThreadId === threadId) {
-          setCurrentThreadId(null);
+      } catch (error: any) {
+        const status = error?.status ?? error?.response?.status;
+        if (status === 404) {
+          // 线程在服务端已不存在，按删除成功处理
+          console.warn("Thread already deleted on server:", threadId);
+        } else {
+          console.error("Failed to delete thread:", error);
+          alert("删除失败，请重试。");
+          return;
         }
-
-        threads.mutate();
-      } catch (error) {
-        console.error("Failed to delete thread:", error);
-        alert("删除失败，请重试。");
       } finally {
         setDeletingThreadId(null);
       }
+
+      if (currentThreadId === threadId) {
+        setCurrentThreadId(null);
+      }
+
+      threads.mutate();
     },
     [client, currentThreadId, setCurrentThreadId, threads]
   );
