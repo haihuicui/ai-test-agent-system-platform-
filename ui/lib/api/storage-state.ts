@@ -26,6 +26,7 @@ export interface StorageStateJobInfo {
   status: "pending" | "running" | "completed" | "failed";
   output_path: string | null;
   attachment_id: string | null;
+  failure_screenshot_attachment_id: string | null;
   error_message: string | null;
   stdout: string | null;
   stderr: string | null;

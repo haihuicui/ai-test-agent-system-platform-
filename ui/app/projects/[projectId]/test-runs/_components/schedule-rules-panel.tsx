@@ -55,6 +55,17 @@ export function formatNextRun(dateStr?: string, isEnabled?: boolean): string {
   return d.toLocaleString();
 }
 
+export function formatScheduleDate(dateStr?: string | null): string {
+  if (!dateStr) return "暂无";
+  // 后端约定所有调度时间均为 UTC；若返回的字符串没有时区标记，
+  // 按 UTC 解析后转换为本地时间，避免被浏览器当作本地时间原样显示。
+  const hasTz = /[Zz]$/.test(dateStr) || /[+-]\d{2}:?\d{2}$/.test(dateStr);
+  const normalized = hasTz ? dateStr : `${dateStr.replace(" ", "T")}Z`;
+  const d = new Date(normalized);
+  if (isNaN(d.getTime())) return "无效时间";
+  return d.toLocaleString();
+}
+
 export function buildCronDescription(config: Record<string, unknown>): string {
   if (config.cron_expression) {
     return String(config.cron_expression);
@@ -207,7 +218,7 @@ export function ScheduleRulesPanel({ projectId }: ScheduleRulesPanelProps) {
                       </span>
                       <span>下次执行: {formatNextRun(schedule.next_run_at, schedule.is_enabled)}</span>
                       {schedule.last_run_at && (
-                        <span>上次执行: {new Date(schedule.last_run_at).toLocaleString()}</span>
+                        <span>上次执行: {formatScheduleDate(schedule.last_run_at)}</span>
                       )}
                     </div>
                   </div>

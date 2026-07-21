@@ -18,12 +18,14 @@ import {
   History,
   FileText,
   RefreshCw,
+  MapPin,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -39,6 +41,8 @@ import {
   retryJob,
   getScriptHistory,
   getScriptBenchmark,
+  getSnapshotJobLogs,
+  getSnapshotJobReportUrl,
   type TestRunInfo,
   type TestRunScriptJobInfo,
   type ScriptType,
@@ -66,6 +70,19 @@ export interface TestRunExecutionPanelProps {
   showViewFullDetail?: boolean;
   enablePolling?: boolean;
   onError?: (message: string) => void;
+  // 脚本作业批量操作（仅在当前运行详情页传入）
+  selectedJobIds?: Set<string>;
+  onToggleJobSelection?: (jobId: string) => void;
+  batchRetrying?: boolean;
+  onBatchRetry?: () => void;
+  mappingJobs?: boolean;
+  onMapJobsToCases?: () => void;
+  // 是否隐藏顶部基本信息卡片（用于详情页顶部已有 summary 的场景）
+  hideHeader?: boolean;
+  // 是否只读（查看历史快照时禁止重试、同步等写操作）
+  readOnly?: boolean;
+  // 当前展示的是哪个快照的作业（提供此值时使用快照日志/报告接口）
+  snapshotId?: string;
 }
 
 export function TestRunExecutionPanel({
@@ -78,6 +95,15 @@ export function TestRunExecutionPanel({
   showViewFullDetail = false,
   enablePolling = true,
   onError,
+  selectedJobIds,
+  onToggleJobSelection,
+  batchRetrying,
+  onBatchRetry,
+  mappingJobs,
+  onMapJobsToCases,
+  hideHeader = false,
+  readOnly = false,
+  snapshotId,
 }: TestRunExecutionPanelProps) {
   const router = useRouter();
   const isControlled = externalTestRun !== undefined;
@@ -185,7 +211,9 @@ export function TestRunExecutionPanel({
     setLogDialogJob(job);
     setLogDialogLoading(true);
     try {
-      const res = await getJobLogs(projectId, runId, job.id);
+      const res = snapshotId
+        ? await getSnapshotJobLogs(projectId, runId, snapshotId, job.id)
+        : await getJobLogs(projectId, runId, job.id);
       setLogDialogData(res.data);
     } catch (err) {
       setLogDialogData({ stdout: "", stderr: err instanceof ApiError ? err.message : "加载日志失败" });
@@ -200,7 +228,9 @@ export function TestRunExecutionPanel({
     setReportDialogError(null);
     setReportDialogLoading(true);
     try {
-      const response = await getJobReportUrl(projectId, runId, job.id);
+      const response = snapshotId
+        ? await getSnapshotJobReportUrl(projectId, runId, snapshotId, job.id)
+        : await getJobReportUrl(projectId, runId, job.id);
       const url = response.data.url;
       setReportDialogUrl(url.endsWith("/") ? url : `${url}/`);
     } catch (err) {
@@ -271,6 +301,13 @@ export function TestRunExecutionPanel({
     return counts;
   }, [scriptJobs]);
 
+  const totalCasesInJobs = React.useMemo(() => {
+    return scriptJobs.reduce((sum, job) => {
+      const summary = job.result_summary as Record<string, number> | null | undefined;
+      return sum + (summary?.total || 0);
+    }, 0);
+  }, [scriptJobs]);
+
   if (runLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -299,7 +336,9 @@ export function TestRunExecutionPanel({
 
   return (
     <div className="space-y-6">
-      {/* 基本信息卡片 */}
+      {!hideHeader && (
+        <>
+          {/* 基本信息卡片 */}
       <div className="rounded-lg border bg-card p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-2">
@@ -400,6 +439,8 @@ export function TestRunExecutionPanel({
           <span>总用例: {testRun.test_cases_count}</span>
         </div>
       </div>
+      </>
+      )}
 
       {/* 脚本作业 */}
       {scriptJobs.length > 0 && (
@@ -408,7 +449,42 @@ export function TestRunExecutionPanel({
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <h2 className="font-medium">脚本作业</h2>
-                <p className="text-sm text-muted-foreground">该测试运行包含 {scriptJobs.length} 个脚本作业</p>
+                <p className="text-sm text-muted-foreground">
+                  该测试运行包含 {scriptJobs.length} 个脚本作业
+                  {totalCasesInJobs > 0 && `，共 ${totalCasesInJobs} 个用例`}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                {selectedJobIds && selectedJobIds.size > 0 && onBatchRetry && !readOnly && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={batchRetrying}
+                    onClick={onBatchRetry}
+                  >
+                    {batchRetrying ? (
+                      <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <RefreshCw className="mr-2 h-3.5 w-3.5" />
+                    )}
+                    批量重试 ({selectedJobIds.size})
+                  </Button>
+                )}
+                {onMapJobsToCases && !readOnly && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={mappingJobs}
+                    onClick={onMapJobsToCases}
+                  >
+                    {mappingJobs ? (
+                      <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <MapPin className="mr-2 h-3.5 w-3.5" />
+                    )}
+                    同步到用例
+                  </Button>
+                )}
               </div>
             </div>
           </div>
@@ -463,6 +539,14 @@ export function TestRunExecutionPanel({
                       <div key={job.id} className="p-4 hover:bg-muted/50 transition-colors">
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex items-start gap-3 min-w-0">
+                            {canRetry && onToggleJobSelection && !readOnly && (
+                              <div className="mt-1 shrink-0">
+                                <Checkbox
+                                  checked={selectedJobIds?.has(job.id) ?? false}
+                                  onCheckedChange={() => onToggleJobSelection(job.id)}
+                                />
+                              </div>
+                            )}
                             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted">
                               {SCRIPT_TYPE_ICON[job.script_type]}
                             </div>
@@ -503,15 +587,17 @@ export function TestRunExecutionPanel({
                           </div>
 
                           <div className="flex shrink-0 flex-wrap items-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 gap-1 text-xs"
-                              onClick={() => handleViewLogs(job)}
-                            >
-                              <Logs className="h-3.5 w-3.5" />
-                              日志
-                            </Button>
+                            {(!readOnly || snapshotId) && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 gap-1 text-xs"
+                                onClick={() => handleViewLogs(job)}
+                              >
+                                <Logs className="h-3.5 w-3.5" />
+                                日志
+                              </Button>
+                            )}
                             <Button
                               variant="ghost"
                               size="sm"
@@ -530,7 +616,7 @@ export function TestRunExecutionPanel({
                               <BarChart3 className="h-3.5 w-3.5" />
                               基准
                             </Button>
-                            {job.report_path && (
+                            {job.report_path && (!readOnly || snapshotId) && (
                               <>
                                 <Button
                                   variant="ghost"
@@ -547,7 +633,9 @@ export function TestRunExecutionPanel({
                                   className="h-8 gap-1 text-xs"
                                   onClick={async () => {
                                     try {
-                                      const response = await getJobReportUrl(projectId, runId, job.id);
+                                      const response = snapshotId
+                                        ? await getSnapshotJobReportUrl(projectId, runId, snapshotId, job.id)
+                                        : await getJobReportUrl(projectId, runId, job.id);
                                       const url = response.data.url;
                                       if (url) window.open(url, "_blank");
                                     } catch {
@@ -560,7 +648,7 @@ export function TestRunExecutionPanel({
                                 </Button>
                               </>
                             )}
-                            {canRetry && (
+                            {canRetry && !readOnly && (
                               <Button
                                 variant="outline"
                                 size="sm"

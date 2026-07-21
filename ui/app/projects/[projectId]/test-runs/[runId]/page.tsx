@@ -3,8 +3,8 @@
 import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
-  PlayCircle,
   Play,
+  PlayCircle,
   Square,
   CheckCircle2,
   XCircle,
@@ -16,23 +16,15 @@ import {
   Loader2,
   Zap,
   CalendarClock,
-  FileText,
   MoreHorizontal,
   Trash2,
   Pencil,
-  Logs,
-  Eye,
-  BarChart3,
   History,
-  CheckSquare,
-  Square as SquareIcon,
-  MapPin,
 } from "lucide-react";
 import { MainLayout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -58,49 +50,42 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Checkbox } from "@/components/ui/checkbox";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   getTestRun,
+  listTestRuns,
   executeTestRun,
   cancelTestRun,
   patchTestRun,
   deleteTestRun,
   getScriptJobs,
-  getJobReportUrl,
-  retryJob,
-  getJobLogs,
   batchRetryJobs,
-  getScriptHistory,
-  getScriptBenchmark,
   mapJobsToTestCases,
   subscribeToTestRunEvents,
   listEnvironments,
   csvToList,
   listToCsv,
+  listExecutionSnapshots,
+  getExecutionSnapshot,
   type TestRunInfo,
+  type TestRunListInfo,
   type TestRunScriptJobInfo,
   type TestRunState,
   type ExecutionMode,
   type TriggerType,
-  type ScriptType,
-  type JobStatus,
   type EnvironmentInfo,
   type ScriptSelection,
   type FailurePolicy,
+  type TestRunExecutionSnapshotInfo,
   FAILURE_POLICY_OPTIONS,
 } from "@/lib/api";
 import { ApiError } from "@/lib/api/client";
 import { ScriptSelector } from "../_components/script-selector";
+import { TestRunExecutionPanel } from "../_components/test-run-execution-panel";
 import {
   RUN_STATE_BADGE,
   RUN_STATE_OPTIONS,
   EXECUTION_MODE_BADGE,
   TRIGGER_TYPE_BADGE,
-  SCRIPT_TYPE_ICON,
-  SCRIPT_TYPE_LABEL,
-  JOB_STATUS_BADGE,
-  formatDuration,
   progressDoneRatio,
 } from "../_components/test-run-shared";
 // NOTE  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2UVZCR1lnPT06Zjc3ZTQ2ZTk=
@@ -118,35 +103,11 @@ export default function TestRunDetailPage() {
 
   const [scriptJobs, setScriptJobs] = React.useState<TestRunScriptJobInfo[]>([]);
   const [jobsLoading, setJobsLoading] = React.useState(false);
-  const [activeTab, setActiveTab] = React.useState<ScriptType | "all">("all");
   const [cancelling, setCancelling] = React.useState(false);
-  const [retryingJobId, setRetryingJobId] = React.useState<string | null>(null);
-  const [expandedJobId, setExpandedJobId] = React.useState<string | null>(null);
 
   // 批量重试状态
   const [selectedJobIds, setSelectedJobIds] = React.useState<Set<string>>(new Set());
   const [batchRetrying, setBatchRetrying] = React.useState(false);
-
-  // 日志弹窗状态
-  const [logDialogJob, setLogDialogJob] = React.useState<TestRunScriptJobInfo | null>(null);
-  const [logDialogData, setLogDialogData] = React.useState<{ stdout: string; stderr: string } | null>(null);
-  const [logDialogLoading, setLogDialogLoading] = React.useState(false);
-
-  // 报告预览弹窗状态
-  const [reportDialogJob, setReportDialogJob] = React.useState<TestRunScriptJobInfo | null>(null);
-  const [reportDialogUrl, setReportDialogUrl] = React.useState<string | null>(null);
-  const [reportDialogError, setReportDialogError] = React.useState<string | null>(null);
-  const [reportDialogLoading, setReportDialogLoading] = React.useState(false);
-
-  // 历史趋势弹窗状态
-  const [historyDialogJob, setHistoryDialogJob] = React.useState<TestRunScriptJobInfo | null>(null);
-  const [historyDialogData, setHistoryDialogData] = React.useState<unknown>(null);
-  const [historyDialogLoading, setHistoryDialogLoading] = React.useState(false);
-
-  // 性能基准弹窗状态
-  const [benchmarkDialogJob, setBenchmarkDialogJob] = React.useState<TestRunScriptJobInfo | null>(null);
-  const [benchmarkDialogData, setBenchmarkDialogData] = React.useState<unknown>(null);
-  const [benchmarkDialogLoading, setBenchmarkDialogLoading] = React.useState(false);
 
   // 映射到用例状态
   const [mappingJobs, setMappingJobs] = React.useState(false);
@@ -187,6 +148,15 @@ export default function TestRunDetailPage() {
   // 删除确认状态
   const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false);
   const [deleting, setDeleting] = React.useState(false);
+
+  // 历史执行记录状态
+  const SNAPSHOT_PAGE_SIZE = 100;
+  const [snapshots, setSnapshots] = React.useState<TestRunExecutionSnapshotInfo[]>([]);
+  const [snapshotsTotal, setSnapshotsTotal] = React.useState(0);
+  const [snapshotsLoading, setSnapshotsLoading] = React.useState(false);
+  const [selectedSnapshotId, setSelectedSnapshotId] = React.useState<string | null>(null);
+  const [selectedSnapshot, setSelectedSnapshot] = React.useState<TestRunExecutionSnapshotInfo | null>(null);
+  const [snapshotDetailLoading, setSnapshotDetailLoading] = React.useState(false);
 
   // ref 用于 SSE handler 中读取最新状态，避免闭包问题
   const testRunRef = React.useRef<TestRunInfo | null>(null);
@@ -340,10 +310,80 @@ export default function TestRunDetailPage() {
     }
   }, [projectId, runId]);
 
+  const loadSnapshots = React.useCallback(async () => {
+    if (!projectId || !runId || !testRun) return;
+
+    setSnapshotsLoading(true);
+    try {
+      const response = await listExecutionSnapshots(projectId, runId, {
+        page: 1,
+        page_size: SNAPSHOT_PAGE_SIZE,
+      });
+      const items = response.data?.items ?? [];
+      setSnapshots(items);
+      setSnapshotsTotal(response.data?.total ?? 0);
+      setSelectedSnapshotId((prev) => {
+        if (prev && items.some((s) => s.id === prev)) {
+          return prev;
+        }
+        // 默认选中"当前"，不自动选中快照
+        return "__current__";
+      });
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("[TestRunDetailPage] 加载执行快照失败:", err);
+      setSnapshots([]);
+      setSnapshotsTotal(0);
+      setSelectedSnapshotId("__current__");
+    } finally {
+      setSnapshotsLoading(false);
+    }
+  }, [projectId, runId, testRun]);
+
+  // 加载选中快照的详情
+  const loadSnapshotDetail = React.useCallback(
+    async (snapshotId: string) => {
+      if (!projectId || !runId || snapshotId === "__current__") return;
+      setSnapshotDetailLoading(true);
+      try {
+        const response = await getExecutionSnapshot(projectId, runId, snapshotId);
+        setSelectedSnapshot(response.data);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error("[TestRunDetailPage] 加载快照详情失败:", err);
+        setSelectedSnapshot(null);
+      } finally {
+        setSnapshotDetailLoading(false);
+      }
+    },
+    [projectId, runId]
+  );
+
+  React.useEffect(() => {
+    if (selectedSnapshotId && selectedSnapshotId !== "__current__") {
+      loadSnapshotDetail(selectedSnapshotId);
+    } else {
+      setSelectedSnapshot(null);
+    }
+  }, [selectedSnapshotId, loadSnapshotDetail]);
+
   React.useEffect(() => {
     loadDetail();
     loadScriptJobs();
   }, [loadDetail, loadScriptJobs]);
+
+  React.useEffect(() => {
+    if (testRun) {
+      loadSnapshots();
+    }
+  }, [testRun, loadSnapshots]);
+
+  // 没有快照时，默认选中当前运行
+  React.useEffect(() => {
+    if (testRun && !selectedSnapshotId) {
+      setSelectedSnapshotId("__current__");
+    }
+  }, [testRun, selectedSnapshotId]);
 
   async function handleExecute() {
     if (!testRun) return;
@@ -375,33 +415,6 @@ export default function TestRunDetailPage() {
     }
   }
 
-  async function handleViewReport(job: TestRunScriptJobInfo) {
-    if (!testRun) return;
-    try {
-      const response = await getJobReportUrl(projectId, testRun.identifier, job.id);
-      const url = response.data.url;
-      if (url) window.open(url, "_blank");
-    } catch {
-      // 静默失败
-    }
-  }
-
-  async function handleRetryJob(job: TestRunScriptJobInfo) {
-    if (!testRun) return;
-    setRetryingJobId(job.id);
-    try {
-      await retryJob(projectId, testRun.identifier, job.id);
-      // 重试会把 run 置回 in_progress，刷新详情以触发 SSE 实时订阅
-      await loadDetailSilent();
-      await loadScriptJobs();
-    } catch (err) {
-      const msg = err instanceof ApiError ? err.message : "重试失败";
-      setError(msg);
-    } finally {
-      setRetryingJobId(null);
-    }
-  }
-
   function toggleJobSelection(jobId: string) {
     setSelectedJobIds((prev) => {
       const next = new Set(prev);
@@ -428,65 +441,6 @@ export default function TestRunDetailPage() {
       setError(msg);
     } finally {
       setBatchRetrying(false);
-    }
-  }
-
-  async function handleViewLogs(job: TestRunScriptJobInfo) {
-    if (!testRun) return;
-    setLogDialogJob(job);
-    setLogDialogLoading(true);
-    try {
-      const res = await getJobLogs(projectId, testRun.identifier, job.id);
-      setLogDialogData(res.data);
-    } catch (err) {
-      setLogDialogData({ stdout: "", stderr: err instanceof ApiError ? err.message : "加载日志失败" });
-    } finally {
-      setLogDialogLoading(false);
-    }
-  }
-
-  async function handlePreviewReport(job: TestRunScriptJobInfo) {
-    if (!testRun) return;
-    setReportDialogJob(job);
-    setReportDialogUrl(null);
-    setReportDialogError(null);
-    setReportDialogLoading(true);
-    try {
-      const response = await getJobReportUrl(projectId, testRun.identifier, job.id);
-      const url = response.data.url;
-      setReportDialogUrl(url.endsWith("/") ? url : `${url}/`);
-    } catch (err) {
-      setReportDialogError(err instanceof ApiError ? err.message : "加载报告失败");
-    } finally {
-      setReportDialogLoading(false);
-    }
-  }
-
-  async function handleViewHistory(job: TestRunScriptJobInfo) {
-    if (!testRun) return;
-    setHistoryDialogJob(job);
-    setHistoryDialogLoading(true);
-    try {
-      const res = await getScriptHistory(projectId, testRun.identifier, job.script_type, job.script_id, 30);
-      setHistoryDialogData(res.data);
-    } catch (err) {
-      setHistoryDialogData({ error: err instanceof ApiError ? err.message : "加载历史失败" });
-    } finally {
-      setHistoryDialogLoading(false);
-    }
-  }
-
-  async function handleViewBenchmark(job: TestRunScriptJobInfo) {
-    if (!testRun) return;
-    setBenchmarkDialogJob(job);
-    setBenchmarkDialogLoading(true);
-    try {
-      const res = await getScriptBenchmark(projectId, testRun.identifier, job.script_type, job.script_id, 30);
-      setBenchmarkDialogData(res.data);
-    } catch (err) {
-      setBenchmarkDialogData({ error: err instanceof ApiError ? err.message : "加载基准失败" });
-    } finally {
-      setBenchmarkDialogLoading(false);
     }
   }
 
@@ -580,18 +534,24 @@ export default function TestRunDetailPage() {
     }
   }
 
-  const filteredJobs = React.useMemo(() => {
-    if (activeTab === "all") return scriptJobs;
-    return scriptJobs.filter((j) => j.script_type === activeTab);
-  }, [scriptJobs, activeTab]);
+  const isViewingSnapshot = selectedSnapshotId !== "__current__";
 
-  const jobCounts = React.useMemo(() => {
-    const counts: Record<string, number> = { all: scriptJobs.length };
-    for (const job of scriptJobs) {
-      counts[job.script_type] = (counts[job.script_type] || 0) + 1;
-    }
-    return counts;
-  }, [scriptJobs]);
+  const runOptions = React.useMemo(() => {
+    const currentOption = {
+      id: "__current__",
+      identifier: runId,
+      name: testRun?.name ?? "当前执行",
+      run_state: testRun?.run_state ?? "new_run",
+      created_at: testRun?.created_at ?? "",
+    } as unknown as TestRunListInfo;
+    return [currentOption, ...(snapshots as unknown as TestRunListInfo[])];
+  }, [testRun, snapshots, runId]);
+
+  const selectedHistoryRun = React.useMemo(
+    () =>
+      runOptions.find((r) => r.id === selectedSnapshotId) || runOptions[0] || null,
+    [runOptions, selectedSnapshotId]
+  );
 
   if (loading) {
     return (
@@ -626,131 +586,126 @@ export default function TestRunDetailPage() {
   return (
     <MainLayout title={`测试运行: ${testRun.name}`}>
       <div className="space-y-6">
-        {/* 顶部导航 */}
-        <div className="flex items-center gap-2">
+        {/* 顶部导航与操作 */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <Button variant="ghost" size="sm" onClick={() => router.push(`/projects/${projectId}/test-runs`)}>
             <ArrowLeft className="mr-1 h-4 w-4" />
             返回列表
           </Button>
+
+          <div className="flex items-center gap-2">
+            {testRun.run_state === "in_progress" ? (
+              <Button variant="destructive" onClick={handleCancel} disabled={cancelling}>
+                {cancelling ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Square className="mr-2 h-4 w-4" />
+                )}
+                取消执行
+              </Button>
+            ) : testRun.trigger_type === "scheduled" ? (
+              <Button
+                variant="outline"
+                onClick={() =>
+                  router.push(
+                    `/projects/${projectId}/test-runs?tab=scheduled&show_schedules=1`
+                  )
+                }
+              >
+                <CalendarClock className="mr-2 h-4 w-4" />
+                查看调度规则
+              </Button>
+            ) : (
+              <Button onClick={handleExecute} disabled={executing || closed}>
+                {executing ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Play className="mr-2 h-4 w-4" />
+                )}
+                执行
+              </Button>
+            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={openEdit}>
+                  <Pencil className="mr-2 h-4 w-4" />
+                  编辑
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => setDeleteConfirmOpen(true)}
+                  className="text-destructive"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  删除
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
 
         {/* 基本信息卡片 */}
         <div className="rounded-lg border bg-card p-6">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="space-y-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <PlayCircle className="h-6 w-6 text-primary" />
-                <h1 className="text-xl font-semibold">{testRun.name}</h1>
-                <Badge variant="outline" className="font-mono text-xs">
-                  {testRun.identifier}
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <PlayCircle className="h-6 w-6 text-primary" />
+              <h1 className="text-xl font-semibold">{testRun.name}</h1>
+              <Badge variant="outline" className="font-mono text-xs">
+                {testRun.identifier}
+              </Badge>
+              <Badge variant={stateInfo.variant}>{stateInfo.label}</Badge>
+              {closed && (
+                <Badge variant="secondary">
+                  <Lock className="mr-1 h-3 w-3" />
+                  已关闭
                 </Badge>
-                <Badge variant={stateInfo.variant}>{stateInfo.label}</Badge>
-                {closed && (
-                  <Badge variant="secondary">
-                    <Lock className="mr-1 h-3 w-3" />
-                    已关闭
-                  </Badge>
-                )}
-              </div>
-              {testRun.description && (
-                <p className="text-sm text-muted-foreground">{testRun.description}</p>
               )}
-              <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-                {testRun.execution_mode && (
-                  <span className="flex items-center gap-1">
-                    <Zap className="h-3.5 w-3.5" />
-                    {EXECUTION_MODE_BADGE[testRun.execution_mode].label}
-                  </span>
-                )}
-                {testRun.max_concurrency && testRun.execution_mode === "parallel" && (
-                  <span>并发数: {testRun.max_concurrency}</span>
-                )}
-                {testRun.trigger_type && (
-                  <span className="flex items-center gap-1">
-                    {testRun.trigger_type === "scheduled" ? (
-                      <CalendarClock className="h-3.5 w-3.5" />
-                    ) : (
-                      <Play className="h-3.5 w-3.5" />
-                    )}
-                    {TRIGGER_TYPE_BADGE[testRun.trigger_type]?.label ?? "手动触发"}
-                  </span>
-                )}
-                {testRun.trigger_type === "scheduled" && (
-                  <span
-                    className="flex cursor-pointer items-center gap-1 hover:underline"
-                    onClick={() =>
-                      router.push(
-                        `/projects/${projectId}/test-runs?tab=scheduled`
-                      )
-                    }
-                  >
-                    <CalendarClock className="h-3.5 w-3.5" />
-                    来源: {testRun.schedule_name ?? "已删除的调度"}
-                  </span>
-                )}
-                <span>创建于 {new Date(testRun.created_at).toLocaleString()}</span>
-                {testRun.assignee && <span>负责人: {testRun.assignee}</span>}
-              </div>
             </div>
-            <div className="flex items-center gap-2">
-              {testRun.run_state === "in_progress" ? (
-                <Button
-                  variant="destructive"
-                  onClick={handleCancel}
-                  disabled={cancelling}
-                >
-                  {cancelling ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            {testRun.description && (
+              <p className="text-sm text-muted-foreground">{testRun.description}</p>
+            )}
+            <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+              {testRun.execution_mode && (
+                <span className="flex items-center gap-1">
+                  <Zap className="h-3.5 w-3.5" />
+                  {EXECUTION_MODE_BADGE[testRun.execution_mode].label}
+                </span>
+              )}
+              {testRun.max_concurrency && testRun.execution_mode === "parallel" && (
+                <span>并发数: {testRun.max_concurrency}</span>
+              )}
+              {testRun.trigger_type && (
+                <span className="flex items-center gap-1">
+                  {testRun.trigger_type === "scheduled" ? (
+                    <CalendarClock className="h-3.5 w-3.5" />
                   ) : (
-                    <Square className="mr-2 h-4 w-4" />
+                    <Play className="h-3.5 w-3.5" />
                   )}
-                  取消执行
-                </Button>
-              ) : testRun.trigger_type === "scheduled" ? (
-                <Button
-                  variant="outline"
+                  {TRIGGER_TYPE_BADGE[testRun.trigger_type]?.label ?? "手动触发"}
+                </span>
+              )}
+              {testRun.trigger_type === "scheduled" && (
+                <span
+                  className="flex cursor-pointer items-center gap-1 hover:underline"
                   onClick={() =>
                     router.push(
-                      `/projects/${projectId}/test-runs?tab=scheduled&show_schedules=1`
+                      testRun.schedule_id
+                        ? `/projects/${projectId}/test-runs/schedules/${testRun.schedule_id}`
+                        : `/projects/${projectId}/test-runs?tab=scheduled`
                     )
                   }
                 >
-                  <CalendarClock className="mr-2 h-4 w-4" />
-                  查看调度规则
-                </Button>
-              ) : (
-                <Button
-                  onClick={handleExecute}
-                  disabled={executing || closed}
-                >
-                  {executing ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Play className="mr-2 h-4 w-4" />
-                  )}
-                  执行
-                </Button>
+                  <CalendarClock className="h-3.5 w-3.5" />
+                  来源: {testRun.schedule_name ?? "已删除的调度"}
+                </span>
               )}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={openEdit}>
-                    <Pencil className="mr-2 h-4 w-4" />
-                    编辑
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => setDeleteConfirmOpen(true)}
-                    className="text-destructive"
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    删除
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <span>创建于 {new Date(testRun.created_at).toLocaleString()}</span>
+              {testRun.assignee && <span>负责人: {testRun.assignee}</span>}
             </div>
           </div>
 
@@ -795,306 +750,116 @@ export default function TestRunDetailPage() {
           </div>
         </div>
 
-        {/* 脚本作业 */}
-        {scriptJobs.length > 0 && (
-          <div className="rounded-lg border bg-card">
-            <div className="border-b p-4">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <h2 className="font-medium">脚本作业</h2>
-                  <p className="text-sm text-muted-foreground">
-                    该测试运行包含 {scriptJobs.length} 个脚本作业
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  {selectedJobIds.size > 0 && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={batchRetrying}
-                      onClick={handleBatchRetry}
+        {/* 执行记录 */}
+        <div className="rounded-lg border bg-card">
+          <div className="flex items-center gap-2 border-b p-4">
+            <History className="h-5 w-5 text-primary" />
+            <h2 className="font-medium">执行记录</h2>
+          </div>
+          <div className="p-4">
+            {snapshotsLoading ? (
+              <div className="flex h-32 items-center justify-center">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : runOptions.length === 0 ? (
+              <div className="flex h-32 flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
+                <History className="h-10 w-10 text-muted-foreground/50" />
+                <p>暂无执行记录</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-muted-foreground">选择执行记录</Label>
+                    <Select
+                      value={selectedSnapshotId ?? ""}
+                      onValueChange={(v) => setSelectedSnapshotId(v)}
                     >
-                      {batchRetrying ? (
-                        <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <RefreshCw className="mr-2 h-3.5 w-3.5" />
-                      )}
-                      批量重试 ({selectedJobIds.size})
+                      <SelectTrigger className="w-[360px]">
+                        <SelectValue placeholder="选择执行记录" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {runOptions.map((option) => {
+                          const stateInfo = RUN_STATE_BADGE[option.run_state];
+                          const isCurrent = option.id === "__current__";
+                          const snapshot = snapshots.find((s) => s.id === option.id);
+                          const label = snapshot
+                            ? `第 ${snapshot.execution_number} 次执行 · ${stateInfo.label}`
+                            : `${option.identifier} · ${option.name} · ${stateInfo.label}`;
+                          return (
+                            <SelectItem key={option.id} value={option.id}>
+                              {label}
+                              {isCurrent && " · (当前)"}
+                              {snapshot?.completed_at &&
+                                ` · ${new Date(snapshot.completed_at).toLocaleString()}`}
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {false && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {}}
+                    >
+                      <History className="mr-2 h-4 w-4" />
+                      查看全部
                     </Button>
                   )}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={mappingJobs}
-                    onClick={handleMapJobsToCases}
-                  >
-                    {mappingJobs ? (
-                      <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <MapPin className="mr-2 h-3.5 w-3.5" />
-                    )}
-                    同步到用例
-                  </Button>
                 </div>
-              </div>
-            </div>
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as ScriptType | "all")}>
-              <div className="border-b px-4 pt-2">
-                <TabsList>
-                  <TabsTrigger value="all">
-                    全部 {jobCounts.all > 0 && `(${jobCounts.all})`}
-                  </TabsTrigger>
-                  {(jobCounts.api_test || 0) > 0 && (
-                    <TabsTrigger value="api_test">
-                      API {jobCounts.api_test > 0 && `(${jobCounts.api_test})`}
-                    </TabsTrigger>
-                  )}
-                  {(jobCounts.scenario || 0) > 0 && (
-                    <TabsTrigger value="scenario">
-                      场景 {jobCounts.scenario > 0 && `(${jobCounts.scenario})`}
-                    </TabsTrigger>
-                  )}
-                  {(jobCounts.web_test || 0) > 0 && (
-                    <TabsTrigger value="web_test">
-                      Web {jobCounts.web_test > 0 && `(${jobCounts.web_test})`}
-                    </TabsTrigger>
-                  )}
-                </TabsList>
-              </div>
-              <TabsContent value={activeTab} className="p-0">
-                {jobsLoading ? (
-                  <div className="flex h-32 items-center justify-center">
-                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                  </div>
-                ) : filteredJobs.length === 0 ? (
-                  <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">
-                    该分类下暂无脚本作业
-                  </div>
-                ) : (
-                  <div className="divide-y">
-                    {filteredJobs.map((job) => {
-                      const statusBadge = JOB_STATUS_BADGE[job.status];
-                      const isExpanded = expandedJobId === job.id;
-                      const summary = job.result_summary as Record<string, number> | null | undefined;
-                      const total = summary?.total || 0;
-                      const passed = summary?.passed || 0;
-                      const failed = summary?.failed || 0;
-                      const skipped = summary?.skipped || 0;
-                      const passedPct = total > 0 ? (passed / total) * 100 : 0;
-                      const failedPct = total > 0 ? (failed / total) * 100 : 0;
-                      const skippedPct = total > 0 ? (skipped / total) * 100 : 0;
-                      const canRetry = ["failed", "skipped", "cancelled"].includes(job.status);
 
-                      return (
-                        <div key={job.id} className="p-4 hover:bg-muted/50 transition-colors">
-                          {/* 第一行：复选框 + 图标 + 名称 + 类型 + 状态 */}
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex items-start gap-3 min-w-0">
-                              {canRetry && (
-                                <div className="mt-1 shrink-0">
-                                  <Checkbox
-                                    checked={selectedJobIds.has(job.id)}
-                                    onCheckedChange={() => toggleJobSelection(job.id)}
-                                  />
-                                </div>
-                              )}
-                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted">
-                                {SCRIPT_TYPE_ICON[job.script_type]}
-                              </div>
-                              <div className="min-w-0">
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <span className="font-medium truncate">{job.script_name || job.script_identifier || job.script_id}</span>
-                                  <Badge variant="outline" className="text-xs shrink-0">
-                                    {SCRIPT_TYPE_LABEL[job.script_type]}
-                                  </Badge>
-                                  <Badge variant={statusBadge.variant} className="text-xs shrink-0">
-                                    {statusBadge.label}
-                                  </Badge>
-                                  {job.retry_count > 0 && (
-                                    <Badge variant="outline" className="text-xs shrink-0">
-                                      重试 {job.retry_count}/{job.max_retries}
-                                    </Badge>
-                                  )}
-                                </div>
-                                {/* 时间线 */}
-                                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                                  <span className="flex items-center gap-1">
-                                    <Clock className="h-3 w-3" />
-                                    顺序 #{job.execution_order}
-                                  </span>
-                                  <span>{job.execution_mode === "parallel" ? "并行" : "顺序"}</span>
-                                  {job.started_at && (
-                                    <span>开始 {new Date(job.started_at).toLocaleString()}</span>
-                                  )}
-                                  {job.completed_at && (
-                                    <span>结束 {new Date(job.completed_at).toLocaleString()}</span>
-                                  )}
-                                  {job.duration_ms && job.duration_ms > 0 && (
-                                    <span className="font-mono text-foreground">{formatDuration(job.duration_ms)}</span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* 操作按钮 */}
-                            <div className="flex shrink-0 flex-wrap items-center gap-1">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 gap-1 text-xs"
-                                onClick={() => handleViewLogs(job)}
-                              >
-                                <Logs className="h-3.5 w-3.5" />
-                                日志
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 gap-1 text-xs"
-                                onClick={() => handleViewHistory(job)}
-                              >
-                                <History className="h-3.5 w-3.5" />
-                                历史
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 gap-1 text-xs"
-                                onClick={() => handleViewBenchmark(job)}
-                              >
-                                <BarChart3 className="h-3.5 w-3.5" />
-                                基准
-                              </Button>
-                              {job.report_path && (
-                                <>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-8 gap-1 text-xs"
-                                    onClick={() => handlePreviewReport(job)}
-                                  >
-                                    <Eye className="h-3.5 w-3.5" />
-                                    预览
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-8 gap-1 text-xs"
-                                    onClick={() => handleViewReport(job)}
-                                  >
-                                    <FileText className="h-3.5 w-3.5" />
-                                    报告
-                                  </Button>
-                                </>
-                              )}
-                              {canRetry && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-8 gap-1 text-xs"
-                                  disabled={retryingJobId === job.id}
-                                  onClick={() => handleRetryJob(job)}
-                                >
-                                  {retryingJobId === job.id ? (
-                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                  ) : (
-                                    <RefreshCw className="h-3.5 w-3.5" />
-                                  )}
-                                  重试
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* 结果进度条 */}
-                          {total > 0 && (
-                            <div className="mt-3">
-                              <div className="flex items-center justify-between text-xs mb-1">
-                                <span className="text-muted-foreground">
-                                  {String(passed)} 通过 · {String(failed)} 失败 · {String(skipped)} 跳过 · 共 {String(total)}
-                                </span>
-                                <span className="font-mono">
-                                  {Math.round((Number(passed) / Number(total)) * 100)}%
-                                </span>
-                              </div>
-                              <div className="flex h-2 w-full overflow-hidden rounded-full bg-muted">
-                                <div className="bg-green-500 transition-all" style={{ width: `${passedPct}%` }} />
-                                <div className="bg-red-500 transition-all" style={{ width: `${failedPct}%` }} />
-                                <div className="bg-amber-400 transition-all" style={{ width: `${skippedPct}%` }} />
-                              </div>
-                            </div>
-                          )}
-
-                          {/* 错误信息（可折叠） */}
-                          {job.error_message && (
-                            <div className="mt-3">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 gap-1 text-xs text-destructive"
-                                onClick={() => setExpandedJobId(isExpanded ? null : job.id)}
-                              >
-                                <AlertCircle className="h-3.5 w-3.5" />
-                                {isExpanded ? "收起错误" : "查看错误详情"}
-                              </Button>
-                              {isExpanded && (
-                                <div className="relative mt-2">
-                                  <pre className="max-h-48 overflow-auto rounded-md border border-destructive/20 bg-destructive/5 p-3 text-xs text-destructive whitespace-pre-wrap">
-                                    {job.error_message}
-                                  </pre>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="absolute right-2 top-2 h-6 text-xs"
-                                    onClick={() => navigator.clipboard.writeText(job.error_message || "")}
-                                  >
-                                    复制
-                                  </Button>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </TabsContent>
-            </Tabs>
-          </div>
-        )}
-
-        {/* 测试用例列表（简略） */}
-        {testRun.test_cases && testRun.test_cases.length > 0 && (
-          <div className="rounded-lg border bg-card">
-            <div className="border-b p-4">
-              <h2 className="font-medium">测试用例</h2>
-              <p className="text-sm text-muted-foreground">
-                共 {testRun.test_cases.length} 个测试用例
-              </p>
-            </div>
-            <div className="divide-y">
-              {testRun.test_cases.slice(0, 20).map((tc) => (
-                <div key={tc.id} className="flex items-center justify-between p-4 hover:bg-muted/50">
-                  <div>
-                    <div className="font-medium">{tc.name}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {tc.identifier} · {tc.latest_status}
+                {isViewingSnapshot ? (
+                  snapshotDetailLoading ? (
+                    <div className="flex h-32 items-center justify-center">
+                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                     </div>
-                  </div>
-                  <Badge variant={tc.latest_status === "passed" ? "default" : tc.latest_status === "failed" ? "destructive" : "secondary"}>
-                    {tc.latest_status}
-                  </Badge>
-                </div>
-              ))}
-              {testRun.test_cases.length > 20 && (
-                <div className="p-4 text-center text-sm text-muted-foreground">
-                  还有 {testRun.test_cases.length - 20} 个用例...
-                </div>
-              )}
-            </div>
+                  ) : selectedSnapshot ? (
+                    <TestRunExecutionPanel
+                      projectId={projectId}
+                      runId={runId}
+                      testRun={{
+                        ...testRun,
+                        run_state: selectedSnapshot.run_state as TestRunInfo["run_state"],
+                        overall_progress: selectedSnapshot.overall_progress ?? testRun.overall_progress,
+                        test_cases_count: selectedSnapshot.overall_progress
+                          ? Object.values(selectedSnapshot.overall_progress).reduce(
+                              (a, b) => a + (b as number),
+                              0
+                            )
+                          : testRun.test_cases_count,
+                      }}
+                      scriptJobs={(selectedSnapshot.snapshot_jobs ?? []) as TestRunScriptJobInfo[]}
+                      hideHeader
+                      readOnly
+                      snapshotId={selectedSnapshot.id}
+                      onError={(msg) => setError(msg)}
+                    />
+                  ) : null
+                ) : testRun ? (
+                  <TestRunExecutionPanel
+                    projectId={projectId}
+                    runId={runId}
+                    testRun={testRun}
+                    scriptJobs={scriptJobs}
+                    hideHeader
+                    onTestRunChange={setTestRun}
+                    onScriptJobsChange={setScriptJobs}
+                    selectedJobIds={selectedJobIds}
+                    onToggleJobSelection={toggleJobSelection}
+                    batchRetrying={batchRetrying}
+                    onBatchRetry={handleBatchRetry}
+                    mappingJobs={mappingJobs}
+                    onMapJobsToCases={handleMapJobsToCases}
+                    onError={(msg) => setError(msg)}
+                  />
+                ) : null}
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
 
       {/* 编辑弹窗 */}
@@ -1318,199 +1083,6 @@ export default function TestRunDetailPage() {
               删除
             </Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* 日志弹窗 */}
-      <Dialog open={!!logDialogJob} onOpenChange={(open) => { if (!open) { setLogDialogJob(null); setLogDialogData(null); } }}>
-        <DialogContent className="max-w-4xl h-[80vh] max-h-[80vh] flex flex-col overflow-hidden">
-          <DialogHeader>
-            <DialogTitle>执行日志</DialogTitle>
-            <DialogDescription>
-              {logDialogJob?.script_name || logDialogJob?.script_id}
-            </DialogDescription>
-          </DialogHeader>
-          {logDialogLoading ? (
-            <div className="flex h-64 items-center justify-center">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-            </div>
-          ) : logDialogData ? (
-            <div className="min-h-0 flex-1 overflow-hidden">
-              <ScrollArea className="h-full border rounded-md">
-                <div className="p-4 space-y-4">
-                  {logDialogData.stdout && (
-                    <div>
-                      <div className="text-xs font-semibold text-muted-foreground mb-1">标准输出 (stdout)</div>
-                      <pre className="text-xs bg-muted p-3 rounded-md overflow-auto whitespace-pre-wrap">{logDialogData.stdout}</pre>
-                    </div>
-                  )}
-                  {logDialogData.stderr && (
-                    <div>
-                      <div className="text-xs font-semibold text-destructive mb-1">标准错误 (stderr)</div>
-                      <pre className="text-xs bg-destructive/5 text-destructive p-3 rounded-md overflow-auto whitespace-pre-wrap">{logDialogData.stderr}</pre>
-                    </div>
-                  )}
-                  {!logDialogData.stdout && !logDialogData.stderr && (
-                    <div className="text-sm text-muted-foreground text-center py-8">暂无日志</div>
-                  )}
-                </div>
-              </ScrollArea>
-            </div>
-          ) : null}
-        </DialogContent>
-      </Dialog>
-
-      {/* 报告预览弹窗 */}
-      <Dialog open={!!reportDialogJob} onOpenChange={(open) => { if (!open) { setReportDialogJob(null); setReportDialogUrl(null); setReportDialogError(null); } }}>
-        <DialogContent className="max-w-6xl max-h-[90vh] flex flex-col p-0">
-          <DialogHeader className="px-6 pt-6">
-            <DialogTitle>报告预览</DialogTitle>
-            <DialogDescription>
-              {reportDialogJob?.script_name || reportDialogJob?.script_id}
-            </DialogDescription>
-          </DialogHeader>
-          {reportDialogLoading ? (
-            <div className="flex h-96 items-center justify-center">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-            </div>
-          ) : reportDialogError ? (
-            <div className="flex h-96 items-center justify-center px-6">
-              <p className="text-destructive">{reportDialogError}</p>
-            </div>
-          ) : reportDialogUrl ? (
-            <div className="flex-1 overflow-hidden border-t">
-              <iframe
-                src={reportDialogUrl}
-                className="w-full h-[70vh]"
-                sandbox="allow-scripts allow-same-origin"
-                title="报告预览"
-              />
-            </div>
-          ) : null}
-        </DialogContent>
-      </Dialog>
-
-      {/* 历史趋势弹窗 */}
-      <Dialog open={!!historyDialogJob} onOpenChange={(open) => { if (!open) { setHistoryDialogJob(null); setHistoryDialogData(null); } }}>
-        <DialogContent className="max-w-2xl h-[80vh] max-h-[80vh] flex flex-col overflow-hidden">
-          <DialogHeader>
-            <DialogTitle>执行历史趋势</DialogTitle>
-            <DialogDescription>
-              {historyDialogJob?.script_name || historyDialogJob?.script_id}
-            </DialogDescription>
-          </DialogHeader>
-          {historyDialogLoading ? (
-            <div className="flex h-64 items-center justify-center">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-            </div>
-          ) : historyDialogData && typeof historyDialogData === "object" && !("error" in historyDialogData) ? (
-            <div className="min-h-0 flex-1 overflow-hidden">
-              <ScrollArea className="h-full">
-                <div className="p-4 space-y-4">
-                  <div className="grid grid-cols-4 gap-4">
-                    <div className="rounded-lg border p-3 text-center">
-                      <div className="text-2xl font-bold">{(historyDialogData as any).success_rate}%</div>
-                      <div className="text-xs text-muted-foreground">成功率</div>
-                    </div>
-                    <div className="rounded-lg border p-3 text-center">
-                      <div className="text-2xl font-bold text-green-600">{(historyDialogData as any).passed}</div>
-                      <div className="text-xs text-muted-foreground">通过</div>
-                    </div>
-                    <div className="rounded-lg border p-3 text-center">
-                      <div className="text-2xl font-bold text-red-600">{(historyDialogData as any).failed}</div>
-                      <div className="text-xs text-muted-foreground">失败</div>
-                    </div>
-                    <div className="rounded-lg border p-3 text-center">
-                      <div className="text-2xl font-bold text-amber-600">{(historyDialogData as any).total_runs}</div>
-                      <div className="text-xs text-muted-foreground">总执行</div>
-                    </div>
-                  </div>
-                  <div className="rounded-lg border">
-                    <div className="border-b px-4 py-2 text-sm font-medium">最近执行记录</div>
-                    <div className="divide-y">
-                      {(historyDialogData as any).history?.map((h: any) => (
-                        <div key={h.job_id} className="flex items-center justify-between px-4 py-2 text-sm">
-                          <div className="flex items-center gap-2">
-                            <Badge variant={h.status === "completed" ? "default" : h.status === "failed" ? "destructive" : "secondary"} className="text-xs">
-                              {h.status}
-                            </Badge>
-                            <span className="text-muted-foreground">{h.duration_ms ? `${(h.duration_ms / 1000).toFixed(1)}s` : "-"}</span>
-                          </div>
-                          <span className="text-xs text-muted-foreground">{h.completed_at ? new Date(h.completed_at).toLocaleString() : "-"}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </ScrollArea>
-            </div>
-          ) : (
-            <div className="text-sm text-destructive text-center py-8">
-              {(historyDialogData as any)?.error || "暂无历史数据"}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* 性能基准弹窗 */}
-      <Dialog open={!!benchmarkDialogJob} onOpenChange={(open) => { if (!open) { setBenchmarkDialogJob(null); setBenchmarkDialogData(null); } }}>
-        <DialogContent className="max-w-2xl h-[80vh] max-h-[80vh] flex flex-col overflow-hidden">
-          <DialogHeader>
-            <DialogTitle>性能基准</DialogTitle>
-            <DialogDescription>
-              {benchmarkDialogJob?.script_name || benchmarkDialogJob?.script_id}
-            </DialogDescription>
-          </DialogHeader>
-          {benchmarkDialogLoading ? (
-            <div className="flex h-64 items-center justify-center">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-            </div>
-          ) : benchmarkDialogData && typeof benchmarkDialogData === "object" && !("error" in benchmarkDialogData) ? (
-            <div className="min-h-0 flex-1 overflow-hidden">
-              <ScrollArea className="h-full">
-                <div className="p-4 space-y-4">
-                  <div className="grid grid-cols-4 gap-4">
-                    <div className="rounded-lg border p-3 text-center">
-                      <div className="text-2xl font-bold">{formatDuration((benchmarkDialogData as any).avg_duration_ms)}</div>
-                      <div className="text-xs text-muted-foreground">平均耗时</div>
-                    </div>
-                    <div className="rounded-lg border p-3 text-center">
-                      <div className="text-2xl font-bold text-green-600">{formatDuration((benchmarkDialogData as any).min_duration_ms)}</div>
-                      <div className="text-xs text-muted-foreground">最快</div>
-                    </div>
-                    <div className="rounded-lg border p-3 text-center">
-                      <div className="text-2xl font-bold text-red-600">{formatDuration((benchmarkDialogData as any).max_duration_ms)}</div>
-                      <div className="text-xs text-muted-foreground">最慢</div>
-                    </div>
-                    <div className="rounded-lg border p-3 text-center">
-                      <div className="text-2xl font-bold text-amber-600">{formatDuration((benchmarkDialogData as any).median_duration_ms)}</div>
-                      <div className="text-xs text-muted-foreground">中位数</div>
-                    </div>
-                  </div>
-                  <div className="rounded-lg border">
-                    <div className="border-b px-4 py-2 text-sm font-medium">耗时趋势</div>
-                    <div className="divide-y">
-                      {(benchmarkDialogData as any).runs?.map((r: any) => (
-                        <div key={r.job_id} className="flex items-center justify-between px-4 py-2 text-sm">
-                          <div className="flex items-center gap-2">
-                            <Badge variant={r.status === "completed" ? "default" : r.status === "failed" ? "destructive" : "secondary"} className="text-xs">
-                              {r.status}
-                            </Badge>
-                            <span>{formatDuration(r.duration_ms)}</span>
-                          </div>
-                          <span className="text-xs text-muted-foreground">{r.date ? new Date(r.date).toLocaleString() : "-"}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </ScrollArea>
-            </div>
-          ) : (
-            <div className="text-sm text-destructive text-center py-8">
-              {(benchmarkDialogData as any)?.error || "暂无基准数据"}
-            </div>
-          )}
         </DialogContent>
       </Dialog>
     </MainLayout>

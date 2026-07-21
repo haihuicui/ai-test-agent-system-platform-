@@ -466,6 +466,56 @@ export interface TestRunScheduleUpdate {
   is_enabled?: boolean;
 }
 
+// ============ 执行快照 ============
+
+export interface TestRunExecutionSnapshotJobInfo {
+  id: string;
+  snapshot_id: string;
+  test_run_id: string;
+  script_job_id: string;
+  script_type: ScriptType;
+  script_id: string;
+  script_identifier?: string;
+  script_name?: string;
+  execution_order: number;
+  execution_mode: ExecutionMode;
+  status: JobStatus;
+  started_at?: string;
+  completed_at?: string;
+  duration_ms?: number;
+  result_summary?: Record<string, unknown>;
+  error_message?: string;
+  stdout?: string;
+  stderr?: string;
+  report_path?: string;
+  retry_count: number;
+  max_retries: number;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface TestRunExecutionSnapshotInfo {
+  id: string;
+  test_run_id: string;
+  execution_number: number;
+  triggered_by: string;
+  run_state: string;
+  started_at?: string;
+  completed_at?: string;
+  overall_progress?: {
+    untested: number;
+    passed: number;
+    retest: number;
+    failed: number;
+    blocked: number;
+    skipped: number;
+    in_progress: number;
+  };
+  snapshot_jobs?: TestRunExecutionSnapshotJobInfo[];
+  created_at: string;
+  updated_at?: string;
+}
+
 // ============ 测试运行 ============
 
 // 创建测试运行请求 (BS POST /test-runs)
@@ -662,6 +712,7 @@ export interface TestRunListParams {
   search?: string;
   trigger_type?: string;
   scheduled_by?: string;
+  script_ids?: string;
 }
 
 // test-cases 子资源查询参数

@@ -22,6 +22,7 @@ import type {
   TestRunScheduleInfo,
   TestRunScheduleCreate,
   TestRunScheduleUpdate,
+  TestRunExecutionSnapshotInfo,
   ScriptType,
 } from "./types";
 
@@ -270,6 +271,61 @@ export function subscribeToTestRunEvents(
     es.onerror = onError;
   }
   return es;
+}
+
+// =========================================================
+// 执行快照子资源
+// =========================================================
+
+// 获取测试运行的执行快照列表
+export function listExecutionSnapshots(
+  projectIdentifier: string,
+  testRunIdentifier: string,
+  params?: { page?: number; page_size?: number }
+) {
+  return apiClient.get<SuccessResponse<{
+    items: TestRunExecutionSnapshotInfo[];
+    total: number;
+    page: number;
+    page_size: number;
+  }>>(`${basePath(projectIdentifier)}/${testRunIdentifier}/snapshots`, {
+    params: params as Record<string, string | number | undefined>,
+  });
+}
+
+// 获取执行快照详情（含作业列表）
+export function getExecutionSnapshot(
+  projectIdentifier: string,
+  testRunIdentifier: string,
+  snapshotId: string
+) {
+  return apiClient.get<SuccessResponse<TestRunExecutionSnapshotInfo>>(
+    `${basePath(projectIdentifier)}/${testRunIdentifier}/snapshots/${snapshotId}`
+  );
+}
+
+// 获取快照作业日志
+export function getSnapshotJobLogs(
+  projectIdentifier: string,
+  testRunIdentifier: string,
+  snapshotId: string,
+  snapshotJobId: string
+) {
+  return apiClient.get<SuccessResponse<{ stdout: string; stderr: string }>>(
+    `${basePath(projectIdentifier)}/${testRunIdentifier}/snapshots/${snapshotId}/jobs/${snapshotJobId}/logs`
+  );
+}
+
+// 获取快照作业报告浏览 URL
+export function getSnapshotJobReportUrl(
+  projectIdentifier: string,
+  testRunIdentifier: string,
+  snapshotId: string,
+  snapshotJobId: string
+) {
+  return apiClient.get<SuccessResponse<{ url: string; expires_in: number }>>(
+    `${basePath(projectIdentifier)}/${testRunIdentifier}/snapshots/${snapshotId}/jobs/${snapshotJobId}/report-url`
+  );
 }
 
 // =========================================================

@@ -93,6 +93,7 @@ import { ApiError } from "@/lib/api/client";
 import {
   TRIGGER_TYPE_LABEL,
   formatNextRun,
+  formatScheduleDate,
   buildCronDescription,
 } from "./_components/schedule-rules-panel";
 import { ScheduleRuleActions } from "./_components/schedule-rule-actions";
@@ -679,7 +680,7 @@ export default function TestRunsPage() {
                         </span>
                         <span>下次执行: {formatNextRun(schedule.next_run_at, schedule.is_enabled)}</span>
                         {schedule.last_run_at && (
-                          <span>上次执行: {new Date(schedule.last_run_at).toLocaleString()}</span>
+                          <span>上次执行: {formatScheduleDate(schedule.last_run_at)}</span>
                         )}
                       </div>
                     </div>
