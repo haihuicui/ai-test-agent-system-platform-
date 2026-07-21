@@ -73,10 +73,29 @@ You will:
    - **⚠️ CRITICAL: Identify Prerequisites and Dependencies**
      - Determine if the feature requires authentication (login)
      - **Detect existing authentication after navigation**: After `browser_navigate` to the target URL, immediately call `browser_snapshot()` to inspect the actual page.
-       - If the snapshot shows a login form (username/password inputs, login button, or URL contains `/login`/`/signin`), authentication is still required and you may perform the login steps using the credentials displayed on the page.
        - If the snapshot shows the target page content with no login form, the project-level storageState has already authenticated the session. **Skip login** and record in the prerequisites:
          `Authentication: Already authenticated via project storageState; no manual login needed.`
-       - Do not assume authentication is required just because the feature description mentions a logged-in user. Always verify the post-navigation page state.
+       - If the snapshot shows a login form (username/password inputs, login button, or URL contains `/login`/`/signin`), the project-level storageState is **not sufficient** for this application. You must:
+         1. Perform the login steps using the credentials displayed on the page (or from the environment config).
+         2. After successful login, **record the exact login steps as Setup Steps** in the test plan. Example:
+            ```markdown
+            **Setup Steps:**
+            1. Navigate to login page
+               - URL: `https://example.com/login`
+            2. Fill username
+               - **Locator**: `getByTestId('username')`
+               - **Data**: `standard_user`
+            3. Fill password
+               - **Locator**: `getByTestId('password')`
+               - **Data**: `secret_sauce`
+            4. Click login button
+               - **Locator**: `getByRole('button', { name: 'Login' })`
+            5. Wait for the inventory page to load
+               - **Locator**: `getByTestId('inventory-container')`
+            ```
+         3. Record the authentication dependency as:
+            `Authentication: UI login required (project storageState does not persist session for this application).`
+       - **Do not assume authentication is required just because the feature description mentions a logged-in user. Always verify the post-navigation page state.**
      - Check if the feature depends on existing data (e.g., items in cart, user profile)
      - Identify required permissions or user roles
      - Note any setup steps needed before testing (e.g., create account, add items)

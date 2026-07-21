@@ -33,9 +33,10 @@ locators and the test cases' structure. Do not try to navigate or re-explore the
   avoids "strict mode violation" errors.
 
 ### 2. Analyze prerequisites → setup code
-- Auth required → **优先复用全局登录态**：若 `playwright.config.js` 已注入 `storageState`（系统预留能力），
-  测试会自动携带已登录会话，**不要**再在 `beforeEach` 写 UI 登录步骤；
-  仅在未配置 storageState 时，才把 login 步骤写进 `test.beforeEach()`。
+- Auth required → **以 test plan 的 `**认证方式**` 和 Setup Steps 为准**，不要只看 `playwright.config.js` 是否配置了 `storageState`：
+  - 如果 plan 的 `**认证方式**` 写着 `已通过项目 storageState 自动登录` 且没有登录 Setup Steps，才可以不写 UI 登录步骤。
+  - 如果 plan 的 `**认证方式**` 写着 `需 UI 登录` 或 Setup Steps 中包含登录步骤（fill username / fill password / click login），**必须**把这些步骤写进脚本，推荐放在 `test.beforeEach()` 中，并复用 plan 中的定位器和测试数据。
+  - 如果 plan 表述模糊，默认生成 UI 登录步骤作为兜底，确保脚本在 storageState 不生效的站点也能执行通过。
 - Data/state required → create/reset in `beforeEach` / `afterEach`.
 - **TestIdAttribute (from the plan)**: if the plan's `**TestIdAttribute**:` is non-default
   (e.g. `data-test`, `data-cy`, `data-qa`), add this at the TOP of the spec (after imports,
