@@ -16,7 +16,7 @@ import {
   Eye,
   BarChart3,
   History,
-  FileText,
+  Download,
   RefreshCw,
   MapPin,
 } from "lucide-react";
@@ -37,17 +37,16 @@ import {
   getTestRun,
   getScriptJobs,
   getJobLogs,
-  getJobReportUrl,
   retryJob,
   getScriptHistory,
   getScriptBenchmark,
   getSnapshotJobLogs,
-  getSnapshotJobReportUrl,
   type TestRunInfo,
   type TestRunScriptJobInfo,
   type ScriptType,
 } from "@/lib/api";
 import { ApiError } from "@/lib/api/client";
+import { toast } from "sonner";
 import {
   RUN_STATE_BADGE,
   EXECUTION_MODE_BADGE,
@@ -142,12 +141,6 @@ export function TestRunExecutionPanel({
   const [logDialogData, setLogDialogData] = React.useState<{ stdout: string; stderr: string } | null>(null);
   const [logDialogLoading, setLogDialogLoading] = React.useState(false);
 
-  // 报告预览弹窗
-  const [reportDialogJob, setReportDialogJob] = React.useState<TestRunScriptJobInfo | null>(null);
-  const [reportDialogUrl, setReportDialogUrl] = React.useState<string | null>(null);
-  const [reportDialogError, setReportDialogError] = React.useState<string | null>(null);
-  const [reportDialogLoading, setReportDialogLoading] = React.useState(false);
-
   // 历史趋势弹窗
   const [historyDialogJob, setHistoryDialogJob] = React.useState<TestRunScriptJobInfo | null>(null);
   const [historyDialogData, setHistoryDialogData] = React.useState<unknown>(null);
@@ -223,20 +216,19 @@ export function TestRunExecutionPanel({
   }
 
   async function handlePreviewReport(job: TestRunScriptJobInfo) {
-    setReportDialogJob(job);
-    setReportDialogUrl(null);
-    setReportDialogError(null);
-    setReportDialogLoading(true);
+    const previewUrl = snapshotId
+      ? `/api/v2/projects/${projectId}/test-runs/${runId}/snapshots/${snapshotId}/jobs/${job.id}/report-preview`
+      : `/api/v2/projects/${projectId}/test-runs/${runId}/script-jobs/${job.id}/report-preview`;
     try {
-      const response = snapshotId
-        ? await getSnapshotJobReportUrl(projectId, runId, snapshotId, job.id)
-        : await getJobReportUrl(projectId, runId, job.id);
-      const url = response.data.url;
-      setReportDialogUrl(url.endsWith("/") ? url : `${url}/`);
-    } catch (err) {
-      setReportDialogError(err instanceof ApiError ? err.message : "加载报告失败");
-    } finally {
-      setReportDialogLoading(false);
+      const res = await fetch(previewUrl);
+      if (!res.ok) {
+        const text = await res.text().catch(() => "加载报告失败");
+        toast.error(text);
+        return;
+      }
+      window.open(previewUrl, "_blank", "noopener,noreferrer");
+    } catch {
+      toast.error("加载报告失败");
     }
   }
 
@@ -625,26 +617,30 @@ export function TestRunExecutionPanel({
                                   onClick={() => handlePreviewReport(job)}
                                 >
                                   <Eye className="h-3.5 w-3.5" />
-                                  预览
+                                  查看报告
                                 </Button>
                                 <Button
                                   variant="ghost"
                                   size="sm"
                                   className="h-8 gap-1 text-xs"
-                                  onClick={async () => {
+                                  onClick={() => {
                                     try {
-                                      const response = snapshotId
-                                        ? await getSnapshotJobReportUrl(projectId, runId, snapshotId, job.id)
-                                        : await getJobReportUrl(projectId, runId, job.id);
-                                      const url = response.data.url;
-                                      if (url) window.open(url, "_blank");
+                                      const downloadUrl = snapshotId
+                                        ? `/api/v2/projects/${projectId}/test-runs/${runId}/snapshots/${snapshotId}/jobs/${job.id}/report-download`
+                                        : `/api/v2/projects/${projectId}/test-runs/${runId}/script-jobs/${job.id}/report-download`;
+                                      const a = document.createElement("a");
+                                      a.href = downloadUrl;
+                                      a.download = `job-${job.id}-report.zip`;
+                                      document.body.appendChild(a);
+                                      a.click();
+                                      a.remove();
                                     } catch {
-                                      // 静默失败
+                                      toast.error("下载报告失败");
                                     }
                                   }}
                                 >
-                                  <FileText className="h-3.5 w-3.5" />
-                                  报告
+                                  <Download className="h-3.5 w-3.5" />
+                                  下载报告
                                 </Button>
                               </>
                             )}
@@ -791,29 +787,6 @@ export function TestRunExecutionPanel({
                   )}
                 </div>
               </ScrollArea>
-            </div>
-          ) : null}
-        </DialogContent>
-      </Dialog>
-
-      {/* 报告预览弹窗 */}
-      <Dialog open={!!reportDialogJob} onOpenChange={(open) => { if (!open) { setReportDialogJob(null); setReportDialogUrl(null); setReportDialogError(null); } }}>
-        <DialogContent className="max-w-6xl max-h-[90vh] flex flex-col p-0">
-          <DialogHeader className="px-6 pt-6">
-            <DialogTitle>报告预览</DialogTitle>
-            <DialogDescription>{reportDialogJob?.script_name || reportDialogJob?.script_id}</DialogDescription>
-          </DialogHeader>
-          {reportDialogLoading ? (
-            <div className="flex h-96 items-center justify-center">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-            </div>
-          ) : reportDialogError ? (
-            <div className="flex h-96 items-center justify-center px-6">
-              <p className="text-destructive">{reportDialogError}</p>
-            </div>
-          ) : reportDialogUrl ? (
-            <div className="flex-1 overflow-hidden border-t">
-              <iframe src={reportDialogUrl} className="w-full h-[70vh]" sandbox="allow-scripts allow-same-origin" title="报告预览" />
             </div>
           ) : null}
         </DialogContent>
