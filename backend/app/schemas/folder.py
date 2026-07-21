@@ -163,6 +163,10 @@ class FolderInfo(FolderBase):
         default=None,
         description="该文件夹下的 Web 功能列表（仅用于 WEB_TEST 类型文件夹）"
     )
+    total_sub_functions: Optional[int] = Field(
+        default=None,
+        description="该文件夹下所有功能的子功能总数（仅用于 WEB_TEST 类型文件夹）"
+    )
 
     class Config:
         from_attributes = True

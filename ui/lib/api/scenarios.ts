@@ -157,6 +157,7 @@ export async function addScenarioStep(
     request_override?: Record<string, any>;
     headers_override?: Record<string, any>;
     extractors?: Array<{ name: string; path: string; type?: string }>;
+    variable_exports?: Array<{ name: string; source: 'request' | 'response'; path: string; type?: string }>;
     assertions?: Array<{ type: string; expected: any; path?: string; operator?: string }>;
     condition_expression?: string;
     continue_on_failure?: boolean;
@@ -188,6 +189,7 @@ export async function updateScenarioStep(
     request_override?: Record<string, any>;
     headers_override?: Record<string, any>;
     extractors?: Array<{ name: string; path: string; type?: string }>;
+    variable_exports?: Array<{ name: string; source: 'request' | 'response'; path: string; type?: string }>;
     assertions?: Array<{ type: string; expected: any; path?: string; operator?: string }>;
     condition_expression?: string;
     continue_on_failure?: boolean;

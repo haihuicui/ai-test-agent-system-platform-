@@ -58,7 +58,7 @@ import {
   deleteDataMapping as deleteDataMappingAPI,
 } from "@/lib/api/scenarios";
 import { OPERATOR_LABELS, normalizeAssertions, normalizeOperator } from "@/lib/assertion-utils";
-import type { ScenarioStep, StepExtractor, StepAssertion } from "@/types/scenario";
+import type { ScenarioStep, StepExtractor, StepAssertion, StepVariableExport } from "@/types/scenario";
 // WATERMARK  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2WTNKcFdnPT06MTdhZTQ4OWU=
 
 interface StepEditDialogProps {
@@ -97,10 +97,11 @@ export function StepEditDialog({
   const [extractors, setExtractors] = React.useState<StepExtractor[]>([]);
   const [assertions, setAssertions] = React.useState<StepAssertion[]>([]);
   const [dataMappings, setDataMappings] = React.useState<any[]>([]);
+  const [variableExports, setVariableExports] = React.useState<StepVariableExport[]>([]);
 
   // UI 状态
   const [expandedSections, setExpandedSections] = React.useState<Set<string>>(
-    new Set(["basic", "request", "extractors", "mappings", "assertions", "execution"])
+    new Set(["basic", "request", "extractors", "variable_exports", "mappings", "assertions", "execution"])
   );
 
   // 加载步骤详情
@@ -132,6 +133,9 @@ export function StepEditDialog({
       setExtractors(data.extractors || []);
       setAssertions(normalizeAssertions(data.assertions || []));
       setDataMappings(data.data_mappings || []);
+      setVariableExports(
+        (data.variable_exports || []).map((e) => ({ ...e, type: e.type || "jsonpath" }))
+      );
     } catch (error) {
       console.error("Failed to load step:", error);
       toast.error("加载步骤详情失败");
@@ -179,6 +183,7 @@ export function StepEditDialog({
         retry_count: retryCount,
         extractors: extractors,
         assertions: assertions,
+        variable_exports: variableExports,
       });
 
       // 2. 处理数据映射的更新
@@ -260,6 +265,26 @@ export function StepEditDialog({
   // 删除断言
   const removeAssertion = (index: number) => {
     setAssertions(assertions.filter((_, i) => i !== index));
+  };
+
+  // 添加变量导出
+  const addVariableExport = () => {
+    setVariableExports([
+      ...variableExports,
+      { name: `var_${variableExports.length + 1}`, source: "request", path: "", type: "jsonpath" },
+    ]);
+  };
+
+  // 更新变量导出
+  const updateVariableExport = (index: number, field: keyof StepVariableExport, value: string) => {
+    const newExports = [...variableExports];
+    newExports[index] = { ...newExports[index], [field]: value };
+    setVariableExports(newExports);
+  };
+
+  // 删除变量导出
+  const removeVariableExport = (index: number) => {
+    setVariableExports(variableExports.filter((_, i) => i !== index));
   };
 
   // 添加数据映射
@@ -479,6 +504,79 @@ export function StepEditDialog({
                 >
                   <Plus className="h-3 w-3" />
                   添加提取器
+                </Button>
+              </div>
+            </CollapsibleSection>
+
+            <Separator />
+
+            {/* 变量导出 */}
+            <CollapsibleSection
+              title="变量导出"
+              icon={<GitBranch className="h-4 w-4" />}
+              expanded={expandedSections.has("variable_exports")}
+              onToggle={() => toggleSection("variable_exports")}
+            >
+              <div className="space-y-3">
+                {variableExports.length === 0 ? (
+                  <div className="text-center py-4 text-sm text-muted-foreground">
+                    暂无变量导出
+                  </div>
+                ) : (
+                  variableExports.map((exportItem, index) => (
+                    <div key={index} className="rounded-lg border p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">变量导出 #{index + 1}</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeVariableExport(index)}
+                          className="h-7 w-7 p-0 hover:text-destructive"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="space-y-1">
+                          <Label className="text-xs">变量名</Label>
+                          <Input
+                            value={exportItem.name}
+                            onChange={(e) => updateVariableExport(index, "name", e.target.value)}
+                            placeholder="siteName"
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">来源</Label>
+                          <Select
+                            value={exportItem.source}
+                            onValueChange={(value) => updateVariableExport(index, "source", value)}
+                          >
+                            <SelectTrigger className="h-8 text-sm">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="request">请求</SelectItem>
+                              <SelectItem value="response">响应</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">路径</Label>
+                          <Input
+                            value={exportItem.path}
+                            onChange={(e) => updateVariableExport(index, "path", e.target.value)}
+                            placeholder="$.body.name"
+                            className="h-8 text-sm font-mono"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+                <Button variant="outline" size="sm" onClick={addVariableExport} className="w-full gap-1">
+                  <Plus className="h-3 w-3" />
+                  添加变量导出
                 </Button>
               </div>
             </CollapsibleSection>

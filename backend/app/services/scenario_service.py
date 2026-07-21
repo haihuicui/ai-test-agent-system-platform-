@@ -271,6 +271,7 @@ class ScenarioService:
             request_override=step_in.request_override,
             headers_override=step_in.headers_override,
             extractors=[e.model_dump() for e in step_in.extractors],
+            variable_exports=[e.model_dump() for e in step_in.variable_exports],
             assertions=[a.model_dump() for a in step_in.assertions],
             condition_expression=step_in.condition_expression,
             continue_on_failure=step_in.continue_on_failure,
@@ -309,9 +310,11 @@ class ScenarioService:
 
         update_data = step_in.model_dump(exclude_unset=True)
 
-        # 处理 extractors 和 assertions
+        # 处理 extractors、variable_exports 和 assertions
         if "extractors" in update_data:
             update_data["extractors"] = [e.model_dump() for e in step_in.extractors]
+        if "variable_exports" in update_data:
+            update_data["variable_exports"] = [e.model_dump() for e in step_in.variable_exports]
         if "assertions" in update_data:
             update_data["assertions"] = [a.model_dump() for a in step_in.assertions]
 
