@@ -13,7 +13,7 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from app.api.v2.test_runs import _csv_to_trigger_types
+from app.api.v2.test_runs import _csv_to_trigger_types, _csv_to_uuids
 from app.schemas.enums import TriggerType
 from app.schemas.test_run import TestRunInfo, TestRunListInfo
 from app.services.scheduler_service import TestRunSchedulerService
@@ -89,6 +89,26 @@ class TestCsvToTriggerTypes:
     def test_empty_returns_none(self):
         assert _csv_to_trigger_types(None) is None
         assert _csv_to_trigger_types("") is None
+
+
+class TestCsvToUuids:
+    def test_single_value(self):
+        uid = uuid4()
+        result = _csv_to_uuids(str(uid))
+        assert result == [uid]
+
+    def test_multiple_values(self):
+        u1, u2 = uuid4(), uuid4()
+        result = _csv_to_uuids(f"{u1},{u2}")
+        assert result == [u1, u2]
+
+    def test_empty_returns_none(self):
+        assert _csv_to_uuids(None) is None
+        assert _csv_to_uuids("") is None
+
+    def test_invalid_uuid_raises(self):
+        with pytest.raises(ValueError):
+            _csv_to_uuids("not-a-uuid")
 
 
 class TestResolveScheduleId:
