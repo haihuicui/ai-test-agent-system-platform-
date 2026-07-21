@@ -7,7 +7,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, Enum as SQLEnum
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, Enum as SQLEnum, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -266,6 +266,12 @@ class TestRun(Base, UUIDMixin, TimestampMixin):
         back_populates="test_run",
         cascade="all, delete-orphan",
         order_by="TestRunScriptJob.execution_order"
+    )
+    execution_snapshots: Mapped[list["TestRunExecutionSnapshot"]] = relationship(
+        "TestRunExecutionSnapshot",
+        back_populates="test_run",
+        cascade="all, delete-orphan",
+        order_by="TestRunExecutionSnapshot.execution_number"
     )
 
     def __repr__(self) -> str:
@@ -528,3 +534,203 @@ class TestRunSchedule(Base, UUIDMixin, TimestampMixin):
 
     def __repr__(self) -> str:
         return f"<TestRunSchedule(id={self.id}, name={self.name}, trigger_type={self.trigger_type.value})>"
+
+
+class TestRunExecutionSnapshot(Base, UUIDMixin, TimestampMixin):
+    """
+    测试运行执行快照表
+
+    每次 TestRun 完整执行结束后，保存该次执行终态的快照，
+    用于在详情页切换查看同一 TestRun 的历史执行结果。
+    """
+    __tablename__ = "test_run_execution_snapshots"
+    __table_args__ = (
+        UniqueConstraint("test_run_id", "execution_number", name="uix_snapshot_run_number"),
+        {"comment": "测试运行执行快照表"},
+    )
+
+    test_run_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("test_runs.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        comment="测试运行 ID"
+    )
+    execution_number: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        comment="该 TestRun 的第几次执行（从 1 开始自增）"
+    )
+    triggered_by: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        default="manual",
+        comment="触发方式: manual / scheduled / retry"
+    )
+    run_state: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        comment="最终运行状态"
+    )
+    started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="执行开始时间"
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="执行结束时间"
+    )
+    overall_progress: Mapped[dict | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment="执行结束时 overall_progress 快照"
+    )
+
+    # 关系
+    test_run: Mapped["TestRun"] = relationship(
+        "TestRun",
+        back_populates="execution_snapshots"
+    )
+    snapshot_jobs: Mapped[list["TestRunExecutionSnapshotJob"]] = relationship(
+        "TestRunExecutionSnapshotJob",
+        back_populates="snapshot",
+        cascade="all, delete-orphan",
+        order_by="TestRunExecutionSnapshotJob.execution_order"
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<TestRunExecutionSnapshot(test_run_id={self.test_run_id}, "
+            f"execution_number={self.execution_number}, run_state={self.run_state})>"
+        )
+
+
+class TestRunExecutionSnapshotJob(Base, UUIDMixin, TimestampMixin):
+    """
+    测试运行执行快照作业表
+
+    保存某次快照中每个脚本作业的执行结果。
+    """
+    __tablename__ = "test_run_execution_snapshot_jobs"
+    __table_args__ = {"comment": "测试运行执行快照作业表"}
+
+    snapshot_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("test_run_execution_snapshots.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        comment="所属快照 ID"
+    )
+    test_run_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=False,
+        comment="测试运行 ID（冗余，便于与 TestRunScriptJob 对齐）"
+    )
+    script_job_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=False,
+        comment="对应原始 TestRunScriptJob.id（软引用）"
+    )
+    script_type: Mapped[ScriptType] = mapped_column(
+        SQLEnum(ScriptType, values_callable=lambda obj: [e.value for e in obj]),
+        nullable=False,
+        comment="脚本类型"
+    )
+    script_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=False,
+        comment="脚本 ID"
+    )
+    script_identifier: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        comment="脚本标识符冗余"
+    )
+    script_name: Mapped[str | None] = mapped_column(
+        String(500),
+        nullable=True,
+        comment="脚本名称冗余"
+    )
+    execution_order: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        nullable=False,
+        comment="执行顺序"
+    )
+    execution_mode: Mapped[ExecutionMode] = mapped_column(
+        SQLEnum(ExecutionMode, values_callable=lambda obj: [e.value for e in obj]),
+        default=ExecutionMode.SEQUENTIAL,
+        nullable=False,
+        comment="执行模式"
+    )
+    status: Mapped[JobStatus] = mapped_column(
+        SQLEnum(JobStatus, values_callable=lambda obj: [e.value for e in obj]),
+        nullable=False,
+        comment="作业状态"
+    )
+    started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="开始时间"
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="完成时间"
+    )
+    duration_ms: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+        comment="执行时长(毫秒)"
+    )
+    result_summary: Mapped[dict | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment="结果摘要"
+    )
+    error_message: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        comment="错误信息"
+    )
+    stdout: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        comment="标准输出日志"
+    )
+    stderr: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        comment="标准错误日志"
+    )
+    report_path: Mapped[str | None] = mapped_column(
+        String(2048),
+        nullable=True,
+        comment="报告 MinIO 路径"
+    )
+    retry_count: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        nullable=False,
+        comment="已重试次数"
+    )
+    max_retries: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        nullable=False,
+        comment="最大重试次数"
+    )
+
+    # 关系
+    snapshot: Mapped["TestRunExecutionSnapshot"] = relationship(
+        "TestRunExecutionSnapshot",
+        back_populates="snapshot_jobs"
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<TestRunExecutionSnapshotJob(snapshot_id={self.snapshot_id}, "
+            f"script_type={self.script_type.value}, script_id={self.script_id})>"
+        )

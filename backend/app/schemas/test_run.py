@@ -612,6 +612,52 @@ class TestRunScheduleUpdate(BaseModel):
     is_enabled: Optional[bool] = Field(default=None, description="是否启用")
 
 
+# ============ 执行快照 Schema ============
+
+class TestRunExecutionSnapshotJobInfo(BaseModel):
+    """测试运行执行快照作业信息"""
+    id: UUID = Field(..., description="快照作业 ID")
+    snapshot_id: UUID = Field(..., description="所属快照 ID")
+    test_run_id: UUID = Field(..., description="测试运行 ID")
+    script_job_id: UUID = Field(..., description="原始脚本作业 ID")
+    script_type: ScriptType = Field(..., description="脚本类型")
+    script_id: UUID = Field(..., description="脚本 ID")
+    script_identifier: str = Field(..., description="脚本标识符")
+    script_name: Optional[str] = Field(default=None, description="脚本名称")
+    execution_order: int = Field(..., description="执行顺序")
+    execution_mode: ExecutionMode = Field(..., description="执行模式")
+    status: JobStatus = Field(..., description="作业状态")
+    started_at: Optional[datetime] = Field(default=None, description="开始时间")
+    completed_at: Optional[datetime] = Field(default=None, description="完成时间")
+    duration_ms: Optional[int] = Field(default=None, description="执行时长(毫秒)")
+    result_summary: Optional[dict] = Field(default=None, description="结果摘要")
+    error_message: Optional[str] = Field(default=None, description="错误信息")
+    stdout: Optional[str] = Field(default=None, description="标准输出日志")
+    stderr: Optional[str] = Field(default=None, description="标准错误日志")
+    report_path: Optional[str] = Field(default=None, description="报告 MinIO 路径")
+    retry_count: int = Field(default=0, description="已重试次数")
+    max_retries: int = Field(default=0, description="最大重试次数")
+    created_at: datetime = Field(..., description="创建时间")
+    updated_at: Optional[datetime] = Field(default=None, description="更新时间")
+
+
+class TestRunExecutionSnapshotInfo(BaseModel):
+    """测试运行执行快照信息"""
+    id: UUID = Field(..., description="快照 ID")
+    test_run_id: UUID = Field(..., description="测试运行 ID")
+    execution_number: int = Field(..., description="执行序号")
+    triggered_by: str = Field(default="manual", description="触发方式")
+    run_state: str = Field(..., description="最终运行状态")
+    started_at: Optional[datetime] = Field(default=None, description="执行开始时间")
+    completed_at: Optional[datetime] = Field(default=None, description="执行结束时间")
+    overall_progress: Optional[OverallProgress] = Field(default=None, description="结果统计快照")
+    snapshot_jobs: Optional[list[TestRunExecutionSnapshotJobInfo]] = Field(
+        default=None, description="快照作业列表"
+    )
+    created_at: datetime = Field(..., description="创建时间")
+    updated_at: Optional[datetime] = Field(default=None, description="更新时间")
+
+
 # 兼容旧名（部分调用方可能引用）
 TestRunUpdate = TestRunPatchUpdate
 TestRunFullUpdate = TestRunFullReplace

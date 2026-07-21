@@ -41,6 +41,7 @@ from app.schemas.test_run import (
     TestRunScheduleCreate,
     TestRunScheduleUpdate,
     BatchRetryJobsRequest,
+    TestRunExecutionSnapshotInfo,
 )
 from app.schemas.enums import TestResultStatus, TestRunState, ScriptType, TriggerType
 
@@ -70,6 +71,14 @@ def _csv_to_trigger_types(value: Optional[str]) -> Optional[list[TriggerType]]:
     if not items:
         return None
     return [TriggerType(v) for v in items]
+
+
+def _csv_to_uuids(value: Optional[str]) -> Optional[list[UUID]]:
+    """逗号分隔字符串 → list[UUID]"""
+    items = _csv_to_list(value)
+    if not items:
+        return None
+    return [UUID(v) for v in items]
 
 
 # =============== 列表 / 详情 / 创建 ===============
@@ -121,6 +130,10 @@ async def list_test_runs(
     scheduled_by: Optional[str] = Query(
         default=None, description="按来源调度 ID 过滤"
     ),
+    script_ids: Optional[str] = Query(
+        default=None,
+        description="按脚本 ID 集合过滤，逗号分隔；返回包含这些脚本的测试运行",
+    ),
 ) -> PaginatedResponse[TestRunListInfo]:
     """获取测试运行列表 (BS GET /test-runs)"""
     items, total = await service.get_list(
@@ -136,6 +149,7 @@ async def list_test_runs(
         search=search,
         trigger_types=_csv_to_trigger_types(trigger_type),
         scheduled_by=UUID(scheduled_by) if scheduled_by else None,
+        script_ids=_csv_to_uuids(script_ids),
         offset=pagination.offset,
         limit=pagination.limit,
     )
@@ -718,6 +732,187 @@ async def test_run_events(
     )
 
 
+# =============== 执行快照子资源 ===============
+
+
+@router.get(
+    "/{test_run_identifier}/snapshots",
+    response_model=SuccessResponse,
+    summary="获取测试运行执行快照列表",
+    description="获取同一 TestRun 每次执行结束后的快照，用于在详情页切换历史执行结果",
+)
+async def list_execution_snapshots(
+    project_identifier: str,
+    test_run_identifier: str,
+    service: TestRunServiceDep,
+    pagination: PaginationDep,
+) -> SuccessResponse:
+    result = await service.get_execution_snapshots(
+        project_identifier,
+        test_run_identifier,
+        page=pagination.page,
+        page_size=pagination.limit,
+    )
+    return SuccessResponse(success=True, data=result)
+
+
+@router.get(
+    "/{test_run_identifier}/snapshots/{snapshot_id}",
+    response_model=SuccessResponse[TestRunExecutionSnapshotInfo],
+    summary="获取执行快照详情",
+    description="获取指定快照的详细信息及该次执行时所有脚本作业的状态",
+)
+async def get_execution_snapshot(
+    project_identifier: str,
+    test_run_identifier: str,
+    snapshot_id: str,
+    service: TestRunServiceDep,
+) -> SuccessResponse:
+    snapshot = await service.get_execution_snapshot_detail(
+        project_identifier, test_run_identifier, snapshot_id
+    )
+    return SuccessResponse(success=True, data=snapshot)
+
+
+@router.get(
+    "/{test_run_identifier}/snapshots/{snapshot_id}/jobs/{snapshot_job_id}/logs",
+    response_model=SuccessResponse,
+    summary="获取快照作业日志",
+    description="获取快照作业执行时的 stdout/stderr 日志",
+)
+async def get_snapshot_job_logs_endpoint(
+    project_identifier: str,
+    test_run_identifier: str,
+    snapshot_id: str,
+    snapshot_job_id: str,
+    service: TestRunServiceDep,
+) -> SuccessResponse:
+    result = await service.get_snapshot_job_logs(
+        project_identifier, test_run_identifier, snapshot_id, snapshot_job_id
+    )
+    return SuccessResponse(success=True, data=result)
+
+
+@router.get(
+    "/{test_run_identifier}/snapshots/{snapshot_id}/jobs/{snapshot_job_id}/report-url",
+    response_model=SuccessResponse,
+    summary="获取快照作业报告浏览 URL",
+    description="获取可直接在浏览器中打开的快照报告预览 URL",
+)
+async def get_snapshot_job_report_url_endpoint(
+    project_identifier: str,
+    test_run_identifier: str,
+    snapshot_id: str,
+    snapshot_job_id: str,
+    service: TestRunServiceDep,
+) -> SuccessResponse:
+    result = await service.get_snapshot_job_report_url(
+        project_identifier, test_run_identifier, snapshot_id, snapshot_job_id
+    )
+    return SuccessResponse(success=True, data=result)
+
+
+@router.get(
+    "/{test_run_identifier}/snapshots/{snapshot_id}/jobs/{snapshot_job_id}/report-preview",
+    response_class=HTMLResponse,
+    summary="预览快照作业 HTML 报告",
+    description="从 MinIO 下载 ZIP 报告并解压返回 index.html 内容",
+)
+@router.get(
+    "/{test_run_identifier}/snapshots/{snapshot_id}/jobs/{snapshot_job_id}/report-preview/",
+    response_class=HTMLResponse,
+    include_in_schema=False,
+    operation_id="get_snapshot_job_report_preview_slash",
+)
+async def get_snapshot_job_report_preview_endpoint(
+    project_identifier: str,
+    test_run_identifier: str,
+    snapshot_id: str,
+    snapshot_job_id: str,
+    service: TestRunServiceDep,
+) -> HTMLResponse:
+    html = await service.get_snapshot_job_report_preview(
+        project_identifier, test_run_identifier, snapshot_id, snapshot_job_id
+    )
+    return HTMLResponse(content=html)
+
+
+@router.get(
+    "/{test_run_identifier}/snapshots/{snapshot_id}/jobs/{snapshot_job_id}/report-preview/{resource_path:path}",
+    summary="获取快照作业报告资源",
+    description="从 ZIP 报告中解压并返回指定资源文件（CSS/JS/图片等）",
+)
+async def get_snapshot_job_report_resource(
+    project_identifier: str,
+    test_run_identifier: str,
+    snapshot_id: str,
+    snapshot_job_id: str,
+    resource_path: str,
+    service: TestRunServiceDep,
+) -> Response:
+    # 复用脚本作业报告资源下载逻辑：先拿到报告路径，再按路径解压资源
+    from app.repositories.test_run_repo import TestRunExecutionSnapshotRepository
+    from app.config.minio_client import MinIOClient
+    import zipfile
+    import tempfile
+    import mimetypes
+    from pathlib import Path
+
+    project = await service._get_project_by_identifier(project_identifier)
+    test_run = await service._require_test_run(project.id, test_run_identifier)
+
+    try:
+        snapshot_uuid = UUID(snapshot_id)
+        snapshot_job_uuid = UUID(snapshot_job_id)
+    except ValueError:
+        from app.utils.exceptions import BadRequestException
+        raise BadRequestException(message="快照 ID 或快照作业 ID 格式不正确")
+
+    snapshot = await service.snapshot_repo.get_by_id(snapshot_uuid)
+    if not snapshot or snapshot.test_run_id != test_run.id:
+        from app.utils.exceptions import NotFoundException
+        raise NotFoundException(resource_type="执行快照", resource_id=snapshot_id)
+
+    snapshot_job = next(
+        (j for j in (snapshot.snapshot_jobs or []) if j.id == snapshot_job_uuid), None
+    )
+    if not snapshot_job:
+        from app.utils.exceptions import NotFoundException
+        raise NotFoundException(resource_type="快照作业", resource_id=snapshot_job_id)
+
+    if not snapshot_job.report_path:
+        from app.utils.exceptions import NotFoundException
+        raise NotFoundException(
+            resource_type="报告", resource_id=snapshot_job_id, message="该快照作业暂无报告"
+        )
+
+    zip_bytes = MinIOClient.download_file(snapshot_job.report_path)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_path = Path(tmpdir)
+        zip_file = tmp_path / "report.zip"
+        zip_file.write_bytes(zip_bytes)
+
+        with zipfile.ZipFile(zip_file, "r") as zf:
+            resource_file = None
+            for name in zf.namelist():
+                if name.endswith("/"):
+                    continue
+                clean_name = name.split("/", 1)[1] if "/" in name else name
+                if clean_name == resource_path or name == resource_path:
+                    resource_file = zf.read(name)
+                    break
+
+            if resource_file is None:
+                from app.utils.exceptions import NotFoundException
+                raise NotFoundException(
+                    resource_type="报告资源", resource_id=resource_path
+                )
+
+            content_type = mimetypes.guess_type(resource_path)[0] or "application/octet-stream"
+            return Response(content=resource_file, media_type=content_type)
+
+
 # =============== 脚本作业子资源 ===============
 
 
@@ -928,7 +1123,7 @@ async def get_script_benchmark(
     "/{test_run_identifier}/script-jobs/{job_id}/report-preview",
     response_class=HTMLResponse,
     summary="预览脚本作业 HTML 报告",
-    description="从 MinIO 下载 ZIP 报告并解压返回 index.html 内容，注入 base 标签使相对资源路径可正常加载",
+    description="从 MinIO 下载 ZIP 报告并解压返回 index.html 内容；service 层已根据 index.html 在包内的实际路径注入 base 标签，使截图/视频/trace 等相对资源可正常加载",
 )
 async def get_job_report_preview(
     project_identifier: str,
@@ -936,22 +1131,11 @@ async def get_job_report_preview(
     job_id: str,
     service: TestRunServiceDep,
 ) -> HTMLResponse:
+    # service 层已根据 ZIP 中 index.html 的实际位置注入正确的 <base> 标签，
+    # 此处直接返回，避免重复/覆盖导致截图/视频/trace 资源路径错位 404。
     html = await service.get_job_report_preview(
         project_identifier, test_run_identifier, job_id
     )
-    # 注入 <base> 标签，使报告内相对路径指向资源端点
-    base_href = (
-        f"/api/v2/projects/{project_identifier}"
-        f"/test-runs/{test_run_identifier}"
-        f"/script-jobs/{job_id}/report-preview/"
-    )
-    if "<head>" in html:
-        html = html.replace("<head>", f'<head><base href="{base_href}">', 1)
-    elif "<HEAD>" in html:
-        html = html.replace("<HEAD>", f'<HEAD><base href="{base_href}">', 1)
-    else:
-        # 无 head 标签时，在 html 开头注入
-        html = f'<!DOCTYPE html><base href="{base_href}">' + html
     return HTMLResponse(content=html)
 
 

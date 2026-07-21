@@ -13,7 +13,7 @@ from sqlalchemy import select, func, and_, or_, update, delete, cast, Date, Inte
 from sqlalchemy.orm import selectinload, joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.test_run import TestRun, TestRunTestCase, TestRunScriptJob, TestRunSchedule
+from app.models.test_run import TestRun, TestRunTestCase, TestRunScriptJob, TestRunSchedule, TestRunExecutionSnapshot, TestRunExecutionSnapshotJob
 from app.models.test_case import TestCase
 from app.models.test_plan import TestPlan
 from app.schemas.enums import TestRunState, TestRunActiveState, TestResultStatus, ScriptType, JobStatus, ScheduleTriggerType
@@ -68,6 +68,7 @@ class TestRunRepository:
         run_state: Optional[TestRunState] = None,
         trigger_types: Optional[list] = None,
         scheduled_by: Optional[UUID] = None,
+        script_ids: Optional[list[UUID]] = None,
         offset: int = 0,
         limit: int = 30,
     ) -> tuple[list[TestRun], int]:
@@ -154,7 +155,28 @@ class TestRunRepository:
                 )
             )
 
-        stmt = stmt.order_by(TestRun.created_at.desc()).offset(offset).limit(limit)
+        if script_ids:
+            matched_run_ids = (
+                select(
+                    TestRunScriptJob.test_run_id,
+                    func.count(func.distinct(TestRunScriptJob.script_id)).label(
+                        "match_count"
+                    ),
+                )
+                .where(TestRunScriptJob.script_id.in_(script_ids))
+                .group_by(TestRunScriptJob.test_run_id)
+                .having(func.count(func.distinct(TestRunScriptJob.script_id)) > 0)
+            ).subquery()
+            stmt = stmt.join(matched_run_ids, TestRun.id == matched_run_ids.c.test_run_id)
+            count_stmt = count_stmt.join(matched_run_ids, TestRun.id == matched_run_ids.c.test_run_id)
+            # 按匹配脚本数降序，再按创建时间降序，保证相关历史优先出现
+            stmt = stmt.order_by(
+                matched_run_ids.c.match_count.desc(), TestRun.created_at.desc()
+            )
+        else:
+            stmt = stmt.order_by(TestRun.created_at.desc())
+
+        stmt = stmt.offset(offset).limit(limit)
 
         result = await self.session.execute(stmt)
         count_result = await self.session.execute(count_stmt)
@@ -791,3 +813,75 @@ class TestRunScheduleRepository:
     async def delete(self, schedule: TestRunSchedule) -> None:
         await self.session.delete(schedule)
         await self.session.flush()
+
+
+class TestRunExecutionSnapshotRepository:
+    """测试运行执行快照仓储"""
+
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def get_next_execution_number(self, test_run_id: UUID) -> int:
+        """获取该 TestRun 的下一个执行序号"""
+        stmt = (
+            select(func.coalesce(func.max(TestRunExecutionSnapshot.execution_number), 0) + 1)
+            .where(TestRunExecutionSnapshot.test_run_id == test_run_id)
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar() or 1
+
+    async def create(
+        self,
+        snapshot: TestRunExecutionSnapshot,
+        snapshot_jobs: list[TestRunExecutionSnapshotJob],
+    ) -> TestRunExecutionSnapshot:
+        self.session.add(snapshot)
+        await self.session.flush()
+        for job in snapshot_jobs:
+            job.snapshot_id = snapshot.id
+            self.session.add(job)
+        await self.session.flush()
+        return snapshot
+
+    async def get_by_id(self, snapshot_id: UUID) -> Optional[TestRunExecutionSnapshot]:
+        stmt = (
+            select(TestRunExecutionSnapshot)
+            .options(selectinload(TestRunExecutionSnapshot.snapshot_jobs))
+            .where(TestRunExecutionSnapshot.id == snapshot_id)
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def get_by_test_run(
+        self,
+        test_run_id: UUID,
+        offset: int = 0,
+        limit: int = 100,
+    ) -> tuple[list[TestRunExecutionSnapshot], int]:
+        stmt = (
+            select(TestRunExecutionSnapshot)
+            .where(TestRunExecutionSnapshot.test_run_id == test_run_id)
+            .order_by(TestRunExecutionSnapshot.execution_number.desc())
+            .offset(offset)
+            .limit(limit)
+        )
+        count_stmt = (
+            select(func.count())
+            .select_from(TestRunExecutionSnapshot)
+            .where(TestRunExecutionSnapshot.test_run_id == test_run_id)
+        )
+        result = await self.session.execute(stmt)
+        count_result = await self.session.execute(count_stmt)
+        return list(result.scalars().all()), count_result.scalar() or 0
+
+    async def get_latest_by_test_run(
+        self, test_run_id: UUID
+    ) -> Optional[TestRunExecutionSnapshot]:
+        stmt = (
+            select(TestRunExecutionSnapshot)
+            .where(TestRunExecutionSnapshot.test_run_id == test_run_id)
+            .order_by(TestRunExecutionSnapshot.execution_number.desc())
+            .limit(1)
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()

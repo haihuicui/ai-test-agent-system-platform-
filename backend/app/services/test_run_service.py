@@ -17,7 +17,7 @@ from sqlalchemy import select, func
 from sqlalchemy.exc import IntegrityError
 
 from app.config.minio_client import MinIOClient
-from app.models.test_run import TestRun, TestRunTestCase, TestRunScriptJob, TestRunSchedule
+from app.models.test_run import TestRun, TestRunTestCase, TestRunScriptJob, TestRunSchedule, TestRunExecutionSnapshot, TestRunExecutionSnapshotJob
 from app.models.api_test import APITestRun
 from app.models.test_scenario import ScenarioRun
 from app.models.web_test import WebTestRun
@@ -29,6 +29,7 @@ from app.repositories.test_run_repo import (
     TestRunTestCaseRepository,
     TestRunScriptJobRepository,
     TestRunScheduleRepository,
+    TestRunExecutionSnapshotRepository,
 )
 from app.repositories.project_repo import ProjectRepository
 from app.repositories.test_case_repo import TestCaseRepository
@@ -59,6 +60,8 @@ from app.schemas.test_run import (
     TestRunScheduleInfo,
     TestRunScheduleCreate,
     TestRunScheduleUpdate,
+    TestRunExecutionSnapshotInfo,
+    TestRunExecutionSnapshotJobInfo,
 )
 from app.schemas.enums import (
     TestRunActiveState,
@@ -117,6 +120,7 @@ class TestRunService:
         self.tc_repo = TestRunTestCaseRepository(session)
         self.script_job_repo = TestRunScriptJobRepository(session)
         self.schedule_repo = TestRunScheduleRepository(session)
+        self.snapshot_repo = TestRunExecutionSnapshotRepository(session)
         self.project_repo = ProjectRepository(session)
         self.test_case_repo = TestCaseRepository(session)
         self.test_plan_repo = TestPlanRepository(session)
@@ -330,6 +334,13 @@ class TestRunService:
         )
 
     def _to_schedule_info(self, schedule: TestRunSchedule) -> TestRunScheduleInfo:
+        def _ensure_utc(dt: Optional[datetime]) -> Optional[datetime]:
+            if dt is None:
+                return None
+            if dt.tzinfo is None:
+                return dt.replace(tzinfo=timezone.utc)
+            return dt.astimezone(timezone.utc)
+
         return TestRunScheduleInfo(
             id=schedule.id,
             project_id=schedule.project_id,
@@ -338,11 +349,62 @@ class TestRunService:
             trigger_type=schedule.trigger_type,
             trigger_config=schedule.trigger_config,
             is_enabled=schedule.is_enabled,
-            next_run_at=schedule.next_run_at,
-            last_run_at=schedule.last_run_at,
+            next_run_at=_ensure_utc(schedule.next_run_at),
+            last_run_at=_ensure_utc(schedule.last_run_at),
             test_run_template=schedule.test_run_template,
             created_at=schedule.created_at,
             updated_at=schedule.updated_at,
+        )
+
+    def _to_snapshot_job_info(
+        self, job: TestRunExecutionSnapshotJob
+    ) -> TestRunExecutionSnapshotJobInfo:
+        return TestRunExecutionSnapshotJobInfo(
+            id=job.id,
+            snapshot_id=job.snapshot_id,
+            test_run_id=job.test_run_id,
+            script_job_id=job.script_job_id,
+            script_type=job.script_type,
+            script_id=job.script_id,
+            script_identifier=job.script_identifier,
+            script_name=job.script_name,
+            execution_order=job.execution_order,
+            execution_mode=job.execution_mode,
+            status=job.status,
+            started_at=job.started_at,
+            completed_at=job.completed_at,
+            duration_ms=job.duration_ms,
+            result_summary=job.result_summary,
+            error_message=job.error_message,
+            stdout=job.stdout,
+            stderr=job.stderr,
+            report_path=job.report_path,
+            retry_count=job.retry_count,
+            max_retries=job.max_retries,
+            created_at=job.created_at,
+            updated_at=job.updated_at,
+        )
+
+    def _to_snapshot_info(
+        self, snapshot: TestRunExecutionSnapshot, *, include_jobs: bool = False
+    ) -> TestRunExecutionSnapshotInfo:
+        snapshot_jobs = None
+        if include_jobs and snapshot.snapshot_jobs is not None:
+            snapshot_jobs = [
+                self._to_snapshot_job_info(j) for j in snapshot.snapshot_jobs
+            ]
+        return TestRunExecutionSnapshotInfo(
+            id=snapshot.id,
+            test_run_id=snapshot.test_run_id,
+            execution_number=snapshot.execution_number,
+            triggered_by=snapshot.triggered_by,
+            run_state=snapshot.run_state,
+            started_at=snapshot.started_at,
+            completed_at=snapshot.completed_at,
+            overall_progress=snapshot.overall_progress,
+            snapshot_jobs=snapshot_jobs,
+            created_at=snapshot.created_at,
+            updated_at=snapshot.updated_at,
         )
 
     async def _to_info(
@@ -641,6 +703,7 @@ class TestRunService:
         search: Optional[str] = None,
         trigger_types: Optional[list[TriggerType]] = None,
         scheduled_by: Optional[UUID] = None,
+        script_ids: Optional[list[UUID]] = None,
         offset: int = 0,
         limit: int = 30,
     ) -> tuple[list[TestRunListInfo], int]:
@@ -665,6 +728,7 @@ class TestRunService:
             search=search,
             trigger_types=trigger_types,
             scheduled_by=scheduled_by,
+            script_ids=script_ids,
             offset=offset,
             limit=limit,
         )
@@ -701,6 +765,263 @@ class TestRunService:
         return await self.get_detail(
             project_identifier, test_run_identifier, minify=False
         )
+
+    async def get_execution_snapshots(
+        self,
+        project_identifier: str,
+        test_run_identifier: str,
+        page: int = 1,
+        page_size: int = 100,
+    ) -> dict:
+        """获取测试运行的执行快照列表"""
+        project = await self._get_project_by_identifier(project_identifier)
+        test_run = await self._require_test_run(project.id, test_run_identifier)
+
+        offset = (page - 1) * page_size
+        snapshots, total = await self.snapshot_repo.get_by_test_run(
+            test_run.id, offset=offset, limit=page_size
+        )
+
+        return {
+            "items": [self._to_snapshot_info(s) for s in snapshots],
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+        }
+
+    async def get_execution_snapshot_detail(
+        self,
+        project_identifier: str,
+        test_run_identifier: str,
+        snapshot_id: str,
+    ) -> TestRunExecutionSnapshotInfo:
+        """获取执行快照详情（含作业列表）"""
+        project = await self._get_project_by_identifier(project_identifier)
+        test_run = await self._require_test_run(project.id, test_run_identifier)
+
+        try:
+            snapshot_uuid = UUID(snapshot_id)
+        except ValueError:
+            raise BadRequestException(message=f"快照 ID '{snapshot_id}' 格式不正确")
+
+        snapshot = await self.snapshot_repo.get_by_id(snapshot_uuid)
+        if not snapshot or snapshot.test_run_id != test_run.id:
+            raise NotFoundException(resource_type="执行快照", resource_id=snapshot_id)
+
+        return self._to_snapshot_info(snapshot, include_jobs=True)
+
+    async def get_snapshot_job_logs(
+        self,
+        project_identifier: str,
+        test_run_identifier: str,
+        snapshot_id: str,
+        snapshot_job_id: str,
+    ) -> dict:
+        """获取快照作业的执行日志"""
+        project = await self._get_project_by_identifier(project_identifier)
+        test_run = await self._require_test_run(project.id, test_run_identifier)
+
+        try:
+            snapshot_uuid = UUID(snapshot_id)
+            snapshot_job_uuid = UUID(snapshot_job_id)
+        except ValueError:
+            raise BadRequestException(message="快照 ID 或快照作业 ID 格式不正确")
+
+        snapshot = await self.snapshot_repo.get_by_id(snapshot_uuid)
+        if not snapshot or snapshot.test_run_id != test_run.id:
+            raise NotFoundException(resource_type="执行快照", resource_id=snapshot_id)
+
+        snapshot_job = next(
+            (j for j in (snapshot.snapshot_jobs or []) if j.id == snapshot_job_uuid), None
+        )
+        if not snapshot_job:
+            raise NotFoundException(resource_type="快照作业", resource_id=snapshot_job_id)
+
+        return {
+            "stdout": snapshot_job.stdout or "",
+            "stderr": snapshot_job.stderr or "",
+        }
+
+    async def get_snapshot_job_report_url(
+        self,
+        project_identifier: str,
+        test_run_identifier: str,
+        snapshot_id: str,
+        snapshot_job_id: str,
+    ) -> dict:
+        """获取快照作业报告的预签名 URL"""
+        project = await self._get_project_by_identifier(project_identifier)
+        test_run = await self._require_test_run(project.id, test_run_identifier)
+
+        try:
+            snapshot_uuid = UUID(snapshot_id)
+            snapshot_job_uuid = UUID(snapshot_job_id)
+        except ValueError:
+            raise BadRequestException(message="快照 ID 或快照作业 ID 格式不正确")
+
+        snapshot = await self.snapshot_repo.get_by_id(snapshot_uuid)
+        if not snapshot or snapshot.test_run_id != test_run.id:
+            raise NotFoundException(resource_type="执行快照", resource_id=snapshot_id)
+
+        snapshot_job = next(
+            (j for j in (snapshot.snapshot_jobs or []) if j.id == snapshot_job_uuid), None
+        )
+        if not snapshot_job:
+            raise NotFoundException(resource_type="快照作业", resource_id=snapshot_job_id)
+
+        if not snapshot_job.report_path:
+            raise NotFoundException(
+                resource_type="报告", resource_id=snapshot_job_id, message="该快照作业暂无报告"
+            )
+
+        url = MinIOClient.get_presigned_url(
+            snapshot_job.report_path, expires=timedelta(hours=1)
+        )
+        return {"url": url, "expires_in": 3600}
+
+    async def get_snapshot_job_report_preview(
+        self,
+        project_identifier: str,
+        test_run_identifier: str,
+        snapshot_id: str,
+        snapshot_job_id: str,
+    ) -> str:
+        """获取快照作业 HTML 报告的内嵌预览内容"""
+        import zipfile
+        import tempfile
+        from pathlib import Path
+
+        project = await self._get_project_by_identifier(project_identifier)
+        test_run = await self._require_test_run(project.id, test_run_identifier)
+
+        try:
+            snapshot_uuid = UUID(snapshot_id)
+            snapshot_job_uuid = UUID(snapshot_job_id)
+        except ValueError:
+            raise BadRequestException(message="快照 ID 或快照作业 ID 格式不正确")
+
+        snapshot = await self.snapshot_repo.get_by_id(snapshot_uuid)
+        if not snapshot or snapshot.test_run_id != test_run.id:
+            raise NotFoundException(resource_type="执行快照", resource_id=snapshot_id)
+
+        snapshot_job = next(
+            (j for j in (snapshot.snapshot_jobs or []) if j.id == snapshot_job_uuid), None
+        )
+        if not snapshot_job:
+            raise NotFoundException(resource_type="快照作业", resource_id=snapshot_job_id)
+
+        if not snapshot_job.report_path:
+            raise NotFoundException(
+                resource_type="报告", resource_id=snapshot_job_id, message="该快照作业暂无报告"
+            )
+
+        zip_bytes = MinIOClient.download_file(snapshot_job.report_path)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir)
+            zip_file = tmp_path / "report.zip"
+            zip_file.write_bytes(zip_bytes)
+
+            with zipfile.ZipFile(zip_file, "r") as zf:
+                zf.extractall(tmp_path)
+
+            index_html = tmp_path / "index.html"
+            if not index_html.exists():
+                for subdir in tmp_path.iterdir():
+                    if subdir.is_dir():
+                        candidate = subdir / "index.html"
+                        if candidate.exists():
+                            index_html = candidate
+                            break
+
+            if not index_html.exists():
+                raise NotFoundException(
+                    resource_type="报告", resource_id=snapshot_job_id, message="报告中未找到 index.html"
+                )
+
+            html = index_html.read_text(encoding="utf-8")
+
+            try:
+                rel_index_dir = index_html.relative_to(tmp_path).parent.as_posix()
+            except ValueError:
+                rel_index_dir = ""
+
+            base_href = (
+                f"/api/v2/projects/{project_identifier}"
+                f"/test-runs/{test_run_identifier}"
+                f"/snapshots/{snapshot_id}"
+                f"/jobs/{snapshot_job_id}"
+                f"/report-preview/"
+            )
+            if rel_index_dir:
+                base_href += f"{rel_index_dir}/"
+
+            if "<head>" in html:
+                html = html.replace("<head>", f'<head><base href="{base_href}">', 1)
+            elif "<HEAD>" in html:
+                html = html.replace("<HEAD>", f'<HEAD><base href="{base_href}">', 1)
+            else:
+                html = f'<!DOCTYPE html><base href="{base_href}">' + html
+
+            return html
+
+    async def create_execution_snapshot(
+        self,
+        test_run_id: UUID,
+        jobs: list[TestRunScriptJob],
+        *,
+        triggered_by: str = "manual",
+        started_at: Optional[datetime] = None,
+    ) -> TestRunExecutionSnapshot:
+        """为一次完整执行创建快照（供执行引擎调用）。"""
+        async with async_session_factory() as session:
+            snapshot_repo = TestRunExecutionSnapshotRepository(session)
+
+            test_run_repo = TestRunRepository(session)
+            test_run = await test_run_repo.get_by_id(test_run_id)
+            if not test_run:
+                raise ValueError(f"测试运行不存在: {test_run_id}")
+
+            execution_number = await snapshot_repo.get_next_execution_number(test_run_id)
+
+            snapshot = TestRunExecutionSnapshot(
+                test_run_id=test_run_id,
+                execution_number=execution_number,
+                triggered_by=triggered_by,
+                run_state=str(test_run.run_state.value),
+                started_at=started_at,
+                completed_at=datetime.now(timezone.utc),
+                overall_progress=self._overall_progress(test_run).model_dump(),
+            )
+
+            snapshot_jobs = [
+                TestRunExecutionSnapshotJob(
+                    script_job_id=job.id,
+                    test_run_id=test_run_id,
+                    script_type=job.script_type,
+                    script_id=job.script_id,
+                    script_identifier=job.script_identifier,
+                    script_name=job.script_name,
+                    execution_order=job.execution_order,
+                    execution_mode=job.execution_mode,
+                    status=job.status,
+                    started_at=job.started_at,
+                    completed_at=job.completed_at,
+                    duration_ms=job.duration_ms,
+                    result_summary=job.result_summary,
+                    error_message=job.error_message,
+                    stdout=job.stdout,
+                    stderr=job.stderr,
+                    report_path=job.report_path,
+                    retry_count=job.retry_count,
+                    max_retries=job.max_retries,
+                )
+                for job in jobs
+            ]
+
+            await snapshot_repo.create(snapshot, snapshot_jobs)
+            await session.commit()
+            return snapshot
 
     async def create(
         self,
