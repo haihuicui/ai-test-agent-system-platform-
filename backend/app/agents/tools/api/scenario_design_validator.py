@@ -76,6 +76,7 @@ async def _validate_scenario_design(
     steps: list[ScenarioStep],
     endpoints: dict[UUID, APIEndpoint],
     teardown_config: dict | None,
+    runtime_variables: dict | None = None,
 ) -> dict:
     """场景设计静态预检：在执行真实 HTTP 请求前拦截生成侧质量问题"""
     errors: list[dict] = []
@@ -87,6 +88,14 @@ async def _validate_scenario_design(
         extractors = step.extractors or []
         extractor_vars_by_step[step.id] = {
             e.get("name") for e in extractors if e.get("name")
+        }
+
+    # 收集每个步骤的变量导出名称
+    exported_vars_by_step: dict[UUID, set[str]] = {}
+    for step in steps:
+        exports = step.variable_exports or []
+        exported_vars_by_step[step.id] = {
+            e.get("name") for e in exports if e.get("name")
         }
 
     # 收集每个步骤的数据映射目标变量名（target_path 最后一段）
@@ -105,9 +114,13 @@ async def _validate_scenario_design(
             )
             mapping_targets_by_step.setdefault(mapping.step_id, set()).add(target_var)
 
-    # 全局变量
+    # 全局变量与运行时变量
     scenario = await session.get(TestScenario, scenario_id)
     global_vars: set[str] = set((scenario.global_variables or {}).keys()) if scenario else set()
+    runtime_vars: set[str] = set((runtime_variables or {}).keys())
+
+    # 前面步骤的导出变量对后续步骤可用
+    available_from_previous_steps: set[str] = set()
 
     for step in steps:
         endpoint = endpoints.get(step.endpoint_id)
@@ -118,7 +131,53 @@ async def _validate_scenario_design(
         body = request_override.get("body") or {}
         params = request_override.get("params") or {}
         assertions = step.assertions or []
+        headers_override = step.headers_override or {}
 
+        # 0. 模板变量来源检查（{{variable}}，不含 {{$dynamic}}）
+        static_sources = (
+            extractor_vars_by_step.get(step.id, set())
+            | mapping_targets_by_step.get(step.id, set())
+            | exported_vars_by_step.get(step.id, set())
+            | global_vars
+            | available_from_previous_steps
+        )
+        template_vars = _scan_template_variables({
+            "body": body,
+            "params": params,
+            "headers": headers_override,
+        })
+        # 过滤掉动态占位符 {{$...}} 与纯字符串字面量
+        for var in set(template_vars):
+            if var.startswith("$"):
+                continue
+            if var in static_sources:
+                continue
+            if var in runtime_vars:
+                warnings.append({
+                    "step_order": step.step_order,
+                    "step_name": step.name,
+                    "severity": "warning",
+                    "category": "runtime_only_variable",
+                    "message": f"模板变量 {{{{ {var} }}}} 仅在运行时 variables 中定义，未在全局变量/提取器/数据映射/变量导出中声明",
+                    "fix": (
+                        f"如该变量应跨执行复用，请使用 update_test_scenario 将其加入 global_variables；"
+                        f"如希望从本步骤导出，请使用 add_step_variable_export；"
+                        f"如确为每次执行时传入，可忽略此警告。"
+                    ),
+                })
+            else:
+                errors.append({
+                    "step_order": step.step_order,
+                    "step_name": step.name,
+                    "severity": "error",
+                    "category": "unmapped_template_variable",
+                    "message": f"模板变量 {{{{ {var} }}}} 未映射到任何 extractor / data_mapping / 变量导出 / 全局变量 / 运行时变量",
+                    "fix": (
+                        f"在前序步骤添加 add_step_extractor(name='{var}') 或 add_step_variable_export(name='{var}', ...)，"
+                        f"使用 add_data_mapping 建立数据依赖，"
+                        f"或在 update_test_scenario / execute_scenario(variables=...) 中声明该变量。"
+                    ),
+                })
         # 1. 必填字段缺失检查
         required_fields = _get_request_body_required(endpoint)
         if isinstance(body, dict):
@@ -141,7 +200,10 @@ async def _validate_scenario_design(
         available_vars = (
             extractor_vars_by_step.get(step.id, set())
             | mapping_targets_by_step.get(step.id, set())
+            | exported_vars_by_step.get(step.id, set())
             | global_vars
+            | runtime_vars
+            | available_from_previous_steps
         )
         for param in all_path_params:
             if param not in available_vars:
@@ -150,12 +212,16 @@ async def _validate_scenario_design(
                     "step_name": step.name,
                     "severity": "error",
                     "category": "unmapped_path_param",
-                    "message": f"路径参数 {{{param}}} 未映射到任何 extractor / data_mapping / 全局变量",
+                    "message": f"路径参数 {{{param}}} 未映射到任何 extractor / data_mapping / 变量导出 / 全局变量 / 运行时变量",
                     "fix": (
-                        f"在前序步骤添加 add_step_extractor(name='{param}')，"
-                        f"或在 request_override.path 中使用 {{{{ {param} }}}} 引用"
+                        f"在前序步骤添加 add_step_extractor(name='{param}') 或 add_step_variable_export(name='{param}', ...)，"
+                        f"在 request_override.path 中使用 {{{{ {param} }}}} 引用，"
+                        f"或在 execute_scenario(variables=...) 中传入该变量。"
                     ),
                 })
+
+        # 当前步骤的导出变量在后续步骤中可用
+        available_from_previous_steps.update(exported_vars_by_step.get(step.id, set()))
 
         # 3. 分页/列表步骤业务断言检查
         method = (endpoint.method or "GET").upper()
@@ -226,7 +292,7 @@ async def _validate_scenario_design(
 
 
 @tool
-async def validate_scenario_design(scenario_id: str) -> str:
+async def validate_scenario_design(scenario_id: str, variables: dict | None = None) -> str:
     """
     对场景设计做静态预检，在执行前发现生成侧质量问题。
 
@@ -236,15 +302,18 @@ async def validate_scenario_design(scenario_id: str) -> str:
     - 分页/列表步骤缺少业务断言
     - 创建类步骤缺少 teardown
     - params 中未在 schema 声明的参数
+    - 模板变量是否可在运行时 variables 中解析
 
     Args:
         scenario_id: 场景 ID
+        variables: 执行时传入的运行时变量（可选），用于校验模板变量是否可解析
 
     Returns:
         JSON 格式的校验报告，包含 errors / warnings / suggestions
 
     Example:
         >>> result = await validate_scenario_design("uuid-xxx")
+        >>> result = await validate_scenario_design("uuid-xxx", variables={"siteName": "demo"})
     """
     async with async_session_factory() as session:
         try:
@@ -269,7 +338,8 @@ async def validate_scenario_design(scenario_id: str) -> str:
             teardown_config = scenario.teardown_config if scenario else None
 
             design_check = await _validate_scenario_design(
-                session, UUID(scenario_id), steps, endpoints, teardown_config
+                session, UUID(scenario_id), steps, endpoints, teardown_config,
+                runtime_variables=variables,
             )
 
             suggestions: list[str] = []

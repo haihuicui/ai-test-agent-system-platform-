@@ -597,6 +597,7 @@ async def add_scenario_step(
     step_order: int | None = None,
     request_override: dict | None = None,
     headers_override: dict | None = None,
+    variable_exports: list[dict] | None = None,
 ) -> str:
     """
     向测试场景添加一个步骤
@@ -611,6 +612,9 @@ async def add_scenario_step(
         step_order: 步骤顺序（可选，默认追加到最后）
         request_override: 请求参数覆盖（可选）
         headers_override: 请求头覆盖（可选）
+        variable_exports: 变量导出配置（可选），用于将步骤请求/响应中的值导出为变量，
+            供后续步骤引用。格式示例：
+            [{"name": "siteName", "source": "request", "path": "$.body.name"}]
 
     Returns:
         JSON 格式的添加结果
@@ -676,6 +680,7 @@ async def add_scenario_step(
                 description=description,
                 request_override=request_override or {},
                 headers_override=headers_override or {},
+                variable_exports=variable_exports or [],
             )
             session.add(step)
 
@@ -729,11 +734,12 @@ async def update_scenario_step(
     delay_ms: int | None = None,
     assertions: list[dict] | None = None,
     extractors: list[dict] | None = None,
+    variable_exports: list[dict] | None = None,
 ) -> str:
     """
     更新测试场景步骤的配置
 
-    可以修改步骤的名称、描述、请求参数、请求头、断言、提取器等配置。
+    可以修改步骤的名称、描述、请求参数、请求头、断言、提取器、变量导出等配置。
 
     Args:
         step_id: 步骤 ID
@@ -748,6 +754,8 @@ async def update_scenario_step(
             当 add_step_assertion 持久化异常时，可用此参数一次性设置。
         extractors: 完整的提取器列表（可选），会替换现有所有提取器。
             每个提取器格式: {"name": "siteId", "path": "$.data.id", "type": "jsonpath"}
+        variable_exports: 完整的变量导出列表（可选），会替换现有所有导出。
+            每个导出格式: {"name": "siteName", "source": "request", "path": "$.body.name", "type": "jsonpath"}
 
     Returns:
         JSON 格式的更新结果
@@ -815,6 +823,10 @@ async def update_scenario_step(
                 step.extractors = extractors
                 updated_fields.append("extractors")
 
+            if variable_exports is not None:
+                step.variable_exports = variable_exports
+                updated_fields.append("variable_exports")
+
             step.updated_at = datetime.now(timezone.utc)
 
             await session.commit()
@@ -847,6 +859,7 @@ async def update_scenario_step(
                     "delay_ms": step.delay_ms,
                     "assertions": step.assertions,
                     "extractors": step.extractors,
+                    "variable_exports": step.variable_exports,
                     "updated_fields": updated_fields,
                 }
             }, ensure_ascii=False, indent=2)
@@ -1250,6 +1263,130 @@ async def add_step_assertion(
 
 
 @tool
+async def add_step_variable_export(
+    step_id: str,
+    name: str,
+    path: str,
+    source: str = "request",
+    export_type: str = "jsonpath",
+) -> str:
+    """
+    为步骤添加变量导出
+
+    将步骤执行后的请求值或响应值导出到上下文变量，供后续步骤通过 {{name}} 引用。
+    常用于解决 {{$timestamp}}、{{$uuid}} 等动态占位符跨步骤不一致的问题。
+
+    Args:
+        step_id: 步骤 ID
+        name: 导出的变量名（如 "siteName"）
+        path: 提取路径（JSONPath 格式，如 "$.body.name"）
+        source: 数据来源（"request" 或 "response"，默认 "request"）
+        export_type: 提取器类型（默认 "jsonpath"）
+
+    Returns:
+        JSON 格式的添加结果
+
+    Example:
+        >>> result = await add_step_variable_export(
+        ...     step_id="uuid-xxx",
+        ...     name="siteName",
+        ...     path="$.body.name",
+        ...     source="request",
+        ... )
+    """
+    async with async_session_factory() as session:
+        try:
+            # 1. 查询步骤
+            step_stmt = select(ScenarioStep).where(
+                ScenarioStep.id == UUID(step_id)
+            )
+            step_result = await session.execute(step_stmt)
+            step = step_result.scalar_one_or_none()
+
+            if not step:
+                return json.dumps({
+                    "success": False,
+                    "error": f"步骤 {step_id} 不存在"
+                }, ensure_ascii=False, indent=2)
+
+            # 校验 source
+            if source not in ("request", "response"):
+                return json.dumps({
+                    "success": False,
+                    "error": f"无效的 source: {source}。可选值: request, response"
+                }, ensure_ascii=False, indent=2)
+
+            # 2. 添加/更新变量导出配置（按 name 去重）
+            export = {
+                "name": name,
+                "path": path,
+                "source": source,
+                "type": export_type,
+            }
+
+            variable_exports = step.variable_exports or []
+            updated_existing = False
+            for i, e in enumerate(variable_exports):
+                if e.get("name") == name:
+                    variable_exports[i] = export
+                    updated_existing = True
+                    break
+
+            action = "更新" if updated_existing else "添加"
+            if not updated_existing:
+                variable_exports.append(export)
+
+            # 使用原子 UPDATE 避免 JSONB 变异追踪问题
+            from sqlalchemy import update as sa_update
+            await session.execute(
+                sa_update(ScenarioStep)
+                .where(ScenarioStep.id == step.id)
+                .values(variable_exports=variable_exports, updated_at=datetime.now(timezone.utc))
+            )
+            await session.commit()
+
+            # 提交后验证
+            verify_stmt = select(ScenarioStep).where(ScenarioStep.id == step.id)
+            verify_result = await session.execute(verify_stmt)
+            verified_step = verify_result.scalar_one_or_none()
+            persisted_exports = verified_step.variable_exports if verified_step else None
+            actually_persisted = (
+                persisted_exports is not None
+                and len(persisted_exports) == len(variable_exports)
+            )
+
+            response_data = {
+                "success": True,
+                "message": f"成功{action}变量导出: {name} = {path} (source={source})",
+                "data": {
+                    "action": action,
+                    "export": export,
+                    "total_exports": len(variable_exports),
+                    "verified": actually_persisted,
+                }
+            }
+
+            if not actually_persisted:
+                response_data["warning"] = (
+                    f"变量导出已写入但提交后验证失败：期望 {len(variable_exports)} 条，"
+                    f"数据库中实际为 {len(persisted_exports or [])} 条。"
+                    f"这可能是 JSONB 持久化 bug，"
+                    f"建议改用 update_scenario_step 一次性设置完整的 variable_exports 列表。"
+                )
+
+            return json.dumps(response_data, ensure_ascii=False, indent=2)
+
+        except Exception as e:
+            await session.rollback()
+            import traceback
+            return json.dumps({
+                "success": False,
+                "error": f"添加变量导出失败: {str(e)}",
+                "stack_trace": traceback.format_exc(),
+            }, ensure_ascii=False, indent=2)
+
+
+@tool
 async def get_scenario_details(scenario_id: str) -> str:
     """
     获取测试场景的详细信息
@@ -1495,7 +1632,8 @@ async def execute_scenario(
             design_warnings: list[dict] = []
             if not skip_design_gate:
                 design_check = await _validate_scenario_design(
-                    session, UUID(scenario_id), steps, endpoints, teardown_config
+                    session, UUID(scenario_id), steps, endpoints, teardown_config,
+                    runtime_variables=variables,
                 )
                 design_warnings = design_check["warnings"]
                 if design_check["errors"]:

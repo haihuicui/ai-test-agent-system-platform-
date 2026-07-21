@@ -236,6 +236,7 @@ class TestValidateScenarioDesign:
         step.request_override = kwargs.get("request_override", {})
         step.assertions = kwargs.get("assertions", [])
         step.extractors = kwargs.get("extractors", [])
+        step.variable_exports = kwargs.get("variable_exports", [])
         step.continue_on_failure = kwargs.get("continue_on_failure", False)
         step.delay_ms = kwargs.get("delay_ms", 0)
         return step
@@ -372,6 +373,139 @@ class TestValidateScenarioDesign:
 
         assert any(w["category"] == "unverified_param" for w in result["warnings"])
 
+    @pytest.mark.asyncio
+    async def test_runtime_variable_resolves_path_param(self):
+        step_id = uuid4()
+        endpoint_id = uuid4()
+        scenario_id = uuid4()
+
+        step = self._make_step(
+            step_id, 1, "编辑", endpoint_id,
+            request_override={"path": "/items/{itemId}"},
+        )
+        endpoint = self._make_endpoint(endpoint_id, method="PUT", path="/items/{itemId}")
+
+        session = AsyncMock()
+        session.get = AsyncMock(return_value=MagicMock(global_variables={}))
+        session.execute = AsyncMock(return_value=MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[])))))
+
+        result = await _validate_scenario_design(
+            session, scenario_id, [step], {endpoint_id: endpoint}, None,
+            runtime_variables={"itemId": "123"},
+        )
+
+        assert result["valid"] is True
+        assert not any(i["category"] == "unmapped_path_param" for i in result["errors"])
+
+    @pytest.mark.asyncio
+    async def test_runtime_only_template_variable_warns(self):
+        step_id = uuid4()
+        endpoint_id = uuid4()
+        scenario_id = uuid4()
+
+        step = self._make_step(
+            step_id, 1, "查询", endpoint_id,
+            request_override={"params": {"name": "{{siteName}}"}},
+        )
+        endpoint = self._make_endpoint(endpoint_id, method="GET", path="/sites")
+
+        session = AsyncMock()
+        session.get = AsyncMock(return_value=MagicMock(global_variables={}))
+        session.execute = AsyncMock(
+            return_value=MagicMock(
+                scalars=MagicMock(
+                    return_value=MagicMock(
+                        all=MagicMock(return_value=[])
+                    )
+                )
+            )
+        )
+
+        result = await _validate_scenario_design(
+            session, scenario_id, [step], {endpoint_id: endpoint}, None,
+            runtime_variables={"siteName": "demo"},
+        )
+
+        assert result["valid"] is True
+        assert any(
+            w["category"] == "runtime_only_variable" and "siteName" in w["message"]
+            for w in result["warnings"]
+        )
+
+    @pytest.mark.asyncio
+    async def test_unmapped_template_variable_errors(self):
+        step_id = uuid4()
+        endpoint_id = uuid4()
+        scenario_id = uuid4()
+
+        step = self._make_step(
+            step_id, 1, "查询", endpoint_id,
+            request_override={"params": {"name": "{{missingVar}}"}},
+        )
+        endpoint = self._make_endpoint(endpoint_id, method="GET", path="/sites")
+
+        session = AsyncMock()
+        session.get = AsyncMock(return_value=MagicMock(global_variables={}))
+        session.execute = AsyncMock(
+            return_value=MagicMock(
+                scalars=MagicMock(
+                    return_value=MagicMock(
+                        all=MagicMock(return_value=[])
+                    )
+                )
+            )
+        )
+
+        result = await _validate_scenario_design(
+            session, scenario_id, [step], {endpoint_id: endpoint}, None
+        )
+
+        assert result["valid"] is False
+        assert any(
+            i["category"] == "unmapped_template_variable" and "missingVar" in i["message"]
+            for i in result["errors"]
+        )
+
+    @pytest.mark.asyncio
+    async def test_exported_variable_from_previous_step_resolves(self):
+        step1_id = uuid4()
+        step2_id = uuid4()
+        endpoint_id = uuid4()
+        scenario_id = uuid4()
+
+        step1 = self._make_step(
+            step1_id, 1, "新增", endpoint_id,
+            request_override={"body": {"name": "{{$timestamp}}"}},
+            variable_exports=[{"name": "siteName", "source": "request", "path": "$.body.name"}],
+        )
+        step2 = self._make_step(
+            step2_id, 2, "查询", endpoint_id,
+            request_override={"params": {"name": "{{siteName}}"}},
+        )
+        endpoint = self._make_endpoint(endpoint_id, method="POST", path="/sites")
+
+        session = AsyncMock()
+        session.get = AsyncMock(return_value=MagicMock(global_variables={}))
+        session.execute = AsyncMock(
+            return_value=MagicMock(
+                scalars=MagicMock(
+                    return_value=MagicMock(
+                        all=MagicMock(return_value=[])
+                    )
+                )
+            )
+        )
+
+        result = await _validate_scenario_design(
+            session, scenario_id, [step1, step2], {endpoint_id: endpoint}, None
+        )
+
+        assert result["valid"] is True
+        assert not any(
+            i["category"] == "unmapped_template_variable" and "siteName" in i["message"]
+            for i in result["errors"]
+        )
+
 
 class TestAddStepAssertion:
     """测试 add_step_assertion 操作符归一化"""
@@ -448,3 +582,112 @@ class TestAddStepAssertion:
         # 非法 operator 不应触发 UPDATE
         assert session.commit.call_count == 0
 
+
+class TestAddStepVariableExport:
+    """测试 add_step_variable_export 工具"""
+
+    @pytest.fixture
+    def mock_session_factory(self):
+        """构造一个可 yield mock session 的 async_session_factory 替身"""
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        step_id = uuid4()
+        step = MagicMock()
+        step.id = step_id
+        step.variable_exports = []
+
+        session = AsyncMock()
+        # 第一次 execute 查询步骤，第二次 execute 做 UPDATE，第三次 execute 验证
+        session.execute = AsyncMock(side_effect=[
+            MagicMock(scalar_one_or_none=MagicMock(return_value=step)),
+            MagicMock(),
+            MagicMock(scalar_one_or_none=MagicMock(return_value=step)),
+        ])
+
+        class _AsyncCtx:
+            async def __aenter__(self):
+                return session
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+        with patch(
+            "app.agents.tools.api.scenario_tools.async_session_factory",
+            return_value=_AsyncCtx(),
+        ):
+            yield step_id, session
+
+    @pytest.mark.asyncio
+    async def test_adds_request_variable_export(self, mock_session_factory):
+        from app.agents.tools.api.scenario_tools import add_step_variable_export
+
+        step_id, _ = mock_session_factory
+        result = await add_step_variable_export.coroutine(
+            step_id=str(step_id),
+            name="siteName",
+            path="$.body.name",
+            source="request",
+        )
+        data = json.loads(result)
+        assert data["success"] is True
+        assert data["data"]["export"]["name"] == "siteName"
+        assert data["data"]["export"]["source"] == "request"
+        assert data["data"]["total_exports"] == 1
+
+    @pytest.mark.asyncio
+    async def test_rejects_invalid_source(self, mock_session_factory):
+        from app.agents.tools.api.scenario_tools import add_step_variable_export
+
+        step_id, session = mock_session_factory
+        result = await add_step_variable_export.coroutine(
+            step_id=str(step_id),
+            name="siteName",
+            path="$.body.name",
+            source="body",
+        )
+        data = json.loads(result)
+        assert data["success"] is False
+        assert "无效的 source" in data["error"]
+        # 非法 source 不应触发 UPDATE
+        assert session.commit.call_count == 0
+
+    @pytest.mark.asyncio
+    async def test_updates_existing_export_by_name(self, mock_session_factory):
+        from unittest.mock import AsyncMock, MagicMock, patch
+        from app.agents.tools.api.scenario_tools import add_step_variable_export
+
+        step_id, _ = mock_session_factory
+        step = MagicMock()
+        step.id = uuid4()
+        step.variable_exports = [{"name": "siteName", "path": "$.body.old", "source": "request"}]
+
+        # 覆盖 fixture 中的 step，使其包含已有导出
+        session = AsyncMock()
+        session.execute = AsyncMock(side_effect=[
+            MagicMock(scalar_one_or_none=MagicMock(return_value=step)),
+            MagicMock(),
+            MagicMock(scalar_one_or_none=MagicMock(return_value=step)),
+        ])
+
+        class _AsyncCtx:
+            async def __aenter__(self):
+                return session
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+        with patch(
+            "app.agents.tools.api.scenario_tools.async_session_factory",
+            return_value=_AsyncCtx(),
+        ):
+            result = await add_step_variable_export.coroutine(
+                step_id=str(step_id),
+                name="siteName",
+                path="$.body.name",
+                source="request",
+            )
+
+        data = json.loads(result)
+        assert data["success"] is True
+        assert data["data"]["action"] == "更新"
+        assert data["data"]["export"]["path"] == "$.body.name"
+        assert data["data"]["total_exports"] == 1

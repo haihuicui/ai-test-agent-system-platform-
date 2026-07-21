@@ -32,7 +32,7 @@ class TestScenarioQualityGateMiddleware:
             "app.agents.tools.api.scenario_design_validator.validate_scenario_design"
         ) as mock_validator:
             mock_validator.ainvoke = AsyncMock(
-                return_value='{"success": true, "data": {"valid": true}}'
+                return_value='{"success": true, "valid": true, "issues": []}'
             )
             result = await ScenarioQualityGateMiddleware().awrap_tool_call(request, handler)
 
@@ -49,9 +49,9 @@ class TestScenarioQualityGateMiddleware:
         ) as mock_validator:
             mock_validator.ainvoke = AsyncMock(
                 return_value=(
-                    '{"success": true, "data": {"valid": false, '
+                    '{"success": true, "valid": false, '
                     '"issues": [{"category": "missing_required_field", '
-                    '"message": "缺少必填字段"}]}}'
+                    '"message": "缺少必填字段"}]}'
                 )
             )
             result = await ScenarioQualityGateMiddleware().awrap_tool_call(request, handler)
@@ -60,6 +60,29 @@ class TestScenarioQualityGateMiddleware:
         assert isinstance(result, ToolMessage)
         assert result.status == "error"
         assert "场景质量中间件拦截" in result.content
+
+    @pytest.mark.asyncio
+    async def test_passes_variables_to_validator(self):
+        request = self._make_request(args={
+            "scenario_id": str(uuid4()),
+            "variables": {"siteName": "demo"},
+        })
+        handler = AsyncMock(return_value=MagicMock())
+
+        with patch(
+            "app.agents.tools.api.scenario_design_validator.validate_scenario_design"
+        ) as mock_validator:
+            mock_validator.ainvoke = AsyncMock(
+                return_value='{"success": true, "valid": true, "issues": []}'
+            )
+            result = await ScenarioQualityGateMiddleware().awrap_tool_call(request, handler)
+
+        mock_validator.ainvoke.assert_awaited_once_with({
+            "scenario_id": request.tool_call["args"]["scenario_id"],
+            "variables": {"siteName": "demo"},
+        })
+        handler.assert_awaited_once_with(request)
+        assert result is handler.return_value
 
     @pytest.mark.asyncio
     async def test_passes_when_skip_design_gate_set(self):

@@ -56,8 +56,13 @@ async def _precheck_execute_scenario(request: "ToolCallRequest") -> ToolMessage 
     # 复用独立的校验工具
     from app.agents.tools.api.scenario_design_validator import validate_scenario_design
 
+    variables = args.get("variables") or {}
+
     try:
-        result = await validate_scenario_design.ainvoke({"scenario_id": scenario_id})
+        result = await validate_scenario_design.ainvoke({
+            "scenario_id": scenario_id,
+            "variables": variables,
+        })
     except Exception as exc:
         logger.warning("场景质量中间件调用 validate_scenario_design 失败: %s", exc)
         # 校验工具自身失败时不阻断执行，避免中间件 bug 导致场景完全无法跑
@@ -67,10 +72,10 @@ async def _precheck_execute_scenario(request: "ToolCallRequest") -> ToolMessage 
     if not data:
         return None
 
-    if data.get("success") and data.get("data", {}).get("valid"):
+    if data.get("success") and data.get("valid"):
         return None
 
-    issues = data.get("data", {}).get("issues", []) if data.get("success") else []
+    issues = data.get("issues", []) if data.get("success") else []
     error_msg = data.get("error") if not data.get("success") else "场景设计静态预检未通过"
 
     logger.info("场景质量中间件拦截 execute_scenario: %s", error_msg)
