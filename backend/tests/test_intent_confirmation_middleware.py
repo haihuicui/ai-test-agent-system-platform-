@@ -125,6 +125,29 @@ class TestWebIntentConfirmationMiddleware:
         assert isinstance(human_msg, HumanMessage)
         assert expected_substring in str(human_msg.content)
         assert human_msg.additional_kwargs.get("_web_intent_confirmation", {}).get("decision") == decision
+        assert human_msg.additional_kwargs.get("_web_intent_confirmation", {}).get("comment") == ""
+
+    def test_interrupt_and_resume_with_comment(self, middleware):
+        payload = _build_payload()
+        messages = [_build_ai_message(payload)]
+        state = {"messages": messages}
+        comment = "只扩展登录相关用例"
+
+        with patch(
+            "app.agents.web_mcp.intent_confirmation_middleware.interrupt",
+            return_value={"decision": "expand", "comment": comment},
+        ) as mock_interrupt:
+            result = middleware.after_model(state, runtime=None)
+
+        mock_interrupt.assert_called_once_with(payload)
+        assert result is not None
+        human_msg = result["messages"][0]
+        assert isinstance(human_msg, HumanMessage)
+        assert "用户选择扩展已有功能 WF-1008" in str(human_msg.content)
+        assert f"补充说明：{comment}" in str(human_msg.content)
+        confirmation = human_msg.additional_kwargs.get("_web_intent_confirmation", {})
+        assert confirmation.get("decision") == "expand"
+        assert confirmation.get("comment") == comment
 
     def test_no_interrupt_without_ai_message(self, middleware):
         result = middleware.after_model({"messages": []}, runtime=None)

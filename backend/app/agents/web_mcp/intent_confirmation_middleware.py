@@ -57,38 +57,44 @@ def _parse_intent_confirmation(content: str) -> dict[str, Any] | None:
 
 
 def _build_resume_human_message(
-    decision: str, payload: dict[str, Any]
+    decision: str, payload: dict[str, Any], comment: str = ""
 ) -> HumanMessage:
     """根据用户决策构造恢复后的 HumanMessage。"""
     existing = payload.get("existing_function", {})
     function_id = existing.get("id", "")
     identifier = existing.get("identifier", "")
     display_name = existing.get("display_name", "")
+    comment_text = comment.strip()
+    comment_clause = f"补充说明：{comment_text}。" if comment_text else ""
 
     if decision == "expand":
         feedback = (
             f"用户选择扩展已有功能 {identifier}（{display_name}）。"
+            f"{comment_clause}"
             "请基于该功能及其子功能，按生成测试流程（planner → case-designer → generator）"
             "生成/完善测试计划、用例与脚本，并执行执行邀约。"
         )
     elif decision == "new":
         feedback = (
-            "用户选择新建功能。请忽略上述匹配建议，按创建功能流程新建 Web 功能。"
+            f"用户选择新建功能。{comment_clause}"
+            "请忽略上述匹配建议，按创建功能流程新建 Web 功能。"
         )
     elif decision == "view_details":
         feedback = (
             f"用户希望先查看功能 {identifier}（{display_name}）的详情。"
+            f"{comment_clause}"
             "请调用 get_function_details 展示信息，并在展示完信息后再次输出意图确认标记，"
             "供用户最终选择。"
         )
     else:
-        feedback = f"收到选择：{decision}。请按用户意图继续。"
+        feedback = f"收到选择：{decision}。{comment_clause}请按用户意图继续。"
 
     return HumanMessage(
         content=f"[Web意图确认] {feedback}",
         additional_kwargs={
             "_web_intent_confirmation": {
                 "decision": decision,
+                "comment": comment_text,
                 "function_id": function_id,
                 "identifier": identifier,
                 "display_name": display_name,
@@ -137,15 +143,18 @@ class WebIntentConfirmationMiddleware(AgentMiddleware):
         response = interrupt(payload)
 
         decision = "expand"
+        comment = ""
         if isinstance(response, dict):
             decision = response.get("decision") or "expand"
+            comment = response.get("comment") or ""
         elif isinstance(response, list) and response:
             first = response[0]
             if isinstance(first, dict):
                 decision = first.get("decision") or "expand"
+                comment = first.get("comment") or ""
 
         return {
-            "messages": [_build_resume_human_message(decision, payload)],
+            "messages": [_build_resume_human_message(decision, payload, comment)],
             "jump_to": "model",
         }
 

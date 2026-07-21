@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { AlertCircle, Layers, Plus, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -49,10 +50,11 @@ export function IntentConfirmationInterrupt({
   isLoading,
 }: IntentConfirmationInterruptProps) {
   const [lastClicked, setLastClicked] = useState<string | null>(null);
+  const [comment, setComment] = useState("");
 
   const handleSelect = (key: string) => {
     setLastClicked(key);
-    onResume({ decision: key });
+    onResume({ decision: key, comment: comment.trim() || undefined });
   };
 
   const items = alternatives?.length
@@ -121,6 +123,24 @@ export function IntentConfirmationInterrupt({
             </Button>
           );
         })}
+      </div>
+
+      <div className="mt-3">
+        <label
+          htmlFor="intent-comment"
+          className="mb-1.5 block text-xs font-medium text-gray-700 dark:text-gray-300"
+        >
+          补充说明（可选）
+        </label>
+        <Textarea
+          id="intent-comment"
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          placeholder="例如：只扩展登录相关用例，不包含购物车"
+          disabled={isLoading}
+          rows={2}
+          className="resize-none bg-card text-sm"
+        />
       </div>
 
       {isLoading && lastClicked && (
