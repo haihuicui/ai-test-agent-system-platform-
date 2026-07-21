@@ -393,6 +393,10 @@ class WebTestService:
                     _MAX_LOG_LENGTH = 100_000
                     stdout_text = result.get("stdout", "") or ""
                     stderr_text = result.get("stderr", "") or ""
+                    # 兜底：stderr 为空但 error 有内容时，把 error 也放进 stderr，
+                    # 保证前端日志弹窗一定能看到失败原因。
+                    if not stderr_text and error:
+                        stderr_text = error
                     if len(stdout_text) > _MAX_LOG_LENGTH:
                         stdout_text = stdout_text[:_MAX_LOG_LENGTH] + "\n...[truncated]"
                     if len(stderr_text) > _MAX_LOG_LENGTH:
@@ -519,10 +523,10 @@ export default defineConfig({{
       slowMo: {slow_mo},
     }},
     viewport: {{ width: {viewport['width']}, height: {viewport['height']} }},
-{storage_state_line}    // 失败时保留现场，供 HTML 报告与自愈诊断（与 agent 链路口径一致）
-    trace: 'retain-on-failure',
-    video: 'retain-on-failure',
-    screenshot: 'only-on-failure',
+{storage_state_line}    // 始终保留现场，供 HTML 报告与自愈诊断（与 agent 链路口径一致）
+    trace: 'on',
+    video: 'on',
+    screenshot: 'on',
   }},
   projects: [
     {{
@@ -666,6 +670,24 @@ export default defineConfig({{
                 # 解析逻辑与 agent 链路共用（app.utils.playwright_report），保证口径一致。
                 parsed = parse_playwright_json(result_data)
                 stats = parsed["stats"]
+
+                # Playwright 失败时，错误信息通常在每个 case 的 error 字段里，
+                # stderr 可能为空。提取失败用例错误，既用于 error_message，
+                # 也回填到 stderr，确保前端日志弹窗有内容可看。
+                failure_messages = []
+                for c in parsed["cases"]:
+                    if c.get("status") == "unexpected" and c.get("error"):
+                        failure_messages.append(f"{c['title']}: {c['error']}")
+                failure_summary = "\n".join(failure_messages)
+
+                if proc.returncode != 0:
+                    effective_error = stderr_text or failure_summary
+                    # stderr 为空时，把失败用例错误写进去，避免日志弹窗"暂无日志"
+                    effective_stderr = stderr_text or failure_summary
+                else:
+                    effective_error = None
+                    effective_stderr = stderr_text
+
                 return {
                     "success": proc.returncode == 0,
                     "total": stats["total"],
@@ -674,12 +696,17 @@ export default defineConfig({{
                     "skipped": stats["skipped"],
                     "duration_ms": duration_ms,
                     "cases": parsed["cases"],
-                    "error": stderr_text if proc.returncode != 0 else None,
+                    "error": effective_error,
                     "stdout": stdout_text,
-                    "stderr": stderr_text,
+                    "stderr": effective_stderr,
                 }
             except (json.JSONDecodeError, OSError):  # OSError 涵盖 results.json 未生成（如执行崩溃）
-                # JSON 解析失败，使用简化结果
+                # JSON 解析失败，使用简化结果。同时兜底：stderr 为空时尝试用 stdout 填充，
+                # 避免前端日志弹窗完全没有内容。
+                fallback_error = stderr_text or (
+                    stdout_text if proc.returncode != 0 else None
+                )
+                fallback_stderr = stderr_text or fallback_error or ""
                 return {
                     "success": proc.returncode == 0,
                     "total": 1,
@@ -688,13 +715,14 @@ export default defineConfig({{
                     "skipped": 0,
                     "duration_ms": duration_ms,
                     "cases": [],
-                    "error": stderr_text if proc.returncode != 0 else None,
+                    "error": fallback_error,
                     "stdout": stdout_text,
-                    "stderr": stderr_text,
+                    "stderr": fallback_stderr,
                 }
 # pylint: disable  My80OmFIVnBZMlhsdEpUbXRiZm92b2s2ZGtSSVRRPT06MjUwZjQ4ZDM=
 
         except asyncio.TimeoutError:
+            timeout_msg = f"测试执行超时（{timeout}秒）"
             return {
                 "success": False,
                 "total": 0,
@@ -703,11 +731,12 @@ export default defineConfig({{
                 "skipped": 0,
                 "duration_ms": int((datetime.now() - start_time).total_seconds() * 1000),
                 "cases": [],
-                "error": f"测试执行超时（{timeout}秒）",
+                "error": timeout_msg,
                 "stdout": "",
-                "stderr": "",
+                "stderr": timeout_msg,
             }
         except Exception as e:
+            err_msg = str(e)
             return {
                 "success": False,
                 "total": 0,
@@ -716,9 +745,9 @@ export default defineConfig({{
                 "skipped": 0,
                 "duration_ms": int((datetime.now() - start_time).total_seconds() * 1000),
                 "cases": [],
-                "error": str(e),
+                "error": err_msg,
                 "stdout": "",
-                "stderr": "",
+                "stderr": err_msg,
             }
 
     async def get_test_runs(

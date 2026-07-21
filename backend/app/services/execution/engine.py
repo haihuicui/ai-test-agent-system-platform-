@@ -12,10 +12,11 @@ from typing import Any, Dict, List, Optional, Set
 from uuid import UUID
 
 from app.config.database import async_session_factory
-from app.models.test_run import TestRunScriptJob
+from app.models.test_run import TestRunScriptJob, TestRunExecutionSnapshot, TestRunExecutionSnapshotJob
 from app.repositories.test_run_repo import (
     TestRunRepository,
     TestRunScriptJobRepository,
+    TestRunExecutionSnapshotRepository,
 )
 from app.schemas.enums import ExecutionMode, JobStatus, TestRunState, FailurePolicy
 from app.services.execution.executors import ExecutorRegistry
@@ -93,6 +94,89 @@ class ScriptExecutionEngine:
                     e,
                 )
 
+    async def _create_execution_snapshot(
+        self,
+        test_run_id: UUID,
+        jobs: List[TestRunScriptJob],
+        *,
+        triggered_by: str = "manual",
+        started_at: Optional[datetime] = None,
+    ) -> None:
+        """为一次完整执行创建快照。
+
+        捕获 TestRun 终态和每个 ScriptJob 的当前状态、结果、日志、报告路径。
+        失败只记录日志，不影响主执行流程。
+        """
+        try:
+            async with async_session_factory() as session:
+                run_repo = TestRunRepository(session)
+                snapshot_repo = TestRunExecutionSnapshotRepository(session)
+
+                test_run = await run_repo.get_by_id(test_run_id)
+                if not test_run:
+                    return
+
+                execution_number = await snapshot_repo.get_next_execution_number(
+                    test_run_id
+                )
+
+                snapshot = TestRunExecutionSnapshot(
+                    test_run_id=test_run_id,
+                    execution_number=execution_number,
+                    triggered_by=triggered_by,
+                    run_state=str(test_run.run_state.value),
+                    started_at=started_at,
+                    completed_at=datetime.now(timezone.utc),
+                    overall_progress={
+                        "untested": test_run.untested_count or 0,
+                        "passed": test_run.passed_count or 0,
+                        "retest": test_run.retest_count or 0,
+                        "failed": test_run.failed_count or 0,
+                        "blocked": test_run.blocked_count or 0,
+                        "skipped": test_run.skipped_count or 0,
+                        "in_progress": test_run.in_progress_count or 0,
+                    },
+                )
+
+                snapshot_jobs = [
+                    TestRunExecutionSnapshotJob(
+                        script_job_id=job.id,
+                        test_run_id=test_run_id,
+                        script_type=job.script_type,
+                        script_id=job.script_id,
+                        script_identifier=job.script_identifier,
+                        script_name=job.script_name,
+                        execution_order=job.execution_order,
+                        execution_mode=job.execution_mode,
+                        status=job.status,
+                        started_at=job.started_at,
+                        completed_at=job.completed_at,
+                        duration_ms=job.duration_ms,
+                        result_summary=job.result_summary,
+                        error_message=job.error_message,
+                        stdout=job.stdout,
+                        stderr=job.stderr,
+                        report_path=job.report_path,
+                        retry_count=job.retry_count,
+                        max_retries=job.max_retries,
+                    )
+                    for job in jobs
+                ]
+
+                await snapshot_repo.create(snapshot, snapshot_jobs)
+                await session.commit()
+                logger.info(
+                    "[ScriptExecutionEngine] 已创建测试运行 %s 第 %s 次执行快照",
+                    test_run_id,
+                    execution_number,
+                )
+        except Exception as e:
+            logger.warning(
+                "[ScriptExecutionEngine] 创建测试运行 %s 执行快照失败: %s",
+                test_run_id,
+                e,
+            )
+
     async def execute_run(
         self,
         test_run_id: UUID,
@@ -143,6 +227,7 @@ class ScriptExecutionEngine:
         failure_policy = test_run.failure_policy or FailurePolicy.CONTINUE
         project_id = test_run.project_id
         environment_id = test_run.environment_id
+        started_at = datetime.now(timezone.utc)
 
         try:
             # 2. 执行作业
@@ -184,6 +269,7 @@ class ScriptExecutionEngine:
 
                 async with async_session_factory() as session:
                     run_repo = TestRunRepository(session)
+                    job_repo = TestRunScriptJobRepository(session)
                     test_run = await run_repo.get_by_id(test_run_id)
 
                     test_run.run_state = final_state
@@ -191,6 +277,15 @@ class ScriptExecutionEngine:
                     await run_repo.update(test_run)
                     await run_repo.update_counts_from_jobs(test_run_id)
                     await session.commit()
+
+                    # 重新加载 jobs 当前状态并创建快照
+                    jobs, _ = await job_repo.get_by_test_run(test_run_id, limit=100000)
+                    await self._create_execution_snapshot(
+                        test_run_id,
+                        jobs,
+                        triggered_by=trigger,
+                        started_at=started_at,
+                    )
 
                 logger.info(
                     "[ScriptExecutionEngine] 测试运行 %s 执行完成: "
@@ -214,11 +309,21 @@ class ScriptExecutionEngine:
                 logger.exception("[ScriptExecutionEngine] 执行测试运行时异常")
                 async with async_session_factory() as session:
                     run_repo = TestRunRepository(session)
+                    job_repo = TestRunScriptJobRepository(session)
                     test_run = await run_repo.get_by_id(test_run_id)
                     test_run.run_state = TestRunState.REJECTED
                     await run_repo.update(test_run)
                     await run_repo.update_counts_from_jobs(test_run_id)
                     await session.commit()
+
+                    # 异常情况下也保留当前状态快照
+                    jobs, _ = await job_repo.get_by_test_run(test_run_id, limit=100000)
+                    await self._create_execution_snapshot(
+                        test_run_id,
+                        jobs,
+                        triggered_by=trigger,
+                        started_at=started_at,
+                    )
 
                 return {
                     "test_run_id": str(test_run_id),
@@ -273,6 +378,7 @@ class ScriptExecutionEngine:
         failure_policy = test_run.failure_policy or FailurePolicy.CONTINUE
         project_id = test_run.project_id
         environment_id = test_run.environment_id
+        started_at = datetime.now(timezone.utc)
 
         try:
             if execution_mode == ExecutionMode.PARALLEL:
@@ -296,6 +402,17 @@ class ScriptExecutionEngine:
             # 基于全部作业重新定案
             final_state = await self._finalize_run_from_db(test_run_id)
 
+            # 重新加载全部 jobs 并创建快照
+            async with async_session_factory() as session:
+                job_repo = TestRunScriptJobRepository(session)
+                all_jobs, _ = await job_repo.get_by_test_run(test_run_id, limit=100000)
+            await self._create_execution_snapshot(
+                test_run_id,
+                all_jobs,
+                triggered_by="retry",
+                started_at=started_at,
+            )
+
             logger.info(
                 "[ScriptExecutionEngine] 测试运行 %s 重试执行完成: retried=%s, state=%s",
                 test_run_id,
@@ -313,11 +430,21 @@ class ScriptExecutionEngine:
             logger.exception("[ScriptExecutionEngine] 重试执行作业时异常")
             async with async_session_factory() as session:
                 run_repo = TestRunRepository(session)
+                job_repo = TestRunScriptJobRepository(session)
                 test_run = await run_repo.get_by_id(test_run_id)
                 test_run.run_state = TestRunState.REJECTED
                 await run_repo.update(test_run)
                 await run_repo.update_counts_from_jobs(test_run_id)
                 await session.commit()
+
+                # 异常情况下也保留当前状态快照
+                all_jobs, _ = await job_repo.get_by_test_run(test_run_id, limit=100000)
+                await self._create_execution_snapshot(
+                    test_run_id,
+                    all_jobs,
+                    triggered_by="retry",
+                    started_at=started_at,
+                )
 
             return {
                 "test_run_id": str(test_run_id),
