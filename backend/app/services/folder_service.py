@@ -8,7 +8,7 @@ from typing import Optional
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import func as sa_func, select
 
 from app.models.folder import Folder
 from app.models.folder_type import FolderType
@@ -86,7 +86,7 @@ class FolderService:
         web_functions = []
         total_sub_functions = 0  # 累计子功能数
         if folder.folder_type == FolderType.WEB_TEST:
-            from app.models.web_function import WebFunction
+            from app.models.web_function import WebFunction, WebSubFunction
             func_stmt = select(WebFunction).where(
                 WebFunction.folder_id == folder.id
             ).order_by(WebFunction.sort_order, WebFunction.display_name)
@@ -95,26 +95,48 @@ class FolderService:
 
             print(f"[FolderService] 文件夹 {folder.name} 找到 {len(functions)} 个 Web 功能")
 
-            # 累计所有功能的子功能总数
-            for func in functions:
-                total_sub_functions += func.total_sub_functions
+            # 实时计算每个功能的子功能数及测试用例数，避免缓存字段不准导致展示为 0
+            function_ids = [wf.id for wf in functions]
+            sub_func_counts: dict[str, int] = {}
+            test_case_sums: dict[str, int] = {}
+            if function_ids:
+                sub_func_count_stmt = (
+                    select(WebSubFunction.function_id, sa_func.count(WebSubFunction.id))
+                    .where(WebSubFunction.function_id.in_(function_ids))
+                    .group_by(WebSubFunction.function_id)
+                )
+                sub_func_count_result = await self.session.execute(sub_func_count_stmt)
+                sub_func_counts = {
+                    str(row[0]): row[1] for row in sub_func_count_result.all()
+                }
+
+                test_case_sum_stmt = (
+                    select(WebSubFunction.function_id, sa_func.sum(WebSubFunction.total_test_cases))
+                    .where(WebSubFunction.function_id.in_(function_ids))
+                    .group_by(WebSubFunction.function_id)
+                )
+                test_case_sum_result = await self.session.execute(test_case_sum_stmt)
+                test_case_sums = {
+                    str(row[0]): int(row[1]) if row[1] is not None else 0 for row in test_case_sum_result.all()
+                }
 
             # 构造 Web 功能简要信息
-            web_functions = [
-                {
-                    "id": str(func.id),
-                    "identifier": func.identifier,
-                    "display_name": func.display_name,
-                    "name": func.name,
-                    "description": func.description,
-                    "base_url": func.base_url,
-                    "business_module": func.business_module,
-                    "folder_id": str(func.folder_id) if func.folder_id else None,
-                    "total_sub_functions": func.total_sub_functions,
-                    "total_test_cases": func.total_test_cases,
-                }
-                for func in functions
-            ]
+            for wf in functions:
+                wf_sub_count = sub_func_counts.get(str(wf.id), 0)
+                wf_tc_sum = test_case_sums.get(str(wf.id), 0)
+                total_sub_functions += wf_sub_count
+                web_functions.append({
+                    "id": str(wf.id),
+                    "identifier": wf.identifier,
+                    "display_name": wf.display_name,
+                    "name": wf.name,
+                    "description": wf.description,
+                    "base_url": wf.base_url,
+                    "business_module": wf.business_module,
+                    "folder_id": str(wf.folder_id) if wf.folder_id else None,
+                    "total_sub_functions": wf_sub_count,
+                    "total_test_cases": wf_tc_sum,
+                })
 # fmt: off  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2VUhsalNRPT06MzE2YzI4Yzk=
 
         return FolderInfo(
@@ -168,11 +190,11 @@ class FolderService:
         folders = await self.repo.get_root_folders(project.id, offset, limit, folder_type)
 
         # 计算根文件夹总数
-        from sqlalchemy import func, select
+        from sqlalchemy import func as sa_func, select
         from app.models.folder import Folder as FolderModel
         from app.models.folder_type import FolderType
 
-        count_query = select(func.count()).select_from(FolderModel).where(
+        count_query = select(sa_func.count()).select_from(FolderModel).where(
             FolderModel.project_id == project.id
         ).where(FolderModel.parent_id.is_(None))
 
@@ -227,11 +249,11 @@ class FolderService:
             result.append(info)
 
         # 简化：子文件夹总数
-        from sqlalchemy import func, select
+        from sqlalchemy import func as sa_func, select
         from app.models.folder import Folder as FolderModel
         from app.models.folder_type import FolderType
 
-        count_query = select(func.count()).select_from(FolderModel).where(
+        count_query = select(sa_func.count()).select_from(FolderModel).where(
             FolderModel.parent_id == folder_id
         )
 
