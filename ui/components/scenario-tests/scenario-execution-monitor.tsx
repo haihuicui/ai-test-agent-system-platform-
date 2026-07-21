@@ -29,6 +29,7 @@ import {
 } from "@/lib/api/scenarios";
 import type { Scenario, ScenarioRun, StepResult } from "@/types/scenario";
 import { HttpTraceViewer, getMethodColor, getStatusVariant } from "./http-trace-viewer";
+import { OPERATOR_LABELS } from "@/lib/assertion-utils";
 // eslint-disable  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2T0VZNVdBPT06MDQyNmViMWE=
 
 interface ScenarioExecutionMonitorProps {
@@ -397,6 +398,7 @@ export function ScenarioExecutionMonitor({
                                         <tr className="bg-muted/60 text-muted-foreground border-b">
                                           <th className="text-left px-2 py-1.5 font-medium">结果</th>
                                           <th className="text-left px-2 py-1.5 font-medium">类型</th>
+                                          <th className="text-left px-2 py-1.5 font-medium">操作符</th>
                                           <th className="text-left px-2 py-1.5 font-medium">预期</th>
                                           <th className="text-left px-2 py-1.5 font-medium">实际</th>
                                           <th className="text-left px-2 py-1.5 font-medium">消息</th>
@@ -434,6 +436,11 @@ export function ScenarioExecutionMonitor({
                                                       {assertion.assertion.path}
                                                     </code>
                                                   )}
+                                                </td>
+                                                <td className="px-2 py-1.5 align-top whitespace-nowrap">
+                                                  {assertion.assertion?.operator
+                                                    ? OPERATOR_LABELS[assertion.assertion.operator] || assertion.assertion.operator
+                                                    : "-"}
                                                 </td>
                                                 <td
                                                   className="px-2 py-1.5 align-top truncate max-w-[120px]"
