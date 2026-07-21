@@ -487,6 +487,28 @@ function SortableStepItem({
                 </div>
               )}
 
+              {/* 变量导出 */}
+              {step.variable_exports && step.variable_exports.length > 0 && (
+                <div>
+                  <h5 className="text-sm font-medium mb-2">变量导出</h5>
+                  <div className="space-y-1">
+                    {step.variable_exports.map((exportItem, idx) => (
+                      <div
+                        key={idx}
+                        className="text-xs bg-muted/50 px-2 py-1 rounded flex items-center gap-2"
+                      >
+                        <code className="text-primary">{exportItem.name}</code>
+                        <span className="text-muted-foreground">←</span>
+                        <Badge variant="outline" className="text-[10px] h-5 px-1">
+                          {exportItem.source === "request" ? "请求" : "响应"}
+                        </Badge>
+                        <code className="text-muted-foreground">{exportItem.path}</code>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* 断言 */}
               {step.assertions && step.assertions.length > 0 && (
                 <div>

@@ -388,6 +388,29 @@ export function ScenarioExecutionMonitor({
                                 </div>
                               )}
 
+                              {/* 导出的变量 */}
+                              {Object.keys(result.exported_data || {}).length > 0 && (
+                                <div>
+                                  <h5 className="text-xs font-semibold mb-2">导出的变量</h5>
+                                  <div className="space-y-1">
+                                    {Object.entries(result.exported_data).map(
+                                      ([key, value]) => (
+                                        <div
+                                          key={key}
+                                          className="text-xs bg-muted/50 px-2 py-1 rounded flex items-center gap-2"
+                                        >
+                                          <code className="text-primary">{key}</code>
+                                          <span className="text-muted-foreground">=</span>
+                                          <code className="text-muted-foreground">
+                                            {JSON.stringify(value)}
+                                          </code>
+                                        </div>
+                                      )
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+
                               {/* 断言结果 */}
                               {result.assertion_results && result.assertion_results.length > 0 && (
                                 <div>

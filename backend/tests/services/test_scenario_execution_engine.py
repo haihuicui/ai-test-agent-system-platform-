@@ -11,7 +11,11 @@ from uuid import UUID
 
 import pytest
 
-from app.services.scenario_execution_engine import DataDependencyResolver, ExecutionContext
+from app.services.scenario_execution_engine import (
+    DataDependencyResolver,
+    ExecutionContext,
+    ScenarioExecutionEngine,
+)
 
 
 class TestTemplateVariableParsing:
@@ -137,3 +141,103 @@ class TestAssertionOperators:
         results = engine._run_assertions(response, assertions)
         assert results[0]["passed"] is False
         assert "不支持的比较运算符" in results[0]["message"]
+
+
+class TestExportVariables:
+    """测试步骤变量导出"""
+
+    def test_export_from_request_sets_context_variable(self):
+        engine = ScenarioExecutionEngine(session=None)  # type: ignore
+        request = {
+            "method": "POST",
+            "url": "/sites",
+            "body": {"name": "site_123"},
+        }
+        exports = [{"name": "siteName", "path": "$.body.name", "source": "request"}]
+
+        result = engine._export_variables(request, exports, phase="request")
+
+        assert result["siteName"] == "site_123"
+        assert engine.context.get_variable("siteName") == "site_123"
+
+    def test_export_from_response_sets_context_variable(self):
+        engine = ScenarioExecutionEngine(session=None)  # type: ignore
+        response = {"status": 200, "body": {"id": "abc"}}
+        exports = [{"name": "siteId", "path": "$.body.id", "source": "response"}]
+
+        result = engine._export_variables(response, exports, phase="response")
+
+        assert result["siteId"] == "abc"
+        assert engine.context.get_variable("siteId") == "abc"
+
+    def test_export_with_string_body(self):
+        engine = ScenarioExecutionEngine(session=None)  # type: ignore
+        response = {"status": 200, "body": '{"id": "abc"}'}
+        exports = [{"name": "siteId", "path": "$.body.id", "source": "response"}]
+
+        result = engine._export_variables(response, exports, phase="response")
+
+        assert result["siteId"] == "abc"
+
+    def test_export_missing_value_records_warning(self):
+        engine = ScenarioExecutionEngine(session=None)  # type: ignore
+        response = {"status": 200, "body": {}}
+        exports = [{"name": "siteId", "path": "$.body.id", "source": "response"}]
+
+        result = engine._export_variables(response, exports, phase="response")
+
+        assert result["siteId"] is None
+        assert "_export_warnings" in result
+        assert any(w["name"] == "siteId" for w in result["_export_warnings"])
+
+    def test_export_empty_exports_returns_empty(self):
+        engine = ScenarioExecutionEngine(session=None)  # type: ignore
+        result = engine._export_variables({}, [], phase="request")
+        assert result == {}
+
+
+class TestExportedDataSnapshot:
+    """测试需要持久化到 ScenarioStepResult.exported_data 的导出变量快照"""
+
+    def test_build_exported_data_filters_internal_keys(self):
+        engine = ScenarioExecutionEngine(session=None)  # type: ignore
+        raw = {"siteName": "site_123", "_export_warnings": [{"name": "x"}]}
+
+        exported_data = engine._build_exported_data(raw)
+
+        assert exported_data == {"siteName": "site_123"}
+        assert "_export_warnings" not in exported_data
+
+    def test_exported_data_combines_request_and_response_exports(self):
+        engine = ScenarioExecutionEngine(session=None)  # type: ignore
+        request = {"body": {"name": "site_123"}}
+        response = {"body": {"id": "abc"}}
+        exports = [
+            {"name": "siteName", "source": "request", "path": "$.body.name"},
+            {"name": "siteId", "source": "response", "path": "$.body.id"},
+        ]
+
+        request_exported = engine._export_variables(
+            request, [e for e in exports if e["source"] == "request"], phase="request"
+        )
+        response_exported = engine._export_variables(
+            response, [e for e in exports if e["source"] == "response"], phase="response"
+        )
+        exported_data = {
+            **engine._build_exported_data(request_exported),
+            **engine._build_exported_data(response_exported),
+        }
+
+        assert exported_data == {"siteName": "site_123", "siteId": "abc"}
+
+    def test_exported_data_excludes_warnings(self):
+        engine = ScenarioExecutionEngine(session=None)  # type: ignore
+        response = {"body": {}}
+        exports = [{"name": "siteId", "source": "response", "path": "$.body.id"}]
+
+        response_exported = engine._export_variables(response, exports, phase="response")
+        exported_data = engine._build_exported_data(response_exported)
+
+        assert exported_data == {"siteId": None}
+        assert "_export_warnings" not in exported_data
+        assert "_export_warnings" in response_exported

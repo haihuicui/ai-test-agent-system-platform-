@@ -97,6 +97,14 @@ class StepExtractor(BaseModel):
     type: str = Field("jsonpath", description="提取器类型")
 
 
+class StepVariableExport(BaseModel):
+    """步骤变量导出"""
+    name: str = Field(..., min_length=1, description="导出的变量名")
+    source: str = Field("request", pattern="^(request|response)$", description="数据来源")
+    path: str = Field(..., min_length=1, description="JSONPath 路径，如 $.body.name")
+    type: str = Field("jsonpath", description="提取器类型")
+
+
 class StepAssertion(BaseModel):
     """断言"""
     type: str = Field(..., pattern="^(status|jsonpath|header)$")
@@ -119,6 +127,7 @@ class ScenarioStepCreate(BaseModel):
     request_override: Dict[str, Any] = Field(default_factory=dict)
     headers_override: Dict[str, Any] = Field(default_factory=dict)
     extractors: List[StepExtractor] = Field(default_factory=list)
+    variable_exports: List[StepVariableExport] = Field(default_factory=list)
     assertions: List[StepAssertion] = Field(default_factory=list)
     condition_expression: Optional[str] = None
     continue_on_failure: bool = False
@@ -133,6 +142,7 @@ class ScenarioStepUpdate(BaseModel):
     request_override: Optional[Dict[str, Any]] = None
     headers_override: Optional[Dict[str, Any]] = None
     extractors: Optional[List[StepExtractor]] = None
+    variable_exports: Optional[List[StepVariableExport]] = None
     assertions: Optional[List[StepAssertion]] = None
     condition_expression: Optional[str] = None
     continue_on_failure: Optional[bool] = None
@@ -217,6 +227,7 @@ class ScenarioStepResultResponse(BaseModel):
     request_data: Optional[Dict[str, Any]]
     response_data: Optional[Dict[str, Any]]
     extracted_data: Dict[str, Any]
+    exported_data: Dict[str, Any]
     assertion_results: List[Dict[str, Any]]
 
     class Config:

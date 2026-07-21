@@ -711,6 +711,7 @@ class ScenarioExecutionEngine:
         """执行单个步骤"""
         start_time = datetime.now(timezone.utc)
         current_request: dict | None = None
+        exported_data: dict = {}
 
         try:
             # 1. 加载端点（如果没有端点ID则创建虚拟端点）
@@ -723,12 +724,25 @@ class ScenarioExecutionEngine:
             # 2.1 替换动态占位符 {{$uuid}} / {{$timestamp}} / {{$faker.*}} 等
             request = self.resolver._resolve_dynamic_placeholders(request)
 
+            # 2.2 从解析后的请求中导出变量（供后续步骤引用）
+            variable_exports = self._ensure_list(step.variable_exports)
+            request_exports = [e for e in variable_exports if e.get("source") == "request"]
+            request_exported = self._export_variables(request, request_exports, phase="request")
+            exported_data = self._build_exported_data(request_exported)
+
             # 3. 发送 HTTP 请求
             response = await self._send_request(request)
 
             # 4. 提取数据到上下文
             extractors = self._ensure_list(step.extractors)
             extracted = self._extract_data(response, extractors)
+
+            # 4.1 从响应中导出变量并合并到步骤数据
+            response_exports = [e for e in variable_exports if e.get("source") == "response"]
+            response_exported = self._export_variables(response, response_exports, phase="response")
+            extracted.update(request_exported)
+            extracted.update(response_exported)
+            exported_data.update(self._build_exported_data(response_exported))
             self.context.update_step_data(str(step.id), extracted)
 
             # 5. 执行断言
@@ -747,7 +761,7 @@ class ScenarioExecutionEngine:
             # 7. 记录结果
             duration_ms = int((datetime.now(timezone.utc) - start_time).total_seconds() * 1000)
             result = await self._record_result(
-                step, run, request, response, extracted, assertion_results, status, duration_ms, error_message
+                step, run, request, response, extracted, exported_data, assertion_results, status, duration_ms, error_message
             )
 
             # 8. 更新运行统计（使用 ORM 对象避免直接 UPDATE 导致 run 过期，
@@ -806,6 +820,7 @@ class ScenarioExecutionEngine:
                 current_request or {},
                 current_response or {},
                 {},
+                exported_data,
                 [],
                 "error",
                 duration_ms,
@@ -862,6 +877,7 @@ class ScenarioExecutionEngine:
             name=step_def.get("name", f"teardown-{idx}"),
             request_override=self._ensure_dict(step_def.get("request_override")),
             headers_override=self._ensure_dict(step_def.get("headers_override")),
+            variable_exports=[],
         )
 
         request = await self.resolver.resolve_request(step_like, endpoint, self.session)
@@ -1099,6 +1115,64 @@ class ScenarioExecutionEngine:
 
         return extracted
 
+    def _export_variables(
+        self,
+        source_obj: dict,
+        exports: list,
+        phase: str,
+    ) -> dict:
+        """从请求或响应对象中导出变量到执行上下文
+
+        支持通过 JSONPath 从解析后的请求/响应中提取值，并设置为上下文变量，
+        供后续步骤通过 {{variableName}} 引用。
+        """
+        import logging
+
+        logger = logging.getLogger(__name__)
+        exported: dict = {}
+        warnings: list[dict] = []
+
+        if not exports:
+            return exported
+
+        # 获取对象体，如果是 JSON 字符串则先解析
+        body = source_obj.get("body")
+        if isinstance(body, str):
+            try:
+                import json
+                body = json.loads(body)
+            except Exception:
+                pass
+
+        # 构建规范化对象：$.body.xxx 或 $.status 等均可解析
+        normalized = dict(source_obj)
+        normalized["body"] = body
+
+        for export in exports:
+            name = export.get("name")
+            path = export.get("path")
+            if not name or not path:
+                continue
+
+            jsonpath_path = path if path.startswith("$.") else f"$.{path}"
+            value = self.context._extract_by_jsonpath(normalized, jsonpath_path)
+            exported[name] = value
+            if value is not None:
+                self.context.set_variable(name, value)
+                logger.debug(
+                    f"变量导出: {name} = {value!r} (phase={phase}, path={path!r})"
+                )
+            else:
+                warnings.append({"name": name, "path": path, "phase": phase})
+                logger.warning(
+                    f"变量导出 '{name}' 未取到值 (phase={phase}, path={path!r})"
+                )
+
+        if warnings:
+            exported["_export_warnings"] = warnings
+
+        return exported
+
     @staticmethod
     def _diagnose_extraction_failure(body: Any, path: str) -> dict:
         """诊断 jsonpath 提取失败的原因，返回响应结构提示"""
@@ -1255,6 +1329,13 @@ class ScenarioExecutionEngine:
         else:
             raise ValueError(f"不支持的比较运算符: {operator!r}")
 
+    def _build_exported_data(self, export_result: dict) -> dict:
+        """从 _export_variables 结果中构建需要持久化的导出变量快照
+
+        过滤掉内部元数据键（如 ``_export_warnings``），只保留用户定义的变量名。
+        """
+        return {k: v for k, v in export_result.items() if not k.startswith("_")}
+
     async def _record_result(
         self,
         step: ScenarioStep,
@@ -1262,6 +1343,7 @@ class ScenarioExecutionEngine:
         request: dict,
         response: dict,
         extracted: dict,
+        exported_data: dict,
         assertion_results: list,
         status: str,
         duration_ms: int,
@@ -1284,6 +1366,7 @@ class ScenarioExecutionEngine:
             request_data=request,
             response_data=response,
             extracted_data=extracted,
+            exported_data=exported_data,
             assertion_results=assertion_results,
             duration_ms=duration_ms,
             error_message=error_message,

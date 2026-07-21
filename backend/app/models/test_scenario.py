@@ -91,6 +91,9 @@ class ScenarioStep(Base):
     # 数据提取器
     extractors: Mapped[list] = mapped_column(JSONB, default=list, server_default="[]")
 
+    # 变量导出（将请求/响应值导出到上下文，供后续步骤引用）
+    variable_exports: Mapped[list] = mapped_column(JSONB, default=list, server_default="[]")
+
     # 断言配置
     assertions: Mapped[list] = mapped_column(JSONB, default=list, server_default="[]")
 
@@ -236,6 +239,9 @@ class ScenarioStepResult(Base):
 
     # 提取的数据
     extracted_data: Mapped[dict] = mapped_column(JSONB, default=dict, server_default="{}")
+
+    # 导出的变量（variable_exports 执行后的实际值，供后续步骤引用并展示）
+    exported_data: Mapped[dict] = mapped_column(JSONB, default=dict, server_default="{}")
 
     # 断言结果
     assertion_results: Mapped[list] = mapped_column(JSONB, default=list, server_default="[]")

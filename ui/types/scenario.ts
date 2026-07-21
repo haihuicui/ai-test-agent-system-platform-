@@ -33,6 +33,7 @@ export interface ScenarioStep {
   request_override: Record<string, any>;
   headers_override: Record<string, any>;
   extractors: StepExtractor[];
+  variable_exports: StepVariableExport[];
   assertions: StepAssertion[];
   condition_expression: string | null;
   continue_on_failure: boolean;
@@ -52,6 +53,13 @@ export interface ScenarioStep {
 
 export interface StepExtractor {
   name: string;
+  path: string;
+  type?: string;
+}
+
+export interface StepVariableExport {
+  name: string;
+  source: 'request' | 'response';
   path: string;
   type?: string;
 }
@@ -107,6 +115,7 @@ export interface StepResult {
   request_data: Record<string, any> | null;
   response_data: Record<string, any> | null;
   extracted_data: Record<string, any>;
+  exported_data: Record<string, any>;
   assertion_results: AssertionResult[];
   duration_ms: number | null;
   error_message: string | null;
