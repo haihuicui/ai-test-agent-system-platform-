@@ -167,7 +167,7 @@ ${prompt.trim()}` : ""}
         include_error_handling: true,
       });
 
-      toast.success(`成功生成 ${result.statistics.total_scenarios} 个测试场景`);
+      toast.success(`测试脚本已生成但未执行（暂无 HTML 报告）。请在 AI 助手中点击执行，或在成果物面板找到脚本后执行。`);
 
       // 关闭对话框
       resetForm();

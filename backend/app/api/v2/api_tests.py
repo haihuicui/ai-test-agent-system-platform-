@@ -224,6 +224,10 @@ async def generate_from_schema(
     1. 调用 api_agent.planner 生成测试计划
     2. 调用 api_agent.generator 生成测试脚本
     3. 返回生成的计划和脚本
+
+    注意：本端点为一次性同步调用，仅完成计划/用例/脚本的生成与保存，
+    不会调用执行类工具（execute_api_script / run_tests / execute_scenario 等），
+    因此不会触发 HITL 中断。实际执行请通过 AI 助手聊天流程进行。
     """
     from app.agents.api.agent import agent, APIAgentContext
 
@@ -239,11 +243,11 @@ async def generate_from_schema(
         "outputPath": f"./api-test-plan-{project_identifier}.md",
     }
 
-    # 构造用户消息
+    # 构造用户消息：强调仅生成并保存成果物，不要执行测试
     if schema_url:
-        user_message = f"为这个 API 生成测试计划: {schema_url}"
+        user_message = f"为这个 API 生成测试计划（仅生成并保存计划/用例/脚本，不要执行测试）: {schema_url}"
     elif schema_path:
-        user_message = f"为这个 API Schema 文件生成测试计划: {schema_path}"
+        user_message = f"为这个 API Schema 文件生成测试计划（仅生成并保存计划/用例/脚本，不要执行测试）: {schema_path}"
     else:
         return SuccessResponse(
             data=None,

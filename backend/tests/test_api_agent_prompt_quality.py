@@ -184,3 +184,72 @@ def test_gate_treats_broad_truthiness_as_weak(report):
         "});\n"
     )
     assert report(script)["verdict"] in {"WEAK", "FAIL"}
+
+
+# -----------------------------------------------------------------------------
+# 4. 人机交互（HITL）规则
+# -----------------------------------------------------------------------------
+
+def test_system_prompt_asks_for_execution_after_generation():
+    """生成流程末尾必须主动说明已保存并询问是否执行。"""
+    prompt = _extract_system_prompt()
+    assert "执行邀约" in prompt, "缺少执行邀约步骤"
+    assert "尚未执行" in prompt, "未明确告知用户尚未执行"
+    assert "暂无 HTML 报告" in prompt or "暂无 HTML 报告和执行摘要" in prompt
+
+
+def test_system_prompt_prohibits_execution_without_confirmation():
+    """必须禁止在用户确认前调用执行类工具。"""
+    prompt = _extract_system_prompt()
+    assert "未获得用户确认前不得调用任何执行类工具" in prompt
+    assert "execute_api_script" in prompt
+    assert "execute_scenario" in prompt
+
+
+def test_system_prompt_rest_endpoint_generation_only():
+    """REST 生成端口应仅生成不执行。"""
+    prompt = _extract_system_prompt()
+    assert "REST 生成端口仅生成不执行" in prompt
+    assert "generate-from-schema" in prompt
+
+
+def test_api_agent_has_hitl_for_dangerous_tools():
+    """危险工具必须注册在 interrupt_on 中。"""
+    from app.agents.api.agent import DANGEROUS_TOOLS_HITL
+
+    dangerous = {
+        "execute_api_script",
+        "execute_api_script_by_artifact_id",
+        "run_tests",
+        "execute_scenario",
+        "batch_run_tests",
+        "delete_api_script",
+    }
+    assert dangerous.issubset(DANGEROUS_TOOLS_HITL.keys()), (
+        f"以下危险工具未配置 HITL: {dangerous - set(DANGEROUS_TOOLS_HITL.keys())}"
+    )
+
+
+def test_delete_api_script_only_approve_reject():
+    """删除脚本只允许批准/拒绝，不支持编辑。"""
+    from app.agents.api.agent import DANGEROUS_TOOLS_HITL
+
+    cfg = DANGEROUS_TOOLS_HITL["delete_api_script"]
+    assert isinstance(cfg, dict)
+    assert cfg["allowed_decisions"] == ["approve", "reject"]
+
+
+def test_dangerous_tools_allow_approve_reject():
+    """所有危险工具至少支持批准和拒绝。"""
+    from app.agents.api.agent import DANGEROUS_TOOLS_HITL
+
+    for name, cfg in DANGEROUS_TOOLS_HITL.items():
+        assert isinstance(cfg, dict), f"{name} 的配置必须是 dict"
+        assert "approve" in cfg["allowed_decisions"], f"{name} 必须允许 approve"
+        assert "reject" in cfg["allowed_decisions"], f"{name} 必须允许 reject"
+
+
+def test_api_agent_creation_passes_interrupt_on():
+    """agent 创建代码中必须传入 interrupt_on。"""
+    src = _read(AGENT_PY)
+    assert "interrupt_on=DANGEROUS_TOOLS_HITL" in src, "create_agent 未传入 interrupt_on"
