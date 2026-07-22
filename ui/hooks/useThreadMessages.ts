@@ -74,10 +74,10 @@ export function useThreadMessages(
       // 直接用浏览器 fetch，绕过 SDK 的 AsyncCaller 重试/队列，便于在 Network 面板定位请求。
       const apiUrl =
         (client as any).apiUrl || process.env.NEXT_PUBLIC_LANGGRAPH_API_URL;
-      const url = new URL(
-        `/threads/${key.threadId}/messages`,
-        apiUrl
-      );
+      // apiUrl 在生产环境可能带 /langgraph 子路径（如 http://ip/langgraph），
+      // new URL 的 path 以 / 开头会忽略 base 的子路径，因此用相对路径并补全斜杠。
+      const base = apiUrl.endsWith("/") ? apiUrl : `${apiUrl}/`;
+      const url = new URL(`threads/${key.threadId}/messages`, base);
       url.searchParams.set("limit", String(key.limit));
       if (key.beforeCheckpointId) {
         url.searchParams.set("before_checkpoint_id", key.beforeCheckpointId);
