@@ -490,9 +490,13 @@ const useLightrangeGraph = () => {
       if (currentQueryLabel) {
         dataPromise = fetchGraph(currentQueryLabel, currentMaxQueryDepth, currentMaxNodes)
       } else {
-        // 2. If query label is empty, set data to null
-        console.log('Query label is empty, show empty graph')
-        dataPromise = Promise.resolve({ rawGraph: null, is_truncated: false })
+        // 2. Empty label is a stale persisted state (e.g. left over from a
+        // session where the KB had no processed documents yet). Fall back
+        // to the full-graph query and persist '*', instead of showing the
+        // "Empty(Try Reload Again)" placeholder forever.
+        console.log('Query label is empty, falling back to full graph (*)')
+        useSettingsStore.getState().setQueryLabel('*')
+        dataPromise = fetchGraph('*', currentMaxQueryDepth, currentMaxNodes)
       }
 
       // 3. Process data

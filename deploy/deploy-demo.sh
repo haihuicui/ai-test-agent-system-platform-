@@ -58,6 +58,23 @@ if [ ! -f "$LIGHTRAG_ENV" ]; then
     rm -f "$LIGHTRAG_ENV.bak"
 fi
 
+# ---- 2.2 同步托管配置项（example -> 运行配置，不覆盖密码/API key） ----
+SYNC_SCRIPT="$SCRIPT_DIR/scripts/sync-env.py"
+if [ -f "$SYNC_SCRIPT" ]; then
+    if [ -f "$ENV_FILE" ]; then
+        python3 "$SYNC_SCRIPT" \
+            --example "$SCRIPT_DIR/.env.demo.example" \
+            --target "$SCRIPT_DIR/$ENV_FILE" \
+            --keys LIGHTRAG_PARSER
+    fi
+    if [ -f "$LIGHTRAG_ENV" ]; then
+        python3 "$SYNC_SCRIPT" \
+            --example "$SCRIPT_DIR/lightrag/.env.demo.example" \
+            --target "$SCRIPT_DIR/$LIGHTRAG_ENV" \
+            --keys LIGHTRAG_PARSER MULTIMODAL_PARSER DOCLING_DO_OCR VLM_PROCESS_ENABLE
+    fi
+fi
+
 # ---- 3. 检查 API key ----
 MISSING_KEYS=""
 for key in DEEPSEEK_API_KEY IMAGE_PARSER_API_KEY; do
