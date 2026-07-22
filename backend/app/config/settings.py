@@ -49,6 +49,9 @@ class Settings(BaseSettings):
     app_port: int = 8001
     debug: bool = False
     api_prefix: str = "/api/v2"
+    # Agent 内部调用后端 API 的基础 URL。Docker 部署时通过环境变量覆盖为服务名，
+    # 例如 BACKEND_API_URL=http://backend:8001
+    backend_api_url: str = "http://localhost:8001"
     
     # PostgreSQL 数据库配置
     postgres_host: str = "localhost"

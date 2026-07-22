@@ -48,6 +48,8 @@ services:
     restart: unless-stopped
     env_file: [.env.demo]
     environment:
+      # Agent 容器内部调用 backend API 的地址，避免写死 localhost 导致跨容器连不上
+      BACKEND_API_URL: http://backend:8001
       NODE_OPTIONS: --max-old-space-size=256
     volumes:
       - backend-workspace-demo:/app/backend/workspace

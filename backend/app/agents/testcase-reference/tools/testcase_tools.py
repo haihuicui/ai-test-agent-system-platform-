@@ -16,8 +16,8 @@ logger = logging.getLogger(__name__)
 
 # ============ 配置 ============
 
-# API 基础 URL（默认使用本地地址）
-API_BASE_URL = "http://localhost:8000"  # 可以从环境变量读取
+# API 基础 URL（优先从环境变量 BACKEND_API_URL 读取，默认本地开发地址）
+API_BASE_URL = settings.backend_api_url
 API_PREFIX = settings.api_prefix  # /api/v2
 
 

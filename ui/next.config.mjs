@@ -12,6 +12,12 @@ const nextConfig = {
         source: "/api/:path*",
         destination: `${apiUrl}/api/:path*`,
       },
+      {
+        // 用 Pages Router API Route 流式代理 LangGraph SSE，避免 Next.js dev server
+        // 的 rewrite 直接代理上游时缓冲 SSE 响应。
+        source: "/langgraph/:path*",
+        destination: "/api/langgraph/:path*",
+      },
     ];
   },
 };
