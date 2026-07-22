@@ -739,6 +739,25 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
                   />
                 );
               })}
+              {/* AI 正在思考/调用工具但尚未输出内容时显示轻量指示器，改善长延迟下的用户感知。 */}
+              {isLoading &&
+                !interrupt &&
+                processedMessages[processedMessages.length - 1]?.message.type !== "ai" && (
+                  <div className="flex items-start gap-3 py-4">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                      <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-sm font-medium">AI 助手</span>
+                      <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground/60" />
+                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground/60 [animation-delay:0.15s]" />
+                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground/60 [animation-delay:0.3s]" />
+                        <span className="ml-1">思考中...</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               {isFormatSelectionInterrupt && interrupt && (
                 <div className="mt-4">
                   <OutputFormatInterrupt

@@ -20,9 +20,12 @@ RAG MCP Server — 生产级多租户 RAG 查询服务
 
 import argparse
 import asyncio
+import hashlib
 import json
 import logging
 import os
+import time
+from collections import OrderedDict
 from contextlib import asynccontextmanager
 from typing import Any, AsyncIterator, Dict, List, Literal, Optional
 
@@ -43,6 +46,119 @@ DEFAULT_BASE_URL = "http://localhost:9621"
 DEFAULT_TIMEOUT = 120.0
 MAX_RETRIES = 3
 RETRY_BACKOFF = 0.5
+# RAG 查询结果缓存默认 TTL（秒）。命中缓存可消除一次 ~8s 的重复检索+LLM生成延迟。
+DEFAULT_CACHE_TTL_SECONDS = float(os.environ.get("RAG_CACHE_TTL_SECONDS", "300"))
+# 进程内缓存最大条目数，防止长期运行的 MCP server 内存无限增长。
+DEFAULT_CACHE_MAX_ENTRIES = int(os.environ.get("RAG_CACHE_MAX_ENTRIES", "1000"))
+CACHE_DISABLED = os.environ.get("RAG_CACHE_DISABLED", "").lower() in ("1", "true", "yes")
+
+
+# ============================================================================
+# 轻量级 RAG 查询结果缓存
+# ============================================================================
+
+class RAGQueryCache:
+    """进程内内存缓存，用于缓存 /query 与 /query/data 的响应。
+
+    设计原则：
+    - 只缓存幂等且昂贵的查询类 POST 请求。
+    - 缓存键排除 conversation_history（对话历史不同通常应得到不同答案）。
+    - 流式请求、仅需要上下文/prompt 的请求不缓存。
+    - TTL 过期自动失效，支持通过环境变量开关。
+    - 使用 LRU + 数量上限防止内存无限增长。
+    """
+
+    CACHEABLE_PATHS = {"/query", "/query/data"}
+
+    def __init__(
+        self,
+        ttl_seconds: float = DEFAULT_CACHE_TTL_SECONDS,
+        max_entries: int = DEFAULT_CACHE_MAX_ENTRIES,
+    ):
+        self._ttl = ttl_seconds
+        self._max_entries = max_entries
+        self._cache: OrderedDict[str, tuple[float, Any]] = OrderedDict()
+
+    @staticmethod
+    def _make_key(
+        method: str,
+        path: str,
+        json_body: Optional[Dict[str, Any]],
+        space_id: Optional[str],
+    ) -> Optional[str]:
+        if method != "POST" or path not in RAGQueryCache.CACHEABLE_PATHS:
+            return None
+        if not json_body:
+            return None
+        # 对话历史会显著影响生成答案，且每次不同，不参与缓存。
+        if json_body.get("conversation_history"):
+            return None
+        # 流式响应和只需要上下文/prompt 的请求不缓存。
+        if json_body.get("stream") or json_body.get("only_need_context") or json_body.get("only_need_prompt"):
+            return None
+
+        cacheable = {k: v for k, v in json_body.items() if k != "conversation_history"}
+        cacheable["_space_id"] = space_id
+        try:
+            payload = json.dumps(cacheable, sort_keys=True, ensure_ascii=False).encode("utf-8")
+            return f"{path}:{hashlib.sha256(payload).hexdigest()}"
+        except Exception:
+            return None
+
+    def _evict_expired(self) -> None:
+        """清理已过期条目。"""
+        now = time.time()
+        expired = [key for key, (expires_at, _) in self._cache.items() if now > expires_at]
+        for key in expired:
+            self._cache.pop(key, None)
+
+    def _evict_lru(self) -> None:
+        """按 LRU 淘汰最旧条目，直到数量符合上限。"""
+        while len(self._cache) > self._max_entries:
+            self._cache.popitem(last=False)
+
+    def get(
+        self,
+        method: str,
+        path: str,
+        json_body: Optional[Dict[str, Any]],
+        space_id: Optional[str],
+    ) -> Any:
+        if CACHE_DISABLED:
+            return None
+        key = self._make_key(method, path, json_body, space_id)
+        if key is None:
+            return None
+        expires_at, value = self._cache.get(key, (0, None))
+        if time.time() > expires_at:
+            self._cache.pop(key, None)
+            return None
+        # 命中后移到队尾，保持 LRU 顺序。
+        self._cache.move_to_end(key)
+        logger.debug("RAG 缓存命中: %s", key)
+        return value
+
+    def set(
+        self,
+        method: str,
+        path: str,
+        json_body: Optional[Dict[str, Any]],
+        space_id: Optional[str],
+        value: Any,
+    ) -> None:
+        if CACHE_DISABLED:
+            return
+        key = self._make_key(method, path, json_body, space_id)
+        if key is None:
+            return
+        self._cache[key] = (time.time() + self._ttl, value)
+        self._cache.move_to_end(key)
+        self._evict_expired()
+        self._evict_lru()
+        logger.debug("RAG 缓存写入: %s (ttl=%.0fs, entries=%d)", key, self._ttl, len(self._cache))
+
+    def clear(self) -> None:
+        self._cache.clear()
 
 
 # ============================================================================
@@ -68,6 +184,8 @@ class RAGServiceClient:
         password: Optional[str] = None,
         timeout: float = DEFAULT_TIMEOUT,
         default_space_id: Optional[str] = None,
+        cache_ttl_seconds: float = DEFAULT_CACHE_TTL_SECONDS,
+        cache_max_entries: int = DEFAULT_CACHE_MAX_ENTRIES,
     ):
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
@@ -77,6 +195,10 @@ class RAGServiceClient:
         self.default_space_id = default_space_id
         self._client: Optional[httpx.AsyncClient] = None
         self._jwt_token: Optional[str] = None
+        self._cache = RAGQueryCache(
+            ttl_seconds=cache_ttl_seconds,
+            max_entries=cache_max_entries,
+        )
 
     # ---- JWT 登录 ----
 
@@ -146,7 +268,13 @@ class RAGServiceClient:
         params: Optional[Dict[str, Any]] = None,
         space_id: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """执行带自动重试的 HTTP 请求"""
+        """执行带自动重试的 HTTP 请求，并在命中缓存时直接返回。"""
+        # 查询类请求优先读缓存。
+        cached = self._cache.get(method, path, json_body, space_id)
+        if cached is not None:
+            logger.debug("RAG 缓存命中，直接返回: %s %s", method, path)
+            return cached
+
         client = await self._ensure_client()
         extra_headers: Dict[str, str] = {}
         if space_id:
@@ -161,7 +289,9 @@ class RAGServiceClient:
                     headers=extra_headers if extra_headers else None,
                 )
                 resp.raise_for_status()
-                return resp.json()
+                result = resp.json()
+                self._cache.set(method, path, json_body, space_id, result)
+                return result
             except httpx.HTTPStatusError as e:
                 # 401 且有登录凭据 → JWT 过期，自动重新登录并重试
                 if e.response.status_code == 401 and self.username and self.password:
@@ -288,9 +418,12 @@ async def server_lifespan(server: FastMCP) -> AsyncIterator[RAGContext]:
         password=cfg.get("rag_password"),
         timeout=float(cfg.get("timeout", DEFAULT_TIMEOUT)),
         default_space_id=cfg.get("default_space_id"),
+        cache_ttl_seconds=float(cfg.get("cache_ttl_seconds", DEFAULT_CACHE_TTL_SECONDS)),
+        cache_max_entries=int(cfg.get("cache_max_entries", DEFAULT_CACHE_MAX_ENTRIES)),
     )
     auth_mode = "JWT登录" if client.username else ("API Key" if client.api_key else "无认证")
-    logger.info(f"RAG MCP Server 已启动 → {client.base_url} (认证: {auth_mode})")
+    cache_mode = "缓存关闭" if CACHE_DISABLED else f"缓存 TTL={client._cache._ttl:.0f}s, 上限={client._cache._max_entries}"
+    logger.info(f"RAG MCP Server 已启动 → {client.base_url} (认证: {auth_mode}, {cache_mode})")
     try:
         yield RAGContext(client)
     finally:
@@ -662,6 +795,8 @@ def main():
         "rag_password": os.environ.get("RAG_PASSWORD", args.password),
         "timeout": float(os.environ.get("RAG_TIMEOUT", args.timeout)),
         "default_space_id": os.environ.get("RAG_SPACE_ID", args.space_id),
+        "cache_ttl_seconds": float(os.environ.get("RAG_CACHE_TTL_SECONDS", DEFAULT_CACHE_TTL_SECONDS)),
+        "cache_max_entries": int(os.environ.get("RAG_CACHE_MAX_ENTRIES", DEFAULT_CACHE_MAX_ENTRIES)),
     }
 
     if args.transport == "sse":

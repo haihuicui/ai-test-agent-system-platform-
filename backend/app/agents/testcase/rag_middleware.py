@@ -4,6 +4,7 @@
 关闭 RAG 时，会过滤掉所有以 `rag_` 开头的工具，并在系统提示词中追加禁用说明，
 防止模型尝试调用历史知识库。
 """
+import re
 from typing import Any
 
 from deepagents.middleware import SkillsMiddleware
@@ -12,6 +13,52 @@ from langchain.agents.middleware import AgentMiddleware, ModelRequest
 
 # RAG Skill 在虚拟文件系统中的路由前缀（见 agent.py 的 CompositeBackend 路由）
 RAG_SKILL_SOURCE_PREFIX = "/rag/"
+
+
+# ---------------------------------------------------------------------------
+# 轻量级意图识别
+# ---------------------------------------------------------------------------
+
+def _extract_message_text(msg: Any) -> str:
+    """从一条消息对象中提取纯文本内容。"""
+    content = getattr(msg, "content", None)
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts: list[str] = []
+        for block in content:
+            if isinstance(block, str):
+                parts.append(block)
+            elif isinstance(block, dict) and block.get("type") == "text":
+                parts.append(block.get("text", ""))
+        return "\n".join(parts)
+    return ""
+
+
+def _looks_like_meta_question(text: str) -> bool:
+    """判断用户是否在询问 Agent 的 skill / 能力 / 能做什么等元问题。
+
+    这类问题不需要检索历史知识库；跳过 RAG 可以消除一次 ~8s 的检索延迟。
+    """
+    cleaned = re.sub(r"\s+", "", text.lower())
+    patterns = [
+        # 你有什么 skill / 技能 / 能力 / 功能 / 用 / 本事
+        r"你(有|会)(什么|哪些)(skill|skills|技能|能力|功能|作用|用|本事)",
+        # 你有什么 / 你会什么（直接以“什么/哪些”结尾，默认问能力）
+        r"你(有|会)(什么|哪些)$",
+        # 介绍一下你的能力 / 告诉我你会什么
+        r"(介绍|说说|告诉|讲)(一下|我)?(你|你的)(skill|skills|技能|能力|功能|作用|会什么)",
+        # 你能做什么 / 你可以做什么 / 你会做什么
+        r"你(能|可以|会)做(什么|哪些|啥)",
+        # 你能干什么 / 你可以干什么 / 你会干什么
+        r"你(能|可以|会)干(什么|哪些|啥)",
+        # 你是什么 agent / 助手
+        r"你(是|做)什么(的|agent|助手)?",
+        # 更口语化的表达
+        r"你有什么skill",
+        r"showskills",
+    ]
+    return any(re.search(p, cleaned) for p in patterns)
 
 
 def resolve_enable_rag(messages: list[Any] | None, runtime: Any) -> bool:
@@ -26,12 +73,19 @@ def resolve_enable_rag(messages: list[Any] | None, runtime: Any) -> bool:
     - 沿历史倒序找最近一条 human 消息，而不是只看 ``messages[-1]``——
       工具调用循环中最后一条可能是 ToolMessage，会导致开关在
       一轮对话中途翻转。
+    - 若用户询问的是 Agent 自身的 skill / 能力等元问题，自动关闭 RAG，
+      避免不必要的 ~8s 检索延迟。
     """
     for msg in reversed(messages or []):
         if getattr(msg, "type", None) == "human":
             ak = getattr(msg, "additional_kwargs", None) or {}
             if isinstance(ak, dict) and "enable_rag" in ak:
                 return bool(ak["enable_rag"])
+
+            # 元问题无需检索历史知识库，直接跳过 RAG 以减少延迟。
+            text = _extract_message_text(msg)
+            if _looks_like_meta_question(text):
+                return False
             break  # 最近的 human 消息未携带开关 -> 回退到 context
 
     context = getattr(runtime, "context", None) if runtime else None
