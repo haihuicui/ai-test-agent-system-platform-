@@ -32,7 +32,7 @@ workspace_backend = FilesystemBackend(root_dir=workspace_root, virtual_mode=True
 # 创建技能中间件
 skills_middleware = SkillsMiddleware(
     backend=skills_backend,
-    sources=["/skills/"]
+    sources=["/skills/testcase/"]
 )
 
 # fmt: off  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2YW04NU5nPT06ZTc3MTdjNjg=

@@ -64,7 +64,7 @@ composite_backend = CompositeBackend(
 
 skills_middleware = RagAwareSkillsMiddleware(
     backend=composite_backend,
-    sources=["/skills/", "/rag/"]
+    sources=["/skills/testcase/", "/rag/"]
 )
 
 # ============================================================================

@@ -221,7 +221,7 @@ class Settings(BaseSettings):
 
     # 测试用例工作目录配置
     testcase_workspace_root: str = "backend/workspace/testcase"
-    testcase_skills_root: str = ".claude/skills"
+    testcase_skills_root: str = ".claude/skills/testcase"
 
     # 渗透测试工作目录配置
     security_workspace_root: str = "backend/workspace/security"
