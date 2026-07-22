@@ -39,6 +39,7 @@ python -c "
 import asyncio, sys
 sys.path.insert(0, '.')
 from app.config.database import init_db
+import app.models  # 注册全部业务模型到 Base.metadata，create_all 才能建出真实业务表
 asyncio.run(init_db())
 "
 

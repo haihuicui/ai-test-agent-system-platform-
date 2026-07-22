@@ -4,6 +4,9 @@
 # ==============================================================================
 FROM node:20-bookworm-slim
 
+# CPU 容器内无需/无法安装 CUDA 库；跳过 onnxruntime-node 的 CUDA 解压，避免 postinstall 失败
+ENV ONNXRUNTIME_NODE_INSTALL_CUDA=skip
+
 RUN apt-get update && apt-get install -y --no-install-recommends git \
     && rm -rf /var/lib/apt/lists/*
 

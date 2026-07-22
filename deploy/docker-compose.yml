@@ -279,7 +279,7 @@ services:
       - ..:/repo:ro
       - gitnexus-data:/repo/.gitnexus
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:4747/health || exit 1"]
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:4747/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
       interval: 15s
       timeout: 5s
       retries: 12
