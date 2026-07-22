@@ -9,7 +9,6 @@ import asyncio
 
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.pool import NullPool
 
 from app.config.settings import settings, PROJECT_ROOT
@@ -40,9 +39,7 @@ async_session_factory = async_sessionmaker(
 
 # pragma: no cover  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2YzNBMGJBPT06M2NmMGZmN2E=
 
-class Base(DeclarativeBase):
-    """SQLAlchemy 声明式基类"""
-    pass
+from app.models.base import Base
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
@@ -70,6 +67,7 @@ async def init_db() -> None:
     ``settings.debug`` 模式下被 [app/main.py](app/main.py) 调用，方便
     快速搭建本地或测试环境。
     """
+    import app.models  # noqa: F401 注册所有模型表到 Base.metadata
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
