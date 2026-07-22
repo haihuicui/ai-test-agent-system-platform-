@@ -14,7 +14,7 @@ from app.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
-API_BASE_URL = f"http://localhost:{settings.app_port}"
+API_BASE_URL = settings.backend_api_url
 API_PREFIX = settings.api_prefix
 
 
