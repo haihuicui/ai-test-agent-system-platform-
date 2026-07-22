@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useMemo, ReactNode } from "react";
 import { Client } from "@langchain/langgraph-sdk";
+import { resolveDeploymentUrl } from "@/lib/langgraph/client";
 
 interface ClientContextValue {
   client: Client;
@@ -24,7 +25,7 @@ export function ClientProvider({
 }: ClientProviderProps) {
   const client = useMemo(() => {
     return new Client({
-      apiUrl: deploymentUrl,
+      apiUrl: resolveDeploymentUrl(deploymentUrl),
       defaultHeaders: {
         "Content-Type": "application/json",
         "X-Api-Key": apiKey,

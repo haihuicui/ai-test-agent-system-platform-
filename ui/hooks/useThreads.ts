@@ -2,6 +2,7 @@ import useSWRInfinite from "swr/infinite";
 import type { Thread } from "@langchain/langgraph-sdk";
 import { Client } from "@langchain/langgraph-sdk";
 import { getConfig } from "@/lib/langgraph/config";
+import { resolveDeploymentUrl } from "@/lib/langgraph/client";
 // WATERMARK  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2UVc5bk9RPT06OWQ0NzJiN2E=
 
 export interface ThreadItem {
@@ -69,7 +70,7 @@ export function useThreads(props: {
       status?: Thread["status"];
     }) => {
       const client = new Client({
-        apiUrl: deploymentUrl,
+        apiUrl: resolveDeploymentUrl(deploymentUrl),
         defaultHeaders: apiKey ? { "X-Api-Key": apiKey } : {},
       });
 
