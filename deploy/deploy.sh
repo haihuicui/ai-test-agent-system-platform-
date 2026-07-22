@@ -24,6 +24,24 @@ cd "$REPO_ROOT/deploy"
 echo ">>> git pull origin ${1:-main} ..."
 git -C "$REPO_ROOT" pull origin "${1:-main}"
 
+# ---- 1.5 同步托管配置项（example -> 运行配置，不覆盖密码/API key） ----
+# 这些键的默认值会随代码更新而调整，允许自动同步；用户自定义值不会被覆盖。
+SYNC_SCRIPT="$SCRIPT_DIR/scripts/sync-env.py"
+if [ -f "$SYNC_SCRIPT" ]; then
+    if [ -f ".env" ]; then
+        python3 "$SYNC_SCRIPT" \
+            --example "$SCRIPT_DIR/.env.production.example" \
+            --target "$SCRIPT_DIR/.env" \
+            --keys LIGHTRAG_PARSER
+    fi
+    if [ -f "lightrag/.env" ]; then
+        python3 "$SYNC_SCRIPT" \
+            --example "$SCRIPT_DIR/lightrag/.env.example" \
+            --target "$SCRIPT_DIR/lightrag/.env" \
+            --keys LIGHTRAG_PARSER MULTIMODAL_PARSER DOCLING_DO_OCR VLM_PROCESS_ENABLE
+    fi
+fi
+
 # ---- 2. 首次生成 .env 并自动填充随机密码 ----
 
 # 2.1 先统一生成所有共享密码
