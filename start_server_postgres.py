@@ -87,6 +87,19 @@ def setup_environment():
         print(f"❌ 缺少必要的环境变量，请在 .env 中配置: {', '.join(missing)}")
         sys.exit(1)
 
+    # 复用 .env 里的 CORS_ORIGINS，避免 LangGraph Server 使用默认 "*" 时
+    # 与 allow_credentials=True 冲突导致浏览器报 CORS 错误。
+    # 注意：浏览器把 localhost 和 127.0.0.1 视为不同 origin，都要列出。
+    _cors_origins = ["http://localhost:3000", "http://127.0.0.1:3000",
+                     "http://localhost:3001", "http://localhost:8080"]
+    if raw_cors := os.environ.get("CORS_ORIGINS"):
+        try:
+            _cors_origins = json.loads(raw_cors)
+            if not isinstance(_cors_origins, list):
+                _cors_origins = list(_cors_origins)
+        except json.JSONDecodeError:
+            print(f"⚠️  CORS_ORIGINS 解析失败，使用默认列表: {raw_cors}")
+
     # Build environment variables dict
     env_vars = {
         # Database and storage - 从 .env 读取
@@ -106,6 +119,7 @@ def setup_environment():
         "LANGGRAPH_DISABLE_FILE_PERSISTENCE": "false",
         "LANGGRAPH_ALLOW_BLOCKING": "true",
         "LANGGRAPH_API_URL": "http://localhost:2026",
+        "CORS_ALLOW_ORIGINS": json.dumps(_cors_origins),
 
         "LANGGRAPH_DEFAULT_RECURSION_LIMIT": "2000",
 

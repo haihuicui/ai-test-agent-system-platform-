@@ -41,6 +41,19 @@ def setup_environment():
             config = json.load(f)
             graphs = config.get("graphs", {})
     
+    # 复用 .env 里的 CORS_ORIGINS，避免 LangGraph Server 使用默认 "*" 时
+    # 与 allow_credentials=True 冲突导致浏览器报 CORS 错误。
+    # 注意：浏览器把 localhost 和 127.0.0.1 视为不同 origin，都要列出。
+    _cors_origins = ["http://localhost:3000", "http://127.0.0.1:3000",
+                     "http://localhost:3001", "http://localhost:8080"]
+    if raw_cors := os.environ.get("CORS_ORIGINS"):
+        try:
+            _cors_origins = json.loads(raw_cors)
+            if not isinstance(_cors_origins, list):
+                _cors_origins = list(_cors_origins)
+        except json.JSONDecodeError:
+            print(f"⚠️  CORS_ORIGINS 解析失败，使用默认列表: {raw_cors}")
+
     # Set environment variables
     os.environ.update({
         # Database and storage - 使用自定义 PostgreSQL checkpointer
@@ -58,6 +71,7 @@ def setup_environment():
         "LANGGRAPH_DISABLE_FILE_PERSISTENCE": "false",
         "LANGGRAPH_ALLOW_BLOCKING": "true",
         "LANGGRAPH_API_URL": "http://localhost:2025",
+        "CORS_ALLOW_ORIGINS": json.dumps(_cors_origins),
 
         # "LANGGRAPH_DEFAULT_RECURSION_LIMIT": "1000",
         

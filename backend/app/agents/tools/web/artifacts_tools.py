@@ -843,6 +843,7 @@ def _render_report_content(content: str) -> str:
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>测试执行摘要</title>
+<link rel="icon" type="image/svg+xml" href="/logo.svg">
 <style>
 body {{
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;

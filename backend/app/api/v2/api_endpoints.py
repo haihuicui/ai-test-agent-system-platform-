@@ -842,6 +842,34 @@ async def get_report_viewer_url(
         )
 
 
+def _inject_platform_favicon(html_content: str) -> str:
+    """
+    将 HTML 中的 favicon 统一替换为平台图标 /logo.svg。
+
+    若已经存在 <link rel="icon">，则替换其 href；否则在 </head> 前注入。
+    使用绝对路径 /logo.svg，可避免报告包内 <base> 标签的影响。
+    """
+    import re
+
+    icon_link_pattern = re.compile(
+        r'<link(?=[^>]*\brel=["\']icon["\'])[^>]*>',
+        re.IGNORECASE,
+    )
+    if icon_link_pattern.search(html_content):
+        return icon_link_pattern.sub(
+            '<link rel="icon" type="image/svg+xml" href="/logo.svg">',
+            html_content,
+            count=1,
+        )
+
+    head_end_pattern = re.compile(r'</head>', re.IGNORECASE)
+    return head_end_pattern.sub(
+        '<link rel="icon" type="image/svg+xml" href="/logo.svg">\n</head>',
+        html_content,
+        count=1,
+    )
+
+
 @router.get("/attachments/{attachment_id}/report-files/{file_path:path}")
 async def get_report_file(
     attachment_id: UUID,
@@ -938,10 +966,11 @@ async def get_report_file(
     if mime_type is None:
         mime_type = "application/octet-stream"
 
-    # 对于 HTML 文件，读取内容并使用 HTMLResponse 返回，避免浏览器下载
+    # 对于 HTML 文件，读取内容并统一平台 favicon，避免浏览器标签页图标与主站不一致
     if mime_type == "text/html":
         with open(target_file, 'r', encoding='utf-8') as f:
             html_content = f.read()
+        html_content = _inject_platform_favicon(html_content)
         return HTMLResponse(content=html_content)
 
     # 对于其他文件，使用 FileResponse 但不设置 filename，让浏览器根据 MIME 类型处理
