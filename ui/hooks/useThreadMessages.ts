@@ -3,6 +3,7 @@
 import useSWRInfinite from "swr/infinite";
 import { useCallback, useMemo } from "react";
 import type { Client, Message } from "@langchain/langgraph-sdk";
+import { resolveDeploymentUrl } from "@/lib/langgraph/client";
 
 interface ThreadMessagesResponse {
   messages: Message[];
@@ -66,17 +67,18 @@ export function useThreadMessages(
 
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
-      console.debug("[useThreadMessages] fetching", `/threads/${key.threadId}/messages`, params);
+      console.debug("[useThreadMessages] fetching", `threads/${key.threadId}/messages`, params);
     }
 
     try {
       // SDK 尚未暴露 /messages 端点，通过底层 fetch 调用。
       // 直接用浏览器 fetch，绕过 SDK 的 AsyncCaller 重试/队列，便于在 Network 面板定位请求。
-      const apiUrl =
-        (client as any).apiUrl || process.env.NEXT_PUBLIC_LANGGRAPH_API_URL;
+      const apiUrl = resolveDeploymentUrl(
+        (client as any).apiUrl || process.env.NEXT_PUBLIC_LANGGRAPH_API_URL
+      );
       const url = new URL(
-        `/threads/${key.threadId}/messages`,
-        apiUrl
+        `threads/${key.threadId}/messages`,
+        apiUrl.endsWith("/") ? apiUrl : `${apiUrl}/`
       );
       url.searchParams.set("limit", String(key.limit));
       if (key.beforeCheckpointId) {
