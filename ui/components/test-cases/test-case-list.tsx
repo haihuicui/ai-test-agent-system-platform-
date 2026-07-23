@@ -50,8 +50,14 @@ import {
   type TestCaseFilters,
 } from "./test-case-filter-panel";
 import { TableRowSkeleton, FilterBarSkeleton } from "./test-case-skeleton";
-import type { TestCaseInfo, Priority, TestCaseState, TestCaseTemplate } from "@/lib/api/types";
-import { downloadTestCasesExcel } from "@/lib/api/testCases";
+import type {
+  TestCaseInfo,
+  Priority,
+  TestCaseState,
+  TestCaseTemplate,
+  ExportFormat,
+} from "@/lib/api/types";
+import { downloadTestCasesExport } from "@/lib/api/testCases";
 import {
   DndContext,
   DragOverlay,
@@ -149,7 +155,7 @@ export function TestCaseList({
   const [filters, setFilters] = React.useState<TestCaseFilters>({ search: "" });
   const [showQuickCreate, setShowQuickCreate] = React.useState(false);
   const [showFilterBar, setShowFilterBar] = React.useState(false);
-  const [exportingExcel, setExportingExcel] = React.useState(false);
+  const [exportingFormat, setExportingFormat] = React.useState<ExportFormat | null>(null);
 
   // 优先级标签
   const priorityLabels: Record<Priority, string> = {
@@ -294,44 +300,51 @@ export function TestCaseList({
     }
   }, [searchQuery, onFilterChange, onFilterPriority, onFilterStatus, onSearch]);
 
-  // 导出选中的测试用例为 Excel
-  const handleExportSelected = React.useCallback(async () => {
-    if (selectedIds.size === 0) {
-      toast.error(t("testCases.selectToExport"));
-      return;
-    }
+  // 导出选中的测试用例
+  const handleExport = React.useCallback(
+    async (format: ExportFormat) => {
+      if (selectedIds.size === 0) {
+        toast.error(t("testCases.selectToExport"));
+        return;
+      }
 
-    const identifiers = testCases
-      .filter((tc) => selectedIds.has(tc.id))
-      .map((tc) => tc.identifier)
-      .filter(Boolean);
+      const identifiers = testCases
+        .filter((tc) => selectedIds.has(tc.id))
+        .map((tc) => tc.identifier)
+        .filter(Boolean);
 
-    if (identifiers.length === 0) {
-      toast.error(t("testCases.exportExcelNoScope"));
-      return;
-    }
+      if (identifiers.length === 0) {
+        toast.error(t("testCases.exportNoScope"));
+        return;
+      }
 
-    try {
-      setExportingExcel(true);
-      await downloadTestCasesExcel(
-        projectId,
-        { test_case_ids: identifiers },
-        {
-          onCompleted: () => {
-            toast.success(t("testCases.exportExcelSuccess"));
-          },
-          onFailed: (message) => {
-            toast.error(message || t("testCases.exportExcelFailed"));
-          },
-        }
-      );
-    } catch (error) {
-      console.error("Export selected test cases failed:", error);
-      toast.error(t("testCases.exportExcelFailed"));
-    } finally {
-      setExportingExcel(false);
-    }
-  }, [projectId, selectedIds, testCases, t]);
+      try {
+        setExportingFormat(format);
+        await downloadTestCasesExport(
+          projectId,
+          { format, test_case_ids: identifiers },
+          {
+            onCompleted: () => {
+              toast.success(
+                t("testCases.exportSuccess", {
+                  format: t(`testCases.export${format.charAt(0).toUpperCase() + format.slice(1)}`),
+                })
+              );
+            },
+            onFailed: (message) => {
+              toast.error(message || t("testCases.exportFailed"));
+            },
+          }
+        );
+      } catch (error) {
+        console.error("Export selected test cases failed:", error);
+        toast.error(t("testCases.exportFailed"));
+      } finally {
+        setExportingFormat(null);
+      }
+    },
+    [projectId, selectedIds, testCases, t]
+  );
 
   const isAllSelected =
     localTestCases.length > 0 && selectedIds.size === localTestCases.length;
@@ -666,19 +679,37 @@ export function TestCaseList({
           <Button variant="outline" size="sm" onClick={onBulkEdit}>
             批量编辑
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExportSelected}
-            disabled={exportingExcel}
-          >
-            {exportingExcel ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Download className="mr-2 h-4 w-4" />
-            )}
-            导出 Excel
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={exportingFormat !== null}
+              >
+                {exportingFormat ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="mr-2 h-4 w-4" />
+                )}
+                {t("testCases.export")}
+                <ChevronDown className="ml-1 h-3 w-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => handleExport("excel")}>
+                {t("testCases.exportExcel")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport("json")}>
+                {t("testCases.exportJson")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport("csv")}>
+                {t("testCases.exportCsv")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport("markdown")}>
+                {t("testCases.exportMarkdown")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button
             variant="outline"
             size="sm"

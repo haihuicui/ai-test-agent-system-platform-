@@ -253,7 +253,19 @@ export const translations = {
     selectToExport: "请先选择要导出的测试用例",
     aiGenerateSuccess: "成功生成 {count} 个测试用例",
 
-    // Excel 导出
+    // 导出
+    export: "导出",
+    exporting: "导出中...",
+    exportExcel: "Excel (.xlsx)",
+    exportJson: "JSON (.json)",
+    exportCsv: "CSV (.csv)",
+    exportMarkdown: "Markdown (.md)",
+    exportSuccess: "{format} 导出成功",
+    exportFailed: "导出失败",
+    exportTimeout: "导出超时，请稍后重试",
+    exportNoScope: "未找到可导出的测试用例",
+
+    // 兼容旧 Excel 导出的翻译键
     downloadExcel: "下载 Excel",
     exportingExcel: "导出中...",
     exportExcelSuccess: "Excel 导出成功",

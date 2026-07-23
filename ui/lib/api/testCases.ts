@@ -6,6 +6,7 @@ import type {
   PaginationInfo,
   Priority,
   TestCaseState,
+  ExportFormat,
 } from "./types";
 // WATERMARK  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2T0VsVk5BPT06OGYxNGFiZTU=
 
@@ -162,6 +163,20 @@ export interface ExportExcelResponse {
   status_url: string;
 }
 
+export interface ExportTestCasesRequest {
+  format: ExportFormat;
+  test_case_ids?: string[];
+  folder_id?: string;
+}
+
+export interface ExportTestCasesResponse {
+  success: boolean;
+  export_id: string;
+  status: string;
+  status_url: string;
+  format: ExportFormat;
+}
+
 export interface ExportStatusResponse {
   success: boolean;
   export_id: string;
@@ -170,14 +185,22 @@ export interface ExportStatusResponse {
   error_message?: string;
 }
 
+export function exportTestCases(
+  projectId: string,
+  data: ExportTestCasesRequest
+) {
+  return apiClient.post<ExportTestCasesResponse>(
+    `/projects/${projectId}/test-cases/export`,
+    data
+  );
+}
+
+// 旧 Excel 导出接口，作为统一导出接口的兼容包装保留
 export function exportTestCasesToExcel(
   projectId: string,
   data: ExportExcelRequest
 ) {
-  return apiClient.post<ExportExcelResponse>(
-    `/projects/${projectId}/test-cases/export-excel`,
-    data
-  );
+  return exportTestCases(projectId, { format: "excel", ...data });
 }
 
 export function getExportStatus(exportId: string) {
@@ -188,18 +211,15 @@ export function getExportDownloadUrl(exportId: string) {
   return `/api/v2/exports/${exportId}/download`;
 }
 
-export async function downloadTestCasesExcel(
+export async function downloadTestCasesExport(
   projectId: string,
-  data: ExportExcelRequest,
+  data: ExportTestCasesRequest,
   options?: {
     onCompleted?: () => void;
     onFailed?: (errorMessage: string) => void;
   }
 ) {
-  const { export_id: exportId } = await exportTestCasesToExcel(
-    projectId,
-    data
-  );
+  const { export_id: exportId } = await exportTestCases(projectId, data);
 
   const maxAttempts = 30;
   for (let i = 0; i < maxAttempts; i++) {
@@ -212,12 +232,28 @@ export async function downloadTestCasesExcel(
       return;
     }
     if (status.status === "failed") {
-      const message = status.error_message || "Excel 导出失败";
+      const message = status.error_message || "导出失败";
       options?.onFailed?.(message);
       return;
     }
   }
 
   options?.onFailed?.("导出超时，请稍后重试");
+}
+
+// 旧 Excel 导出轮询函数，作为兼容包装保留
+export async function downloadTestCasesExcel(
+  projectId: string,
+  data: ExportExcelRequest,
+  options?: {
+    onCompleted?: () => void;
+    onFailed?: (errorMessage: string) => void;
+  }
+) {
+  return downloadTestCasesExport(
+    projectId,
+    { format: "excel", ...data },
+    options
+  );
 }
 

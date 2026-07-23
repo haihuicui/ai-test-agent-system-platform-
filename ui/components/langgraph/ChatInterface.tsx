@@ -13,6 +13,12 @@ import React, {
 } from "react";
 import { Button } from "@/components/ui/button";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Square,
   ArrowUp,
   CheckCircle,
@@ -22,6 +28,7 @@ import {
   Loader2,
   Plus,
   Download,
+  ChevronDown,
 } from "lucide-react";
 import { ChatMessage } from "@/components/langgraph/ChatMessage";
 import { OutputFormatInterrupt } from "@/components/langgraph/OutputFormatInterrupt";
@@ -50,8 +57,9 @@ import { toast } from "sonner";
 import { useLanguage } from "@/providers/LanguageProvider";
 import { extractCreatedTestCaseIds } from "@/lib/langgraph/utils";
 import {
-  downloadTestCasesExcel,
+  downloadTestCasesExport,
 } from "@/lib/api/testCases";
+import type { ExportFormat } from "@/lib/api/types";
 
 interface ChatInterfaceProps {
   assistant: Assistant | null;
@@ -107,7 +115,7 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
     const num = raw ? parseInt(raw, 10) : 80;
     return Number.isNaN(num) ? 80 : Math.max(0, Math.min(100, num));
   });
-  const [exportingExcel, setExportingExcel] = useState(false);
+  const [exportingFormat, setExportingFormat] = useState<ExportFormat | null>(null);
   const {
     contentBlocks,
     handleFileUpload,
@@ -549,44 +557,53 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
     };
   }, []);
 
-  const handleDownloadExcel = useCallback(async () => {
-    const projectId = assistant?.config?.configurable
-      ?.project_identifier as string | undefined;
-    if (!projectId) {
-      toast.error(t("testCases.exportExcelMissingProject"));
-      return;
-    }
+  const handleExport = useCallback(
+    async (format: ExportFormat) => {
+      const projectId = assistant?.config?.configurable
+        ?.project_identifier as string | undefined;
+      if (!projectId) {
+        toast.error(t("testCases.exportExcelMissingProject"));
+        return;
+      }
 
-    if (generatedTestCaseIds.length === 0) {
-      toast.error(t("testCases.exportExcelNoScope"));
-      return;
-    }
+      if (generatedTestCaseIds.length === 0) {
+        toast.error(t("testCases.exportNoScope"));
+        return;
+      }
 
-    try {
-      setExportingExcel(true);
-      await downloadTestCasesExcel(
-        projectId,
-        { test_case_ids: generatedTestCaseIds },
-        {
-          onCompleted: () => {
-            toast.success(t("testCases.exportExcelSuccess"));
-          },
-          onFailed: (message) => {
-            toast.error(message || t("testCases.exportExcelFailed"));
-          },
-        }
-      );
-    } catch (error) {
-      console.error("Export excel failed:", error);
-      toast.error(t("testCases.exportExcelFailed"));
-    } finally {
-      setExportingExcel(false);
-    }
-  }, [
-    assistant?.config?.configurable?.project_identifier,
-    generatedTestCaseIds,
-    t,
-  ]);
+      try {
+        setExportingFormat(format);
+        await downloadTestCasesExport(
+          projectId,
+          { format, test_case_ids: generatedTestCaseIds },
+          {
+            onCompleted: () => {
+              toast.success(
+                t("testCases.exportSuccess", {
+                  format: t(
+                    `testCases.export${format.charAt(0).toUpperCase() + format.slice(1)}`
+                  ),
+                })
+              );
+            },
+            onFailed: (message) => {
+              toast.error(message || t("testCases.exportFailed"));
+            },
+          }
+        );
+      } catch (error) {
+        console.error("Export failed:", error);
+        toast.error(t("testCases.exportFailed"));
+      } finally {
+        setExportingFormat(null);
+      }
+    },
+    [
+      assistant?.config?.configurable?.project_identifier,
+      generatedTestCaseIds,
+      t,
+    ]
+  );
 
   const groupedTodos = {
     in_progress: todos.filter((t) => t.status === "in_progress"),
@@ -1037,20 +1054,38 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
                   count: generatedTestCaseIds.length.toString(),
                 })}
               </span>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={handleDownloadExcel}
-                disabled={exportingExcel}
-              >
-                {exportingExcel ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Download className="mr-2 h-4 w-4" />
-                )}
-                {t("testCases.downloadExcel")}
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={exportingFormat !== null}
+                  >
+                    {exportingFormat ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Download className="mr-2 h-4 w-4" />
+                    )}
+                    {t("testCases.export")}
+                    <ChevronDown className="ml-1 h-3 w-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => handleExport("excel")}>
+                    {t("testCases.exportExcel")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExport("json")}>
+                    {t("testCases.exportJson")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExport("csv")}>
+                    {t("testCases.exportCsv")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExport("markdown")}>
+                    {t("testCases.exportMarkdown")}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           )}
           <form onSubmit={handleSubmit} className="flex flex-col">

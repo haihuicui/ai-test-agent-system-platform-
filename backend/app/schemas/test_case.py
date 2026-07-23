@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from app.schemas.common import BaseResponse, LinkInfo
 from app.schemas.enums import (
     Priority, TestCaseState, TestCaseType,
-    TestCaseTemplate, AutomationStatus, BulkEditOperation, ExportStatus
+    TestCaseTemplate, AutomationStatus, BulkEditOperation, ExportStatus, ExportFormat
 )
 # noqa  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2VW5GTmVBPT06NzM3MDVjODQ=
 
@@ -354,6 +354,38 @@ class ExportExcelResponse(BaseResponse):
     export_id: str = Field(..., description="导出任务 ID")
     status: ExportStatus = Field(..., description="导出状态")
     status_url: str = Field(..., description="状态查询 URL")
+
+
+class ExportTestCasesRequest(BaseModel):
+    """统一导出测试用例请求模型（支持 Excel / JSON / CSV / Markdown / BDD）"""
+    format: ExportFormat = Field(
+        default=ExportFormat.EXCEL,
+        description="导出格式：excel / json / csv / markdown / bdd"
+    )
+    test_case_ids: Optional[list[str]] = Field(
+        default=None,
+        description="要导出的测试用例标识符列表；与 folder_id 二选一"
+    )
+    folder_id: Optional[str] = Field(
+        default=None,
+        description="文件夹 ID，导出该文件夹下全部测试用例"
+    )
+
+    @model_validator(mode='after')
+    def validate_scope(self):
+        """验证必须提供 test_case_ids 或 folder_id 之一"""
+        if not self.test_case_ids and not self.folder_id:
+            raise ValueError("必须提供 test_case_ids 或 folder_id 之一")
+        return self
+
+
+class ExportTestCasesResponse(BaseResponse):
+    """统一导出测试用例响应模型"""
+    success: bool = Field(default=True)
+    export_id: str = Field(..., description="导出任务 ID")
+    status: ExportStatus = Field(..., description="导出状态")
+    status_url: str = Field(..., description="状态查询 URL")
+    format: ExportFormat = Field(..., description="导出格式")
 
 
 class ExportStatusResponse(BaseResponse):

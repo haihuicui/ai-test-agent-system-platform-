@@ -252,7 +252,19 @@ export const translations = {
     selectToExport: "Please select test cases to export",
     aiGenerateSuccess: "Successfully generated {count} test cases",
 
-    // Excel export
+    // Export
+    export: "Export",
+    exporting: "Exporting...",
+    exportExcel: "Excel (.xlsx)",
+    exportJson: "JSON (.json)",
+    exportCsv: "CSV (.csv)",
+    exportMarkdown: "Markdown (.md)",
+    exportSuccess: "{format} exported successfully",
+    exportFailed: "Export failed",
+    exportTimeout: "Export timed out, please try again later",
+    exportNoScope: "No test cases available for export",
+
+    // Legacy Excel export keys
     downloadExcel: "Download Excel",
     exportingExcel: "Exporting...",
     exportExcelSuccess: "Excel exported successfully",

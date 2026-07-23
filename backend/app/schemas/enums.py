@@ -156,6 +156,19 @@ class ExportStatus(str, Enum):
     FAILED = "failed"         # 失败
 
 
+class ExportFormat(str, Enum):
+    """
+    测试用例导出格式
+
+    用于标识测试用例导出的目标文件格式
+    """
+    EXCEL = "excel"       # Microsoft Excel (.xlsx)
+    JSON = "json"         # JSON (.json)
+    CSV = "csv"           # CSV (.csv)
+    MARKDOWN = "markdown" # Markdown (.md)
+    BDD = "bdd"           # BDD Gherkin (.feature)
+
+
 class TestRunState(str, Enum):
     """
     测试运行状态

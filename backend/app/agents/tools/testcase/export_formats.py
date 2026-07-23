@@ -122,3 +122,33 @@ def generate_test_cases_csv_bytes(test_cases: list[dict[str, Any]]) -> bytes:
 
     # UTF-8 + BOM，确保 Excel/WPS 双击打开时中文不乱码
     return b"\xef\xbb\xbf" + buffer.getvalue().encode("utf-8")
+
+
+def generate_test_cases_markdown_bytes(test_cases: list[dict[str, Any]]) -> bytes:
+    """将测试用例列表转换为 UTF-8 Markdown 表格字节流。
+
+    采用与 Excel / CSV 对齐的中文表头，每个用例一行；单元格内换行转换为
+    <br>，管道符 `|` 转义为 `\|`，避免破坏 Markdown 表格结构。
+    """
+    if not test_cases:
+        return "# 测试用例导出\n\n暂无测试用例。".encode("utf-8")
+
+    lines: list[str] = ["# 测试用例导出", ""]
+
+    # 表头
+    headers = [label for _, label in _CSV_HEADER_MAPPING]
+    lines.append("| " + " | ".join(headers) + " |")
+    lines.append("|" + "|".join([" --- " for _ in headers]) + "|")
+
+    for case in test_cases:
+        cells = []
+        for key, _ in _CSV_HEADER_MAPPING:
+            value = case.get(key, "")
+            text = str(value) if value is not None else ""
+            # 把换行转成 <br>，管道符转义
+            text = text.replace("\n", "<br>").replace("|", "\\|")
+            cells.append(text)
+        lines.append("| " + " | ".join(cells) + " |")
+
+    lines.append("")
+    return "\n".join(lines).encode("utf-8")

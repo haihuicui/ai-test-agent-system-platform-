@@ -250,6 +250,18 @@ export const translations = {
     selectToExport: "エクスポートするテストケースを選択してください",
     aiGenerateSuccess: "{count}件のテストケースを生成しました",
 
+    // エクスポート
+    export: "エクスポート",
+    exporting: "エクスポート中...",
+    exportExcel: "Excel (.xlsx)",
+    exportJson: "JSON (.json)",
+    exportCsv: "CSV (.csv)",
+    exportMarkdown: "Markdown (.md)",
+    exportSuccess: "{format} のエクスポートに成功しました",
+    exportFailed: "エクスポートに失敗しました",
+    exportTimeout: "エクスポートがタイムアウトしました。後でもう一度お試しください",
+    exportNoScope: "エクスポート可能なテストケースが見つかりません",
+
     // Excel エクスポート
     downloadExcel: "Excel をダウンロード",
     exportingExcel: "エクスポート中...",

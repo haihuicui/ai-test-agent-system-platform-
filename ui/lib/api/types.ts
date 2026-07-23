@@ -30,6 +30,9 @@ export interface MessageResponse {
   message: string;
 }
 
+// 测试用例导出格式
+export type ExportFormat = "excel" | "json" | "csv" | "markdown";
+
 // 链接信息
 export interface LinkInfo {
   self?: string;

@@ -26,6 +26,7 @@ from app.schemas.test_case import (
     BulkOperationResponse, ExportBDDRequest, ExportBDDResponse,
     ExportStatusResponse, TestCaseHistoryResponse,
     ExportExcelRequest, ExportExcelResponse,
+    ExportTestCasesRequest, ExportTestCasesResponse,
 )
 from app.schemas.common import SuccessResponse, MessageResponse
 from app.schemas.pagination import PaginatedResponse, PaginationInfo
@@ -475,10 +476,35 @@ async def export_bdd_test_cases(
 
 
 @router.post(
+    "/test-cases/export",
+    response_model=ExportTestCasesResponse,
+    summary="导出测试用例",
+    description="根据测试用例 ID 列表或文件夹 ID 导出为 Excel / JSON / CSV 等格式",
+)
+async def export_test_cases(
+    project_identifier: str,
+    data: ExportTestCasesRequest,
+    service: TestCaseServiceDep,
+    export_service: ExportServiceDep,
+) -> ExportTestCasesResponse:
+    """
+    统一导出测试用例
+
+    - **format**: 导出格式，支持 excel / json / csv
+    - **test_case_ids**: 要导出的测试用例标识符列表
+    - **folder_id**: 要导出的文件夹 ID（与 test_case_ids 二选一）
+    """
+    export_result = await export_service.start_export(
+        project_identifier, data, service
+    )
+    return export_result
+
+
+@router.post(
     "/test-cases/export-excel",
     response_model=ExportExcelResponse,
     summary="导出测试用例为 Excel",
-    description="根据测试用例 ID 列表或文件夹 ID 导出 Excel 文件",
+    description="根据测试用例 ID 列表或文件夹 ID 导出 Excel 文件（向后兼容）",
 )
 async def export_excel_test_cases(
     project_identifier: str,
@@ -487,7 +513,7 @@ async def export_excel_test_cases(
     export_service: ExportServiceDep,
 ) -> ExportExcelResponse:
     """
-    导出测试用例为 Excel
+    导出测试用例为 Excel（向后兼容）
 
     - **test_case_ids**: 要导出的测试用例标识符列表
     - **folder_id**: 要导出的文件夹 ID（与 test_case_ids 二选一）
