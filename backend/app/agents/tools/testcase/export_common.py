@@ -4,7 +4,11 @@
 避免各格式生成器重复实现字段提取、步骤拍平、枚举本地化等逻辑。
 """
 
+import re
 from typing import Any
+
+# 步骤文本中已自带序号的模式："1. " / "2) " 等
+_STEP_PREFIX_RE = re.compile(r"^\d+\.\s+")
 
 # 用例类型英文枚举 -> 中文标签（与 app/schemas/enums.py: TestCaseType 保持一致）
 _CASE_TYPE_LABELS = {
@@ -82,14 +86,22 @@ def flatten_steps(steps: list[Any] | str | None) -> str:
             target = step.get("target", step.get("操作对象", ""))
             data = step.get("data", "")
             seq = step.get("seq", seq)
-            line = f"{seq}. {action}"
+            # 如果 action 本身已带 "N. " 序号，避免再叠加一次序号
+            if action and isinstance(action, str) and _STEP_PREFIX_RE.match(action):
+                line = action
+            else:
+                line = f"{seq}. {action}"
             if target:
                 line += f" [{target}]"
             if data:
                 line += f"（数据：{data}）"
         else:
             # 字符串或其他标量，直接转文本
-            line = f"{seq}. {step}"
+            step_text = str(step)
+            if _STEP_PREFIX_RE.match(step_text):
+                line = step_text
+            else:
+                line = f"{seq}. {step_text}"
         lines.append(line)
     return "\n".join(lines)
 
