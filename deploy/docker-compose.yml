@@ -278,8 +278,10 @@ services:
     image: ai-test-agent-gitnexus:${APP_IMAGE_TAG:-latest}
     restart: unless-stopped
     volumes:
-      - ..:/repo:ro
+      # 先挂命名卷，确保子目录挂载点可写；父目录 repo 去掉 :ro，
+      # 否则只读挂载无法创建 /repo/.gitnexus 子卷挂载点。
       - gitnexus-data:/repo/.gitnexus
+      - ..:/repo
     healthcheck:
       test: ["CMD-SHELL", "node -e \"fetch('http://localhost:4747/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
       interval: 15s
