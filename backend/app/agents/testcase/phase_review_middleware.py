@@ -76,6 +76,18 @@ def _detect_phase(content: str) -> str | None:
     return None
 
 
+def _has_case_preview(content: str) -> bool:
+    """检测 Phase 3 报告中是否展示了具体用例内容。
+
+    宽松匹配：只要报告中同时出现用例编号标识和测试步骤/测试数据标识，
+    即认为展示了具体用例，可通过人工评审。
+    """
+    has_case_number = "case_number" in content or "用例编号" in content
+    has_steps = "test_case_steps" in content or "测试步骤" in content
+    has_test_data = "test_data" in content or "测试数据" in content
+    return has_case_number and (has_steps or has_test_data)
+
+
 def _extract_preview(content: str, phase: str) -> str:
     """提取报告预览，用于展示给用户的摘要。"""
     return content.strip()
@@ -222,6 +234,29 @@ class PhaseReviewMiddleware(AgentMiddleware):
         phase = _detect_phase(content)
         if not phase:
             return None
+
+        # Phase 3 可审性兜底：仅输出汇总表、没有展示具体用例时，要求补充
+        if phase == "test-case-generation" and not _has_case_preview(content):
+            current_round = _compute_review_round(messages, phase)
+            return {
+                "messages": [
+                    _build_review_human_message(
+                        phase=phase,
+                        round=current_round,
+                        feedback=(
+                            "当前 Phase 3 报告仅包含汇总信息，缺少具体用例内容，无法完成人工评审。"
+                            "请补充每个模块的关键用例详情（至少 1 条 P0 用例和 1 条边界/异常/安全用例的完整字段："
+                            "用例名称、case_number、module、priority、case_type、test_data、preconditions、test_case_steps），"
+                            "然后重新输出 `## 测试用例生成完成`。"
+                            "若用例已写入 JSONL 文件，请调用 preview_test_cases 工具读取并展示关键用例。"
+                        ),
+                        decision_type="request_changes",
+                        comment="报告缺少具体用例内容",
+                        checklist={item["key"]: False for item in _REVIEW_CHECKLIST},
+                    )
+                ],
+                "jump_to": "model",
+            }
 
         # 防御性检查：如果该 AI 消息后已存在同阶段的评审反馈，避免重复中断
         after_ai = messages[messages.index(last_ai) + 1 :]

@@ -1,7 +1,8 @@
 """
 测试用例管理工具
 
-提供测试用例创建、更新和批量操作的 HTTP 接口调用工具。
+提供测试用例创建、更新和批量操作的 HTTP 接口调用工具，
+以及用例抽样预览能力（用于 Phase 3 人工评审）。
 """
 
 import logging
@@ -10,6 +11,11 @@ from typing import Optional, Any
 import httpx
 from langchain_core.tools import tool
 
+from app.agents.tools.testcase.excel_tools import (
+    _load_test_cases_from_file,
+    _parse_json_objects,
+)
+from app.agents.tools.testcase.export_common import extract_field
 from app.config.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -115,8 +121,12 @@ async def _create_test_case_impl(
     test_data: Optional[dict[str, Any]] = None,
     case_number: Optional[str] = None,
     case_id: Optional[str] = None,
+    remarks: Optional[str] = None,
 ) -> dict[str, Any]:
     """创建测试用例的内部实现"""
+    # description 与 remarks 语义相同，优先使用显式传入的 description
+    effective_description = description if description is not None else remarks
+
     if not project_identifier:
         return {
             "success": False,
@@ -133,8 +143,8 @@ async def _create_test_case_impl(
         "automation_status": automation_status,
     }
 
-    if description is not None:
-        request_data["description"] = description
+    if effective_description is not None:
+        request_data["description"] = effective_description
     if preconditions is not None:
         request_data["preconditions"] = preconditions
     if owner is not None:
@@ -206,6 +216,7 @@ async def create_test_case_tool(
     test_data: Optional[dict[str, Any]] = None,
     case_number: Optional[str] = None,
     case_id: Optional[str] = None,
+    remarks: Optional[str] = None,
 ) -> dict[str, Any]:
     """
     创建测试用例工具（通过 HTTP 接口调用）。
@@ -216,7 +227,7 @@ async def create_test_case_tool(
         project_identifier: 项目标识符，如 'PROJ-001'
         folder_id: 文件夹 UUID（可选；为空时保存到项目根，对应前端“全部用例”）
         name: 测试用例名称（必填）
-        description: 测试用例描述（可选，支持 HTML）
+        description: 测试用例描述（可选，支持 HTML）；与 remarks 二选一
         preconditions: 前置条件（可选，支持 HTML）
         priority: 优先级，可选值：critical, high, medium, low（默认 medium）
         status: 状态，默认 new
@@ -235,6 +246,7 @@ async def create_test_case_tool(
         test_data: 测试数据（可选，JSON 对象）
         case_number: 用例编号（可选）
         case_id: 用例编号别名（可选，与 case_number 二选一，兼容 Agent 输出中的 id）
+        remarks: 备注/需求编号（可选，description 的别名）
 
     Returns:
         dict: 包含创建结果的字典
@@ -263,6 +275,7 @@ async def create_test_case_tool(
             test_data=test_data,
             case_number=case_number,
             case_id=case_id,
+            remarks=remarks,
         )
     except Exception as e:
         return {"success": False, "error": str(e), "message": f"创建测试用例失败: {str(e)}"}
@@ -291,14 +304,18 @@ async def _update_test_case_impl(
     module: Optional[str] = None,
     test_data: Optional[dict[str, Any]] = None,
     case_number: Optional[str] = None,
+    remarks: Optional[str] = None,
 ) -> dict[str, Any]:
     """更新测试用例的内部实现"""
+    # description 与 remarks 语义相同，优先使用显式传入的 description
+    effective_description = description if description is not None else remarks
+
     request_data: dict[str, Any] = {}
 
     if name is not None:
         request_data["name"] = name
-    if description is not None:
-        request_data["description"] = description
+    if effective_description is not None:
+        request_data["description"] = effective_description
     if preconditions is not None:
         request_data["preconditions"] = preconditions
     if priority is not None:
@@ -380,6 +397,7 @@ async def update_test_case_tool(
     module: Optional[str] = None,
     test_data: Optional[dict[str, Any]] = None,
     case_number: Optional[str] = None,
+    remarks: Optional[str] = None,
 ) -> dict[str, Any]:
     """
     更新测试用例工具（通过 HTTP 接口调用）。
@@ -390,7 +408,7 @@ async def update_test_case_tool(
         project_identifier: 项目标识符，如 'PROJ-001'
         test_case_identifier: 测试用例标识符，如 'TC-1234'
         name: 测试用例名称
-        description: 测试用例描述
+        description: 测试用例描述；与 remarks 二选一
         preconditions: 前置条件
         priority: 优先级（critical, high, medium, low）
         status: 状态
@@ -408,6 +426,7 @@ async def update_test_case_tool(
         module: 所属模块（可选）
         test_data: 测试数据（可选，JSON 对象）
         case_number: 用例编号（可选）
+        remarks: 备注/需求编号（可选，description 的别名）
 
     Returns:
         dict: 包含更新结果的字典
@@ -435,6 +454,7 @@ async def update_test_case_tool(
             module=module,
             test_data=test_data,
             case_number=case_number,
+            remarks=remarks,
         )
     except Exception as e:
         return {"success": False, "error": str(e), "message": f"更新测试用例失败: {str(e)}"}
@@ -481,11 +501,19 @@ async def _batch_create_test_cases_impl(
                 project_identifier=project_identifier,
                 folder_id=folder_id,
                 name=name,
-                description=_resolve_field(test_case_data, "description", "desc", "描述"),
-                preconditions=_resolve_field(test_case_data, "preconditions", "precondition", "前置条件"),
+                description=_resolve_field(
+                    test_case_data,
+                    "description", "desc", "描述", "remarks", "备注", "remark",
+                ),
+                preconditions=_resolve_field(
+                    test_case_data, "preconditions", "precondition", "前置条件"
+                ),
                 priority=test_case_data.get("priority", "medium"),
                 status=test_case_data.get("status", "new"),
-                case_type=test_case_data.get("case_type", "functional"),
+                case_type=_resolve_field(
+                    test_case_data,
+                    "case_type", "type", "用例类型", "测试类型", "类型",
+                ) or "functional",
                 owner=test_case_data.get("owner"),
                 tags=test_case_data.get("tags"),
                 issues=test_case_data.get("issues"),
@@ -575,4 +603,166 @@ async def batch_create_test_cases_tool(
             "success": False,
             "error": str(e),
             "message": f"批量创建测试用例失败: {str(e)}"
+        }
+
+
+# 控制 preview_test_cases 返回体积，避免写入 checkpoint 时膨胀
+_PREVIEW_MAX_STEPS = 5
+_PREVIEW_MAX_DATA_KEYS = 10
+_PREVIEW_MAX_DATA_VALUE_LEN = 200
+_PREVIEW_MAX_CASES = 10
+
+
+def _is_file_path(source: str) -> bool:
+    """判断 source 更可能是文件路径还是 JSON 内容字符串。"""
+    stripped = source.strip()
+    if not stripped:
+        return False
+    # 明显是 JSON 对象/数组开头的内容
+    if stripped.startswith(("{", "[")):
+        return False
+    # 换行很多的内容也视为 JSONL 内容
+    if stripped.count("\n") > 1 and stripped.splitlines()[0].strip().startswith("{"):
+        return False
+    return True
+
+
+def _truncate_steps(steps: Any) -> Any:
+    """截断测试步骤，仅保留前 N 步。"""
+    if not isinstance(steps, list):
+        return steps
+    truncated = steps[:_PREVIEW_MAX_STEPS]
+    if len(steps) > _PREVIEW_MAX_STEPS:
+        truncated.append({
+            "step": f"...（后续还有 {len(steps) - _PREVIEW_MAX_STEPS} 步）",
+            "result": "",
+        })
+    return truncated
+
+
+def _truncate_test_data(test_data: Any) -> Any:
+    """截断测试数据：限制字段数和字符串值长度。"""
+    if not isinstance(test_data, dict):
+        return test_data
+    result: dict[str, Any] = {}
+    for idx, (key, value) in enumerate(test_data.items()):
+        if idx >= _PREVIEW_MAX_DATA_KEYS:
+            result["..."] = f"（还有 {len(test_data) - _PREVIEW_MAX_DATA_KEYS} 个字段）"
+            break
+        if isinstance(value, str) and len(value) > _PREVIEW_MAX_DATA_VALUE_LEN:
+            value = value[:_PREVIEW_MAX_DATA_VALUE_LEN] + "..."
+        result[key] = value
+    return result
+
+
+def _matches_filters(case: dict[str, Any], module: Optional[str], priority: Optional[str], case_type: Optional[str]) -> bool:
+    """按模块、优先级、类型过滤用例。"""
+    if module:
+        case_module = extract_field(case, "module", "所属模块", "module_name", "功能模块")
+        if str(case_module).strip().lower() != module.strip().lower():
+            return False
+    if priority:
+        case_priority = extract_field(case, "priority", "优先级")
+        if str(case_priority).strip().lower() != priority.strip().lower():
+            return False
+    if case_type:
+        case_type_value = extract_field(case, "case_type", "type", "用例类型", "测试类型")
+        if str(case_type_value).strip().lower() != case_type.strip().lower():
+            return False
+    return True
+
+
+@tool
+async def preview_test_cases(
+    source: str,
+    module: Optional[str] = None,
+    priority: Optional[str] = None,
+    case_type: Optional[str] = None,
+    limit: int = 3,
+) -> dict[str, Any]:
+    """
+    从用例数据源中抽样返回关键用例详情，用于 Phase 3 评审报告展示。
+
+    source 可以是：
+      - JSONL / JSON 文件路径（如 "/test_cases.jsonl"、"cases.jsonl"）
+      - 用例 JSON 内容字符串（JSON 数组或 JSONL 格式）
+
+    返回结果会做体积控制：
+      - 默认最多返回 3 条用例
+      - 单条用例最多展示 5 个步骤、10 个测试数据字段
+
+    Args:
+        source: 用例数据来源（文件路径或 JSON/JSONL 内容）
+        module: 按模块名过滤，可选
+        priority: 按优先级过滤（如 high / medium / critical / P0），可选
+        case_type: 按用例类型过滤（如 functional / security），可选
+        limit: 返回用例数量上限，默认 3，最大 10
+
+    Returns:
+        dict: 包含预览用例列表的字典
+    """
+    try:
+        limit = max(1, min(int(limit), _PREVIEW_MAX_CASES))
+
+        if _is_file_path(source):
+            cases = _load_test_cases_from_file(source, dedup=False)
+        else:
+            cases = _parse_json_objects(source, source="inline_json")
+
+        if not cases:
+            return {
+                "success": True,
+                "total": 0,
+                "preview_count": 0,
+                "cases": [],
+                "message": "未找到符合条件的用例",
+            }
+
+        invalid = [i for i, c in enumerate(cases) if not isinstance(c, dict)]
+        if invalid:
+            return {
+                "success": False,
+                "error": f"用例数据中存在非对象元素（下标 {invalid[:5]}）",
+            }
+
+        filtered = [c for c in cases if _matches_filters(c, module, priority, case_type)]
+        sampled = filtered[:limit]
+
+        preview_cases: list[dict[str, Any]] = []
+        for case in sampled:
+            steps = extract_field(case, "test_case_steps", "steps", "测试步骤", "test_steps", default=None)
+            test_data = extract_field(case, "test_data", "测试数据", "data", default=None)
+            preconditions = extract_field(case, "preconditions", "前置条件", "precondition", default=None)
+
+            preview_cases.append({
+                "case_number": extract_field(case, "case_number", "id", "用例编号", "identifier", "case_id", "编号"),
+                "name": extract_field(case, "name", "title", "用例标题", "标题", "用例名称"),
+                "module": extract_field(case, "module", "所属模块", "module_name", "功能模块"),
+                "priority": extract_field(case, "priority", "优先级"),
+                "case_type": extract_field(case, "case_type", "type", "用例类型", "测试类型"),
+                "preconditions": preconditions if isinstance(preconditions, list) else [preconditions] if preconditions else [],
+                "test_case_steps": _truncate_steps(steps),
+                "test_data": _truncate_test_data(test_data),
+            })
+
+        return {
+            "success": True,
+            "total": len(filtered),
+            "preview_count": len(preview_cases),
+            "cases": preview_cases,
+            "message": f"共找到 {len(filtered)} 条用例，展示前 {len(preview_cases)} 条",
+        }
+
+    except FileNotFoundError as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "message": f"文件不存在：{source}",
+        }
+    except Exception as e:
+        logger.exception("preview_test_cases 执行失败: source=%s", source)
+        return {
+            "success": False,
+            "error": str(e),
+            "message": f"读取用例预览失败: {str(e)}",
         }

@@ -9,8 +9,10 @@ import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 
 from app.agents.testcase.phase_review_middleware import (
+    PhaseReviewMiddleware,
     _compute_review_round,
     _extract_quality_score,
+    _has_case_preview,
 )
 
 
@@ -97,6 +99,143 @@ class TestComputeReviewRound:
             )
         ]
         assert _compute_review_round(messages, self.PHASE) == 1
+
+
+class TestHasCasePreview:
+    def test_only_summary_without_cases(self):
+        content = """
+## 测试用例生成完成
+
+| 模块 | 用例数 | P0 | P1 |
+|------|--------|----|----|
+| 登录 | 3 | 1 | 2 |
+
+共 3 条用例，已保存到文件。
+"""
+        assert _has_case_preview(content) is False
+
+    def test_summary_with_case_details(self):
+        content = """
+## 测试用例生成完成
+
+| 模块 | 用例数 | P0 | P1 |
+|------|--------|----|----|
+| 登录 | 3 | 1 | 2 |
+
+### 关键用例抽样
+
+- 用例编号：TC-PROJ-LOGIN-001
+- 测试步骤：
+  1. 输入用户名密码
+  2. 点击登录
+- 测试数据：
+  ```
+  username: test001
+  ```
+"""
+        assert _has_case_preview(content) is True
+
+    def test_chinese_field_names(self):
+        content = """
+## 测试用例生成完成
+
+**用例编号**：TC-PROJ-LOGIN-001
+**测试步骤**：输入用户名密码，点击登录
+**测试数据**：username: test001
+"""
+        assert _has_case_preview(content) is True
+
+    def test_case_number_without_steps_or_data(self):
+        content = """
+## 测试用例生成完成
+
+用例编号：TC-PROJ-LOGIN-001
+用例编号：TC-PROJ-LOGIN-002
+"""
+        assert _has_case_preview(content) is False
+
+
+class TestPhaseReviewAuditabilityFallback:
+    def _make_state(self, ai_content: str, human_messages: list | None = None):
+        return {
+            "messages": [
+                *(human_messages or []),
+                AIMessage(content=ai_content),
+            ]
+        }
+
+    def test_phase3_without_preview_returns_request_changes(self):
+        middleware = PhaseReviewMiddleware()
+        state = self._make_state("""
+## 测试用例生成完成
+
+| 模块 | 用例数 |
+|------|--------|
+| 登录 | 3 |
+""")
+        result = middleware.after_model(state, None)
+
+        assert result is not None
+        assert "messages" in result
+        assert result.get("jump_to") == "model"
+
+        msg = result["messages"][0]
+        assert isinstance(msg, HumanMessage)
+        assert "缺少具体用例内容" in msg.content
+        assert "preview_test_cases" in msg.content
+
+    def test_phase3_with_preview_does_not_return_fallback(self, monkeypatch):
+        # 模拟 interrupt 返回 approve 决策，避免在单测环境外调用 langgraph interrupt
+        monkeypatch.setattr(
+            "app.agents.testcase.phase_review_middleware.interrupt",
+            lambda request: {"decision": "approve", "message": "", "checklist": {}},
+        )
+
+        middleware = PhaseReviewMiddleware()
+        state = self._make_state("""
+## 测试用例生成完成
+
+| 模块 | 用例数 |
+|------|--------|
+| 登录 | 3 |
+
+### 关键用例
+
+- case_number: TC-PROJ-LOGIN-001
+- test_case_steps: 输入用户名密码，点击登录
+- test_data: username: test001
+""")
+        result = middleware.after_model(state, None)
+
+        # 通过可审性检测后应走正常 interrupt 流程，返回结果中不能包含 HumanMessage fallback
+        assert result is not None
+        assert "messages" in result
+        assert not any(
+            isinstance(m, HumanMessage) and "缺少具体用例内容" in m.content
+            for m in result.get("messages", [])
+        )
+
+    def test_non_phase3_title_ignored(self, monkeypatch):
+        # 模拟 interrupt 返回 approve 决策
+        monkeypatch.setattr(
+            "app.agents.testcase.phase_review_middleware.interrupt",
+            lambda request: {"decision": "approve", "message": "", "checklist": {}},
+        )
+
+        middleware = PhaseReviewMiddleware()
+        state = self._make_state("""
+## 需求解析报告
+
+只包含汇总信息。
+""")
+        result = middleware.after_model(state, None)
+        # 需求分析阶段没有可审性兜底，不应返回要求补充的 HumanMessage
+        assert result is not None
+        assert "messages" in result
+        assert not any(
+            isinstance(m, HumanMessage) and "缺少具体用例内容" in m.content
+            for m in result.get("messages", [])
+        )
 
 
 if __name__ == "__main__":

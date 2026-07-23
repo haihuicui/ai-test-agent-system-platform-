@@ -2,7 +2,8 @@
 测试用例生成智能体工具模块
 
 本目录包含所有测试用例生成智能体的工具定义，按功能分类组织：
-- 测试用例管理: 创建、更新、批量操作
+- 测试用例管理: 创建、更新、批量操作、预览
+- 模块自检: 用例质量自检、离线 manifest
 - 文档解析: 从 URL 下载并解析文档内容
 - Excel 导出: 将测试用例导出为 Excel 文件
 """
@@ -14,16 +15,21 @@ from app.agents.tools.testcase.testcase_tools import (
     create_test_case_tool,
     update_test_case_tool,
     batch_create_test_cases_tool,
+    preview_test_cases,
 )
 
 from app.agents.tools.testcase.document_tools import (
     parse_document_from_url,
     get_rag_tools,
 )
-# pragma: no cover  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2WTBGb1pBPT06NDBlMmI4ODE=
 
 from app.agents.tools.testcase.excel_tools import (
     export_test_cases_to_excel,
+)
+
+from app.agents.tools.testcase.module_check_tools import (
+    module_self_check_tool,
+    save_test_case_manifest_tool,
 )
 
 # 按业务域分类的工具列表
@@ -31,8 +37,10 @@ TESTCASE_TOOLS = [
     create_test_case_tool,
     update_test_case_tool,
     batch_create_test_cases_tool,
+    preview_test_cases,
+    module_self_check_tool,
+    save_test_case_manifest_tool,
 ]
-# pylint: disable  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2WTBGb1pBPT06NDBlMmI4ODE=
 
 DOCUMENT_TOOLS = [
     parse_document_from_url,
@@ -43,7 +51,6 @@ EXCEL_TOOLS = [
 ]
 
 ALL_LOCAL_TOOLS = TESTCASE_TOOLS + DOCUMENT_TOOLS + EXCEL_TOOLS
-# pylint: disable  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2WTBGb1pBPT06NDBlMmI4ODE=
 
 
 async def get_local_tools() -> List[BaseTool]:
@@ -54,7 +61,6 @@ async def get_local_tools() -> List[BaseTool]:
     """
     return list(ALL_LOCAL_TOOLS)
 
-# type: ignore  My80OmFIVnBZMlhsdEpUbXRiZm92b2s2WTBGb1pBPT06NDBlMmI4ODE=
 
 async def get_all_tools() -> List[BaseTool]:
     """
@@ -79,6 +85,10 @@ __all__ = [
     "create_test_case_tool",
     "update_test_case_tool",
     "batch_create_test_cases_tool",
+    "preview_test_cases",
+    # 模块自检与 manifest
+    "module_self_check_tool",
+    "save_test_case_manifest_tool",
     # 文档解析
     "parse_document_from_url",
     # Excel 导出

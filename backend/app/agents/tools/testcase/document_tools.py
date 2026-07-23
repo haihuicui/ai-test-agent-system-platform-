@@ -137,7 +137,7 @@ async def get_rag_tools() -> list:
 
         client = MultiServerMCPClient({
             "rag-server": {
-                "url": os.environ.get("RAG_MCP_URL", "http://192.168.60.103:8008/sse"),
+                "url": os.environ.get("RAG_MCP_URL", "http://192.168.60.103/mcp/sse"),  #http://192.168.60.103:8008/sse
                 "transport": "sse",
             }
         })

@@ -14,6 +14,21 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill, Border, Side
 
 from app.config.settings import settings
+from app.agents.tools.testcase.export_common import (
+    EXPORT_HEADERS,
+    case_key,
+    extract_field,
+    flatten_expected_results,
+    flatten_preconditions,
+    flatten_steps,
+    flatten_test_data,
+    localize_case_type,
+    localize_priority,
+)
+from app.agents.tools.testcase.export_formats import (
+    generate_test_cases_csv_bytes,
+    generate_test_cases_json_bytes,
+)
 # pragma: no cover  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2UWtSWGRBPT06OWM0ZDYxMTc=
 
 # 与 agent.py 中 composite_backend 的 "/" 路由保持一致：
@@ -44,143 +59,6 @@ _DEFAULT_COLUMN_WIDTHS = {
     "J": 20,
 }
 
-# 用例类型英文枚举 -> 中文标签（与 app/schemas/enums.py: TestCaseType 保持一致）
-_CASE_TYPE_LABELS = {
-    "acceptance": "验收测试",
-    "accessibility": "可访问性测试",
-    "compatibility": "兼容性测试",
-    "destructive": "破坏性测试",
-    "functional": "功能测试",
-    "other": "其他类型",
-    "performance": "性能测试",
-    "regression": "回归测试",
-    "security": "安全测试",
-    "smoke_sanity": "冒烟和健全性测试",
-    "usability": "可用性测试",
-}
-
-# 优先级英文枚举 -> P0/P1/P2/P3 标签
-_PRIORITY_LABELS = {
-    "critical": "P0",
-    "high": "P1",
-    "medium": "P2",
-    "low": "P3",
-}
-
-
-def _localize_case_type(value: Any) -> Any:
-    """把英文用例类型枚举值映射为中文标签；已是中文或未知值则原样返回。"""
-    if isinstance(value, str):
-        return _CASE_TYPE_LABELS.get(value.strip().lower(), value)
-    return value
-
-
-def _localize_priority(value: Any) -> Any:
-    """把英文优先级枚举值映射为中文标签；P0/P1 等或未知值则原样返回。"""
-    if isinstance(value, str):
-        return _PRIORITY_LABELS.get(value.strip().lower(), value)
-    return value
-
-
-def _flatten_steps(steps: list[Any] | str | None) -> str:
-    """将步骤列表转换为带序号的文本。
-
-    兼容多种 LLM 产出格式：
-      - agent.py 系统提示中的标准格式：
-        [{"step": "输入账号", "result": "预期结果"}, ...]
-      - output-formatter Skill 中的格式：
-        [{"seq": 1, "action": "...", "target": "...", "data": "..."}]
-      - 字符串列表：["输入账号", "点击登录"]
-      - 单个字符串："1. 输入账号\n2. 点击登录"
-    """
-    if not steps:
-        return ""
-    if isinstance(steps, str):
-        return steps
-    lines = []
-    for step in steps:
-        seq = len(lines) + 1
-        if isinstance(step, dict):
-            # 优先使用 agent.py 系统提示中的 "step" 字段作为操作描述
-            action = step.get("step") or step.get("action") or step.get("操作描述") or step.get("description", "")
-            target = step.get("target", step.get("操作对象", ""))
-            data = step.get("data", "")
-            seq = step.get("seq", seq)
-            line = f"{seq}. {action}"
-            if target:
-                line += f" [{target}]"
-            if data:
-                line += f"（数据：{data}）"
-        else:
-            # 字符串或其他标量，直接转文本
-            line = f"{seq}. {step}"
-        lines.append(line)
-    return "\n".join(lines)
-
-
-def _extract_expected_results_from_steps(steps: list[Any] | str | None) -> str:
-    """当用例没有独立的 expected_results 字段时，从步骤的 result 字段聚合预期结果。"""
-    if not steps or isinstance(steps, str):
-        return ""
-    lines = []
-    for idx, step in enumerate(steps, start=1):
-        if isinstance(step, dict):
-            result = step.get("result", step.get("expected_result", step.get("预期结果", "")))
-            if result:
-                lines.append(f"{idx}. {result}")
-    return "\n".join(lines)
-
-
-def _flatten_test_data(test_data: dict[str, Any] | str | None) -> str:
-    """将测试数据转换为文本。"""
-    if not test_data:
-        return ""
-    if isinstance(test_data, str):
-        return test_data
-    lines = [f"{k}: {v}" for k, v in test_data.items()]
-    return "\n".join(lines)
-
-
-def _flatten_expected_results(expected_results: list[str] | str | None) -> str:
-    """将预期结果列表转换为文本。"""
-    if not expected_results:
-        return ""
-    if isinstance(expected_results, str):
-        return expected_results
-    lines = []
-    for idx, result in enumerate(expected_results, start=1):
-        lines.append(f"{idx}. {result}")
-    return "\n".join(lines)
-
-
-def _flatten_preconditions(preconditions: list[str] | str | None) -> str:
-    """将前置条件列表转换为文本。"""
-    if not preconditions:
-        return ""
-    if isinstance(preconditions, str):
-        return preconditions
-    lines = []
-    for idx, cond in enumerate(preconditions, start=1):
-        lines.append(f"{idx}. {cond}")
-    return "\n".join(lines)
-# type: ignore  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2UWtSWGRBPT06OWM0ZDYxMTc=
-
-
-def _extract_field(case: dict[str, Any], *keys: str, default: Any = "") -> Any:
-    """从字典中按多个候选键提取值。
-
-    跳过缺失、None 及空字符串的候选键，继续尝试下一个别名，
-    避免某个键存在但值为空时直接返回空、覆盖掉后面的有效别名。
-    """
-    for key in keys:
-        if key in case:
-            value = case[key]
-            if value is None:
-                continue
-            if isinstance(value, str) and not value.strip():
-                continue
-            return value
-    return default
 
 
 def _ensure_xlsx_suffix(path: Path) -> Path:
@@ -204,18 +82,7 @@ def generate_test_cases_excel_bytes(
         raise RuntimeError("无法创建工作表")
     ws.title = sheet_name
 
-    headers = [
-        "用例编号",
-        "用例标题",
-        "所属模块",
-        "用例类型",
-        "优先级",
-        "前置条件",
-        "测试步骤",
-        "测试数据",
-        "预期结果",
-        "备注",
-    ]
+    headers = EXPORT_HEADERS
     ws.append(headers)
 
     for col_idx, header in enumerate(headers, start=1):
@@ -226,23 +93,23 @@ def generate_test_cases_excel_bytes(
         cell.border = _BORDER
 
     for case in test_cases:
-        steps = _extract_field(case, "steps", "测试步骤", "test_case_steps", "test_steps", default=None)
-        expected_results = _extract_field(case, "expected_results", "预期结果", "expected_result", "expected", default=None)
+        steps = extract_field(case, "steps", "测试步骤", "test_case_steps", "test_steps", default=None)
+        expected_results = extract_field(case, "expected_results", "预期结果", "expected_result", "expected", default=None)
         # 如果 case 级别没有预期结果，但步骤里带 result，则自动聚合
         if not expected_results and steps:
-            expected_results = _extract_expected_results_from_steps(steps)
+            expected_results = extract_expected_results_from_steps(steps)
 
         row = [
-            _extract_field(case, "id", "用例编号", "identifier", "case_id", "case_number", "编号"),
-            _extract_field(case, "title", "用例标题", "name", "标题", "用例名称"),
-            _extract_field(case, "module", "所属模块", "module_name", "功能模块", "模块"),
-            _localize_case_type(_extract_field(case, "type", "用例类型", "case_type", "测试类型", "类型")),
-            _localize_priority(_extract_field(case, "priority", "优先级")),
-            _flatten_preconditions(_extract_field(case, "preconditions", "前置条件", "precondition", default=None)),
-            _flatten_steps(steps),
-            _flatten_test_data(_extract_field(case, "test_data", "测试数据", "data", default=None)),
-            _flatten_expected_results(expected_results),
-            _extract_field(case, "remarks", "备注", "remark", "note"),
+            extract_field(case, "id", "用例编号", "identifier", "case_id", "case_number", "编号"),
+            extract_field(case, "title", "用例标题", "name", "标题", "用例名称"),
+            extract_field(case, "module", "所属模块", "module_name", "功能模块", "模块"),
+            localize_case_type(extract_field(case, "type", "用例类型", "case_type", "测试类型", "类型")),
+            localize_priority(extract_field(case, "priority", "优先级")),
+            flatten_preconditions(extract_field(case, "preconditions", "前置条件", "precondition", default=None)),
+            flatten_steps(steps),
+            flatten_test_data(extract_field(case, "test_data", "测试数据", "data", default=None)),
+            flatten_expected_results(expected_results),
+            extract_field(case, "remarks", "备注", "remark", "note", "description", "desc", "描述"),
         ]
         ws.append(row)
         row_idx = ws.max_row
@@ -386,15 +253,6 @@ def _parse_json_objects(text: str, source: str) -> list[Any]:
     return objs
 
 
-def _case_key(case: dict[str, Any]) -> Any:
-    """提取用例的去重标识：优先用例编号，其次标题/名称；都没有则返回 None（不去重）。"""
-    return _extract_field(
-        case, "id", "用例编号", "identifier", "case_id", "编号",
-        "title", "用例标题", "name", "标题", "用例名称",
-        default=None,
-    )
-
-
 def _describe_missing_file(requested: str | Path, resolved: Path) -> str:
     """构造「文件不存在」的自纠错提示。
 
@@ -464,7 +322,7 @@ def _load_test_cases_from_file(
         merged: dict[Any, dict[str, Any]] = {}
         no_key: list[dict[str, Any]] = []
         for case in cases:
-            key = _case_key(case)
+            key = case_key(case)
             if key is None:
                 no_key.append(case)
             else:

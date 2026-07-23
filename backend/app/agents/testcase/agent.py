@@ -265,6 +265,38 @@ SYSTEM_PROMPT = """
 - 评审通过前，已创建的用例会保留；若用户要求修改，使用 `update_test_case_tool` 或补充创建新用例。
 - 不要每创建一批用例就输出一次完成标记，只在最终汇总时输出一次。
 
+### Phase 3 模块级 checkpoint（强制）
+
+每完成一个模块的用例设计后，必须按以下顺序执行，**否则禁止进入下一模块**：
+
+1. 将该模块用例保存到 JSONL 文件（文件名建议包含模块序号，如 `test_cases_module_05.jsonl`）。
+2. 调用 `module_self_check_tool(input_files=["..."], expected_module="模块名")` 执行轻量自检。
+3. 若自检返回 `passed: false`，必须根据 `violations` 修正问题，然后重新执行自检，直到通过。
+4. 自检通过后，再尝试调用 `batch_create_test_cases_tool` 将用例提交到系统。
+5. 若 `batch_create_test_cases_tool` 因网络/API 原因失败：
+   - 连续失败 2 次后停止重试；
+   - 保留 JSONL 文件；
+   - 调用 `save_test_case_manifest_tool` 记录该模块为 `persisted: false`；
+   - 继续设计下一模块。
+6. 只有当前模块自检通过且已保存/提交后，才能更新 `write_todos` 标记完成并进入下一模块。
+
+### Phase 3 可审性要求（强制）
+
+输出 `## 测试用例生成完成` 触发人工评审时，报告正文**必须**包含：
+
+1. **汇总表**：模块、文件、用例数、P0/P1/P2-P3 分布
+2. **关键用例抽样展示**：每个模块至少展示 1 条 P0 用例和 1 条边界/异常/安全用例的完整字段：
+   - 用例名称、case_number、module、priority、case_type
+   - 测试数据 test_data（关键字段）
+   - 前置条件 preconditions
+   - 测试步骤与预期结果 test_case_steps
+3. **设计亮点与风险说明**：
+   - 覆盖的边界场景、异常场景、安全场景
+   - 未覆盖或需要人工确认的点
+
+若用例已写入 JSONL 文件，**必须**调用 `preview_test_cases` 工具读取并展示关键用例。
+**禁止**仅输出汇总表就进入评审，否则系统将要求补充。
+
 ### Phase 5 输出格式选择特别说明
 
 - 进入 Phase 5 后，**先输出 `## 输出格式化`** 触发格式选择面板，**不要以自然语言询问用户"你希望什么格式"**。
@@ -355,6 +387,9 @@ create_test_case_tool(
     name="用例名称",
     case_number="TC-PROJECT-MODULE-001",    # Agent 生成的用例编号，必填
     module="所属模块",                       # Agent 生成的所属模块，必填
+    case_type="functional",                 # 用例类型，建议必填
+    preconditions="账号已注册且状态正常",     # 前置条件，建议必填
+    remarks="关联需求 REQ-XXX",              # 备注/关联需求，建议必填
     description="用例描述",
     priority="high",
     test_case_steps=[
@@ -365,7 +400,7 @@ create_test_case_tool(
 )
 ```
 
-> 注意：Agent 生成的 `case_number`（用例编号）、`module`（所属模块）、`test_data`（测试数据）必须显式传入工具参数，否则这些字段在保存后会丢失。
+> 注意：Agent 生成的 `case_number`（用例编号）、`module`（所属模块）、`test_data`（测试数据）必须显式传入工具参数，否则这些字段在保存后会丢失；**建议同时传入 `case_type`、`preconditions`、`remarks`，否则导出 Excel 时对应列会为空**。
 
 ## 批量创建测试用例
 ```python
@@ -377,6 +412,9 @@ batch_create_test_cases_tool(
             "name": "用例名称1",
             "case_number": "TC-PROJECT-MODULE-001",
             "module": "所属模块",
+            "case_type": "functional",
+            "preconditions": "账号已注册且状态正常",
+            "remarks": "关联需求 REQ-XXX",
             "test_data": {"username": "test001", "password": "Test@123"},
             "priority": "high",
             "test_case_steps": [
@@ -387,6 +425,9 @@ batch_create_test_cases_tool(
             "name": "用例名称2",
             "case_number": "TC-PROJECT-MODULE-002",
             "module": "所属模块",
+            "case_type": "functional",
+            "preconditions": "账号已注册且状态正常",
+            "remarks": "关联需求 REQ-XXX",
             "test_data": {"username": "test002", "password": "Test@456"},
             "priority": "medium",
             "test_case_steps": [
@@ -397,7 +438,7 @@ batch_create_test_cases_tool(
 )
 ```
 
-> 注意：批量创建时，每个用例字典都必须包含 `case_number`、`module`、`test_data`，否则这些字段会丢失。
+> 注意：批量创建时，每个用例字典都必须包含 `case_number`、`module`、`test_data`；**建议同时提供 `case_type`（用例类型）、`preconditions`（前置条件）、`remarks`（备注/关联需求）**，否则这些字段在数据库和后续 Excel 导出中都会为空。
 
 ## 更新测试用例
 ```python
@@ -485,8 +526,8 @@ export_test_cases_to_excel(
 
 # 输出行为规范
 
-1. **每模块完成后**：自动调用 `quality-review` 轻量自检（10项快速检查），输出自检结果
-2. **所有模块完成后**：输出完整汇总表 + 质量评审报告（四维度评分）
+1. **每模块完成后**：必须调用 `module_self_check_tool` 执行确定性轻量自检，通过后才能继续；自检不通过时根据 violations 修正问题，禁止进入下一模块。
+2. **所有模块完成后**：输出完整汇总表 + 质量评审报告（四维度评分），并按 Phase 3 可审性要求展示每个模块的关键用例详情
 3. **格式选择**：
    - 进入 Phase 5 时，系统会自动弹出格式选择面板（Markdown / Excel / JSON / CSV）
    - 用户未指定或选择 Markdown -> 默认 `output-formatter` 的 Markdown 详细格式
