@@ -100,6 +100,20 @@ class TestValidateCase:
         assert _validate_case(case) == []
 
     @pytest.mark.parametrize(
+        "number",
+        [
+            "TC-PRJ-CLOUD-EXPORT-001",   # 模块段含连字符（子模块划分）
+            "TC-PRJ-METRIX-CALIB-001",
+            "TC-PRJ-CLINIC-EXPORT-001",
+            "TC-PROJ-A-B-C-099",         # 模块段多个连字符
+        ],
+    )
+    def test_case_number_allows_hyphen_in_module(self, number):
+        case = _valid_case()
+        case["case_number"] = number
+        assert _validate_case(case) == []
+
+    @pytest.mark.parametrize(
         "bad_number",
         [
             "TC-PROJ-LOGIN-1",    # 序号不足 2 位
@@ -107,6 +121,7 @@ class TestValidateCase:
             "PROJ-LOGIN-001",     # 缺少 TC- 前缀
             "tc-proj-login-001",  # 前缀必须大写
             "TC--LOGIN-001",      # 项目段为空
+            "TC-PROJ--LOGIN-001", # 模块段出现空段
         ],
     )
     def test_case_number_format_rejected(self, bad_number):
