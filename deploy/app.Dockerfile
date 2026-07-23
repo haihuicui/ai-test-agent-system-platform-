@@ -71,7 +71,9 @@ COPY deploy/docker/workspace-webmcp-package.json backend/workspace/web_mcp/packa
 RUN cd backend/workspace/api    && npm install && \
     cd ../web_mcp               && npm install
 # --with-deps 需 root：自动 apt 安装 chromium 系统库；浏览器入 /ms-playwright
-RUN cd backend/workspace/api && npx playwright install --with-deps chromium
+# web_mcp workspace 同样预装 Chromium，避免运行时首次调用再下载。
+RUN cd backend/workspace/api && npx playwright install --with-deps chromium && \
+    cd ../web_mcp            && npx playwright install chromium
 
 # ---- L6: 安全测试工具（尽力而为，单个失败不阻断构建；缺工具时对应 agent 工具运行时报错） --
 RUN /app/.venv/bin/python -m pip install --quiet sqlmap || true; \

@@ -186,7 +186,7 @@ async def ensure_playwright_mcp_project(
                     "name": "web-mcp-project",
                     "version": "1.0.0",
                     "private": True,
-                    "dependencies": {"@playwright/test": "^1.61.1"},
+                    "dependencies": {"@playwright/test": "1.61.1"},
                 },
                 indent=2,
             ),
@@ -194,27 +194,45 @@ async def ensure_playwright_mcp_project(
         )
 
     playwright_test = root / "node_modules" / "@playwright" / "test"
-    if playwright_test.exists():
-        return
+    npm = shutil.which("npm") or "npm"
 
     async with _playwright_mcp_init_lock:
-        # 再次检查，防止等待锁期间其他协程已完成安装。
-        if playwright_test.exists():
-            return
-        npm = shutil.which("npm") or "npm"
-        proc = await asyncio.create_subprocess_exec(
+        if not playwright_test.exists():
+            proc = await asyncio.create_subprocess_exec(
+                npm,
+                "install",
+                cwd=str(root),
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            stdout, stderr = await proc.communicate()
+            if proc.returncode != 0:
+                raise RuntimeError(
+                    f"Failed to install @playwright/test in {root}:"
+                    f"\n{stderr.decode('utf-8', errors='replace')}"
+                    f"\n{stdout.decode('utf-8', errors='replace')}"
+                )
+
+        # 兜底安装浏览器二进制。构建期可能只在 api workspace 预装 Chromium；
+        # 且 Docker volume 中的 node_modules 与浏览器缓存可能不同步，因此每次
+        # ensure 都检查一次，已安装时 Playwright 会快速跳过。
+        browser_proc = await asyncio.create_subprocess_exec(
             npm,
+            "exec",
+            "--",
+            "playwright",
             "install",
+            "chromium",
             cwd=str(root),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        stdout, stderr = await proc.communicate()
-        if proc.returncode != 0:
+        browser_stdout, browser_stderr = await browser_proc.communicate()
+        if browser_proc.returncode != 0:
             raise RuntimeError(
-                f"Failed to install @playwright/test in {root}:"
-                f"\n{stderr.decode('utf-8', errors='replace')}"
-                f"\n{stdout.decode('utf-8', errors='replace')}"
+                f"Failed to install Playwright browsers in {root}:"
+                f"\n{browser_stderr.decode('utf-8', errors='replace')}"
+                f"\n{browser_stdout.decode('utf-8', errors='replace')}"
             )
 
 
