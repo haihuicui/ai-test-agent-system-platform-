@@ -2580,13 +2580,13 @@ class Runs(Authenticated):
                 popped = await get_redis().blpop(  # type: ignore[valid-type]
                     [LIST_RUN_QUEUE], timeout=BG_JOB_INTERVAL
                 )
-                if popped is None:
-                    return
             except redis.exceptions.ConnectionError as e:
                 await logger.awarning("Handling Redis connection error.", exc_info=e)
                 return
 
-        # get the run
+        # get the run (also poll Postgres on BLPOP timeout, so that a missed
+        # Redis notification or a stale worker state does not leave pending
+        # runs stuck forever).
         try:
             async with (
                 get_redis().pipeline() as pipe,

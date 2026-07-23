@@ -382,7 +382,7 @@ if (
 # pylint: disable  My80OmFIVnBZMlhsdEpUbXRiZm92b2s2V1VOMmRnPT06Mjc5NWUwMGU=
 
 BG_JOB_HEARTBEAT = 120  # seconds
-BG_JOB_INTERVAL = 30  # seconds
+BG_JOB_INTERVAL = 2  # seconds
 BG_JOB_MAX_RETRIES = 3
 BG_JOB_ISOLATED_LOOPS = env("BG_JOB_ISOLATED_LOOPS", cast=bool, default=False)
 BG_JOB_SHUTDOWN_GRACE_PERIOD_SECS = env(

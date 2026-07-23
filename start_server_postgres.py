@@ -130,6 +130,8 @@ def setup_environment():
         "LANGGRAPH_AUTH": json.dumps(auth) if auth else None,
 
         # Worker configuration
+        # Windows 下 shared loop 无法触发 worker 消费，必须使用 isolated loops。
+        # 见诊断：https://github.com/langchain-ai/langgraph/issues/...
         "N_JOBS_PER_WORKER": "5",
         "BG_JOB_ISOLATED_LOOPS": "true",
     }
