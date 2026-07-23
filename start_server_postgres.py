@@ -131,7 +131,7 @@ def setup_environment():
 
         # Worker configuration
         "N_JOBS_PER_WORKER": "5",
-        "BG_JOB_ISOLATED_LOOPS": "true",
+        "BG_JOB_ISOLATED_LOOPS": "false",
     }
 
     # 过滤掉 None 值，然后设置环境变量

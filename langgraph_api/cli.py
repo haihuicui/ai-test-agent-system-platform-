@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import pathlib
+import sys
 import threading
 import typing
 from collections.abc import Mapping, Sequence
@@ -134,7 +135,7 @@ def run_server(
             from dotenv.main import DotEnv  # type: ignore[unresolved-import]
 # fmt: off  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2T1dsa2FRPT06ZjA2ZGU0NTA=
 
-            env_vars = DotEnv(dotenv_path=env).dict() or {}
+            env_vars = DotEnv(dotenv_path=env, encoding="utf-8").dict() or {}
             logger.debug(f"Loaded environment variables from {env}: {sorted(env_vars)}")
 
         except ImportError:
@@ -216,9 +217,11 @@ def run_server(
         ALLOW_PRIVATE_NETWORK="true",
     )
     if env_vars is not None:
-        # Don't overwrite.
+        # Don't overwrite values that have already been provided explicitly,
+        # but allow .env values to fill in None placeholders (e.g. REDIS_URI
+        # when runtime_edition is postgres but the var is only in .env).
         for k, v in env_vars.items():
-            if k in to_patch:
+            if k in to_patch and to_patch[k] is not None:
                 logger.debug(f"Skipping loaded env var {k}={v}")
                 continue
             to_patch[k] = v  # type: ignore[invalid-assignment]
@@ -345,11 +348,20 @@ For production use, please use LangSmith Deployment.
                 main as executor_entrypoint_main,
             )
 
-            asyncio.run(
-                executor_entrypoint_main(
-                    grpc_port=8188,
+            # Windows 上 psycopg 异步模式不兼容默认的 ProactorEventLoop，
+            # 必须显式使用 SelectorEventLoop（与 start_server_postgres.py 保持一致）。
+            if sys.platform == "win32":
+                import selectors
+
+                def _selector_loop_factory():
+                    return asyncio.SelectorEventLoop(selectors.SelectSelector())
+
+                asyncio.run(
+                    executor_entrypoint_main(grpc_port=8188),
+                    loop_factory=_selector_loop_factory,
                 )
-            )
+            else:
+                asyncio.run(executor_entrypoint_main(grpc_port=8188))
         else:
             raise ValueError(f"Unknown entrypoint: {__entrypoint__}")
 
