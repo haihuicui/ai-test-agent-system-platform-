@@ -12,6 +12,7 @@ from uuid import uuid4
 import pytest
 
 from app.services.project_service import ProjectService
+from app.schemas.project import ProjectUpdate
 
 
 class DummyUser:
@@ -30,6 +31,14 @@ class DummyProject:
         self.teams = []
 
 
+class FakeSession:
+    async def flush(self):
+        pass
+
+    async def refresh(self, instance):
+        pass
+
+
 class FakeProjectRepo:
     def __init__(self, projects_data: list[dict], total: int):
         self._projects_data = projects_data
@@ -45,6 +54,12 @@ class FakeProjectRepo:
         for data in self._projects_data:
             if data["project"].identifier == identifier:
                 return data
+        return None
+
+    async def get_by_identifier(self, identifier: str):
+        for data in self._projects_data:
+            if data["project"].identifier == identifier:
+                return data["project"]
         return None
 
 
@@ -96,6 +111,27 @@ class TestProjectService:
     async def test_get_project_not_found_raises(self):
         service = ProjectService.__new__(ProjectService)
         service.repo = FakeProjectRepo([], 0)
+        service.session = FakeSession()
 
         with pytest.raises(Exception):  # NotFoundException
             await service.get_project("P-999")
+
+    @pytest.mark.asyncio
+    async def test_update_project_returns_info_with_creator_email(self):
+        project = DummyProject("P-1", "Project A")
+        data = [
+            {
+                "project": project,
+                "test_cases_count": 5,
+                "folders_count": 2,
+            }
+        ]
+        service = ProjectService.__new__(ProjectService)
+        service.repo = FakeProjectRepo(data, 1)
+        service.session = FakeSession()
+
+        info = await service.update_project("P-1", ProjectUpdate(name="Updated"))
+
+        assert info.identifier == "P-1"
+        assert info.name == "Updated"
+        assert info.created_by == "user@example.com"
