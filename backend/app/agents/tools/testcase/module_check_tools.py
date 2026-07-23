@@ -149,58 +149,24 @@ def _priority_to_level(priority: Any) -> str | None:
     return _PRIORITY_TO_LEVEL.get(priority.strip().lower())
 
 
-@tool
-async def module_self_check_tool(
-    input_files: list[str],
+def _perform_module_self_check(
+    cases: list[dict[str, Any]],
     expected_module: str,
+    current_file_paths: set[Path] | None = None,
     min_p0_count: int = 3,
+    check_cross_file_duplicates: bool = True,
 ) -> dict[str, Any]:
     """
-    对单个模块的用例数据文件做轻量自检。
+    对内存中的用例列表执行模块级自检。
 
-    在 Phase 3 每完成一个模块后调用，确认低级质量问题（编号、模块、数据、
-    预期结果、原子性、优先级）已被拦截，通过后再进入下一模块。
+    本函数与文件读取解耦，供 ``module_self_check_tool`` 和
+    ``ModuleSelfCheckMiddleware`` 复用，保证同一套规则。
 
     Args:
-        input_files: 该模块的用例数据文件路径（.jsonl/.json），可传多个。
-        expected_module: 期望的模块名称，用于校验 module 字段一致性。
-        min_p0_count: 该模块最少 P0 用例数（critical 映射为 P0）。
-
-    Returns:
-        {
-          "passed": bool,
-          "total": int,
-          "p0_count": int,
-          "violations": [
-            {"case_number": "...", "case_name": "...", "level": "error|warning",
-             "messages": ["..."]}
-          ],
-          "summary": "..."
-        }
+        check_cross_file_duplicates: 是否扫描工作区其他文件检查编号跨文件重复。
+            中间件场景不掌握文件路径，可设为 False 避免误报。
     """
-    try:
-        current_file_paths: set[Path] = set()
-        cases: list[dict[str, Any]] = []
-        for path in input_files:
-            real_path = _resolve_input_path(path)
-            current_file_paths.add(real_path.resolve())
-            cases.extend(_load_cases_from_file(path))
-    except Exception as e:
-        return {
-            "passed": False,
-            "total": 0,
-            "p0_count": 0,
-            "violations": [
-                {
-                    "case_number": None,
-                    "case_name": None,
-                    "level": "error",
-                    "messages": [f"读取用例数据文件失败：{e}"],
-                }
-            ],
-            "summary": f"自检异常：{e}",
-        }
-
+    current_file_paths = current_file_paths or set()
     violations: list[dict[str, Any]] = []
 
     # 1. 复用核心质量红线校验
@@ -248,20 +214,21 @@ async def module_self_check_tool(
             )
         seen_numbers.add(number)
 
-    existing_numbers = _collect_existing_case_numbers(current_file_paths)
-    for case in cases:
-        number = _case_number_key(case)
-        if number is None:
-            continue
-        if number in existing_numbers:
-            violations.append(
-                {
-                    "case_number": number,
-                    "case_name": case.get("name"),
-                    "level": "error",
-                    "messages": [f"用例编号 `{number}` 与已保存的其他模块用例重复"],
-                }
-            )
+    if check_cross_file_duplicates:
+        existing_numbers = _collect_existing_case_numbers(current_file_paths)
+        for case in cases:
+            number = _case_number_key(case)
+            if number is None:
+                continue
+            if number in existing_numbers:
+                violations.append(
+                    {
+                        "case_number": number,
+                        "case_name": case.get("name"),
+                        "level": "error",
+                        "messages": [f"用例编号 `{number}` 与已保存的其他模块用例重复"],
+                    }
+                )
 
     # 4. 优先级分布
     p0_count = sum(
@@ -315,6 +282,66 @@ async def module_self_check_tool(
         "violations": violations,
         "summary": "；".join(summary_parts),
     }
+
+
+@tool
+async def module_self_check_tool(
+    input_files: list[str],
+    expected_module: str,
+    min_p0_count: int = 3,
+) -> dict[str, Any]:
+    """
+    对单个模块的用例数据文件做轻量自检。
+
+    在 Phase 3 每完成一个模块后调用，确认低级质量问题（编号、模块、数据、
+    预期结果、原子性、优先级）已被拦截，通过后再进入下一模块。
+
+    Args:
+        input_files: 该模块的用例数据文件路径（.jsonl/.json），可传多个。
+        expected_module: 期望的模块名称，用于校验 module 字段一致性。
+        min_p0_count: 该模块最少 P0 用例数（critical 映射为 P0）。
+
+    Returns:
+        {
+          "passed": bool,
+          "total": int,
+          "p0_count": int,
+          "violations": [
+            {"case_number": "...", "case_name": "...", "level": "error|warning",
+             "messages": ["..."]}
+          ],
+          "summary": "..."
+        }
+    """
+    try:
+        current_file_paths: set[Path] = set()
+        cases: list[dict[str, Any]] = []
+        for path in input_files:
+            real_path = _resolve_input_path(path)
+            current_file_paths.add(real_path.resolve())
+            cases.extend(_load_cases_from_file(path))
+    except Exception as e:
+        return {
+            "passed": False,
+            "total": 0,
+            "p0_count": 0,
+            "violations": [
+                {
+                    "case_number": None,
+                    "case_name": None,
+                    "level": "error",
+                    "messages": [f"读取用例数据文件失败：{e}"],
+                }
+            ],
+            "summary": f"自检异常：{e}",
+        }
+
+    return _perform_module_self_check(
+        cases=cases,
+        expected_module=expected_module,
+        current_file_paths=current_file_paths,
+        min_p0_count=min_p0_count,
+    )
 
 
 @tool

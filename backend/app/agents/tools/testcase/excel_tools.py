@@ -17,6 +17,7 @@ from app.config.settings import settings
 from app.agents.tools.testcase.export_common import (
     EXPORT_HEADERS,
     case_key,
+    extract_expected_results_from_steps,
     extract_field,
     flatten_expected_results,
     flatten_preconditions,

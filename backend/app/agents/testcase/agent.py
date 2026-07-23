@@ -7,7 +7,7 @@
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import AsyncIterator, Callable
+from typing import Any, AsyncIterator, Callable
 
 from deepagents import create_deep_agent as create_agent
 from deepagents.backends import FilesystemBackend, LocalShellBackend, CompositeBackend
@@ -18,6 +18,7 @@ from langgraph.pregel import Pregel
 from app.agents.tools.testcase import get_all_tools, get_local_tools
 from app.agents.tools.error_handler import wrap_tools_with_error_handling
 from app.agents.testcase.case_quality_middleware import CaseQualityGateMiddleware
+from app.agents.testcase.module_self_check_middleware import ModuleSelfCheckMiddleware
 from app.agents.testcase.phase_review_middleware import PhaseReviewMiddleware
 from app.agents.testcase.rag_middleware import RAGMiddleware, RagAwareSkillsMiddleware, resolve_enable_rag
 from app.agents.testcase.state_compaction_middleware import StaleToolResultOffloadMiddleware
@@ -270,15 +271,17 @@ SYSTEM_PROMPT = """
 每完成一个模块的用例设计后，必须按以下顺序执行，**否则禁止进入下一模块**：
 
 1. 将该模块用例保存到 JSONL 文件（文件名建议包含模块序号，如 `test_cases_module_05.jsonl`）。
-2. 调用 `module_self_check_tool(input_files=["..."], expected_module="模块名")` 执行轻量自检。
-3. 若自检返回 `passed: false`，必须根据 `violations` 修正问题，然后重新执行自检，直到通过。
-4. 自检通过后，再尝试调用 `batch_create_test_cases_tool` 将用例提交到系统。
+2. **系统在调用 `batch_create_test_cases_tool` 前会自动执行模块级自检**，确认编号、模块、数据、预期结果、优先级等无违规。
+3. 若自检返回失败，必须根据返回的 `violations` 修正问题，然后重新调用 `batch_create_test_cases_tool`。
+4. 自检通过后，`batch_create_test_cases_tool` 才会真正执行，将用例提交到系统。
 5. 若 `batch_create_test_cases_tool` 因网络/API 原因失败：
    - 连续失败 2 次后停止重试；
    - 保留 JSONL 文件；
    - 调用 `save_test_case_manifest_tool` 记录该模块为 `persisted: false`；
    - 继续设计下一模块。
 6. 只有当前模块自检通过且已保存/提交后，才能更新 `write_todos` 标记完成并进入下一模块。
+
+> 如需在批量创建前主动检查已保存的 JSONL 文件，仍可调用 `module_self_check_tool(input_files=["..."], expected_module="模块名")`；但批量创建时系统会自动复检，无需重复调用。
 
 ### Phase 3 可审性要求（强制）
 
@@ -526,7 +529,7 @@ export_test_cases_to_excel(
 
 # 输出行为规范
 
-1. **每模块完成后**：必须调用 `module_self_check_tool` 执行确定性轻量自检，通过后才能继续；自检不通过时根据 violations 修正问题，禁止进入下一模块。
+1. **每模块完成后**：将用例保存到 JSONL 文件，随后调用 `batch_create_test_cases_tool` 提交；**系统会在该工具执行前自动执行模块级自检**，自检失败时按返回的 violations 修正问题，禁止进入下一模块。
 2. **所有模块完成后**：输出完整汇总表 + 质量评审报告（四维度评分），并按 Phase 3 可审性要求展示每个模块的关键用例详情
 3. **格式选择**：
    - 进入 Phase 5 时，系统会自动弹出格式选择面板（Markdown / Excel / JSON / CSV）
@@ -549,7 +552,7 @@ export_test_cases_to_excel(
 # ============================================================================
 
 @asynccontextmanager
-async def make_agent() -> AsyncIterator[Pregel]:
+async def make_agent(model: Any | None = None) -> AsyncIterator[Pregel]:
     """
     创建测试用例生成智能体的工厂函数。
 
@@ -557,6 +560,10 @@ async def make_agent() -> AsyncIterator[Pregel]:
     - 工具在智能体生命周期内正确加载
     - 退出时自动清理资源
     - 支持异步 MCP 工具初始化
+
+    Args:
+        model: 可选的自定义模型实例，主要用于测试注入 fake LLM；
+               不传时使用默认的 text_model。
     """
     context_middleware = ContextInjectionMiddleware()
     rag_middleware = RAGMiddleware()
@@ -566,6 +573,8 @@ async def make_agent() -> AsyncIterator[Pregel]:
     phase_review_middleware = PhaseReviewMiddleware()
     # 用例创建质量门禁：创建前确定性校验质量红线，失败时拦截并返回违规清单
     case_quality_gate_middleware = CaseQualityGateMiddleware()
+    # 模块级自检中间件：批量创建前自动执行模块级自检，失败时拦截
+    module_self_check_middleware = ModuleSelfCheckMiddleware()
     # OpenAI 兼容接口要求 assistant tool_calls 后必须紧跟对应 ToolMessage
     tool_call_validation_middleware = ToolCallAdjacencyMiddleware()
 
@@ -577,7 +586,7 @@ async def make_agent() -> AsyncIterator[Pregel]:
 
     # 创建智能体
     testcase_agent = create_agent(
-        model=text_model,
+        model=model or text_model,
         tools=all_tools,
         system_prompt=SYSTEM_PROMPT,
         middleware=[
@@ -587,6 +596,7 @@ async def make_agent() -> AsyncIterator[Pregel]:
             stale_offload_middleware,
             phase_review_middleware,
             case_quality_gate_middleware,
+            module_self_check_middleware,
             dynamic_model_selection,
             tool_call_validation_middleware,
         ],
