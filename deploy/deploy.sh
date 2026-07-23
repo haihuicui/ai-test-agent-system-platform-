@@ -83,7 +83,7 @@ if [ ! -f "lightrag/.env" ]; then
     LIGHTRAG_TOKEN="$(openssl rand -hex 32)"
 
     sed -i.bak \
-        -e "s|^AUTH_ACCOUNTS=.*|AUTH_ACCOUNTS='admin:${RAG_PASS}'|" \
+        -e "s|^AUTH_ACCOUNTS=.*|AUTH_ACCOUNTS='admin:123456'|" \
         -e "s|^TOKEN_SECRET=.*|TOKEN_SECRET=${LIGHTRAG_TOKEN}|" \
         -e "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=${PGPASS}|" \
         -e "s|^NEO4J_PASSWORD=.*|NEO4J_PASSWORD=${NEO4J_PASS}|" \
@@ -126,7 +126,12 @@ echo ">>> 等待服务就绪（最多 300s）..."
 TIMEOUT=300
 ELAPSED=0
 while [ $ELAPSED -lt $TIMEOUT ]; do
-    UNHEALTHY=$(docker compose ps --format json 2>/dev/null | grep -v '"Health":"healthy"' | grep -v '"Health":"exited"' | grep -vc '"Health":""' || echo "0")
+    UNHEALTHY=$(docker compose ps --format json 2>/dev/null \
+        | grep -v '"Health":"healthy"' \
+        | grep -v '"Health":"exited"' \
+        | grep -v '"Health":""' \
+        | wc -l || echo "0")
+    [ -z "$UNHEALTHY" ] && UNHEALTHY=0
     if [ "$UNHEALTHY" -le 0 ]; then
         SERVER_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
         [ -z "$SERVER_IP" ] && SERVER_IP="127.0.0.1"
