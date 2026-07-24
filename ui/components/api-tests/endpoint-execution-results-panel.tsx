@@ -63,6 +63,13 @@ export function EndpointExecutionResultsPanel({
   const [loadingResults, setLoadingResults] = React.useState(false);
   const [expandedResults, setExpandedResults] = React.useState<Set<string>>(new Set());
 
+  // 跟踪当前正在加载的 run_id，防止竞态条件导致结果覆盖
+  const loadingRunIdRef = React.useRef<string | null>(null);
+  // 跟踪上一次完成的 run_id，避免在 refresh 后重复加载相同数据
+  const lastLoadedRunIdRef = React.useRef<string | null>(null);
+  // 跟踪是否是首次加载（首次加载时自动选中第一个 run）
+  const isInitialLoadRef = React.useRef(true);
+
   // endpoint 切换时重置执行历史与选中运行，避免旧 run_id 被带到新 endpoint 上
   // 造成 404: 测试运行不属于该 endpoint
   React.useEffect(() => {
@@ -70,6 +77,9 @@ export function EndpointExecutionResultsPanel({
     setRuns([]);
     setResults([]);
     setExpandedResults(new Set());
+    loadingRunIdRef.current = null;
+    lastLoadedRunIdRef.current = null;
+    isInitialLoadRef.current = true;
   }, [endpointId]);
 
   const loadRuns = React.useCallback(async () => {
@@ -78,8 +88,10 @@ export function EndpointExecutionResultsPanel({
       setLoadingRuns(true);
       const data = await getEndpointTestRuns(endpointId, 20);
       setRuns(data.test_runs);
-      if (data.test_runs.length > 0) {
+      // 仅在首次加载时自动选中第一个 run，避免覆盖用户的手动选择
+      if (isInitialLoadRef.current && data.test_runs.length > 0) {
         setSelectedRunId(data.test_runs[0].id);
+        isInitialLoadRef.current = false;
       }
     } catch (error) {
       console.error("Failed to load test runs:", error);
@@ -94,6 +106,16 @@ export function EndpointExecutionResultsPanel({
     const selectedRun = runs.find((r) => r.id === selectedRunId);
     // 防御：只请求确实属于当前 endpoint 运行列表的 run，避免脏 state 触发无效请求
     if (!selectedRun) return;
+
+    // 如果当前 run 已经加载过且结果已显示，跳过重复请求
+    if (lastLoadedRunIdRef.current === selectedRunId) return;
+
+    // 记录当前正在加载的 run_id
+    loadingRunIdRef.current = selectedRunId;
+
+    // 切换 run 时立即清空旧结果，避免短暂显示上一轮数据
+    setResults([]);
+
     try {
       setLoadingResults(true);
       const data = await getEndpointRunResults(
@@ -102,12 +124,21 @@ export function EndpointExecutionResultsPanel({
         selectedRun.api_test_id,
         { page: 1, page_size: 100 }
       );
-      setResults(data.items);
+
+      // 防御：只有当前请求对应的 run_id 没有被覆盖时才更新结果
+      if (loadingRunIdRef.current === selectedRunId) {
+        setResults(data.items);
+        lastLoadedRunIdRef.current = selectedRunId;
+      }
     } catch (error) {
+      // 忽略因 run_id 已切换导致的"过时"错误
+      if (loadingRunIdRef.current !== selectedRunId) return;
       console.error("Failed to load run results:", error);
       toast.error(t("apiTests.loadResultsFailed") || "加载执行结果失败");
     } finally {
-      setLoadingResults(false);
+      if (loadingRunIdRef.current === selectedRunId) {
+        setLoadingResults(false);
+      }
     }
   }, [endpointId, selectedRunId, runs, t]);
 
