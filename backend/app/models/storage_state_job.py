@@ -6,7 +6,7 @@ Web 登录态生成任务模型
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -84,6 +84,30 @@ class StorageStateJob(Base, UUIDMixin, TimestampMixin):
         nullable=True,
         index=True,
         comment="失败时页面截图附件 ID",
+    )
+
+    expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="storageState 中最早过期时间",
+    )
+
+    is_valid: Mapped[bool | None] = mapped_column(
+        Boolean,
+        nullable=True,
+        comment="最近一次静态校验结果：True 有效 / False 过期或损坏",
+    )
+
+    validation_reason: Mapped[str | None] = mapped_column(
+        String(500),
+        nullable=True,
+        comment="校验结果说明",
+    )
+
+    probe_status: Mapped[str | None] = mapped_column(
+        String(50),
+        nullable=True,
+        comment="运行时探针状态（预留）：pending/success/failed/skipped",
     )
 
     started_at: Mapped[datetime | None] = mapped_column(

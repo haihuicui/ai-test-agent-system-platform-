@@ -17,6 +17,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import AsyncIterator, Callable
+import logging
 
 from deepagents import create_deep_agent as create_agent
 from deepagents.backends import FilesystemBackend, LocalShellBackend, CompositeBackend
@@ -35,8 +36,14 @@ from app.agents.web_mcp.execution_invitation_middleware import WebExecutionInvit
 from app.agents.web_mcp.intent_confirmation_middleware import WebIntentConfirmationMiddleware
 from app.config.settings import settings
 from app.core.llms import text_model as model
+from app.models.environment import AuthType
+from app.repositories.environment_repo import EnvironmentRepository
 from app.utils.shell_env import build_shell_env, ensure_playwright_mcp_project, get_playwright_mcp_command_args
 from app.utils.web_mcp_storage_state import resolve_project_storage_state_path
+from app.repositories.project_repo import ProjectRepository
+from app.config.database import async_session_factory
+
+logger = logging.getLogger(__name__)
 
 # =============================================================================
 # 配置
@@ -289,16 +296,46 @@ async def make_agent(config: RunnableConfig | None = None) -> AsyncIterator[Preg
 
     # 解析项目级 storageState，回退到全局配置
     storage_state: str | None = None
+    use_global_fallback = True
     if project_identifier:
-        storage_state = await resolve_project_storage_state_path(project_identifier)
+        try:
+            async with async_session_factory() as session:
+                project = await ProjectRepository(session).get_by_identifier(
+                    project_identifier
+                )
+                if project is not None:
+                    env = await EnvironmentRepository(
+                        session
+                    ).get_default_by_project(project.id)
+                    has_login_config = False
+                    if env is not None:
+                        if env.auth_type == AuthType.FORM_LOGIN.value:
+                            has_login_config = True
+                        else:
+                            auth_config = env.auth_config or {}
+                            has_login_config = bool(
+                                auth_config.get("form_login")
+                                or auth_config.get("storage_state")
+                            )
+                    if has_login_config:
+                        storage_state = await resolve_project_storage_state_path(
+                            project_identifier, env.id if env else None
+                        )
+                        use_global_fallback = False
+        except Exception as exc:
+            logger.warning(
+                "[WebMCPAgent] 解析项目默认环境登录态失败: %s", exc
+            )
     if not storage_state:
         storage_state = settings.web_mcp_storage_state
+        use_global_fallback = True
 
     # 确保 Playwright MCP 项目目录已初始化（配置、依赖），并注入登录态
     await ensure_playwright_mcp_project(
         settings.web_mcp_root,
         headless=settings.web_mcp_headless,
         storage_state=storage_state,
+        use_global_storage_state_fallback=use_global_fallback,
     )
 
     # 创建 MCP 客户端连接到 Playwright 服务器

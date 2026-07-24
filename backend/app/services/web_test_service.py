@@ -17,6 +17,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.environment import AuthType, ProjectEnvironment
 from app.models.storage_state_job import StorageStateJob
 from app.models.web_test import WebTest, WebTestRun, WebTestResult
 from app.models.web_function import WebFunction, WebSubFunction
@@ -26,10 +27,12 @@ from app.repositories.web_test_repo import (
     WebTestResultRepository,
 )
 from app.repositories.project_repo import ProjectRepository
+from app.repositories.environment_repo import EnvironmentRepository
 from app.schemas.enums import TestResultStatus
 from app.utils.exceptions import NotFoundException
 from app.utils.playwright_report import map_playwright_status, parse_playwright_json
 from app.utils.shell_env import ensure_playwright_mcp_project
+from app.utils.storage_state_validator import validate_storage_state
 from app.utils.sync_executor import run_sync
 from app.config.minio_client import MinIOClient
 from app.config.settings import settings
@@ -353,11 +356,54 @@ class WebTestService:
                 # 复用已安装 @playwright/test 的 web_mcp 工作区，在其下创建按 run_id
                 # 隔离的子目录，避免临时目录缺少 Playwright 依赖而重复 npm install。
                 workspace_root = Path(settings.web_mcp_workspace_root).resolve()
-                storage_state_path = await self._resolve_storage_state_path(web_test.project_id)
+
+                # 解析本次运行对应的环境，并按 auth_type 决定是否注入 storageState。
+                # 只有 form_login 环境才允许注入；其他情况强制使用干净上下文，避免
+                # 历史 storageState 污染。
+                env = await self._resolve_environment_for_web_test(
+                    session,
+                    web_test.project_id,
+                    web_test.base_url,
+                    execution_config,
+                )
+                storage_state_path: Optional[str] = None
+                if env and self._environment_has_login_state_config(env):
+                    candidate_path = await self._resolve_storage_state_path(
+                        session, web_test.project_id, env.id
+                    )
+                    if candidate_path:
+                        validation = validate_storage_state(candidate_path)
+                        if validation.is_valid:
+                            storage_state_path = candidate_path
+                            logger.info(
+                                "[WebTest] 注入有效 storageState: run=%s env=%s path=%s reason=%s",
+                                run_id,
+                                env.id,
+                                candidate_path,
+                                validation.reason,
+                            )
+                        else:
+                            logger.warning(
+                                "[WebTest] 环境 %s 的 storageState 无效，跳过注入: %s",
+                                env.id,
+                                validation.reason,
+                            )
+                else:
+                    if env:
+                        logger.info(
+                            "[WebTest] 环境 %s 未配置 Web 表单登录态，不使用 storageState",
+                            env.id,
+                        )
+                    else:
+                        logger.info("[WebTest] 未解析到环境，不使用 storageState")
+
+                # 显式禁用全局 settings.web_mcp_storage_state 回退，确保未配置登录态时
+                # 不会注入历史 storageState。
                 await ensure_playwright_mcp_project(
                     str(workspace_root),
                     headless=execution_config.get("headless", True),
                     storage_state=storage_state_path,
+                    use_global_storage_state_fallback=False,
                 )
                 exec_root = workspace_root / ".web_test_runs" / str(run_id)
                 await run_sync(lambda: exec_root.mkdir(parents=True, exist_ok=True))
@@ -471,12 +517,66 @@ class WebTestService:
                 except Exception as inner:
                     print(f"Web 测试失败状态写入也失败了: {inner}")
 
-    async def _resolve_storage_state_path(self, project_id: UUID) -> Optional[str]:
+    @staticmethod
+    def _environment_has_login_state_config(env: ProjectEnvironment) -> bool:
+        """判断环境是否配置了 Web 表单登录态。
+
+        优先以 auth_type == form_login 为准；同时兼容前端仅保存 auth_config.storage_state
+        或 auth_config.form_login 而未显式切换 auth_type 的场景。
+        """
+        if env.auth_type == AuthType.FORM_LOGIN.value:
+            return True
+        auth_config = env.auth_config or {}
+        return bool(
+            auth_config.get("form_login") or auth_config.get("storage_state")
+        )
+
+    async def _resolve_environment_for_web_test(
+        self,
+        session: AsyncSession,
+        project_id: UUID,
+        base_url: Optional[str],
+        execution_config: dict,
+    ) -> Optional[ProjectEnvironment]:
+        """解析本次 Web 测试执行应使用的环境配置。
+
+        优先级：
+        1. execution_config.environment_id 显式指定
+        2. base_url 与项目环境 base_url 匹配（忽略 trailing slash）
+        3. 项目默认环境
+        """
+        env_repo = EnvironmentRepository(session)
+
+        env_id = execution_config.get("environment_id")
+        if env_id:
+            try:
+                env = await env_repo.get_by_id(UUID(str(env_id)))
+                if env and env.project_id == project_id:
+                    return env
+            except (ValueError, TypeError):
+                pass
+
+        if base_url:
+            normalized_target = base_url.rstrip("/")
+            envs = await env_repo.list_by_project(project_id)
+            for env in envs:
+                if env.base_url.rstrip("/") == normalized_target:
+                    return env
+
+        return await env_repo.get_default_by_project(project_id)
+
+    async def _resolve_storage_state_path(
+        self,
+        session: AsyncSession,
+        project_id: UUID,
+        environment_id: Optional[UUID] = None,
+    ) -> Optional[str]:
         """查询项目最近一次成功生成的 storageState 本地路径。
 
+        优先匹配指定环境；无匹配时回退到项目级（environment_id IS NULL）记录。
         直接查 storage_state_jobs 表，避免引入 StorageStateService 造成服务循环依赖。
         """
-        result = await self.session.execute(
+        base_query = (
             select(StorageStateJob)
             .where(
                 StorageStateJob.project_id == project_id,
@@ -484,7 +584,20 @@ class WebTestService:
                 StorageStateJob.output_path.isnot(None),
             )
             .order_by(StorageStateJob.completed_at.desc())
-            .limit(1)
+        )
+
+        if environment_id:
+            result = await session.execute(
+                base_query.where(
+                    StorageStateJob.environment_id == environment_id
+                ).limit(1)
+            )
+            job = result.scalar_one_or_none()
+            if job:
+                return job.output_path
+
+        result = await session.execute(
+            base_query.where(StorageStateJob.environment_id.is_(None)).limit(1)
         )
         job = result.scalar_one_or_none()
         return job.output_path if job else None

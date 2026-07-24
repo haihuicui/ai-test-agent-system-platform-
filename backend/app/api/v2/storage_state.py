@@ -18,6 +18,8 @@ from app.schemas.storage_state import (
 )
 
 
+from app.utils.storage_state_validator import validate_storage_state
+
 router = APIRouter(prefix="/projects/{project_identifier}/environments/{env_id}/storage-state")
 
 
@@ -94,8 +96,10 @@ async def get_latest_storage_state(
     env_id: UUID,
     service: StorageStateServiceDep,
 ) -> SuccessResponse[Optional[StorageStateLatestInfo]]:
-    """返回该项目最近一次成功生成的 storageState 信息。"""
-    job_info = await service.get_latest_success(project_identifier)
+    """返回该项目/环境下最近一次成功生成的 storageState 信息，并附带有效性校验。"""
+    job_info = await service.get_latest_success(
+        project_identifier, environment_id=env_id
+    )
     if not job_info:
         return SuccessResponse(success=True, data=None)
 
@@ -109,6 +113,16 @@ async def get_latest_storage_state(
             attachment = await session.get(Attachment, job_info.attachment_id)
             object_name = attachment.object_name if attachment else None
 
+    # 实时校验文件：数据库字段可能为空或滞后，以文件内容为准。
+    is_valid = job_info.is_valid
+    expires_at = job_info.expires_at
+    validation_reason = job_info.validation_reason
+    if job_info.output_path:
+        validation = validate_storage_state(job_info.output_path)
+        is_valid = validation.is_valid
+        expires_at = validation.earliest_expiry
+        validation_reason = validation.reason
+
     data = StorageStateLatestInfo(
         job_id=job_info.job_id,
         environment_id=job_info.environment_id,
@@ -116,5 +130,8 @@ async def get_latest_storage_state(
         attachment_id=job_info.attachment_id,
         generated_at=job_info.completed_at,
         object_name=object_name,
+        is_valid=is_valid,
+        expires_at=expires_at,
+        validation_reason=validation_reason,
     )
     return SuccessResponse(success=True, data=data)

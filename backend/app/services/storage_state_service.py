@@ -23,7 +23,7 @@ from app.config.database import async_session_factory
 from app.config.minio_client import MinIOClient
 from app.config.settings import settings
 from app.models.attachment import Attachment, AttachmentEntityType
-from app.models.environment import ProjectEnvironment
+from app.models.environment import AuthType, ProjectEnvironment
 from app.models.project import Project
 from app.models.storage_state_job import StorageStateJob
 from app.repositories.environment_repo import EnvironmentRepository
@@ -31,6 +31,7 @@ from app.repositories.project_repo import ProjectRepository
 from app.schemas.storage_state import LoginSelectors, StorageStateJobInfo
 from app.utils.exceptions import BadRequestException, NotFoundException
 from app.utils.shell_env import ensure_playwright_mcp_project
+from app.utils.storage_state_validator import validate_storage_state
 from app.utils.sync_executor import run_sync
 
 logger = logging.getLogger(__name__)
@@ -75,24 +76,26 @@ class StorageStateService:
             env, username, captcha, selectors
         )
 
-        output_path = self._resolve_output_path()
-
+        # 先创建 job 以获取 job.id，再用 job.id 生成隔离输出路径
         job = StorageStateJob(
             project_id=project.id,
             environment_id=env.id if env else None,
             status="pending",
-            output_path=output_path,
         )
         self.session.add(job)
         await self.session.flush()
         await self.session.refresh(job)
+
+        job.output_path = self._resolve_output_path(
+            project.id, env.id if env else None, job.id
+        )
 
         logger.info(
             "[StorageState] 已创建任务 job=%s project=%s env=%s output=%s headless=%s save_attachment=%s",
             job.id,
             project.identifier,
             env.id if env else None,
-            output_path,
+            job.output_path,
             headless,
             save_attachment,
         )
@@ -159,19 +162,41 @@ class StorageStateService:
             raise NotFoundException(resource_type="登录态生成任务", resource_id=str(job_id))
         return self.to_info(job)
 
-    async def get_latest_success(self, project_identifier: str) -> Optional[StorageStateJobInfo]:
-        """查询项目最近一次成功的生成记录。"""
+    async def get_latest_success(
+        self,
+        project_identifier: str,
+        environment_id: Optional[UUID | str] = None,
+    ) -> Optional[StorageStateJobInfo]:
+        """查询项目最近一次成功的生成记录。
+
+        优先匹配指定环境；无匹配时回退到项目级（environment_id IS NULL）记录。
+        """
         from sqlalchemy import select
 
         project = await self._resolve_project(project_identifier)
-        result = await self.session.execute(
+        env_id_value = UUID(str(environment_id)) if environment_id else None
+
+        query = (
             select(StorageStateJob)
             .where(
                 StorageStateJob.project_id == project.id,
                 StorageStateJob.status == "completed",
             )
             .order_by(StorageStateJob.completed_at.desc())
-            .limit(1)
+        )
+
+        if env_id_value:
+            # 先查环境隔离记录
+            result = await self.session.execute(
+                query.where(StorageStateJob.environment_id == env_id_value).limit(1)
+            )
+            job = result.scalar_one_or_none()
+            if job:
+                return self.to_info(job)
+
+        # 回退：项目级记录或显式环境为 None 的记录
+        result = await self.session.execute(
+            query.where(StorageStateJob.environment_id.is_(None)).limit(1)
         )
         job = result.scalar_one_or_none()
         return self.to_info(job) if job else None
@@ -315,12 +340,33 @@ class StorageStateService:
 
         return effective_username, effective_captcha, effective_selectors
 
-    def _resolve_output_path(self) -> str:
+    def _resolve_output_path(
+        self,
+        project_id: Optional[UUID] = None,
+        environment_id: Optional[UUID] = None,
+        job_id: Optional[UUID] = None,
+    ) -> str:
+        """生成按项目+环境隔离的 storageState 输出文件路径。
+
+        优先级：
+        1. settings.web_mcp_storage_state（全局配置，保持旧行为）
+        2. web_mcp_root/storage-state/{project_id}/{environment_id}/{job_id}.json
+        3. web_mcp_root/storage-state/global.json（兼容旧调用）
+        """
         ss = getattr(settings, "web_mcp_storage_state", None)
         if ss:
             return str(Path(ss).resolve())
-        # 未配置全局路径时回退到工作区默认位置，并给出提示
-        default = Path(settings.web_mcp_root).resolve() / "storage-state" / "global.json"
+
+        root = Path(settings.web_mcp_root).resolve()
+        if project_id is not None and job_id is not None:
+            parts = ["storage-state", str(project_id)]
+            if environment_id is not None:
+                parts.append(str(environment_id))
+            parts.append(f"{job_id}.json")
+            return str(root / "/".join(parts))
+
+        # 未配置全局路径且无足够信息时回退到工作区默认位置
+        default = root / "storage-state" / "global.json"
         logger.warning(
             "[StorageState] settings.web_mcp_storage_state 未配置，生成结果将写入默认路径: %s",
             default,
@@ -427,12 +473,40 @@ class StorageStateService:
                 if not await run_sync(output_path.exists):
                     raise RuntimeError(f"storageState 文件未生成: {output_path}")
 
+                # 静态校验：解析 cookie expires / JWT exp，记录到任务元数据
+                validation = validate_storage_state(output_path)
+                job.is_valid = validation.is_valid
+                job.expires_at = validation.earliest_expiry
+                job.validation_reason = validation.reason
+                logger.info(
+                    "[StorageState] 生成完成并校验 job=%s is_valid=%s reason=%s",
+                    job_id,
+                    validation.is_valid,
+                    validation.reason,
+                )
+
                 # 激活：更新 playwright.config.js 注入 storageState
                 await ensure_playwright_mcp_project(
                     str(web_mcp_root),
                     headless=headless,
                     storage_state=str(output_path),
                 )
+
+                # 自动切换环境认证类型：若环境 auth_type 为 none，但已成功生成
+                # Web 登录态，则将其标记为 form_login，让后续 Web 测试链路能识别。
+                # 同时把 auth_config.storage_state 同步到 auth_config.form_login，
+                # 与环境 schema 的 FormLoginConfig 对齐。
+                if env is not None and env.auth_type == AuthType.NONE.value:
+                    auth_config = env.auth_config or {}
+                    storage_cfg = auth_config.get("storage_state")
+                    if storage_cfg and "form_login" not in auth_config:
+                        auth_config["form_login"] = storage_cfg
+                    env.auth_type = AuthType.FORM_LOGIN.value
+                    env.auth_config = auth_config
+                    logger.info(
+                        "[StorageState] 环境 %s auth_type 自动切换为 form_login",
+                        env.id,
+                    )
 
                 attachment_id: Optional[UUID] = None
                 if save_attachment and project:
@@ -680,6 +754,10 @@ test('login and save storage state', async ({ page }) => {
             error_message=job.error_message,
             stdout=job.stdout,
             stderr=job.stderr,
+            is_valid=job.is_valid,
+            expires_at=job.expires_at,
+            validation_reason=job.validation_reason,
+            probe_status=job.probe_status,
             started_at=job.started_at,
             completed_at=job.completed_at,
             created_at=job.created_at,

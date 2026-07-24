@@ -462,3 +462,69 @@ async def test_empty_exception_message_uses_class_name():
     assert job.status == "failed"
     assert "RuntimeError" in job.error_message
     assert "RuntimeError" in job.stderr
+
+
+@pytest.mark.asyncio
+async def test_success_switches_auth_type_from_none_to_form_login():
+    """生成成功后，若环境 auth_type 为 none 且存在 storage_state 配置，
+    应自动切换为 form_login，避免后续 Web 测试因 auth_type 未识别而跳过注入。"""
+    job_id = uuid4()
+    job = _make_job(job_id)
+    service = _make_service()
+    service.session.get.return_value = job
+    service.project_repo.get_by_id.return_value = _make_project()
+
+    env = MagicMock()
+    env.id = job.environment_id
+    env.auth_type = "none"
+    env.auth_config = {
+        "storage_state": {
+            "username": "admin",
+            "login_url": "http://example.com/login",
+            "selectors": {"username_selector": "#user"},
+        }
+    }
+    service.env_repo.get_by_id.return_value = env
+
+    selectors = LoginSelectors(
+        login_url="http://example.com/login",
+        submit_selector="button[type='submit']",
+        success_selector=".dashboard",
+    )
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        web_mcp_root = Path(tmpdir) / "web_mcp"
+        web_mcp_root.mkdir()
+        output_path = Path(job.output_path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text('{"cookies": [], "origins": []}', encoding="utf-8")
+
+        with patch("app.services.storage_state_service.settings.web_mcp_root", str(web_mcp_root)):
+            with patch(
+                "app.services.storage_state_service.subprocess.run",
+                return_value=subprocess.CompletedProcess(
+                    args=[],
+                    returncode=0,
+                    stdout="",
+                    stderr="",
+                ),
+            ):
+                with patch("app.services.storage_state_service.MinIOClient"):
+                    with patch(
+                        "app.services.storage_state_service.ensure_playwright_mcp_project"
+                    ):
+                        await service._execute_generation(
+                            job_id=job_id,
+                            username="user",
+                            password="pass",
+                            captcha=None,
+                            selectors=selectors,
+                            headless=True,
+                            save_attachment=False,
+                            project_identifier="PR-1",
+                        )
+
+    assert job.status == "completed"
+    assert env.auth_type == "form_login"
+    assert "form_login" in env.auth_config
+    assert env.auth_config["form_login"]["username"] == "admin"

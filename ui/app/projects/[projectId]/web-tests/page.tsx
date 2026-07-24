@@ -312,7 +312,7 @@ export default function WebTestsPage() {
     }
   }, [projectId]);
 
-  // 加载登录态状态
+  // 加载登录态状态：以 backend 实时校验结果为准
   const loadStorageStateStatus = React.useCallback(
     async (envId: string) => {
       try {
@@ -323,10 +323,17 @@ export default function WebTestsPage() {
           setStorageStateGeneratedAt(null);
           return;
         }
-        const generatedAt = new Date(data.generated_at);
-        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
         setStorageStateGeneratedAt(data.generated_at);
-        setStorageStateStatus(generatedAt > sevenDaysAgo ? "ok" : "expired");
+        if (data.is_valid === true) {
+          setStorageStateStatus("ok");
+        } else if (data.is_valid === false) {
+          setStorageStateStatus("expired");
+        } else {
+          // 无校验结果时回退到生成时间 7 天规则
+          const generatedAt = new Date(data.generated_at);
+          const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+          setStorageStateStatus(generatedAt > sevenDaysAgo ? "ok" : "expired");
+        }
       } catch (error) {
         console.error("Failed to load storage state:", error);
         setStorageStateStatus("none");

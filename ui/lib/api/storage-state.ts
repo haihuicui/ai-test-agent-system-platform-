@@ -43,6 +43,9 @@ export interface StorageStateLatestInfo {
   attachment_id: string | null;
   generated_at: string;
   object_name: string | null;
+  is_valid: boolean | null;
+  expires_at: string | null;
+  validation_reason: string | null;
 }
 
 export function generateStorageState(

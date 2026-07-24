@@ -64,6 +64,18 @@ class StorageStateJobInfo(BaseModel):
     error_message: Optional[str] = Field(default=None, description="错误信息")
     stdout: Optional[str] = Field(default=None, description="Playwright 标准输出")
     stderr: Optional[str] = Field(default=None, description="Playwright 标准错误")
+    is_valid: Optional[bool] = Field(
+        default=None, description="storageState 是否仍有效"
+    )
+    expires_at: Optional[datetime] = Field(
+        default=None, description="storageState 中最早过期时间"
+    )
+    validation_reason: Optional[str] = Field(
+        default=None, description="校验结果说明"
+    )
+    probe_status: Optional[str] = Field(
+        default=None, description="运行时探针状态（预留）"
+    )
     started_at: Optional[datetime] = Field(default=None, description="开始执行时间")
     completed_at: Optional[datetime] = Field(default=None, description="执行完成时间")
     created_at: datetime = Field(..., description="创建时间")
@@ -81,3 +93,12 @@ class StorageStateLatestInfo(BaseModel):
     attachment_id: Optional[UUID]
     generated_at: Optional[datetime]
     object_name: Optional[str] = Field(default=None, description="MinIO 对象路径")
+    is_valid: Optional[bool] = Field(
+        default=None, description="storageState 是否仍有效"
+    )
+    expires_at: Optional[datetime] = Field(
+        default=None, description="storageState 中最早过期时间"
+    )
+    validation_reason: Optional[str] = Field(
+        default=None, description="校验结果说明"
+    )

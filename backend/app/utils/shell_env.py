@@ -94,6 +94,7 @@ async def ensure_playwright_mcp_project(
     root_dir: str,
     headless: bool = False,
     storage_state: str | None = None,
+    use_global_storage_state_fallback: bool = True,
 ) -> None:
     """确保 Playwright MCP server 所需的配置文件与依赖已就绪。
 
@@ -111,6 +112,9 @@ async def ensure_playwright_mcp_project(
         storage_state: 全局登录态文件路径；未传入时使用 ``settings.web_mcp_storage_state``。
             每次调用都会重写 ``playwright.config.js``，确保 ``storageState`` 配置项
             与当前设置保持一致。
+        use_global_storage_state_fallback: 当 ``storage_state`` 为空时，是否允许回退到
+            ``settings.web_mcp_storage_state``。Web 测试执行未配置登录态时应设为
+            ``False``，避免注入历史 storageState。
     """
     root = Path(root_dir)
     root.mkdir(parents=True, exist_ok=True)
@@ -125,10 +129,12 @@ async def ensure_playwright_mcp_project(
     test_timeout = settings.web_exec_test_timeout_ms
     retries = settings.web_exec_retries
 
-    # 全局登录态（storageState）：传入路径优先，其次 settings.web_mcp_storage_state。
+    # 全局登录态（storageState）：传入路径优先；未传入且允许回退时，再取全局配置。
     # 文件存在时注入 config；未配置或文件缺失则不启用（保持现状）。
     storage_state_line = ""
-    ss = storage_state or getattr(settings, "web_mcp_storage_state", None)
+    ss = storage_state
+    if not ss and use_global_storage_state_fallback:
+        ss = getattr(settings, "web_mcp_storage_state", None)
     if ss:
         ss_path = Path(ss)
         if ss_path.exists():
