@@ -47,6 +47,7 @@ import {
   updateEnvironment,
   deleteEnvironment,
   testEnvironmentConnection,
+  testDynamicBearerConnection,
 } from "@/lib/api/environments";
 import type {
   EnvironmentInfo,
@@ -429,33 +430,42 @@ export function EnvironmentSheet({
                 rows={3}
               />
             </div>
-            {editingEnv && (
-              <div className="flex items-center justify-between rounded-lg border p-3">
-                <div className="space-y-0.5">
-                  <Label>{t("environments.testConnection")}</Label>
-                  <p className="text-xs text-muted-foreground">{t("environments.testConnectionHint")}</p>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={async () => {
-                    try {
-                      const res = await testEnvironmentConnection(projectId, editingEnv.id);
-                      if (res.data?.success) {
-                        toast.success(`Token ${t("environments.testFetch")} ${t("common.success")}, length ${res.data.token_length}`);
-                      } else {
-                        toast.error(res.data?.error || t("common.error"));
-                      }
-                    } catch (err: any) {
-                      toast.error(err?.data?.message || t("common.error"));
-                    }
-                  }}
-                >
-                  {t("environments.testFetch")}
-                </Button>
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <div className="space-y-0.5">
+                <Label>{t("environments.testConnection")}</Label>
+                <p className="text-xs text-muted-foreground">{t("environments.testConnectionHint")}</p>
               </div>
-            )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={!form.token_url.trim()}
+                onClick={async () => {
+                  if (!form.token_url.trim()) {
+                    toast.error(t("environments.dynamicBearerUrlRequired"));
+                    return;
+                  }
+                  try {
+                    let res;
+                    if (editingEnv) {
+                      res = await testEnvironmentConnection(projectId, editingEnv.id);
+                    } else {
+                      const authConfig = buildAuthConfig(form);
+                      res = await testDynamicBearerConnection(projectId, authConfig);
+                    }
+                    if (res.data?.success) {
+                      toast.success(`Token ${t("environments.testFetch")} ${t("common.success")}, length ${res.data.token_length}`);
+                    } else {
+                      toast.error(res.data?.error || t("common.error"));
+                    }
+                  } catch (err: any) {
+                    toast.error(err?.data?.message || t("common.error"));
+                  }
+                }}
+              >
+                {t("environments.testFetch")}
+              </Button>
+            </div>
           </>
         );
       case "api_key":

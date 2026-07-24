@@ -188,20 +188,14 @@ def build_auth_headers(
     return headers
 
 
-async def resolve_dynamic_bearer_token(
-    env: ProjectEnvironment,
-    *,
-    force_refresh: bool = False,
-) -> str:
+async def fetch_dynamic_bearer_token(auth_config: dict[str, Any]) -> str:
     """
-    解析动态 Bearer Token。
+    根据 auth_config 实际发起请求并提取动态 token。
 
-    根据 env.auth_config 中配置的 token_url、token_method、token_body、
-    token_path 等，调用接口并提取 token。
+    不读取/写入缓存，只负责网络请求、模板渲染和 token 解析。
 
     Args:
-        env: 项目环境配置
-        force_refresh: 是否强制刷新缓存
+        auth_config: 动态 bearer 认证配置，需包含 token_url 等字段
 
     Returns:
         获取到的 token
@@ -210,30 +204,15 @@ async def resolve_dynamic_bearer_token(
         BadRequestException: 配置缺失或无效
         DynamicTokenError: token 获取失败
     """
-    if env.auth_type != AuthType.DYNAMIC_BEARER.value:
-        raise BadRequestException(
-            f"环境 '{env.name}' 的认证类型不是 dynamic_bearer，无法解析动态 token"
-        )
-
-    cfg = env.auth_config or {}
+    cfg = auth_config or {}
     token_url = cfg.get("token_url")
     if not token_url:
-        raise BadRequestException(
-            f"动态认证环境 '{env.name}' 未配置 token_url"
-        )
+        raise BadRequestException("动态认证未配置 token_url")
 
     method = (cfg.get("token_method") or "POST").upper()
     token_path = cfg.get("token_path") or "$.data.token"
-    token_ttl = cfg.get("token_ttl_seconds") or 0
 
-    # 1. 尝试读缓存
-    if not force_refresh:
-        cached = await _dynamic_token_cache.get(env.id, cfg)
-        if cached:
-            logger.debug("[auth_resolver] 命中动态 token 缓存: env=%s", env.id)
-            return cached
-
-    # 2. 渲染 headers / body 模板
+    # 渲染 headers / body 模板
     # 注：按业务要求，用户名密码等直接写在 token_body 中，不再单独维护凭据字段
     variables = {
         str(k): str(v)
@@ -243,7 +222,7 @@ async def resolve_dynamic_bearer_token(
     headers = render_template(cfg.get("token_headers", {}), variables)
     body = render_template(cfg.get("token_body", {}), variables)
 
-    # 3. 发送请求
+    # 发送请求
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             if method == "GET":
@@ -272,7 +251,7 @@ async def resolve_dynamic_bearer_token(
     except json.JSONDecodeError as e:
         raise DynamicTokenError(f"动态 token 接口返回非 JSON: {e}") from e
 
-    # 4. 提取 token
+    # 提取 token
     try:
         token = extract_by_path(data, token_path)
     except DynamicTokenError:
@@ -283,7 +262,50 @@ async def resolve_dynamic_bearer_token(
             f"从 token 接口响应中提取到的值不是有效字符串: {token!r}"
         )
 
-    # 5. 写入缓存
+    return token
+
+
+async def resolve_dynamic_bearer_token(
+    env: ProjectEnvironment,
+    *,
+    force_refresh: bool = False,
+) -> str:
+    """
+    解析动态 Bearer Token。
+
+    根据 env.auth_config 中配置的 token_url、token_method、token_body、
+    token_path 等，调用接口并提取 token。
+
+    Args:
+        env: 项目环境配置
+        force_refresh: 是否强制刷新缓存
+
+    Returns:
+        获取到的 token
+
+    Raises:
+        BadRequestException: 配置缺失或无效
+        DynamicTokenError: token 获取失败
+    """
+    if env.auth_type != AuthType.DYNAMIC_BEARER.value:
+        raise BadRequestException(
+            f"环境 '{env.name}' 的认证类型不是 dynamic_bearer，无法解析动态 token"
+        )
+
+    cfg = env.auth_config or {}
+    token_ttl = cfg.get("token_ttl_seconds") or 0
+
+    # 1. 尝试读缓存
+    if not force_refresh:
+        cached = await _dynamic_token_cache.get(env.id, cfg)
+        if cached:
+            logger.debug("[auth_resolver] 命中动态 token 缓存: env=%s", env.id)
+            return cached
+
+    # 2. 请求并解析 token
+    token = await fetch_dynamic_bearer_token(cfg)
+
+    # 3. 写入缓存
     if token_ttl > 0:
         await _dynamic_token_cache.set(env.id, cfg, token, ttl=token_ttl)
         logger.info(

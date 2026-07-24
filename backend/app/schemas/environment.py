@@ -72,6 +72,15 @@ class EnvironmentUpdate(BaseModel):
         return self
 
 
+class DynamicBearerTestRequest(BaseModel):
+    """动态 Bearer Token 临时配置测试请求（无需环境已存在）"""
+
+    auth_config: dict = Field(
+        ...,
+        description="动态 bearer 配置，包含 token_url、token_method、token_path、token_body、token_headers、token_ttl_seconds 等",
+    )
+
+
 class EnvironmentInfo(BaseModel):
     """环境配置响应（按业务要求返回明文 auth_secret）"""
     id: UUID

@@ -9,7 +9,7 @@ from uuid import UUID
 from fastapi import APIRouter, status
 
 from app.api.deps import DbSessionDep, EnvironmentServiceDep
-from app.schemas.environment import EnvironmentCreate, EnvironmentUpdate, EnvironmentInfo
+from app.schemas.environment import DynamicBearerTestRequest, EnvironmentCreate, EnvironmentUpdate, EnvironmentInfo
 from app.schemas.common import SuccessResponse, MessageResponse
 
 
@@ -129,6 +129,29 @@ async def test_environment_connection(
     - **env_id**: 环境配置 ID
     """
     result = await service.test_dynamic_token_connection(project_identifier, env_id)
+    return SuccessResponse(success=result.get("success", False), data=result)
+
+
+@router.post(
+    "/test-dynamic-token",
+    response_model=SuccessResponse[dict],
+    summary="测试动态 Bearer 临时配置连通性",
+    description="在未保存环境时，根据传入的 auth_config 测试 token 获取接口",
+)
+async def test_dynamic_bearer_preview(
+    project_identifier: str,
+    data: DynamicBearerTestRequest,
+    service: EnvironmentServiceDep,
+) -> SuccessResponse[dict]:
+    """
+    测试动态 Bearer 临时配置连通性
+
+    - **project_identifier**: 项目标识符，如 PR-1234
+    - **auth_config**: 动态 bearer 配置
+    """
+    result = await service.test_dynamic_bearer_connection_preview(
+        project_identifier, data.auth_config
+    )
     return SuccessResponse(success=result.get("success", False), data=result)
 
 

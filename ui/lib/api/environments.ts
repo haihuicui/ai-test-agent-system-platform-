@@ -40,6 +40,16 @@ export function testEnvironmentConnection(projectId: string, envId: string) {
   );
 }
 
+export function testDynamicBearerConnection(
+  projectId: string,
+  authConfig: Record<string, unknown>
+) {
+  return apiClient.post<SuccessResponse<{ success: boolean; token_length?: number; token_preview?: string; cache_ttl_seconds?: number; error?: string }>>(
+    `/projects/${projectId}/environments/test-dynamic-token`,
+    { auth_config: authConfig }
+  );
+}
+
 export function deleteEnvironment(projectId: string, envId: string) {
   return apiClient.delete<SuccessResponse<MessageResponse>>(
     `/projects/${projectId}/environments/${envId}`

@@ -21,6 +21,7 @@ from app.schemas.environment import EnvironmentCreate, EnvironmentUpdate, Enviro
 from app.utils.auth_resolver import (
     DynamicTokenError,
     build_auth_headers,
+    fetch_dynamic_bearer_token,
     resolve_auth_credentials,
     resolve_dynamic_bearer_token,
 )
@@ -267,6 +268,41 @@ class EnvironmentService:
         try:
             token = await self._resolve_dynamic_bearer_token(env, force_refresh=True)
             cfg = env.auth_config or {}
+            return {
+                "success": True,
+                "token_length": len(token),
+                "token_preview": f"{token[:8]}..." if len(token) > 12 else "***",
+                "cache_ttl_seconds": cfg.get("token_ttl_seconds") or 0,
+            }
+        except (BadRequestException, DynamicTokenError) as e:
+            return {
+                "success": False,
+                "error": str(e),
+            }
+
+    async def test_dynamic_bearer_connection_preview(
+        self,
+        project_identifier: str,
+        auth_config: dict[str, Any],
+    ) -> dict[str, Any]:
+        """
+        根据临时配置测试动态 token 连通性。
+
+        不读取/写入缓存，仅验证传入的 auth_config 能否成功获取 token。
+
+        Args:
+            project_identifier: 项目标识符
+            auth_config: 动态 bearer 配置
+
+        Returns:
+            连通性结果
+        """
+        # 校验项目存在
+        await self._get_project_id(project_identifier)
+
+        try:
+            token = await fetch_dynamic_bearer_token(auth_config)
+            cfg = auth_config or {}
             return {
                 "success": True,
                 "token_length": len(token),
