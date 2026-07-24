@@ -612,13 +612,28 @@ class ScenarioExecutionEngine:
                 self.context.set_variable(key, value)
 
             # 4. 按顺序执行步骤
-            for step in scenario.steps:
+            for idx, step in enumerate(scenario.steps):
                 result = await self._execute_step(step, run)
 
                 # 检查是否需要停止
                 if result.status == "failed" and not step.continue_on_failure:
                     run.status = "failed"
                     run.error_message = f"步骤 {step.step_order} 失败: {result.error_message}"
+                    # 将剩余未执行的步骤标记为"跳过"，避免被上游聚合逻辑
+                    # 盲补到 failed 导致统计数据失真（如: 3 步骤场景，
+                    # 步骤2失败→步骤3未执行，应计为 skipped 而非 failed）
+                    remaining_steps = scenario.steps[idx + 1:]
+                    if remaining_steps:
+                        run.skipped_steps = (run.skipped_steps or 0) + len(remaining_steps)
+                        for remaining_step in remaining_steps:
+                            await self._record_skipped_result(
+                                remaining_step,
+                                run,
+                                reason=(
+                                    f"前置步骤 '{step.name}' (步骤 {step.step_order}) "
+                                    f"失败且 continue_on_failure=false，已跳过"
+                                ),
+                            )
                     break
 
                 # 应用延迟
@@ -1371,6 +1386,32 @@ class ScenarioExecutionEngine:
             duration_ms=duration_ms,
             error_message=error_message,
             error_stack=error_stack or error_message,
+        )
+        self.session.add(result)
+        return result
+
+    async def _record_skipped_result(
+        self,
+        step: ScenarioStep,
+        run: ScenarioRun,
+        reason: str = "已跳过",
+    ) -> ScenarioStepResult:
+        """为因前置步骤失败而被跳过的步骤创建结果记录
+
+        当场景执行中某步骤失败且 continue_on_failure=false 时，
+        后续未执行的步骤通过此方法统一生成 status="skipped" 的结果，
+        保证步骤报告完整且统计数据中的 skipped 计数准确。
+        """
+        result = ScenarioStepResult(
+            id=uuid4(),
+            run_id=run.id,
+            step_id=step.id,
+            endpoint_id=step.endpoint_id,
+            step_order=step.step_order,
+            step_name=step.name,
+            status="skipped",
+            error_message=reason,
+            error_stack=reason,
         )
         self.session.add(result)
         return result

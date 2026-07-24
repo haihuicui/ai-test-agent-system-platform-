@@ -144,6 +144,13 @@ class TestAggregateProgressFromJobs:
         assert result["test_cases_count"] == 10
 
     def test_total_greater_than_accounted_fills_gap_for_failed(self):
+        """失败作业中未执行的部分应计为 skipped，而非 failed。
+
+        场景：3 步骤场景，步骤 2 失败后 continue_on_failure=false，
+        步骤 3 从未执行。此时 total=3, passed=1, failed=1, skipped=0
+        (accounted=2 < total=3)，差额 1 应归入 skipped 而非 failed，
+        避免前端展示"失败数虚高"。
+        """
         jobs = [
             _make_job(
                 JobStatus.FAILED,
@@ -151,10 +158,10 @@ class TestAggregateProgressFromJobs:
             ),
         ]
         result = _aggregate_progress_from_jobs(jobs)
-        # accounted=9 < total=10, 差额 1 按状态补齐到 failed
+        # accounted=9 < total=10, 差额 1 按状态补齐到 skipped
         assert result["passed_count"] == 5
-        assert result["failed_count"] == 4
-        assert result["skipped_count"] == 1
+        assert result["failed_count"] == 3
+        assert result["skipped_count"] == 2
         assert result["test_cases_count"] == 10
 
     def test_only_failure_category_no_counts_defaults_by_status(self):

@@ -66,11 +66,18 @@ def _aggregate_progress_from_jobs(jobs: list[TestRunScriptJob]) -> dict[str, int
             accounted = job_passed + job_failed + job_skipped
 
             if accounted < job_total:
-                # 分项之和小于 total（如部分用例未执行/中断），差额按状态补齐
+                # 分项之和小于 total（如部分用例未执行/中断），差额按状态补齐。
+                # - 已完成作业：未计入的默认为通过
+                # - 失败作业且分项全为 0（如基础设施错误导致完全未执行）：
+                #   差额计入 failed（保守，整单失败）
+                # - 失败作业但已有部分执行结果（如场景步骤因前置失败被跳过）：
+                #   差额计入 skipped，避免前端展示"失败数虚高"
                 if status == JobStatus.COMPLETED:
                     job_passed += job_total - accounted
-                else:
+                elif accounted == 0:
                     job_failed += job_total - accounted
+                else:
+                    job_skipped += job_total - accounted
             elif accounted > job_total:
                 # 分项之和超过 total（如 total 为 0 但 failed>0），以分项为准扩大 total
                 job_total = accounted
