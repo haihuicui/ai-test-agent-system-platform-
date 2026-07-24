@@ -67,6 +67,9 @@ async def generate_storage_state(
     )
 
     await db.commit()
+    # 数据库 onupdate 会刷新 updated_at，commit 后该列可能处于过期状态；
+    # 在 Pydantic 同步序列化前显式 refresh，避免 async session 中懒加载报 MissingGreenlet。
+    await db.refresh(job)
     return SuccessResponse(success=True, data=service.to_info(job))
 
 
