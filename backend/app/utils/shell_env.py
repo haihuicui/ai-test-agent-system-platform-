@@ -198,7 +198,7 @@ async def ensure_playwright_mcp_project(
         await run_sync(package_file.write_text, package_content, encoding="utf-8")
 
     playwright_test = root / "node_modules" / "@playwright" / "test"
-    npm = shutil.which("npm") or "npm"
+    npm = await run_sync(shutil.which, "npm") or "npm"
 
     async with _playwright_mcp_init_lock:
         if not await run_sync(playwright_test.exists):
@@ -240,7 +240,7 @@ async def ensure_playwright_mcp_project(
             )
 
 
-def get_playwright_mcp_command_args(root_dir: str, headless: bool = False) -> tuple[str, list[str]]:
+async def get_playwright_mcp_command_args(root_dir: str, headless: bool = False) -> tuple[str, list[str]]:
     """返回适合当前平台的 Playwright MCP server 启动命令与参数。
 
     Windows 下使用 cmd /c 执行 cd & npx ...；
@@ -250,7 +250,7 @@ def get_playwright_mcp_command_args(root_dir: str, headless: bool = False) -> tu
         root_dir: Playwright MCP 工作区根目录。
         headless: 是否以无头模式运行浏览器。``False`` 表示弹出真实浏览器窗口。
     """
-    npx = shutil.which("npx") or "npx"
+    npx = await run_sync(shutil.which, "npx") or "npx"
     effective_headless = resolve_effective_headless(headless)
     headless_flag = " --headless" if effective_headless else ""
     if sys.platform == "win32":

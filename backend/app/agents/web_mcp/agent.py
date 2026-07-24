@@ -339,7 +339,7 @@ async def make_agent(config: RunnableConfig | None = None) -> AsyncIterator[Preg
     )
 
     # 创建 MCP 客户端连接到 Playwright 服务器
-    mcp_command, mcp_args = get_playwright_mcp_command_args(
+    mcp_command, mcp_args = await get_playwright_mcp_command_args(
         settings.web_mcp_root, headless=settings.web_mcp_headless
     )
     client = MultiServerMCPClient(
