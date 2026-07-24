@@ -24,6 +24,8 @@ from app.agents.tools.api.scenario_tools import (
     _scenario_conversation_cache,
     _set_conversation_scenario_id,
     add_step_assertion,
+    add_step_extractor,
+    add_step_variable_export,
 )
 
 
@@ -506,14 +508,58 @@ class TestValidateScenarioDesign:
             for i in result["errors"]
         )
 
+    @pytest.mark.asyncio
+    async def test_extractor_from_previous_step_resolves(self):
+        step1_id = uuid4()
+        step2_id = uuid4()
+        endpoint_id = uuid4()
+        scenario_id = uuid4()
+
+        step1 = self._make_step(
+            step1_id, 1, "新增", endpoint_id,
+            extractors=[{"name": "siteId", "path": "$.data.id", "type": "jsonpath"}],
+        )
+        step2 = self._make_step(
+            step2_id, 2, "编辑", endpoint_id,
+            request_override={"path": "/sites/{{siteId}}"},
+        )
+        endpoint = self._make_endpoint(endpoint_id, method="PUT", path="/sites/{siteId}")
+
+        session = AsyncMock()
+        session.get = AsyncMock(return_value=MagicMock(global_variables={}))
+        session.execute = AsyncMock(
+            return_value=MagicMock(
+                scalars=MagicMock(
+                    return_value=MagicMock(
+                        all=MagicMock(return_value=[])
+                    )
+                )
+            )
+        )
+
+        result = await _validate_scenario_design(
+            session, scenario_id, [step1, step2], {endpoint_id: endpoint}, None
+        )
+
+        assert result["valid"] is True
+        assert not any(
+            i["category"] == "unmapped_path_param" and "siteId" in i["message"]
+            for i in result["errors"]
+        )
+        assert not any(
+            i["category"] == "unmapped_template_variable" and "siteId" in i["message"]
+            for i in result["errors"]
+        )
+
 
 class TestAddStepAssertion:
-    """测试 add_step_assertion 操作符归一化"""
+    """测试 add_step_assertion 操作符归一化与持久化验证"""
 
     @pytest.fixture
     def mock_session_factory(self):
         """构造一个可 yield mock session 的 async_session_factory 替身"""
         from unittest.mock import AsyncMock, MagicMock, patch
+        from sqlalchemy import Select, Update
 
         step_id = uuid4()
         step = MagicMock()
@@ -521,12 +567,20 @@ class TestAddStepAssertion:
         step.assertions = []
 
         session = AsyncMock()
-        # 第一次 execute 查询步骤，第二次 execute 做 UPDATE，第三次 execute 验证
-        session.execute = AsyncMock(side_effect=[
-            MagicMock(scalar_one_or_none=MagicMock(return_value=step)),
-            MagicMock(),
-            MagicMock(scalar_one_or_none=MagicMock(return_value=step)),
-        ])
+
+        async def _execute(stmt):
+            if isinstance(stmt, Select):
+                return MagicMock(scalar_one_or_none=MagicMock(return_value=step))
+            if isinstance(stmt, Update):
+                # 模拟 UPDATE 写入数据库：把 values 中的 JSONB 字段同步回 step 对象
+                for col, param in stmt._values.items():
+                    if hasattr(col, "name"):
+                        setattr(step, col.name, param.value)
+                return MagicMock()
+            return MagicMock()
+
+        session.execute = AsyncMock(side_effect=_execute)
+        session.refresh = AsyncMock()
 
         class _AsyncCtx:
             async def __aenter__(self):
@@ -582,6 +636,51 @@ class TestAddStepAssertion:
         # 非法 operator 不应触发 UPDATE
         assert session.commit.call_count == 0
 
+    @pytest.mark.asyncio
+    async def test_returns_failure_when_assertion_not_persisted(self):
+        """模拟数据库返回同长度但内容不同的旧数据，验证深度比较会返回失败"""
+        from unittest.mock import AsyncMock, MagicMock, patch
+        from sqlalchemy import Select, Update
+
+        step_id = uuid4()
+        step = MagicMock()
+        step.id = step_id
+        step.assertions = []
+
+        session = AsyncMock()
+
+        async def _execute(stmt):
+            if isinstance(stmt, Select):
+                return MagicMock(scalar_one_or_none=MagicMock(return_value=step))
+            if isinstance(stmt, Update):
+                # 模拟 UPDATE 没有真正写入：step.assertions 仍为空
+                return MagicMock()
+            return MagicMock()
+
+        session.execute = AsyncMock(side_effect=_execute)
+        session.refresh = AsyncMock()
+
+        class _AsyncCtx:
+            async def __aenter__(self):
+                return session
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+        with patch(
+            "app.agents.tools.api.scenario_tools.async_session_factory",
+            return_value=_AsyncCtx(),
+        ):
+            result = await add_step_assertion.coroutine(
+                step_id=str(step_id),
+                assertion_type="status",
+                expected=200,
+            )
+
+        data = json.loads(result)
+        assert data["success"] is False
+        assert data["data"]["verified"] is False
+        assert "验证失败" in data["error"]
+
 
 class TestAddStepVariableExport:
     """测试 add_step_variable_export 工具"""
@@ -590,6 +689,7 @@ class TestAddStepVariableExport:
     def mock_session_factory(self):
         """构造一个可 yield mock session 的 async_session_factory 替身"""
         from unittest.mock import AsyncMock, MagicMock, patch
+        from sqlalchemy import Select, Update
 
         step_id = uuid4()
         step = MagicMock()
@@ -597,12 +697,19 @@ class TestAddStepVariableExport:
         step.variable_exports = []
 
         session = AsyncMock()
-        # 第一次 execute 查询步骤，第二次 execute 做 UPDATE，第三次 execute 验证
-        session.execute = AsyncMock(side_effect=[
-            MagicMock(scalar_one_or_none=MagicMock(return_value=step)),
-            MagicMock(),
-            MagicMock(scalar_one_or_none=MagicMock(return_value=step)),
-        ])
+
+        async def _execute(stmt):
+            if isinstance(stmt, Select):
+                return MagicMock(scalar_one_or_none=MagicMock(return_value=step))
+            if isinstance(stmt, Update):
+                for col, param in stmt._values.items():
+                    if hasattr(col, "name"):
+                        setattr(step, col.name, param.value)
+                return MagicMock()
+            return MagicMock()
+
+        session.execute = AsyncMock(side_effect=_execute)
+        session.refresh = AsyncMock()
 
         class _AsyncCtx:
             async def __aenter__(self):
@@ -619,8 +726,6 @@ class TestAddStepVariableExport:
 
     @pytest.mark.asyncio
     async def test_adds_request_variable_export(self, mock_session_factory):
-        from app.agents.tools.api.scenario_tools import add_step_variable_export
-
         step_id, _ = mock_session_factory
         result = await add_step_variable_export.coroutine(
             step_id=str(step_id),
@@ -636,8 +741,6 @@ class TestAddStepVariableExport:
 
     @pytest.mark.asyncio
     async def test_rejects_invalid_source(self, mock_session_factory):
-        from app.agents.tools.api.scenario_tools import add_step_variable_export
-
         step_id, session = mock_session_factory
         result = await add_step_variable_export.coroutine(
             step_id=str(step_id),
@@ -654,7 +757,7 @@ class TestAddStepVariableExport:
     @pytest.mark.asyncio
     async def test_updates_existing_export_by_name(self, mock_session_factory):
         from unittest.mock import AsyncMock, MagicMock, patch
-        from app.agents.tools.api.scenario_tools import add_step_variable_export
+        from sqlalchemy import Select, Update
 
         step_id, _ = mock_session_factory
         step = MagicMock()
@@ -663,11 +766,19 @@ class TestAddStepVariableExport:
 
         # 覆盖 fixture 中的 step，使其包含已有导出
         session = AsyncMock()
-        session.execute = AsyncMock(side_effect=[
-            MagicMock(scalar_one_or_none=MagicMock(return_value=step)),
-            MagicMock(),
-            MagicMock(scalar_one_or_none=MagicMock(return_value=step)),
-        ])
+
+        async def _execute(stmt):
+            if isinstance(stmt, Select):
+                return MagicMock(scalar_one_or_none=MagicMock(return_value=step))
+            if isinstance(stmt, Update):
+                for col, param in stmt._values.items():
+                    if hasattr(col, "name"):
+                        setattr(step, col.name, param.value)
+                return MagicMock()
+            return MagicMock()
+
+        session.execute = AsyncMock(side_effect=_execute)
+        session.refresh = AsyncMock()
 
         class _AsyncCtx:
             async def __aenter__(self):
@@ -691,3 +802,151 @@ class TestAddStepVariableExport:
         assert data["data"]["action"] == "更新"
         assert data["data"]["export"]["path"] == "$.body.name"
         assert data["data"]["total_exports"] == 1
+
+    @pytest.mark.asyncio
+    async def test_returns_failure_when_export_not_persisted(self):
+        """模拟数据库返回同长度但内容不同的旧数据，验证深度比较会返回失败"""
+        from unittest.mock import AsyncMock, MagicMock, patch
+        from sqlalchemy import Select, Update
+
+        step_id = uuid4()
+        step = MagicMock()
+        step.id = step_id
+        step.variable_exports = []
+
+        session = AsyncMock()
+
+        async def _execute(stmt):
+            if isinstance(stmt, Select):
+                return MagicMock(scalar_one_or_none=MagicMock(return_value=step))
+            if isinstance(stmt, Update):
+                # 模拟 UPDATE 没有真正写入：step.variable_exports 仍为空
+                return MagicMock()
+            return MagicMock()
+
+        session.execute = AsyncMock(side_effect=_execute)
+        session.refresh = AsyncMock()
+
+        class _AsyncCtx:
+            async def __aenter__(self):
+                return session
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+        with patch(
+            "app.agents.tools.api.scenario_tools.async_session_factory",
+            return_value=_AsyncCtx(),
+        ):
+            result = await add_step_variable_export.coroutine(
+                step_id=str(step_id),
+                name="siteName",
+                path="$.body.name",
+                source="request",
+            )
+
+        data = json.loads(result)
+        assert data["success"] is False
+        assert data["data"]["verified"] is False
+        assert "验证失败" in data["error"]
+
+
+class TestAddStepExtractor:
+    """测试 add_step_extractor 的持久化校验"""
+
+    @pytest.fixture
+    def mock_session_factory(self):
+        """构造一个可 yield mock session 的 async_session_factory 替身"""
+        from unittest.mock import AsyncMock, MagicMock, patch
+        from sqlalchemy import Select, Update
+
+        step_id = uuid4()
+        step = MagicMock()
+        step.id = step_id
+        step.extractors = []
+
+        session = AsyncMock()
+
+        async def _execute(stmt):
+            if isinstance(stmt, Select):
+                return MagicMock(scalar_one_or_none=MagicMock(return_value=step))
+            if isinstance(stmt, Update):
+                # 模拟 UPDATE 写入数据库：把 values 中的 JSONB 字段同步回 step 对象
+                for col, param in stmt._values.items():
+                    if hasattr(col, "name"):
+                        setattr(step, col.name, param.value)
+                return MagicMock()
+            return MagicMock()
+
+        session.execute = AsyncMock(side_effect=_execute)
+        session.refresh = AsyncMock()
+
+        class _AsyncCtx:
+            async def __aenter__(self):
+                return session
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+        with patch(
+            "app.agents.tools.api.scenario_tools.async_session_factory",
+            return_value=_AsyncCtx(),
+        ):
+            yield step_id, session
+
+    @pytest.mark.asyncio
+    async def test_adds_extractor_and_verifies_persistence(self, mock_session_factory):
+        step_id, _ = mock_session_factory
+        result = await add_step_extractor.coroutine(
+            step_id=str(step_id),
+            name="siteId",
+            path="$.data.id",
+        )
+        data = json.loads(result)
+        assert data["success"] is True
+        assert data["data"]["extractor"]["name"] == "siteId"
+        assert data["data"]["verified"] is True
+
+    @pytest.mark.asyncio
+    async def test_returns_failure_when_extractor_not_persisted(self):
+        """模拟数据库返回同长度但内容不同的旧数据，验证深度比较会返回失败"""
+        from unittest.mock import AsyncMock, MagicMock, patch
+        from sqlalchemy import Select, Update
+
+        step_id = uuid4()
+        step = MagicMock()
+        step.id = step_id
+        step.extractors = []
+
+        session = AsyncMock()
+
+        async def _execute(stmt):
+            if isinstance(stmt, Select):
+                return MagicMock(scalar_one_or_none=MagicMock(return_value=step))
+            if isinstance(stmt, Update):
+                # 模拟 UPDATE 没有真正写入：step.extractors 仍为空
+                return MagicMock()
+            return MagicMock()
+
+        session.execute = AsyncMock(side_effect=_execute)
+        session.refresh = AsyncMock()
+
+        class _AsyncCtx:
+            async def __aenter__(self):
+                return session
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+        with patch(
+            "app.agents.tools.api.scenario_tools.async_session_factory",
+            return_value=_AsyncCtx(),
+        ):
+            result = await add_step_extractor.coroutine(
+                step_id=str(step_id),
+                name="siteId",
+                path="$.data.id",
+            )
+
+        data = json.loads(result)
+        assert data["success"] is False
+        assert data["data"]["verified"] is False
+        assert "验证失败" in data["error"]

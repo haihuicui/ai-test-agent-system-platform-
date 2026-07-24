@@ -193,6 +193,21 @@ def _fill_required_body_defaults(
         return result, []
 
 
+def _deep_equal(a: Any, b: Any) -> bool:
+    """深度比较两个 Python 对象（支持 dict/list/基本类型）。"""
+    if type(a) is not type(b):
+        return False
+    if isinstance(a, dict):
+        if set(a.keys()) != set(b.keys()):
+            return False
+        return all(_deep_equal(a[k], b[k]) for k in a.keys())
+    if isinstance(a, list):
+        if len(a) != len(b):
+            return False
+        return all(_deep_equal(x, y) for x, y in zip(a, b))
+    return a == b
+
+
 def _get_current_conversation_id(config: RunnableConfig | None) -> str | None:
     """
     获取当前 AI 会话 ID。
@@ -655,14 +670,14 @@ async def add_scenario_step(
                     "error": f"端点 {endpoint_id} 不存在"
                 }, ensure_ascii=False, indent=2)
 
-            # 3. 确定步骤顺序
+            # 3. 查询当前已有步骤并确定步骤顺序
+            steps_stmt = select(ScenarioStep).where(
+                ScenarioStep.scenario_id == UUID(scenario_id)
+            )
+            steps_result = await session.execute(steps_stmt)
+            existing_steps = steps_result.scalars().all()
+
             if step_order is None:
-                # 查询当前最大步骤顺序
-                steps_stmt = select(ScenarioStep).where(
-                    ScenarioStep.scenario_id == UUID(scenario_id)
-                )
-                steps_result = await session.execute(steps_stmt)
-                existing_steps = steps_result.scalars().all()
                 step_order = len(existing_steps) + 1
 
             # 3.5 按 endpoint schema 自动填充必填字段默认值
@@ -1079,19 +1094,16 @@ async def add_step_extractor(
             )
             await session.commit()
 
-            # ---- 提交后验证：重新查询数据库确认提取器是否真的持久化 ----
-            verify_stmt = select(ScenarioStep).where(ScenarioStep.id == step.id)
-            verify_result = await session.execute(verify_stmt)
-            verified_step = verify_result.scalar_one_or_none()
-            persisted_extractors = verified_step.extractors if verified_step else None
-            actually_persisted = (
-                persisted_extractors is not None
-                and len(persisted_extractors) == len(extractors)
-            )
+            # 强制刷新，避免 expire_on_commit=False 导致 identity map 返回旧对象
+            await session.refresh(step, ["extractors"])
+
+            # ---- 提交后验证：确认数据库中的内容是否与预期一致 ----
+            persisted_extractors = step.extractors or []
+            actually_persisted = _deep_equal(persisted_extractors, extractors)
 
             response_data = {
-                "success": True,
-                "message": f"成功{action}数据提取器: {name} = {path}",
+                "success": actually_persisted,
+                "message": f"成功{action}数据提取器: {name} = {path}" if actually_persisted else f"数据提取器{action}后验证失败",
                 "data": {
                     "action": action,
                     "extractor": extractor,
@@ -1101,9 +1113,8 @@ async def add_step_extractor(
             }
 
             if not actually_persisted:
-                response_data["warning"] = (
-                    f"提取器已写入但提交后验证失败：期望 {len(extractors)} 条提取器，"
-                    f"数据库中实际为 {len(persisted_extractors or [])} 条。"
+                response_data["error"] = (
+                    f"提取器已写入但提交后验证失败：数据库中的内容与预期不一致。"
                     f"这可能是 JSONB 持久化 bug，"
                     f"建议改用 update_scenario_step 一次性设置完整的 extractors 列表。"
                 )
@@ -1221,19 +1232,16 @@ async def add_step_assertion(
             )
             await session.commit()
 
-            # ---- 提交后验证：重新查询数据库确认断言是否真的持久化 ----
-            verify_stmt = select(ScenarioStep).where(ScenarioStep.id == step.id)
-            verify_result = await session.execute(verify_stmt)
-            verified_step = verify_result.scalar_one_or_none()
-            persisted_assertions = verified_step.assertions if verified_step else None
-            actually_persisted = (
-                persisted_assertions is not None
-                and len(persisted_assertions) == len(assertions)
-            )
+            # 强制刷新，避免 expire_on_commit=False 导致 identity map 返回旧对象
+            await session.refresh(step, ["assertions"])
+
+            # ---- 提交后验证：确认数据库中的内容是否与预期一致 ----
+            persisted_assertions = step.assertions or []
+            actually_persisted = _deep_equal(persisted_assertions, assertions)
 
             response_data: dict = {
-                "success": True,
-                "message": f"成功{action}断言: {assertion_type}",
+                "success": actually_persisted,
+                "message": f"成功{action}断言: {assertion_type}" if actually_persisted else f"断言{action}后验证失败",
                 "data": {
                     "action": action,
                     "assertion": assertion,
@@ -1243,9 +1251,8 @@ async def add_step_assertion(
             }
 
             if not actually_persisted:
-                response_data["warning"] = (
-                    f"断言已写入但提交后验证失败：期望 {len(assertions)} 条断言，"
-                    f"数据库中实际为 {len(persisted_assertions or [])} 条。"
+                response_data["error"] = (
+                    f"断言已写入但提交后验证失败：数据库中的内容与预期不一致。"
                     f"这可能是 JSONB 持久化 bug，"
                     f"建议改用 update_scenario_step 一次性设置完整的 assertions 列表。"
                 )
@@ -1345,19 +1352,16 @@ async def add_step_variable_export(
             )
             await session.commit()
 
+            # 强制刷新，避免 expire_on_commit=False 导致 identity map 返回旧对象
+            await session.refresh(step, ["variable_exports"])
+
             # 提交后验证
-            verify_stmt = select(ScenarioStep).where(ScenarioStep.id == step.id)
-            verify_result = await session.execute(verify_stmt)
-            verified_step = verify_result.scalar_one_or_none()
-            persisted_exports = verified_step.variable_exports if verified_step else None
-            actually_persisted = (
-                persisted_exports is not None
-                and len(persisted_exports) == len(variable_exports)
-            )
+            persisted_exports = step.variable_exports or []
+            actually_persisted = _deep_equal(persisted_exports, variable_exports)
 
             response_data = {
-                "success": True,
-                "message": f"成功{action}变量导出: {name} = {path} (source={source})",
+                "success": actually_persisted,
+                "message": f"成功{action}变量导出: {name} = {path} (source={source})" if actually_persisted else f"变量导出{action}后验证失败",
                 "data": {
                     "action": action,
                     "export": export,
@@ -1367,9 +1371,8 @@ async def add_step_variable_export(
             }
 
             if not actually_persisted:
-                response_data["warning"] = (
-                    f"变量导出已写入但提交后验证失败：期望 {len(variable_exports)} 条，"
-                    f"数据库中实际为 {len(persisted_exports or [])} 条。"
+                response_data["error"] = (
+                    f"变量导出已写入但提交后验证失败：数据库中的内容与预期不一致。"
                     f"这可能是 JSONB 持久化 bug，"
                     f"建议改用 update_scenario_step 一次性设置完整的 variable_exports 列表。"
                 )

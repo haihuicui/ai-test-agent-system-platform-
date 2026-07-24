@@ -220,8 +220,10 @@ async def _validate_scenario_design(
                     ),
                 })
 
-        # 当前步骤的导出变量在后续步骤中可用
+        # 当前步骤的导出变量、提取器变量、数据映射目标变量在后续步骤中可用
         available_from_previous_steps.update(exported_vars_by_step.get(step.id, set()))
+        available_from_previous_steps.update(extractor_vars_by_step.get(step.id, set()))
+        available_from_previous_steps.update(mapping_targets_by_step.get(step.id, set()))
 
         # 3. 分页/列表步骤业务断言检查
         method = (endpoint.method or "GET").upper()
