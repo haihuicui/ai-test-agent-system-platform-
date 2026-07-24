@@ -585,8 +585,10 @@ async def make_agent(model: Any | None = None) -> AsyncIterator[Pregel]:
     all_tools = wrap_tools_with_error_handling(all_tools)
 
     # 创建智能体
+    # LangGraph API 可能从线程配置中传入 dict 类型的 model，不能透传到 create_agent
+    effective_model = model if model is not None and not isinstance(model, dict) else text_model
     testcase_agent = create_agent(
-        model=model or text_model,
+        model=effective_model,
         tools=all_tools,
         system_prompt=SYSTEM_PROMPT,
         middleware=[

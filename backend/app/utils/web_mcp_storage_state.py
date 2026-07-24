@@ -18,6 +18,7 @@ from app.models.project import Project
 from app.models.storage_state_job import StorageStateJob
 from app.repositories.project_repo import ProjectRepository
 from app.utils.storage_state_validator import validate_storage_state
+from app.utils.sync_executor import run_sync
 
 logger = logging.getLogger(__name__)
 
@@ -96,7 +97,7 @@ async def resolve_project_storage_state_path(
                 return None
 
             path = Path(job.output_path)
-            if not path.exists():
+            if not await run_sync(path.exists):
                 logger.warning(
                     "[WebMCPStorage] storageState 文件不存在，job=%s path=%s",
                     job.id,
@@ -104,7 +105,7 @@ async def resolve_project_storage_state_path(
                 )
                 return None
 
-            validation = validate_storage_state(path)
+            validation = await run_sync(validate_storage_state, path)
             if not validation.is_valid:
                 logger.warning(
                     "[WebMCPStorage] storageState 校验无效，job=%s path=%s reason=%s",
@@ -114,7 +115,7 @@ async def resolve_project_storage_state_path(
                 )
                 return None
 
-            return str(path.resolve())
+            return str(await run_sync(path.resolve))
     except Exception as exc:
         logger.exception(
             "[WebMCPStorage] 解析项目 %s 的 storageState 失败: %s",

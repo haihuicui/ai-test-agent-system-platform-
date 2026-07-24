@@ -13,6 +13,8 @@ import shutil
 import sys
 from pathlib import Path
 
+from app.utils.sync_executor import run_sync
+
 
 def _path_sep() -> str:
     """返回当前平台的路径分隔符。"""
@@ -117,7 +119,7 @@ async def ensure_playwright_mcp_project(
             ``False``，避免注入历史 storageState。
     """
     root = Path(root_dir)
-    root.mkdir(parents=True, exist_ok=True)
+    await run_sync(root.mkdir, parents=True, exist_ok=True)
 
     effective_headless = resolve_effective_headless(headless)
     headless_value = "true" if effective_headless else "false"
@@ -137,7 +139,7 @@ async def ensure_playwright_mcp_project(
         ss = getattr(settings, "web_mcp_storage_state", None)
     if ss:
         ss_path = Path(ss)
-        if ss_path.exists():
+        if await run_sync(ss_path.exists):
             # JS 中用正斜杠，避免 Windows 反斜杠转义问题
             storage_state_line = f"    storageState: {json.dumps(ss_path.as_posix())},\n"
         else:
@@ -145,15 +147,14 @@ async def ensure_playwright_mcp_project(
 
     config_file = root / "playwright.config.js"
     # 删除旧配置，避免从 Windows 开发机拷入的绝对路径等残留配置干扰 Linux 运行。
-    if config_file.exists():
-        config_file.unlink()
+    if await run_sync(config_file.exists):
+        await run_sync(config_file.unlink)
     # 在 Docker/CI 等无 sandbox 环境自动注入 --no-sandbox。
     no_sandbox_args = ""
     if os.environ.get("PLAYWRIGHT_NO_SANDBOX", "").lower() in ("1", "true", "yes"):
         no_sandbox_args = "\n      args: ['--no-sandbox', '--disable-setuid-sandbox'],"
     # 每次调用都重写配置，确保 headless / timeout / retries / storageState 变更生效。
-    config_file.write_text(
-        f"""module.exports = {{
+    config_content = f"""module.exports = {{
   testDir: './tests',
   timeout: {test_timeout},
   retries: {retries},
@@ -180,30 +181,27 @@ async def ensure_playwright_mcp_project(
     }},
   ],
 }};
-""",
-        encoding="utf-8",
-    )
+"""
+    await run_sync(config_file.write_text, config_content, encoding="utf-8")
 
     package_file = root / "package.json"
-    if not package_file.exists():
-        package_file.write_text(
-            json.dumps(
-                {
-                    "name": "web-mcp-project",
-                    "version": "1.0.0",
-                    "private": True,
-                    "dependencies": {"@playwright/test": "1.61.1"},
-                },
-                indent=2,
-            ),
-            encoding="utf-8",
+    if not await run_sync(package_file.exists):
+        package_content = json.dumps(
+            {
+                "name": "web-mcp-project",
+                "version": "1.0.0",
+                "private": True,
+                "dependencies": {"@playwright/test": "1.61.1"},
+            },
+            indent=2,
         )
+        await run_sync(package_file.write_text, package_content, encoding="utf-8")
 
     playwright_test = root / "node_modules" / "@playwright" / "test"
     npm = shutil.which("npm") or "npm"
 
     async with _playwright_mcp_init_lock:
-        if not playwright_test.exists():
+        if not await run_sync(playwright_test.exists):
             proc = await asyncio.create_subprocess_exec(
                 npm,
                 "install",
