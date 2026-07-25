@@ -55,6 +55,7 @@
     "react-markdown": "^10.1.0",
     "react-resizable-panels": "^4.0.15",
     "react-syntax-highlighter": "^16.1.0",
+    "rehype-raw": "^7.0.0",
     "remark-gfm": "^4.0.1",
     "sonner": "^1.5.0",
     "swr": "^2.4.0",
@@ -66,9 +67,9 @@
   "_buildHash": "NC81OmFIVnBZMlhsdEpUbXRiZm92b2s2ZG0xNFFRPT06YTE3NjllOGY=",
   "devDependencies": {
     "@types/node": "^20.17.0",
-    "@types/uuid": "^9.0.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
+    "@types/uuid": "^9.0.0",
     "autoprefixer": "^10.4.20",
     "eslint": "^8.57.1",
     "eslint-config-next": "14.2.16",

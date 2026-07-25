@@ -186,6 +186,7 @@ export default function AndroidTestsPage() {
   const renderAIChat = useDelayedUnmount(aiChatOpen, 300);
   const [aiChatInitialPrompt, setAiChatInitialPrompt] = React.useState<string>("");
   const [aiChatKey, setAiChatKey] = React.useState<number>(0);
+  const [createNewThread, setCreateNewThread] = React.useState(false);
 
   // 使用 useMemo 稳定 assistant 对象
   const assistant = React.useMemo<Assistant | null>(() => {
@@ -331,6 +332,7 @@ ${selectedDevice ? `**Device UDID**: ${selectedDevice.udid}` : ""}
 
     setAiChatInitialPrompt(prompt);
     setAiChatKey(prev => prev + 1);
+    setCreateNewThread(true);
     setShowSubFunctionSidebar(false);
     setAiChatOpen(true);
   };
@@ -396,6 +398,7 @@ ${selectedDevice ? `**Device UDID**: ${selectedDevice.udid}` : ""}
   const handleAIGenerate = (prompt: string) => {
     setAiChatInitialPrompt(prompt);
     setAiChatKey(prev => prev + 1);
+    setCreateNewThread(true);
     setAiChatOpen(true);
   };
 
@@ -535,7 +538,7 @@ ${selectedDevice ? `**Device UDID**: ${selectedDevice.udid}` : ""}
                 </Button>
                 <Button
                   size="sm"
-                  onClick={() => setAiChatOpen(true)}
+                  onClick={() => { setCreateNewThread(false); setAiChatOpen(true); }}
                   className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white border-0 shadow-md hover:shadow-lg transition-all"
                 >
                   <MessageSquare className="mr-2 h-4 w-4" />
@@ -717,10 +720,10 @@ ${selectedDevice ? `**Device UDID**: ${selectedDevice.udid}` : ""}
                     initialPrompt={aiChatInitialPrompt}
                     onClose={() => {
                       setAiChatOpen(false);
-                      setAiChatKey(0);
+                      setCreateNewThread(false);
                       setAiChatInitialPrompt("");
                     }}
-                    createNewThread={aiChatKey > 0}
+                    createNewThread={createNewThread}
                     reconnectOnMount={true}
                     fetchHistoryOnMount={true}
                     onTestCreated={() => {
@@ -755,12 +758,14 @@ ${selectedDevice ? `**Device UDID**: ${selectedDevice.udid}` : ""}
                 }}
                 onGenerateTest={() => {
                   setShowSubFunctionSidebar(false);
+                  setCreateNewThread(false);
                   setAiChatOpen(true);
                   setAiChatInitialPrompt(`请为 Android 子功能生成测试: ${selectedSubFunctionId}`);
                 }}
                 onOpenAIChat={(prompt) => {
                   setAiChatInitialPrompt(prompt);
                   setAiChatKey(prev => prev + 1);
+                  setCreateNewThread(true);
                   setShowSubFunctionSidebar(false);
                   setAiChatOpen(true);
                 }}

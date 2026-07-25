@@ -903,6 +903,7 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
                     description={(interrupt.value as any).description}
                     existing_function={(interrupt.value as any).existing_function}
                     alternatives={(interrupt.value as any).alternatives}
+                    candidates={(interrupt.value as any).candidates}
                     onResume={resumeInterrupt}
                     isLoading={isResumingInterrupt}
                   />

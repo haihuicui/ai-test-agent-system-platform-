@@ -49,6 +49,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/providers/LanguageProvider";
 import { updateAPIEndpoint, deleteAPIEndpoint } from "@/lib/api/api-endpoints";
+import { buildSingleEndpointTestPrompt } from "@/lib/prompts/api-endpoint";
 
 interface APIEndpointSidebarProps {
   endpointId: string;
@@ -261,8 +262,10 @@ export function APIEndpointSidebar({
   const handleAIGenerate = () => {
     if (!endpoint) return;
 
-    // 简化的 prompt：只包含基本指令和关键参数
-    // 详细流程已在系统提示词中定义，agent 会自动获取接口详细信息
+    // 详细流程已在系统提示词中定义，agent 会自动获取接口详细信息。
+    // 这里展示接口名称、方法、路径等可读信息，避免对话记录只显示端点 ID。
+    const endpointInfo = buildSingleEndpointTestPrompt(endpoint, userRequirements);
+
     const prompt = `基于你的技能和工具完成如下任务：
 1. 获取接口详细信息
 2. 生成测试计划并保存
@@ -270,10 +273,10 @@ export function APIEndpointSidebar({
 4. 生成测试脚本并保存
 5. 保存测试成果到数据库
 
-端点 ID: ${endpointId}
-项目 ID: ${projectId}${userRequirements.trim() ? `
+${endpointInfo}
 
-用户要求: ${userRequirements.trim()}` : ""}`;
+端点 ID: ${endpointId}
+项目 ID: ${projectId}`;
 
     if (onOpenAIChat) {
       onOpenAIChat(prompt);

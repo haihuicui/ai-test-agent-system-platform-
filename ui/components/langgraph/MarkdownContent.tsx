@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
 import { cn } from "@/lib/utils";
 // NOTE  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2UkcwMmRnPT06YzJlNzI0NTg=
 
@@ -479,6 +480,20 @@ const markdownComponents = {
       />
     );
   },
+  details({ children }: { children?: React.ReactNode }) {
+    return (
+      <details className="my-3 rounded-lg border border-border bg-muted/30 p-3 open:bg-muted/50 transition-all duration-150 [&>summary]:cursor-pointer">
+        {children}
+      </details>
+    );
+  },
+  summary({ children }: { children?: React.ReactNode }) {
+    return (
+      <summary className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors select-none marker:text-primary/50">
+        {children}
+      </summary>
+    );
+  },
 };
 
 export const MarkdownContent = React.memo<MarkdownContentProps>(
@@ -502,7 +517,7 @@ export const MarkdownContent = React.memo<MarkdownContentProps>(
 
     return (
       <div className={containerClassName}>
-        <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={markdownComponents}>
           {content}
         </ReactMarkdown>
       </div>

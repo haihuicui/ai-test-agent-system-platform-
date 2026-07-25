@@ -265,7 +265,12 @@ export default function APITestsPage() {
   const [aiChatOpen, setAiChatOpen] = React.useState(false);
   const renderAIChat = useDelayedUnmount(aiChatOpen, 300);
   const [aiChatInitialPrompt, setAiChatInitialPrompt] = React.useState<string>("");
+  // aiChatKey 只增不减，仅在需要强制创建新对话时递增（如带 prompt 打开）。
+  // 关闭时不再重置为 0，避免 key 变化导致 AIChatContainer 在关闭动画期间
+  // 短暂重新挂载，进而干扰 nuqs URL 状态管理、丢失 threadId。
   const [aiChatKey, setAiChatKey] = React.useState<number>(0);
+  // 独立的"新建对话"标记。与 aiChatKey 解耦，关闭时重置为 false。
+  const [createNewThread, setCreateNewThread] = React.useState(false);
 
   // 使用 useMemo 稳定 assistant 对象，避免 testMode 切换触发额外重渲染
   const assistant = React.useMemo<Assistant | null>(() => {
@@ -419,6 +424,7 @@ export default function APITestsPage() {
 
     setAiChatInitialPrompt(prompt);
     setAiChatKey(prev => prev + 1);
+    setCreateNewThread(true);
     setShowEndpointSidebar(false);
     setAiChatOpen(true);
   };
@@ -674,7 +680,7 @@ export default function APITestsPage() {
                     </Button>
                     <Button
                       size="sm"
-                      onClick={() => setAiChatOpen(true)}
+                      onClick={() => { setCreateNewThread(false); setAiChatOpen(true); }}
                       className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white border-0 shadow-md hover:shadow-lg transition-all"
                     >
                       <MessageSquare className="mr-2 h-4 w-4" />
@@ -713,7 +719,7 @@ export default function APITestsPage() {
                     </div>
                     <Button
                       size="sm"
-                      onClick={() => setAiChatOpen(true)}
+                      onClick={() => { setCreateNewThread(false); setAiChatOpen(true); }}
                       className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white border-0 shadow-md hover:shadow-lg transition-all"
                     >
                       <MessageSquare className="mr-2 h-4 w-4" />
@@ -869,10 +875,10 @@ export default function APITestsPage() {
                     initialPrompt={aiChatInitialPrompt}
                     onClose={() => {
                       setAiChatOpen(false);
-                      setAiChatKey(0);
+                      setCreateNewThread(false);
                       setAiChatInitialPrompt("");
                     }}
-                    createNewThread={aiChatKey > 0}
+                    createNewThread={createNewThread}
                     reconnectOnMount={true}
                     fetchHistoryOnMount={true}
                     onTestCreated={() => {
@@ -919,6 +925,7 @@ export default function APITestsPage() {
                 onOpenAIChat={(prompt) => {
                   setAiChatInitialPrompt(prompt);
                   setAiChatKey(prev => prev + 1);
+                  setCreateNewThread(true);
                   setShowEndpointSidebar(false);
                   setAiChatOpen(true);
                 }}
@@ -958,6 +965,7 @@ export default function APITestsPage() {
                   // 打开 AI 助手
                   setAiChatInitialPrompt(prompt);
                   setAiChatKey(prev => prev + 1);
+                  setCreateNewThread(true);
                   setAiChatOpen(true);
                 }}
               />
@@ -1001,6 +1009,7 @@ export default function APITestsPage() {
           onOpenChat={(prompt) => {
             setAiChatInitialPrompt(prompt);
             setAiChatKey(prev => prev + 1);
+            setCreateNewThread(true);
             setAiGenerateDialogOpen(false);
             setAiChatOpen(true);
           }}
@@ -1023,6 +1032,7 @@ export default function APITestsPage() {
           onOpenChat={(prompt) => {
             setAiChatInitialPrompt(prompt);
             setAiChatKey(prev => prev + 1);
+            setCreateNewThread(true);
             setAiChatOpen(true);
           }}
         />

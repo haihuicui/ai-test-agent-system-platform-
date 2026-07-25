@@ -31,6 +31,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { listAPIEndpoints, APIEndpoint } from "@/lib/api/api-endpoints";
+import { buildScenarioGenerationPrompt } from "@/lib/prompts/api-endpoint";
 // NOTE  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2VTBKSWJRPT06ZjQ3MjE5MGY=
 
 type SchemaSource = "interfaces" | "url" | "file";
@@ -148,14 +149,14 @@ export function AIGenerateScenarioDialog({
       let chatPrompt = "";
 
       if (schemaSource === "interfaces") {
-        // 基于选中的接口生成场景
-        const ids = Array.from(selectedInterfaceIds).join(", ");
-        chatPrompt = `创建 API 场景测试
-
-接口 ID: ${ids}
-
-请基于这些接口分析业务关联性，使用场景测试技能（scenario）创建完整的测试场景。
-创建完成后必须执行场景测试，根据执行结果自动修复数据依赖、断言或请求参数，确保场景可正常运行。`;
+        // 基于选中的接口生成场景，使用接口名称/方法/路径替代原始 ID
+        const selectedEndpoints = interfaces.filter((intf) =>
+          selectedInterfaceIds.has(intf.id)
+        );
+        chatPrompt = buildScenarioGenerationPrompt(
+          selectedEndpoints,
+          customRequirements
+        );
       } else {
         // 基于 OpenAPI 文档生成场景
         chatPrompt = `从 OpenAPI 文档创建 API 场景测试
@@ -166,8 +167,8 @@ export function AIGenerateScenarioDialog({
 创建完成后必须执行场景测试，根据执行结果自动修复数据依赖、断言或请求参数，确保场景可正常运行。`;
       }
 
-      // 如果用户提供了自定义要求，添加到提示词中
-      if (customRequirements.trim()) {
+      // 如果用户提供了自定义要求，且尚未通过 buildScenarioGenerationPrompt 追加
+      if (schemaSource !== "interfaces" && customRequirements.trim()) {
         chatPrompt += `
 
 ---

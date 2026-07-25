@@ -1,7 +1,7 @@
 "use client";
 // NOTE  MC8zOmFIVnBZMlhsdEpUbXRiZm92b3FzUm1jZz09OjZhYjY1ZjQy
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -72,6 +72,13 @@ export function PhaseReviewInterrupt({
   }, [checklistItems]);
 
   const [checklist, setChecklist] = useState<Record<string, boolean>>(defaultChecklist);
+
+  // 当 actionRequest 变化（切换到不同阶段的评审）时，同步更新 checklist 状态。
+  // useState 只在 mount 时使用默认值，之后 defaultChecklist 变化不会自动同步，
+  // 会导致切换阶段后 checklist 仍保持上一阶段的勾选状态。
+  useEffect(() => {
+    setChecklist(defaultChecklist);
+  }, [defaultChecklist]);
 
   const phaseName = (actionRequest.args?.phase_name as string) || "阶段报告";
   const description =

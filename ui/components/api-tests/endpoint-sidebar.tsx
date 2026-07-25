@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { buildSingleEndpointTestPrompt } from "@/lib/prompts/api-endpoint";
 // eslint-disable  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2YjFadmFBPT06OGVjNjg4NTc=
 
 interface APIEndpointDetail {
@@ -85,17 +86,7 @@ export function APIEndpointSidebar({
   };
 
   const handleGenerateTest = () => {
-    const prompt = `请为接口 ${endpoint.display_name} 生成测试用例。
-
-接口信息：
-- 方法: ${endpoint.method}
-- 路径: ${endpoint.path}
-- 描述: ${endpoint.summary || endpoint.description || "无"}
-
-请生成：
-1. 完整的测试用例
-2. 测试脚本
-3. 包含正常场景、边界条件、异常处理`;
+    const prompt = buildSingleEndpointTestPrompt(endpoint);
 
     if (onGenerateTest) {
       onGenerateTest(endpoint.id, prompt);

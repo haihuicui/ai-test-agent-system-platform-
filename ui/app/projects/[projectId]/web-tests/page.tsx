@@ -172,7 +172,7 @@ export default function WebTestsPage() {
 
   // 分页和筛选
   const [page, setPage] = React.useState(1);
-  const [pageSize, setPageSize] = React.useState(20);
+  const [pageSize, setPageSize] = React.useState(7);
   const [total, setTotal] = React.useState(0);
   const [searchQuery, setSearchQuery] = React.useState("");
   const [formatFilter, setFormatFilter] = React.useState("");
@@ -203,6 +203,7 @@ export default function WebTestsPage() {
   const renderAIChat = useDelayedUnmount(aiChatOpen, 300);
   const [aiChatInitialPrompt, setAiChatInitialPrompt] = React.useState<string>("");
   const [aiChatKey, setAiChatKey] = React.useState<number>(0);
+  const [createNewThread, setCreateNewThread] = React.useState(false);
 
   // 登录态管理
   const [defaultEnv, setDefaultEnv] = React.useState<EnvironmentInfo | null>(null);
@@ -547,6 +548,7 @@ export default function WebTestsPage() {
 
     setAiChatInitialPrompt(prompt);
     setAiChatKey(prev => prev + 1);
+    setCreateNewThread(true);
     setShowSubFunctionSidebar(false);
     setAiChatOpen(true);
   };
@@ -625,6 +627,7 @@ export default function WebTestsPage() {
   const handleAIGenerate = (prompt: string) => {
     setAiChatInitialPrompt(prompt);
     setAiChatKey(prev => prev + 1);
+    setCreateNewThread(true);
     setAiChatOpen(true);
   };
 
@@ -808,7 +811,7 @@ export default function WebTestsPage() {
                 </Button>
                 <Button
                   size="sm"
-                  onClick={() => setAiChatOpen(true)}
+                  onClick={() => { setCreateNewThread(false); setAiChatOpen(true); }}
                   className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white border-0 shadow-md hover:shadow-lg transition-all"
                 >
                   <MessageSquare className="mr-2 h-4 w-4" />
@@ -854,8 +857,8 @@ export default function WebTestsPage() {
 
             {/* 模式内容区域 */}
             <div className="flex-1 overflow-hidden relative flex flex-col">
-              {/* Web函数列表 - 让内容决定高度 */}
-              <div className="overflow-y-auto">
+              {/* Web函数列表 - 约束高度，确保分页条始终可见 */}
+              <div className="flex flex-col min-h-0 overflow-hidden border-b" style={{ flex: "0 0 auto", maxHeight: "45%" }}>
                 <WebFunctionList
                   webFunctions={webFunctions}
                   loading={loading}
@@ -1026,10 +1029,10 @@ export default function WebTestsPage() {
                     initialPrompt={aiChatInitialPrompt}
                     onClose={() => {
                       setAiChatOpen(false);
-                      setAiChatKey(0);
+                      setCreateNewThread(false);
                       setAiChatInitialPrompt("");
                     }}
-                    createNewThread={aiChatKey > 0}
+                    createNewThread={createNewThread}
                     reconnectOnMount={true}
                     fetchHistoryOnMount={true}
                     onTestCreated={() => {
@@ -1066,12 +1069,14 @@ export default function WebTestsPage() {
                 }}
                 onGenerateTest={() => {
                   setShowSubFunctionSidebar(false);
+                  setCreateNewThread(false);
                   setAiChatOpen(true);
                   setAiChatInitialPrompt(t("webTests.generateTestsForFunction", { id: selectedSubFunctionId }));
                 }}
                 onOpenAIChat={(prompt) => {
                   setAiChatInitialPrompt(prompt);
                   setAiChatKey(prev => prev + 1);
+                  setCreateNewThread(true);
                   setShowSubFunctionSidebar(false);
                   setAiChatOpen(true);
                 }}

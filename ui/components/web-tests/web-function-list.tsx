@@ -306,7 +306,7 @@ export function WebFunctionList({
       )}
 
       {/* 列表 */}
-      <ScrollArea className="min-h-0">
+      <ScrollArea className="flex-1 min-h-0">
         {loading ? (
           <div className="flex h-64 items-center justify-center">
             <div className="text-muted-foreground">加载中...</div>

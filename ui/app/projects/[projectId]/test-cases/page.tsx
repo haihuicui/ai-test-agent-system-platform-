@@ -333,6 +333,7 @@ export default function TestCasesPage() {
   const renderAIChat = useDelayedUnmount(aiChatOpen, 300);
   const [aiChatInitialPrompt, setAiChatInitialPrompt] = React.useState<string>("");
   const [aiChatKey, setAiChatKey] = React.useState<number>(0);
+  const [createNewThread, setCreateNewThread] = React.useState(false);
   const [assistant, setAssistant] = React.useState<Assistant | null>(null);
 
   // 初始化 Assistant
@@ -384,6 +385,7 @@ export default function TestCasesPage() {
     // 设置初始提示词并更新 key 以创建新对话
     setAiChatInitialPrompt(prompt);
     setAiChatKey(prev => prev + 1); // 更新 key 强制重新挂载，创建新对话
+    setCreateNewThread(true);
 
     setAiChatOpen(true);
     // 关闭生成对话框
@@ -579,7 +581,7 @@ export default function TestCasesPage() {
               onQuickCreateTestCase={handleQuickCreateTestCase}
               onAIGenerate={() => setAiGenerateDialogOpen(true)}
               onAIGenerateFromDocument={() => setAiGenerateFromDocDialogOpen(true)}
-              onOpenAIChat={() => setAiChatOpen(true)}
+              onOpenAIChat={() => { setCreateNewThread(false); setAiChatOpen(true); }}
               aiChatOpen={aiChatOpen}
               folderName={selectedFolderName}
               pagination={{
@@ -621,10 +623,10 @@ export default function TestCasesPage() {
                   initialPrompt={aiChatInitialPrompt}
                   onClose={() => {
                     setAiChatOpen(false);
-                    setAiChatKey(0);
+                    setCreateNewThread(false);
                     setAiChatInitialPrompt("");
                   }}
-                  createNewThread={aiChatKey > 0}
+                  createNewThread={createNewThread}
                   reconnectOnMount={true}
                   fetchHistoryOnMount={true}
                   onTestCaseCreated={() => {
