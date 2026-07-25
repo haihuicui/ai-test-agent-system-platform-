@@ -167,23 +167,28 @@ def _dump_messages(messages: list[Any], label: str, exc: Exception | None = None
 
 
 class ToolCallAdjacencyMiddleware(AgentMiddleware):
-    """确保 assistant tool_calls 与 tool 响应在发送给模型前严格相邻。"""
+    """确保 assistant tool_calls 与 tool 响应在发送给模型前严格相邻。
+
+    abefore_model 增加轻量级 hash 跳过，避免 O(n) 深拷贝在无变化时的反复执行。
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._last_fixed_hash: int | None = None
 
     async def abefore_agent(
         self,
         state: AgentState,
         runtime: Runtime[Any],
     ) -> dict[str, Any] | None:
-        """在 agent 启动前也修复一次 state，避免无效历史被 checkpoint 持久化。"""
+        """在 agent 启动前修复一次 state，避免无效历史被 checkpoint 持久化。"""
         messages = state.get("messages") or []
         patched = _ensure_tool_call_adjacency(messages)
         if patched is messages:
             return None
         logger.info(
-            "abefore_agent: repaired messages (%d -> %d):\n%s",
-            len(messages),
-            len(patched),
-            _summarize_messages(patched),
+            "abefore_agent: repaired messages (%d -> %d)",
+            len(messages), len(patched),
         )
         return {"messages": Overwrite(value=patched)}
 
@@ -192,17 +197,32 @@ class ToolCallAdjacencyMiddleware(AgentMiddleware):
         state: AgentState,
         runtime: Runtime[Any],
     ) -> dict[str, Any] | None:
-        """在每个 model node 执行前再修复一次，确保其它 middleware 改动后仍合法。"""
+        """在 model node 执行前修复一次 tool-call 邻接。"""
         messages = state.get("messages") or []
+
+        # 轻量 hash 跳过：只看最近 20 条消息的 (id, type) 对，
+        # 它们没有变化则说明不需要修复（修复只依赖 ID 关系，不依赖内容）。
+        recent = messages[-20:]
+        msg_hash = hash(tuple(
+            (getattr(m, "id", None), getattr(m, "type", None))
+            for m in recent
+        ))
+        if msg_hash == self._last_fixed_hash:
+            return None
+
         patched = _ensure_tool_call_adjacency(messages)
         if patched is messages:
+            self._last_fixed_hash = msg_hash
             return None
+
         logger.info(
-            "abefore_model: repaired messages (%d -> %d):\n%s",
-            len(messages),
-            len(patched),
-            _summarize_messages(patched),
+            "abefore_model: repaired messages (%d -> %d)",
+            len(messages), len(patched),
         )
+        self._last_fixed_hash = hash(tuple(
+            (getattr(m, "id", None), getattr(m, "type", None))
+            for m in patched[-20:]
+        ))
         return {"messages": Overwrite(value=patched)}
 
     async def awrap_model_call(
@@ -210,28 +230,20 @@ class ToolCallAdjacencyMiddleware(AgentMiddleware):
         request: ModelRequest,
         handler: Callable[[ModelRequest], Any],
     ) -> Any:
-        original = list(request.messages or [])
-        patched_messages = _ensure_tool_call_adjacency(original)
-        if patched_messages is not original:
-            request = request.override(messages=patched_messages)
-            logger.info(
-                "awrap_model_call: repaired messages (%d -> %d):\n%s",
-                len(original),
-                len(patched_messages),
-                _summarize_messages(patched_messages),
-            )
-
-        validation_error = _validate_adjacency(patched_messages)
+        """最终验证 + 兜底修复（abefore_model 理论上已修复，此处仅验证）。"""
+        messages = request.messages or []
+        validation_error = _validate_adjacency(messages)
         if validation_error:
-            path = _dump_messages(patched_messages, "awrap_model_call_invalid")
-            logger.error(
-                "awrap_model_call: adjacency still invalid after repair: %s\n"
-                "input:\n%s\noutput:\n%s\ndump: %s",
-                validation_error,
-                _summarize_messages(original),
-                _summarize_messages(patched_messages),
-                path,
+            path = _dump_messages(messages, "awrap_model_call_invalid")
+            logger.warning(
+                "awrap_model_call: adjacency invalid (abefore_model missed): %s\n"
+                "dump: %s",
+                validation_error, path,
             )
+            # 兜底修复
+            patched = _ensure_tool_call_adjacency(messages)
+            request = request.override(messages=patched)
+
         return await handler(request)
 
 

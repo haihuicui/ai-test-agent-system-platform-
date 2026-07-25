@@ -2,6 +2,9 @@
 
 在 API Agent 完成测试脚本/场景生成后，将开放文字的反问改造为结构化 interrupt，
 由前端渲染一键选择面板；用户选择后注入带决策的 HumanMessage 并继续工作流。
+
+风险评估：根据执行上下文（模式、端点数、操作类型）评估风险等级（LOW/MEDIUM/HIGH），
+附加到 interrupt payload 中供前端差异化展示。
 """
 
 from __future__ import annotations
@@ -13,6 +16,8 @@ from typing import Any
 from langchain.agents.middleware import AgentMiddleware, hook_config
 from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.types import interrupt
+
+from app.agents.api.execution_risk import evaluate_risk, extract_risk_context
 
 
 _EXECUTION_INVITATION_MARKER_RE = re.compile(
@@ -140,6 +145,12 @@ class APIExecutionInvitationMiddleware(AgentMiddleware):
         payload = _parse_execution_invitation(content)
         if not payload:
             return None
+
+        # 附加风险评估（LOW/MEDIUM/HIGH），供前端差异化展示
+        risk_ctx = extract_risk_context(payload)
+        risk_level, risk_reason = evaluate_risk(risk_ctx)
+        payload["risk_level"] = risk_level.value
+        payload["risk_reason"] = risk_reason
 
         after_ai = messages[messages.index(last_ai) + 1 :]
         if any(
