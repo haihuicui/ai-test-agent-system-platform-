@@ -96,11 +96,24 @@ const getStatusIcon = (status: TodoItem["status"], className?: string) => {
 };
 // FIXME  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2Tm5obVRnPT06Njg2NGJhMDY=
 
+/** 各 Agent 支持的能力开关。key 对应 langgraph.json 中的 graph ID。 */
+const AGENT_CAPABILITIES: Record<string, { rag: boolean; autoApprove: boolean; autoExecute: boolean }> = {
+  testcase_generator_agent: { rag: true, autoApprove: true, autoExecute: false },
+  api_agent:              { rag: false, autoApprove: false, autoExecute: true },
+  web_agent:              { rag: false, autoApprove: false, autoExecute: false },
+  security_agent:         { rag: false, autoApprove: false, autoExecute: false },
+};
+
 export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initialPrompt, onArtifactSaved }) => {
   const { t } = useLanguage();
+  const capabilities = AGENT_CAPABILITIES[assistant?.assistant_id ?? ""] ?? { rag: false, autoApprove: false, autoExecute: false };
   const [metaOpen, setMetaOpen] = useState<"tasks" | "files" | null>(null);
   const tasksContainerRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  // processedMessages 结构签名缓存：流式过程中消息 ID/类型/tool_call 结构不变时
+  // 跳过全量 O(n) 重建，直接将 useMemo 从每 token 一次降为仅结构变化时触发。
+  type ProcessedMessage = { message: Message; toolCalls: ToolCall[]; showAvatar: boolean };
+  const processedMessagesCacheRef = useRef<{ sig: string; results: ProcessedMessage[] } | null>(null);
 
   const [input, setInput] = useState("");
   const [enableRag, setEnableRag] = useState(true);
@@ -114,6 +127,10 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
     const raw = window.localStorage.getItem("chat_auto_approve_threshold");
     const num = raw ? parseInt(raw, 10) : 80;
     return Number.isNaN(num) ? 80 : Math.max(0, Math.min(100, num));
+  });
+  const [autoExecuteEnabled, setAutoExecuteEnabled] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("chat_auto_execute_enabled") === "true";
   });
   const [exportingFormat, setExportingFormat] = useState<ExportFormat | null>(null);
   const {
@@ -158,15 +175,16 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
     historyPages,
   } = useChatContext();
 
-  // 保持 sendMessage 的最新引用，并自动带上当前 RAG / 自动审批设置
+  // 保持 sendMessage 的最新引用，并自动带上当前 RAG / 自动审批 / 自动执行设置
   React.useEffect(() => {
     sendMessageRef.current = (content: string) => {
       sendMessage(content, [], {
         enable_rag: enableRag,
         auto_approve_threshold: autoApproveEnabled ? autoApproveThreshold : 100,
+        auto_execute_enabled: autoExecuteEnabled,
       });
     };
-  }, [sendMessage, enableRag, autoApproveEnabled, autoApproveThreshold]);
+  }, [sendMessage, enableRag, autoApproveEnabled, autoApproveThreshold, autoExecuteEnabled]);
 
   // 组件挂载/卸载标记
   React.useEffect(() => {
@@ -190,6 +208,11 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
     window.localStorage.setItem("chat_auto_approve_threshold", String(autoApproveThreshold));
   }, [autoApproveThreshold]);
 
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem("chat_auto_execute_enabled", String(autoExecuteEnabled));
+  }, [autoExecuteEnabled]);
+
   const submitDisabled = isLoading || !assistant;
 
   const handleSubmit = useCallback(
@@ -207,6 +230,7 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
       sendMessage(messageText, contentBlocks, {
         enable_rag: enableRag,
         auto_approve_threshold: autoApproveEnabled ? autoApproveThreshold : 100,
+        auto_execute_enabled: autoExecuteEnabled,
       });
       setInput("");
       resetBlocks();
@@ -383,6 +407,46 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
   }, [ui]);
 
   const processedMessages = useMemo(() => {
+    // 轻量级结构签名：基于消息 ID / 类型 / tool_call ID / interrupt 状态。
+    // 流式过程中消息内容增长但结构不变时跳过 O(n) 全量重建，
+    // 然后通过 _refreshFromLatest 将缓存的 message 引用替换为最新 messages
+    // 数组中的对象，确保流式渲染展示最新内容。
+    const sigParts: string[] = [`n=${messages.length}`, `int=${!!interrupt}`];
+    for (const m of messages) {
+      sigParts.push(`${m.type ?? "?"}:${m.id ?? "?"}`);
+      if (m.type === "ai") {
+        const tcs: any[] =
+          (m.additional_kwargs?.tool_calls as any) ||
+          (m.tool_calls as any) ||
+          [];
+        for (const tc of tcs) {
+          if (tc.id) sigParts.push(`tc:${tc.id}`);
+        }
+      } else if (m.type === "tool") {
+        if ((m as any).tool_call_id) sigParts.push(`tci:${(m as any).tool_call_id}`);
+      }
+    }
+    const sig = sigParts.join("|");
+
+    const cached = processedMessagesCacheRef.current;
+    if (cached && cached.sig === sig) {
+      // 缓存命中——结构没变，但流式过程中 message 对象引用可能已更新
+      // （SDK 在每个 token 上创建新对象）。用 messages 中的最新引用替换
+      // 缓存条目里的旧引用，保证渲染时拿到最新内容。
+      const idToMessage = new Map<string, Message>();
+      for (const m of messages) {
+        if (m.id) idToMessage.set(m.id, m);
+      }
+      for (const item of cached.results) {
+        if (item.message.id) {
+          const latest = idToMessage.get(item.message.id);
+          if (latest) item.message = latest;
+        }
+      }
+      return cached.results;
+    }
+
+    // ── 全量重建（仅在结构变化时进入） ──
     const messageMap = new Map<
       string,
       { message: Message; toolCalls: ToolCall[] }
@@ -455,12 +519,11 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
           message,
           toolCalls: toolCallsWithStatus,
         });
-        // 记录每个 tool call 归属的消息，供 tool 结果 O(1) 配对
         for (const tc of toolCallsWithStatus) {
           toolCallOwner.set(tc.id, message.id!);
         }
       } else if (message.type === "tool") {
-        const toolCallId = message.tool_call_id;
+        const toolCallId = (message as any).tool_call_id;
         if (!toolCallId) {
           return;
         }
@@ -493,13 +556,16 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
     });
 
     const processedArray = Array.from(messageMap.values());
-    return processedArray.map((data, index) => {
+    const results = processedArray.map((data, index) => {
       const prevMessage = index > 0 ? processedArray[index - 1].message : null;
       return {
         ...data,
         showAvatar: data.message.type !== prevMessage?.type,
       };
     });
+
+    processedMessagesCacheRef.current = { sig, results };
+    return results;
   }, [messages, interrupt]);
 
   const generatedTestCaseIds = useMemo(() => {
@@ -656,8 +722,39 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
     return (interrupt?.value as any)?.type === "execution_invitation";
   }, [interrupt]);
 
+  // 自动执行：LOW 风险 + 开关开启 → 跳过确认面板直接执行
+  const autoResumeTriggeredRef = useRef(false);
+  useEffect(() => {
+    if (!isExecutionInvitationInterrupt || !interrupt || isResumingInterrupt || !autoExecuteEnabled) return;
+    const riskLevel = (interrupt.value as any)?.risk_level;
+    if (riskLevel === "low") {
+      // 防止 React 严格模式下重复触发
+      if (autoResumeTriggeredRef.current) return;
+      autoResumeTriggeredRef.current = true;
+      resumeInterrupt({ decision: "execute" });
+    }
+  }, [isExecutionInvitationInterrupt, interrupt, isResumingInterrupt, autoExecuteEnabled, resumeInterrupt]);
+
+  // 中断清除时重置标记
+  useEffect(() => {
+    if (!interrupt) autoResumeTriggeredRef.current = false;
+  }, [interrupt]);
+
   // 从历史消息中提取评审轮次元数据
+  // reviewRounds 签名缓存：流式过程中 human 消息不变，review_round 元数据也不变。
+  const reviewRoundsCacheRef = useRef<{ sig: string; rounds: any[] } | null>(null);
+
   const reviewRounds = useMemo(() => {
+    const sig = messages
+      .filter((m) => m.type === "human")
+      .map((m) => `${m.id}:${!!((m.additional_kwargs as any)?._review_round)}`)
+      .join(",");
+
+    const cached = reviewRoundsCacheRef.current;
+    if (cached && cached.sig === sig) {
+      return cached.rounds;
+    }
+
     const rounds: any[] = [];
     for (const msg of messages) {
       if (msg.type !== "human") continue;
@@ -673,6 +770,8 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
         });
       }
     }
+
+    reviewRoundsCacheRef.current = { sig, rounds };
     return rounds;
   }, [messages]);
 
@@ -820,6 +919,8 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
                     test_count={(interrupt.value as any).test_count}
                     description={(interrupt.value as any).description}
                     alternatives={(interrupt.value as any).alternatives}
+                    risk_level={(interrupt.value as any).risk_level}
+                    risk_reason={(interrupt.value as any).risk_reason}
                     onResume={resumeInterrupt}
                     isLoading={isResumingInterrupt}
                   />
@@ -850,9 +951,8 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
                     );
 
                     const totalTasks = todos.length;
-                    const remainingTasks =
-                      totalTasks - groupedTodos.pending.length;
-                    const isCompleted = totalTasks === remainingTasks;
+                    const completedCount = groupedTodos.completed.length;
+                    const isCompleted = totalTasks === completedCount;
 
                     const tasksTrigger = (() => {
                       if (!hasTasks) return null;
@@ -894,7 +994,7 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
                                   className="ml-[1px] min-w-0 truncate text-sm"
                                 >
                                   任务{" "}
-                                  {totalTasks - groupedTodos.pending.length} / {" "}
+                                  {completedCount} / {" "}
                                   {totalTasks}
                                 </span>,
                                 <span
@@ -916,7 +1016,7 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
                                 key="label"
                                 className="ml-[1px] min-w-0 truncate text-sm"
                               >
-                                任务 {totalTasks - groupedTodos.pending.length}{" "}
+                                任务 {completedCount}{" "}
                                 / {totalTasks}
                               </span>,
                             ];
@@ -1121,59 +1221,82 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
                   onChange={handleFileUpload}
                   className="hidden"
                 />
-                <div className="flex items-center gap-2">
-                  <Switch
-                    id="rag-switch"
-                    checked={enableRag}
-                    onCheckedChange={setEnableRag}
-                    disabled={isLoading}
-                  />
-                  <Label
-                    htmlFor="rag-switch"
-                    className="cursor-pointer text-sm text-muted-foreground"
-                  >
-                    开启 RAG
-                  </Label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Switch
-                    id="auto-approve-switch"
-                    checked={autoApproveEnabled}
-                    onCheckedChange={setAutoApproveEnabled}
-                    disabled={isLoading}
-                  />
-                  <Label
-                    htmlFor="auto-approve-switch"
-                    className="cursor-pointer text-sm text-muted-foreground"
-                  >
-                    自动审批
-                  </Label>
-                  {autoApproveEnabled && (
-                    <div className="flex items-center gap-1">
-                      <Input
-                        id="auto-approve-threshold"
-                        type="number"
-                        min={0}
-                        max={100}
-                        value={autoApproveThreshold}
-                        onChange={(e) => {
-                          const num = parseInt(e.target.value, 10);
-                          if (!Number.isNaN(num)) {
-                            setAutoApproveThreshold(Math.max(0, Math.min(100, num)));
-                          }
-                        }}
-                        disabled={isLoading}
-                        className="h-6 w-14 px-1 text-xs"
-                      />
-                      <Label
-                        htmlFor="auto-approve-threshold"
-                        className="cursor-pointer text-xs text-muted-foreground"
-                      >
-                        分
-                      </Label>
-                    </div>
-                  )}
-                </div>
+                {capabilities.rag && (
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      id="rag-switch"
+                      checked={enableRag}
+                      onCheckedChange={setEnableRag}
+                      disabled={isLoading}
+                    />
+                    <Label
+                      htmlFor="rag-switch"
+                      className="cursor-pointer text-sm text-muted-foreground"
+                    >
+                      开启 RAG
+                    </Label>
+                  </div>
+                )}
+                {capabilities.autoApprove && (
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      id="auto-approve-switch"
+                      checked={autoApproveEnabled}
+                      onCheckedChange={setAutoApproveEnabled}
+                      disabled={isLoading}
+                    />
+                    <Label
+                      htmlFor="auto-approve-switch"
+                      className="cursor-pointer text-sm text-muted-foreground"
+                    >
+                      自动审批
+                    </Label>
+                    {autoApproveEnabled && (
+                      <div className="flex items-center gap-1">
+                        <Input
+                          id="auto-approve-threshold"
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={autoApproveThreshold}
+                          onChange={(e) => {
+                            const num = parseInt(e.target.value, 10);
+                            if (!Number.isNaN(num)) {
+                              setAutoApproveThreshold(Math.max(0, Math.min(100, num)));
+                            }
+                          }}
+                          disabled={isLoading}
+                          className="h-6 w-14 px-1 text-xs"
+                        />
+                        <Label
+                          htmlFor="auto-approve-threshold"
+                          className="cursor-pointer text-xs text-muted-foreground"
+                        >
+                          分
+                        </Label>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {capabilities.autoExecute && (
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      id="auto-execute-switch"
+                      checked={autoExecuteEnabled}
+                      onCheckedChange={setAutoExecuteEnabled}
+                      disabled={isLoading}
+                    />
+                    <Label
+                      htmlFor="auto-execute-switch"
+                      className="cursor-pointer text-sm text-muted-foreground"
+                    >
+                      自动执行
+                    </Label>
+                    <span className="text-xs text-muted-foreground">
+                      (纯查询)
+                    </span>
+                  </div>
+                )}
               </div>
               <div className="flex justify-end gap-2">
                 <Button

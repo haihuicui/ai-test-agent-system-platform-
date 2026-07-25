@@ -67,7 +67,13 @@ function areUiEntriesEqual(prevUi?: any[], nextUi?: any[]) {
   return prevUi.every((entry, index) => entry === nextUi[index]);
 }
 
-function MessageFileDownloads({ content }: { content: string }) {
+function MessageFileDownloads({
+  content,
+}: {
+  content: string;
+  messageType?: string;
+  isStreaming?: boolean;
+}) {
   const paths = useMemo(() => {
     const matches = content.match(/\/[^\s]+\.xlsx/gi) ?? [];
     return Array.from(new Set(matches));
@@ -207,7 +213,13 @@ export const ChatMessage = React.memo<ChatMessageProps>(
                   )}
                 >
                   <MarkdownContent content={messageContent} streaming={isStreaming} />
-                  {!isStreaming && <MessageFileDownloads content={messageContent} />}
+                  {!isStreaming && (
+                    <MessageFileDownloads
+                      content={messageContent}
+                      messageType={message.type}
+                      isStreaming={isStreaming}
+                    />
+                  )}
                 </div>
               )}
             </div>
@@ -281,7 +293,11 @@ export const ChatMessage = React.memo<ChatMessageProps>(
     );
   },
   (prevProps, nextProps) => {
-    const isSameMessage = prevProps.message === nextProps.message;
+    const isSameMessage =
+      prevProps.message === nextProps.message &&
+      (!nextProps.isStreaming ||
+        extractStringFromMessageContent(prevProps.message) ===
+          extractStringFromMessageContent(nextProps.message));
     const isSameToolCalls = areToolCallsEqual(
       prevProps.toolCalls,
       nextProps.toolCalls
