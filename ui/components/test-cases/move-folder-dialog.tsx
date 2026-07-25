@@ -273,9 +273,11 @@ export function MoveFolderDialog({
             {isCurrentFolder && " (当前)"}
           </span>
 
-          {/* 统计数字 */}
+          {/* 统计数字 - 根据文件夹类型显示对应的计数 */}
           <span className="text-xs text-muted-foreground ml-2 shrink-0">
-            {node.direct_cases_count}({node.cases_count})
+            {node.folder_type === "web_test"
+              ? `${node.web_functions?.length || 0}(${node.total_sub_functions || 0})`
+              : `${node.direct_cases_count}(${node.cases_count})`}
           </span>
         </div>
 
