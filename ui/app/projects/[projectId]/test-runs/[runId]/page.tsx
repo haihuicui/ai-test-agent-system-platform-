@@ -734,7 +734,7 @@ export default function TestRunDetailPage() {
               <div className="text-sm text-muted-foreground">未测/进行中</div>
               <div className="mt-1 flex items-center gap-2 text-2xl font-bold text-amber-600">
                 <Clock className="h-5 w-5" />
-                {p.untested + p.in_progress}
+                {p.untested + p.in_progress + p.skipped + p.blocked + p.retest}
               </div>
             </div>
           </div>
