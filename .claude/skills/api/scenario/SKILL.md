@@ -704,11 +704,23 @@ const result = await tools.execute_scenario({
 - [ ] 是否已在该步骤中提取资源 ID？
 - [ ] 是否已调用 `add_teardown_step` 添加对应的清理步骤（如 DELETE）？
 
-## 生成后自动验证与修复
+## 生成后：执行邀约 → 验证与修复
 
-**场景生成不是终点，必须通过执行验证其正确性。**
+**场景生成不是终点，必须通过执行验证其正确性。但绝对不能跳过执行邀约。**
 
-完成场景编排后，必须立即执行场景测试，并根据执行结果进行修复：
+### 步骤 0：执行邀约（强制门禁）
+
+完成场景编排（步骤+提取器+断言+teardown）后，**必须在消息末尾输出执行邀约标记**，等待用户在面板中选择「立即执行」后才能调用 `execute_scenario`：
+
+```
+<EXECUTION_INVITATION>
+{"type":"execution_invitation","mode":"scenario","scenario_id":"<场景ID>","script_name":"<场景名称>","test_count":<步骤数>,"has_write_ops":true,"has_delete_ops":false,"endpoint_count":<端点数>,"description":"场景编排完成（含 N 个步骤、提取器、断言和 teardown）。是否立即执行？","alternatives":[{"key":"execute","label":"立即执行"},{"key":"skip","label":"暂不执行"},{"key":"edit","label":"修改场景"},{"key":"other","label":"其他"}]}
+</EXECUTION_INVITATION>
+```
+
+**严禁在收到 `[执行邀约]` 开头的用户消息前调用 `execute_scenario`。**
+
+### 步骤 1：用户确认后执行
 
 ```javascript
 // 1. 执行场景（开启 debug 获取详细信息）
@@ -786,7 +798,7 @@ if (result.data.status !== "completed" || result.data.failed_steps > 0) {
 
 ### 自动修复原则
 
-- **必须执行**：场景创建完成后必须调用 `execute_scenario`，不能跳过。
+- **必须邀约**：场景创建完成后必须先发出执行邀约，收到用户确认后才能调用 `execute_scenario`。
 - **开启 debug**：执行时使用 `debug: true`，获取请求/响应详情用于定位问题。
 - **有限重试**：修复后最多再执行 3 次，避免无限循环。
 - **不放宽核心断言**：
