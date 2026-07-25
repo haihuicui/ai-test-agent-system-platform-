@@ -190,6 +190,64 @@ execute_web_script(
 - <80%:  ❌ 多项失败，建议修复后重新验证
 ```
 
+#### Step 3.2b: 历史趋势对比（可选，当有历史数据时执行）
+
+> 此步骤提升报告的诊断价值：通过对比上次执行结果，自动发现回归、劣化或修复进展。
+
+**数据来源**：
+- 当前执行结果：来自 `execute_web_script` 返回的 `execution_result`
+- 历史执行记录：调用 `get_web_sub_function_artifacts(sub_function_id=..., artifact_type="WEB_TEST_REPORT")`，检查最近一次报告的 description（JSON 格式）或从 `sub_function` 的 `last_run_status` / `total_test_runs` 推断
+
+**对比逻辑**：
+
+```
+1. 如果 total_test_runs <= 1 → 本次为首测，在报告中注明：
+   > 📌 本次为该子功能首次执行，无历史数据可对比。
+
+2. 如果 total_test_runs > 1 → 尝试获取上次执行结果：
+   a. 从 get_web_sub_function_artifacts 的 WEB_TEST_REPORT 列表中取最近 2 条
+   b. 读取最近一条非当前 run 的报告 attachment description（JSON 格式）
+   c. 提取上次的 passed / failed / total / duration_sec
+
+3. 对比并生成趋势表格（追加到 Markdown 摘要的"结论"之前）：
+```
+
+**趋势对比模板**：
+
+```markdown
+## 📈 趋势对比（vs. 上次执行）
+
+| 指标 | 本次 | 上次 | 变化 |
+|------|------|------|------|
+| 通过率 | {current_pct}% | {last_pct}% | {delta} |
+| 通过用例 | {current_passed}/{current_total} | {last_passed}/{last_total} | {direction} |
+| 失败用例 | {current_failed} | {last_failed} | {direction} |
+| 执行时长 | {current_duration}s | {last_duration}s | {delta} |
+
+{如果通过率下降：}
+### ⚠️ 疑似回归用例
+{列出本次失败但上次通过的用例标题，这些是需要优先关注的回归问题：}
+- **{case.title}**：{case.error}
+
+{如果通过率上升：}
+### ✅ 修复验证通过
+{列出上次失败但本次通过的用例：}
+- **{case.title}**：已修复 ✓
+
+{如果通过率持平：}
+### ➡️ 状态持平
+本次结果与上次持平。
+
+{如果有新用例（上次total != 本次total）：}
+### 🆕 新增用例
+本次新增 {delta} 个用例，需在新用例积累历史数据后方可评估稳定性。
+```
+
+**简化实现**：
+- 如果无法获取上次执行的详细数据（如 description 不是 JSON 格式），仅用 `last_run_status` 做简单对比：
+  > 📊 上次执行状态：{last_run_status}，本次：{current_status}
+- 不要因为获取历史数据失败而中断主流程——趋势对比是增值功能，不是必须功能
+
 #### Step 3.3: 输出报告
 
 - **必须**将上述 Markdown 报告完整输出给用户（不作为思考过程，而作为最终交付物）
