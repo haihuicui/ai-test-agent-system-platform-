@@ -807,13 +807,17 @@ class APITestExecutor:
                         logger.info("[APITestExecutor DEBUG] status updated to %s", run_record.status)
 
                 finally:
-                    # 清理临时脚本文件
-                    if script_file.exists():
-                        try:
-                            script_file.unlink()
-                            logger.info("[APITestExecutor] 已清理临时脚本: %s", script_file)
-                        except Exception as e:
-                            logger.warning("[APITestExecutor] 清理临时脚本失败: %s", e)
+                    # 清理临时脚本文件和 JSON 结果文件
+                    for _f in (script_file, result.get("json_results_file")):
+                        if _f is None:
+                            continue
+                        _path = Path(_f) if isinstance(_f, str) else _f
+                        if _path.exists():
+                            try:
+                                _path.unlink()
+                                logger.info("[APITestExecutor] 已清理临时文件: %s", _path)
+                            except Exception as e:
+                                logger.warning("[APITestExecutor] 清理临时文件失败: %s", e)
 
             except Exception as e:
                 logger.exception("[APITestExecutor DEBUG] exception in _execute_in_background: %s", e)
@@ -930,13 +934,73 @@ class APITestExecutor:
             # 计算相对路径
             relative_path = script_path.relative_to(workspace_dir)
 
-            # 运行 Playwright 测试：同时输出 list reporter 到 stdout 并生成 HTML 报告
-            stdout, stderr, returncode = await _run_subprocess_with_fallback(
-                [*npx_cmd, "playwright", "test", relative_path.as_posix(), "--reporter=list,html"],
-                cwd=str(workspace_dir),
-                env=env,
-                timeout=execution_config.get("timeout", 300),
-            )
+            # 运行 Playwright 测试：JSON reporter 输出到文件（防 console.log 污染），HTML reporter 到目录
+            json_results_file = workspace_dir / f"playwright-results-{run_id}.json"
+
+            # 尝试 asyncio 子进程；Windows SelectorEventLoop 不支持则降级到线程池同步执行
+            returncode: int = -1
+            stderr: str = ""
+            try:
+                json_fp = open(json_results_file, "wb")
+                try:
+                    proc = await asyncio.create_subprocess_exec(
+                        *npx_cmd, "playwright", "test", relative_path.as_posix(),
+                        "--reporter=json,html",
+                        cwd=str(workspace_dir),
+                        stdout=json_fp,
+                        stderr=asyncio.subprocess.PIPE,
+                        env=env,
+                    )
+                finally:
+                    json_fp.close()
+
+                try:
+                    _, stderr_bytes = await asyncio.wait_for(
+                        proc.communicate(),
+                        timeout=execution_config.get("timeout", 300),
+                    )
+                except asyncio.TimeoutError:
+                    if proc.returncode is None:
+                        try:
+                            proc.kill()
+                            await asyncio.wait_for(proc.wait(), timeout=5)
+                        except Exception:
+                            pass
+                    raise
+                stderr = stderr_bytes.decode("utf-8", errors="replace")
+                returncode = proc.returncode
+
+            except NotImplementedError:
+                # Windows SelectorEventLoop 不支持 asyncio 子进程，降级到线程池同步执行
+                logger.info("[APITestExecutor] 当前 EventLoop 不支持 asyncio 子进程，降级到同步 subprocess")
+                try:
+                    sync_result = await run_sync(
+                        subprocess.run,
+                        [*npx_cmd, "playwright", "test", relative_path.as_posix(),
+                         "--reporter=json,html"],
+                        cwd=str(workspace_dir),
+                        capture_output=True,
+                        text=True,
+                        encoding="utf-8",
+                        errors="replace",
+                        timeout=execution_config.get("timeout", 300),
+                        env=env,
+                    )
+                    # 同步模式：JSON 写入 stdout，从 stdout 读取结构化结果
+                    stdout = sync_result.stdout or ""
+                    stderr = sync_result.stderr or ""
+                    returncode = sync_result.returncode
+                    # 直接跳过文件读取路径，因为 JSON 已在 stdout 中
+                    json_results_file = None
+                except subprocess.TimeoutExpired:
+                    raise asyncio.TimeoutError
+
+            # 读取 JSON 结果文件（同步回退路径已直接从 stdout 读取，跳过此步）
+            if json_results_file is not None:
+                try:
+                    stdout = json_results_file.read_text(encoding="utf-8")
+                except Exception:
+                    stdout = ""
 
             report_path = str(report_dir) if report_dir.exists() else None
 
@@ -948,6 +1012,7 @@ class APITestExecutor:
                 "returncode": returncode,
                 "report_path": report_path,
                 "trace_file": str(trace_file),
+                "json_results_file": str(json_results_file),
             }
 # noqa  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2YW1wNk1BPT06ZWUzYTIzYTg=
 
@@ -992,7 +1057,7 @@ class APITestExecutor:
         """
         try:
             stdout = test_result.get("stdout", "")
-            parsed = self._parse_playwright_list_output(stdout)
+            parsed = self._parse_playwright_json_output(stdout)
 
             # 解析真实请求/响应 trace
             trace_file = test_result.get("trace_file")
@@ -1027,7 +1092,7 @@ class APITestExecutor:
                     status=pw_status,
                     trace_entries=matched_traces,
                     result_repo=result_repo,
-                    stdout=stdout,
+                    json_errors=item.get("error_messages") or [],
                 )
 
                 # 使用断言修正后的最终状态进行统计
@@ -1094,39 +1159,94 @@ class APITestExecutor:
         return matched
 
     @staticmethod
+    def _parse_playwright_json_output(stdout: str) -> List[Dict[str, str]]:
+        """
+        从 Playwright JSON reporter 输出中解析每个测试用例的状态、标题和错误信息。
+
+        JSON reporter 输出的结构化格式：
+        {
+          "suites": [
+            {"title": "...", "specs": [
+              {"title": "GET /api/users › should return list", "ok": true,
+               "tests": [{"status": "passed", "duration": 125,
+                          "errors": [{"message": "..."}]}]}
+            ]}
+          ]
+        }
+
+        相比 list reporter 的正则解析，JSON 输出格式稳定，不随
+        Playwright 版本/终端/语言环境变化，彻底消除版本耦合。
+        同时直接从 JSON 提取错误详情，不再依赖 stdout 文本解析。
+        """
+        results: List[Dict[str, str]] = []
+
+        try:
+            report = json.loads(stdout)
+        except (json.JSONDecodeError, TypeError):
+            logger.warning("[APITestExecutor] JSON reporter 输出解析失败，回退到空结果")
+            return results
+
+        status_map = {
+            "passed": "passed",
+            "failed": "failed",
+            "timedOut": "failed",
+            "interrupted": "failed",
+            "skipped": "skipped",
+        }
+
+        suites = report.get("suites") or []
+        for suite in suites:
+            for spec in suite.get("specs") or []:
+                title = spec.get("title", "").strip()
+                tests = spec.get("tests") or []
+                if not tests:
+                    continue
+
+                # 取最后一个 test 条目（重试场景下代表最终结果）
+                test = tests[-1]
+                raw_status = test.get("status", "failed")
+                status = status_map.get(raw_status, "failed")
+
+                # 从 JSON 结构中直接提取错误消息，替代旧的对 stdout
+                # 做正则解析的方案（_parse_error_assertions_from_stdout）
+                error_messages: List[str] = []
+                for err in test.get("errors") or []:
+                    msg = (err.get("message") or "").strip()
+                    if msg:
+                        error_messages.append(msg)
+
+                results.append({
+                    "status": status,
+                    "title": title,
+                    "error_messages": error_messages,
+                })
+
+        return results
+
+    @staticmethod
     def _parse_playwright_list_output(stdout: str) -> List[Dict[str, str]]:
         """
-        从 Playwright list reporter 输出中解析每个测试用例的状态和标题。
+        [已弃用] 从 Playwright list reporter 输出中解析测试用例状态。
 
-        示例行：
-          ✓  1 [chromium] > example.spec.ts:3:1 > GET /api/users (125ms)
-          ✗  2 [chromium] > example.spec.ts:4:1 > POST /api/users (234ms)
-          -  3 [chromium] > example.spec.ts:5:1 > PUT /api/users/1
+        该方法仅用于向后兼容（测试文件和未迁移的旧调用方）。
+        新代码请使用 _parse_playwright_json_output。
         """
         import re
 
         results: List[Dict[str, str]] = []
-        # 匹配行首状态符号、序号、可选项目信息、文件名位置、标题和可选耗时
-        # Playwright 在不同终端/系统下可能输出 ok/x 或 ✓/✗，
-        # 且分隔符可能是 Unicode '›' 或 ASCII '>'，这里同时兼容两者。
         pattern = re.compile(
             r"^\s*(ok|x|[✓✗\-+×])\s+\d+\s+(?:\[[^\]]+\]\s+)?[›>]\s+[^›>]+\s+[›>]\s+(.+?)(?:\s+\([\d.]+\s*(?:ms|s|m|h)\))?\s*$",
             re.MULTILINE,
         )
         status_map = {
-            "ok": "passed",
-            "✓": "passed",
-            "x": "failed",
-            "✗": "failed",
-            "×": "failed",
-            "-": "skipped",
-            "+": "skipped",
+            "ok": "passed", "✓": "passed",
+            "x": "failed", "✗": "failed", "×": "failed",
+            "-": "skipped", "+": "skipped",
         }
 
         for match in pattern.finditer(stdout):
             symbol = match.group(1)
             title = match.group(2).strip()
-            # trace helper 中使用 '›' 作为 titlePath 分隔符，统一格式便于后续匹配
             title = title.replace(">", "›")
             results.append({
                 "status": status_map.get(symbol, "failed"),
@@ -1144,7 +1264,7 @@ class APITestExecutor:
         trace_entries: List[Dict[str, Any]],
         *,
         result_repo: Optional[APITestResultRepository] = None,
-        stdout: str = "",
+        json_errors: Optional[List[str]] = None,
     ):
         """
         保存单个测试结果
@@ -1156,7 +1276,7 @@ class APITestExecutor:
             status: 测试状态
             trace_entries: 匹配到的真实请求/响应 trace 条目
             result_repo: 可选的结果仓储（后台任务使用新 session）
-            stdout: Playwright 完整 stdout 输出（用于解析失败用例的错误详情）
+            json_errors: Playwright JSON reporter 提取的错误消息列表
         """
         try:
             # 提取端点和 HTTP 方法（从测试名称中解析）
@@ -1164,7 +1284,7 @@ class APITestExecutor:
 
             # 从 trace 中聚合真实请求/响应/断言
             request_data, response_data, assertion_results, duration_ms = self._build_trace_summary(
-                trace_entries, status, stdout=stdout,
+                trace_entries, status, json_errors=json_errors,
             )
 
             # 根据断言结果修正用例整体状态：如果断言中有失败的，应覆盖为 FAILED
@@ -1251,7 +1371,7 @@ class APITestExecutor:
     def _build_trace_summary(
         trace_entries: List[Dict[str, Any]],
         status: TestResultStatus,
-        stdout: str = "",
+        json_errors: Optional[List[str]] = None,
     ) -> tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]], Optional[List[Dict[str, Any]]], Optional[int]]:
         """
         从 trace 条目中构建请求/响应/断言摘要。
@@ -1261,12 +1381,12 @@ class APITestExecutor:
           若都没有 body，则使用最后一条。
         - duration_ms 取所有条目 duration 的最大值（近似整个用例耗时）。
         - 断言结果包含：status 断言、body 字段/类型断言、业务码断言、
-          Playwright 错误详情解析。
+          Playwright 错误详情。
 
         Args:
             trace_entries: 匹配到的 trace 条目列表
             status: 测试最终状态
-            stdout: Playwright 完整 stdout 输出（用于解析失败用例的错误详情）
+            json_errors: Playwright JSON reporter 提取的错误消息列表
         """
         if not trace_entries:
             return None, None, None, None
@@ -1323,21 +1443,15 @@ class APITestExecutor:
         #  从 trace 响应 body 生成 body 字段/类型断言（补充 status-only 的信息缺失）
         APITestExecutor._append_body_structure_assertions(chosen, assertions)
 
-        # 对于失败用例，尝试从 stdout 中解析 Playwright 错误详情
-        if status == TestResultStatus.FAILED and stdout:
-            error_assertions = APITestExecutor._parse_error_assertions_from_stdout(
-                stdout, chosen.get("testTitle") or ""
-            )
-            if error_assertions:
-                # 用解析出的错误断言替换通用 "Playwright 测试执行失败"
-                assertions.extend(error_assertions)
-            else:
+        # 对于失败用例，从 JSON reporter 提取的错误消息中构建断言详情
+        if status == TestResultStatus.FAILED and json_errors:
+            for err_msg in json_errors:
                 assertions.append({
-                    "assertion": {"type": "test"},
+                    "assertion": {"type": "error"},
                     "passed": False,
-                    "actual": status.value,
-                    "expected": TestResultStatus.PASSED.value,
-                    "message": "Playwright 测试执行失败",
+                    "actual": err_msg[:500],
+                    "expected": "通过",
+                    "message": f"测试失败: {err_msg[:300]}",
                 })
         elif status == TestResultStatus.FAILED:
             assertions.append({

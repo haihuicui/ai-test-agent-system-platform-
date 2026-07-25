@@ -154,6 +154,78 @@ async def cleanup_stale_execution_state():
     except Exception as e:
         # 自洁失败不应阻塞应用启动
         logger.exception("[Startup Cleanup] 重置遗留执行状态时出错: %s", e)
+
+
+async def cleanup_stale_api_test_runs():
+    """
+    定时清理僵尸 API 测试运行和场景运行。
+
+    后台执行协程可能因服务重启、进程崩溃、EventLoop 异常等原因消失，
+    而数据库中的 APITestRun / ScenarioRun 记录仍停留在 'running'/'pending'。
+    这些僵尸记录会导致前端持续显示"执行中"，且用户无法重新触发执行。
+
+    本任务每 2 分钟运行一次，将超过 10 分钟仍处于进行中的记录标记为失败。
+    """
+    from datetime import datetime, timezone, timedelta
+    from app.models.api_test import APITestRun
+    from app.models.test_scenario import ScenarioRun
+    from app.repositories.api_test_repo import APITestRunRepository
+    from sqlalchemy import update
+
+    cutoff = datetime.now(timezone.utc) - timedelta(minutes=10)
+    stale_statuses = ("running", "pending")
+
+    try:
+        async with async_session_factory() as session:
+            # ---- APITestRun 僵尸清理 ----
+            result = await session.execute(
+                select(APITestRun).where(
+                    APITestRun.status.in_(stale_statuses),
+                    APITestRun.created_at < cutoff,
+                )
+            )
+            stale_api_runs = list(result.scalars().all())
+
+            for run in stale_api_runs:
+                await session.execute(
+                    update(APITestRun)
+                    .where(APITestRun.id == run.id)
+                    .values(
+                        status="failed",
+                        error_message=f"僵尸记录：超过 10 分钟未完成（创建于 {run.created_at.isoformat()}），由定时清理任务标记为失败",
+                    )
+                )
+
+            # ---- ScenarioRun 僵尸清理 ----
+            scenario_result = await session.execute(
+                select(ScenarioRun).where(
+                    ScenarioRun.status.in_(stale_statuses),
+                    ScenarioRun.started_at < cutoff,
+                )
+            )
+            stale_scenario_runs = list(scenario_result.scalars().all())
+
+            for run in stale_scenario_runs:
+                await session.execute(
+                    update(ScenarioRun)
+                    .where(ScenarioRun.id == run.id)
+                    .values(
+                        status="failed",
+                        error_message=f"僵尸记录：超过 10 分钟未完成（开始于 {run.started_at.isoformat() if run.started_at else 'unknown'}），由定时清理任务标记为失败",
+                    )
+                )
+
+            await session.commit()
+
+            total = len(stale_api_runs) + len(stale_scenario_runs)
+            if total > 0:
+                logger.info(
+                    "[ZombieCleanup] 清理了 %s 个僵尸记录（API: %s, 场景: %s）",
+                    total, len(stale_api_runs), len(stale_scenario_runs),
+                )
+    except Exception as e:
+        logger.exception("[ZombieCleanup] 清理僵尸记录时出错: %s", e)
+
 # type: ignore  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2TUc1RmJRPT06MGM2MDM2MGM=
 
 
@@ -182,6 +254,16 @@ async def lifespan(app: FastAPI):
     scheduler = get_scheduler_service()
     scheduler.start()
     await scheduler.load_schedules_from_db()
+
+    # 6. 注册僵尸 API 测试运行定时清理任务（每 2 分钟执行一次）
+    from apscheduler.triggers.interval import IntervalTrigger
+    scheduler.scheduler.add_job(
+        cleanup_stale_api_test_runs,
+        trigger=IntervalTrigger(minutes=2),
+        id="cleanup_stale_api_test_runs",
+        replace_existing=True,
+    )
+    logger.info("[Startup] 已注册僵尸 API 测试运行清理任务（每 2 分钟）")
 # pragma: no cover  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2TUc1RmJRPT06MGM2MDM2MGM=
 
     yield

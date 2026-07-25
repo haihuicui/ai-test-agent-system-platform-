@@ -635,12 +635,17 @@ async def _execute_script_internal(
         # 确定测试命令
         if framework == "playwright":
             if reporter == "html":
-                # HTML 报告需要指定输出目录；同时使用 list reporter 输出到 stdout，
-                # 便于后续解析每个用例的通过/失败状态。
+                # HTML 报告输出到目录；JSON reporter 输出到文件（避免 console.log 污染）
+                json_results_file = os.path.join(
+                    project_root, f"playwright-results-{uuid4().hex}.json"
+                )
                 if is_windows:
-                    cmd = f'npx playwright test "{run_script_path}" --reporter=list,html'
+                    cmd = (
+                        f'npx playwright test "{run_script_path}" --reporter=json,html'
+                        f' > "{json_results_file}"'
+                    )
                 else:
-                    cmd = ["npx", "playwright", "test", run_script_path, "--reporter=list,html"]
+                    cmd = ["npx", "playwright", "test", run_script_path, "--reporter=json,html"]
             else:
                 if is_windows:
                     cmd = f'npx playwright test "{run_script_path}" --reporter={reporter}'
@@ -694,13 +699,16 @@ async def _execute_script_internal(
                     env=env,
                 )
             else:
+                # JSON reporter 输出重定向到文件，避免 console.log 污染解析
+                json_fp = open(json_results_file, "wb")
                 proc = await asyncio.create_subprocess_exec(
                     *cmd,
                     cwd=project_root,
-                    stdout=asyncio.subprocess.PIPE,
+                    stdout=json_fp,
                     stderr=asyncio.subprocess.PIPE,
                     env=env,
                 )
+                json_fp.close()
 
             try:
                 stdout_bytes, stderr_bytes = await asyncio.wait_for(
@@ -735,6 +743,15 @@ async def _execute_script_internal(
             stderr = stderr_bytes.decode('utf-8', errors='replace')
             return_code = proc.returncode
 
+            # 使用 JSON reporter 时，stdout 被重定向到文件（避免 console.log 污染）；
+            # 从文件中读取结构化 JSON 结果替代旧的 list reporter 正则解析
+            if json_results_file and await run_sync(lambda: os.path.isfile(json_results_file)):
+                try:
+                    with open(json_results_file, 'r', encoding='utf-8') as jf:
+                        stdout = jf.read()
+                except Exception:
+                    pass  # 文件读取失败时回退到 pipe 捕获的内容
+
         except NotImplementedError:
             # Windows SelectorEventLoop 不支持 asyncio 子进程，降级到线程池执行同步 subprocess
             print("[API Script Execution] 当前 EventLoop 不支持 asyncio 子进程，降级到同步 subprocess")
@@ -754,6 +771,15 @@ async def _execute_script_internal(
                 stdout = result.stdout
                 stderr = result.stderr
                 return_code = result.returncode
+
+                # JSON reporter 输出被重定向到文件，从文件读取结构化结果
+                _jf = locals().get("json_results_file")
+                if _jf and os.path.isfile(_jf):
+                    try:
+                        with open(_jf, 'r', encoding='utf-8') as _fh:
+                            stdout = _fh.read()
+                    except Exception:
+                        pass
             except subprocess.TimeoutExpired:
                 end_time = datetime.now()
                 duration = (end_time - start_time).total_seconds()
@@ -1315,7 +1341,7 @@ async def _create_test_results(
         return corrected_counts
 
     try:
-        parsed_items = APITestExecutor._parse_playwright_list_output(stdout)
+        parsed_items = APITestExecutor._parse_playwright_json_output(stdout)
     except Exception as e:
         logger.warning("[execute_api_script] 解析 Playwright stdout 失败: %s", e)
         return corrected_counts
