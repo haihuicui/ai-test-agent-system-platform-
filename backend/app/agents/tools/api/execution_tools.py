@@ -341,12 +341,43 @@ async def execute_api_script(
                                 execution_config=execution_config,
                                 report_object_name=report_object_name,
                             )
-                            await _create_test_results(
+                            corrected_counts = await _create_test_results(
                                 session=db,
                                 test_run_id=test_run.id,
                                 api_test=api_test,
                                 execution_result=execution_result,
                             )
+
+                            # 用断言修正后的计数覆盖 test_run 统计
+                            if corrected_counts.get("total", 0) > 0:
+                                test_run.total_tests = corrected_counts["total"]
+                                test_run.passed_tests = corrected_counts["passed"]
+                                test_run.failed_tests = corrected_counts["failed"]
+                                test_run.skipped_tests = corrected_counts["skipped"]
+
+                            # 同步修正报告附件的描述
+                            if report_attachment_id and corrected_counts.get("total", 0) > 0:
+                                try:
+                                    attachment_result = await db.execute(
+                                        select(Attachment).where(
+                                            Attachment.id == UUID(report_attachment_id)
+                                        )
+                                    )
+                                    report_attachment = attachment_result.scalar_one_or_none()
+                                    if report_attachment:
+                                        duration = execution_result.get("duration", 0)
+                                        endpoint_display = endpoint.display_name or f"API Test"
+                                        report_attachment.description = (
+                                            f"API 测试报告 - {endpoint_display}\n"
+                                            f"执行时间: {duration:.2f}秒\n"
+                                            f"通过: {corrected_counts['passed']} | "
+                                            f"失败: {corrected_counts['failed']} | "
+                                            f"跳过: {corrected_counts['skipped']}"
+                                        )
+                                except Exception as e:
+                                    logger.warning(
+                                        "[execute_api_script] 修正报告描述失败: %s", e
+                                    )
 
                             # 更新端点统计
                             endpoint.total_test_runs = (endpoint.total_test_runs or 0) + 1
@@ -1265,26 +1296,32 @@ async def _create_test_results(
     test_run_id: UUID,
     api_test: APITest,
     execution_result: Dict[str, Any],
-) -> None:
+) -> Dict[str, int]:
     """
     从 Playwright list reporter stdout 解析用例结果并写入 APITestResult。
 
     如果执行过程中通过 trace helper 捕获到真实请求/响应，会一并回填到
     request_summary / response_summary / request_data / response_data /
     assertion_results / duration_ms 字段；否则仅保留从用例标题推断的信息。
+
+    Returns:
+        {"total": int, "passed": int, "failed": int, "skipped": int}
+        经过断言修正后的最终统计，可直接用于覆盖 result_summary。
     """
+    corrected_counts = {"total": 0, "passed": 0, "failed": 0, "skipped": 0}
+
     stdout = execution_result.get("stdout", "")
     if not stdout:
-        return
+        return corrected_counts
 
     try:
         parsed_items = APITestExecutor._parse_playwright_list_output(stdout)
     except Exception as e:
         logger.warning("[execute_api_script] 解析 Playwright stdout 失败: %s", e)
-        return
+        return corrected_counts
 
     if not parsed_items:
-        return
+        return corrected_counts
 
     result_repo = APITestResultRepository(session)
     status_map = {
@@ -1328,6 +1365,15 @@ async def _create_test_results(
             if any(a.get("passed") is False for a in assertion_results):
                 status = TestResultStatus.FAILED
 
+        # 使用断言修正后的最终状态进行计数
+        corrected_counts["total"] += 1
+        if status == TestResultStatus.PASSED:
+            corrected_counts["passed"] += 1
+        elif status == TestResultStatus.FAILED:
+            corrected_counts["failed"] += 1
+        elif status == TestResultStatus.SKIPPED:
+            corrected_counts["skipped"] += 1
+
         # 当断言反假阳性检测到失败时，生成更有意义的 error_message
         if status == TestResultStatus.FAILED:
             failed_assertions = [
@@ -1354,6 +1400,8 @@ async def _create_test_results(
             duration_ms=duration_ms,
             retry_count=0,
         )
+
+    return corrected_counts
 
 
 @tool
@@ -1536,12 +1584,45 @@ async def execute_api_script_by_artifact_id(
                                 execution_config=execution_config,
                                 report_object_name=report_object_name,
                             )
-                            await _create_test_results(
+                            corrected_counts = await _create_test_results(
                                 session=db,
                                 test_run_id=test_run.id,
                                 api_test=api_test,
                                 execution_result=execution_result,
                             )
+
+                            # 用断言修正后的计数覆盖 test_run 统计，
+                            # 解决 Playwright 认为通过（如 expect(401).toBe(401)）
+                            # 但 trace 断言检测到失败（非 2xx）时的计数不一致问题
+                            if corrected_counts.get("total", 0) > 0:
+                                test_run.total_tests = corrected_counts["total"]
+                                test_run.passed_tests = corrected_counts["passed"]
+                                test_run.failed_tests = corrected_counts["failed"]
+                                test_run.skipped_tests = corrected_counts["skipped"]
+
+                            # 同步修正报告附件的描述
+                            if report_attachment_id and corrected_counts.get("total", 0) > 0:
+                                try:
+                                    attachment_result = await db.execute(
+                                        select(Attachment).where(
+                                            Attachment.id == UUID(report_attachment_id)
+                                        )
+                                    )
+                                    report_attachment = attachment_result.scalar_one_or_none()
+                                    if report_attachment:
+                                        duration = execution_result.get("duration", 0)
+                                        endpoint_display = endpoint_for_run.display_name or f"API Test"
+                                        report_attachment.description = (
+                                            f"API 测试报告 - {endpoint_display}\n"
+                                            f"执行时间: {duration:.2f}秒\n"
+                                            f"通过: {corrected_counts['passed']} | "
+                                            f"失败: {corrected_counts['failed']} | "
+                                            f"跳过: {corrected_counts['skipped']}"
+                                        )
+                                except Exception as e:
+                                    logger.warning(
+                                        "[execute_api_script_by_artifact_id] 修正报告描述失败: %s", e
+                                    )
 
                             # 更新端点统计
                             endpoint_for_run.total_test_runs = (endpoint_for_run.total_test_runs or 0) + 1

@@ -5,6 +5,7 @@ API 端点管理路由
 """
 
 import json
+import logging
 import httpx
 from typing import Any
 from uuid import UUID
@@ -29,6 +30,8 @@ from app.schemas.api_endpoint import (
 )
 from app.services.openapi_parser import OpenAPIParser
 from app.services.api_test_service import APITestService
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -870,6 +873,590 @@ def _inject_platform_favicon(html_content: str) -> str:
     )
 
 
+async def _get_corrected_api_test_stats(
+    attachment: "Attachment",
+    db,
+) -> dict | None:
+    """
+    获取 API 测试报告的修正后统计（优先使用描述解析，兜底查询 DB）。
+
+    返回 {"passed": int, "failed": int, "skipped": int} 或 None。
+    """
+    from app.models.api_test import APITestRun, APITestResult
+
+    # 1) 快速路径：从附件描述中解析（修复后的报告描述已包含修正统计）
+    stats = _parse_corrected_stats_from_description(attachment.description)
+    if stats and (stats["passed"] + stats["failed"] + stats["skipped"]) > 0:
+        return stats
+
+    # 2) 兜底：通过 report_path == object_name 查询 APITestRun
+    try:
+        stmt = select(APITestRun).where(
+            APITestRun.report_path == attachment.object_name
+        ).order_by(APITestRun.created_at.desc()).limit(1)
+        result = await db.execute(stmt)
+        test_run = result.scalar_one_or_none()
+
+        if test_run:
+            total = (test_run.passed_tests or 0) + (test_run.failed_tests or 0) + (test_run.skipped_tests or 0)
+            if total > 0:
+                return {
+                    "passed": test_run.passed_tests or 0,
+                    "failed": test_run.failed_tests or 0,
+                    "skipped": test_run.skipped_tests or 0,
+                }
+
+            # test_run 存在但计数全为 0（旧数据），从 APITestResult 重新统计
+            results_stmt = select(APITestResult).where(
+                APITestResult.test_run_id == test_run.id
+            )
+            results_result = await db.execute(results_stmt)
+            results = results_result.scalars().all()
+            if results:
+                corrected = {"passed": 0, "failed": 0, "skipped": 0}
+                for r in results:
+                    status_val = r.status.value if hasattr(r.status, 'value') else str(r.status)
+                    if status_val == "passed":
+                        corrected["passed"] += 1
+                    elif status_val == "failed":
+                        corrected["failed"] += 1
+                    elif status_val == "skipped":
+                        corrected["skipped"] += 1
+                if sum(corrected.values()) > 0:
+                    return corrected
+    except Exception:
+        pass
+
+    # 3) 如果解析到了 stats 但计数为 0（描述解析出了零值），仍返回
+    if stats:
+        return stats
+
+    return None
+
+
+def _parse_corrected_stats_from_description(description: str | None) -> dict | None:
+    """
+    从附件描述中解析经过断言修正的测试统计。
+
+    描述格式（由 _save_test_report / _save_html_report 生成）：
+        API 测试报告 - {name}
+        执行时间: {duration}秒
+        通过: {n} | 失败: {n} | 跳过: {n}
+
+    Returns:
+        {"passed": int, "failed": int, "skipped": int} 或 None（解析失败时）
+    """
+    import re
+    if not description:
+        return None
+    try:
+        passed_m = re.search(r"通过:\s*(\d+)", description)
+        failed_m = re.search(r"失败:\s*(\d+)", description)
+        skipped_m = re.search(r"跳过:\s*(\d+)", description)
+        if passed_m is None and failed_m is None:
+            return None
+        return {
+            "passed": int(passed_m.group(1)) if passed_m else 0,
+            "failed": int(failed_m.group(1)) if failed_m else 0,
+            "skipped": int(skipped_m.group(1)) if skipped_m else 0,
+        }
+    except Exception:
+        return None
+
+
+def _inject_corrected_stats_banner(html_content: str, stats: dict) -> str:
+    """
+    向 Playwright HTML 报告中注入一个统计修正横幅。
+
+    Playwright 原生 HTML 报告以脚本自身的断言结果为准（如 expect(401).toBe(401)
+    视为通过），本平台在后处理阶段会根据真实 HTTP 状态码、业务码等自动生成
+    额外断言并修正判定。此横幅用于展示修正后的统计，与附件描述保持一致。
+
+    Args:
+        html_content: 原始 HTML 内容
+        stats: {"passed": int, "failed": int, "skipped": int}
+
+    Returns:
+        注入了横幅脚本的 HTML 内容
+    """
+    import re
+
+    total = stats["passed"] + stats["failed"] + stats["skipped"]
+    banner_html = f'''<style id="__corrected_stats_style">
+.__ai_corrected_banner {{
+  position: fixed; top: 0; left: 0; right: 0; z-index: 99999;
+  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+  color: #f1f5f9; font-family: system-ui, -apple-system, sans-serif;
+  font-size: 13px; padding: 8px 16px;
+  display: flex; align-items: center; justify-content: center; gap: 20px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.3); flex-wrap: wrap;
+}}
+.__ai_corrected_banner .__ai_label {{
+  font-weight: 600; color: #94a3b8; font-size: 11px; text-transform: uppercase;
+  letter-spacing: 0.5px;
+}}
+.__ai_corrected_banner .__ai_stat {{
+  display: flex; align-items: center; gap: 6px; font-weight: 600;
+}}
+.__ai_corrected_banner .__ai_passed {{ color: #4ade80; }}
+.__ai_corrected_banner .__ai_failed {{ color: #f87171; }}
+.__ai_corrected_banner .__ai_skipped {{ color: #fbbf24; }}
+.__ai_corrected_banner .__ai_note {{
+  font-size: 11px; color: #64748b; margin-left: 8px;
+}}
+.__ai_corrected_banner .__ai_dismiss {{
+  cursor: pointer; background: none; border: 1px solid #475569;
+  color: #94a3b8; border-radius: 4px; padding: 2px 8px; font-size: 11px;
+  margin-left: 8px;
+}}
+.__ai_corrected_banner .__ai_dismiss:hover {{
+  background: #475569; color: #e2e8f0;
+}}
+body {{ padding-top: 44px !important; }}
+</style>
+<div id="__ai_corrected_banner" class="__ai_corrected_banner">
+  <span class="__ai_label">平台修正统计</span>
+  <span class="__ai_stat"><span>通过</span><span class="__ai_passed">{stats["passed"]}</span></span>
+  <span class="__ai_stat"><span>失败</span><span class="__ai_failed">{stats["failed"]}</span></span>
+  <span class="__ai_stat"><span>跳过</span><span class="__ai_skipped">{stats["skipped"]}</span></span>
+  <span class="__ai_stat"><span>总计</span><span>{total}</span></span>
+  <span class="__ai_note">基于 HTTP 状态码 &amp; 业务码的自动断言修正</span>
+  <button class="__ai_dismiss" onclick="
+    var b=document.getElementById('__ai_corrected_banner');
+    var s=document.getElementById('__corrected_stats_style');
+    if(b) b.remove(); if(s) s.remove();
+    document.body.style.paddingTop='';
+  ">✕ 关闭</button>
+</div>'''
+
+    # 注入到 <body> 标签之后
+    body_pattern = re.compile(r'<body[^>]*>', re.IGNORECASE)
+    if body_pattern.search(html_content):
+        html_content = body_pattern.sub(
+            lambda m: m.group(0) + banner_html,
+            html_content,
+            count=1,
+        )
+    else:
+        # 没有 <body> 标签，注入到文档开头
+        html_content = banner_html + html_content
+
+    return html_content
+
+
+async def _get_test_run_for_attachment(
+    attachment: "Attachment",
+    db,
+):
+    """通过 attachment.object_name 匹配 APITestRun.report_path 找到对应运行。"""
+    from app.models.api_test import APITestRun
+
+    try:
+        stmt = select(APITestRun).where(
+            APITestRun.report_path == attachment.object_name
+        ).order_by(APITestRun.created_at.desc()).limit(1)
+        result = await db.execute(stmt)
+        return result.scalar_one_or_none()
+    except Exception:
+        return None
+
+
+def _truncate_for_embed(value, max_chars: int = 5000) -> str:
+    """将任意值序列化为 JSON 字符串并按 max_chars 截断，用于安全嵌入 HTML。"""
+    if value is None:
+        return "null"
+    try:
+        text = json.dumps(value, ensure_ascii=False, default=str)
+    except Exception:
+        text = str(value)
+    if len(text) > max_chars:
+        text = text[:max_chars] + f"\n... [truncated, {len(text)} total chars]"
+    return text
+
+
+async def _get_test_case_details(test_run_id, db) -> list[dict]:
+    """
+    查询 APITestResult 并返回可嵌入 HTML 的用例详情列表。
+
+    返回每条用例的 scenario_name, endpoint, method, status, duration_ms,
+    request (含 headers/body), response (含 status/headers/body),
+    assertions, error_message。
+    """
+    from app.models.api_test import APITestResult
+
+    stmt = (
+        select(APITestResult)
+        .where(APITestResult.test_run_id == test_run_id)
+        .order_by(APITestResult.created_at.asc())
+    )
+    result = await db.execute(stmt)
+    rows = result.scalars().all()
+
+    cases: list[dict] = []
+    for r in rows:
+        status_val = r.status.value if hasattr(r.status, "value") else str(r.status)
+
+        # 请求数据
+        req = dict(r.request_data) if r.request_data else {}
+        req_body = req.get("body")
+        req_body_str = _truncate_for_embed(req_body) if req_body is not None else None
+
+        # 响应数据
+        resp = dict(r.response_data) if r.response_data else {}
+        resp_body = resp.get("body")
+        resp_body_str = _truncate_for_embed(resp_body) if resp_body is not None else None
+
+        # 断言结果
+        assertions = list(r.assertion_results) if r.assertion_results else []
+
+        cases.append({
+            "name": r.scenario_name or "",
+            "endpoint": r.endpoint or "",
+            "method": (r.method or "GET").upper(),
+            "status": status_val,
+            "duration_ms": r.duration_ms,
+            "error_message": r.error_message,
+            "request": {
+                "url": req.get("url", ""),
+                "method": req.get("method", (r.method or "GET").upper()),
+                "headers": req.get("headers") or {},
+                "body": req_body_str,
+                "body_truncated": (req.get("body_meta") or {}).get("truncated", False),
+            },
+            "response": {
+                "status": resp.get("status"),
+                "statusText": resp.get("statusText", ""),
+                "headers": resp.get("headers") or {},
+                "body": resp_body_str,
+                "body_truncated": (resp.get("body_meta") or {}).get("truncated", False),
+                "timing": resp.get("timing"),
+            },
+            "assertions": [
+                {
+                    "type": (a.get("assertion") or {}).get("type", "test"),
+                    "passed": a.get("passed"),
+                    "expected": a.get("expected"),
+                    "actual": a.get("actual"),
+                    "message": a.get("message", ""),
+                }
+                for a in assertions
+            ],
+        })
+
+    return cases
+
+
+def _inject_test_details_panel(html_content: str, test_cases_json: str) -> str:
+    """
+    向 Playwright HTML 报告中注入用例详情面板（CSS + JS + JSON 数据）。
+
+    面板功能：
+    - 右下角固定按钮打开
+    - 右侧滑出面板（40%宽度）
+    - 下拉框切换用例
+    - 可折叠的 Request / Response / Assertions 区域
+    """
+    import re
+
+    panel_code = f'''<script id="__ai_tc_data" type="application/json">{test_cases_json}</script>
+<style id="__ai_panel_style">
+/* ---- AI Test Details Panel ---- */
+.__ai_panel_btn {{
+  position: fixed; bottom: 24px; right: 24px; z-index: 99990;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: #fff; border: none; border-radius: 12px;
+  padding: 10px 18px; font-size: 14px; font-weight: 600;
+  cursor: pointer; box-shadow: 0 4px 16px rgba(99,102,241,0.4);
+  display: flex; align-items: center; gap: 8px;
+  font-family: system-ui, -apple-system, sans-serif;
+  transition: transform 0.15s, box-shadow 0.15s;
+}}
+.__ai_panel_btn:hover {{ transform: translateY(-2px); box-shadow: 0 6px 20px rgba(99,102,241,0.5); }}
+.__ai_panel_btn.__ai_hidden {{ display: none; }}
+
+.__ai_overlay {{
+  position: fixed; inset: 0; background: rgba(0,0,0,0.35);
+  z-index: 99991; display: none;
+}}
+.__ai_overlay.__ai_open {{ display: block; }}
+
+.__ai_drawer {{
+  position: fixed; top: 0; right: 0; bottom: 0; width: min(520px, 90vw);
+  background: #0f172a; z-index: 99992; color: #e2e8f0;
+  font-family: system-ui, -apple-system, sans-serif;
+  display: flex; flex-direction: column;
+  box-shadow: -4px 0 24px rgba(0,0,0,0.5);
+  transform: translateX(100%); transition: transform 0.25s ease;
+}}
+.__ai_drawer.__ai_open {{ transform: translateX(0); }}
+
+.__ai_drawer_header {{
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px; border-bottom: 1px solid #1e293b;
+  background: #1e293b; flex-shrink: 0;
+}}
+.__ai_drawer_header h3 {{ margin: 0; font-size: 15px; color: #f1f5f9; }}
+.__ai_drawer_close {{
+  background: none; border: none; color: #94a3b8; font-size: 20px;
+  cursor: pointer; padding: 4px 8px; border-radius: 4px;
+}}
+.__ai_drawer_close:hover {{ background: #334155; color: #e2e8f0; }}
+
+.__ai_case_selector {{
+  padding: 10px 18px; border-bottom: 1px solid #1e293b; flex-shrink: 0;
+}}
+.__ai_case_selector select {{
+  width: 100%; padding: 8px 12px; border-radius: 6px;
+  background: #1e293b; color: #e2e8f0; border: 1px solid #334155;
+  font-size: 13px; font-family: inherit; cursor: pointer;
+}}
+
+.__ai_drawer_body {{
+  flex: 1; overflow-y: auto; padding: 16px 18px;
+}}
+
+/* ---- Status / Meta ---- */
+.__ai_meta {{ display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 16px; }}
+.__ai_badge {{
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 10px; border-radius: 6px; font-size: 12px; font-weight: 600;
+}}
+.__ai_badge_pass {{ background: #064e3b; color: #4ade80; }}
+.__ai_badge_fail {{ background: #450a0a; color: #f87171; }}
+.__ai_badge_skip {{ background: #422006; color: #fbbf24; }}
+.__ai_method {{ font-weight: 700; font-size: 12px; }}
+.__ai_url {{ font-size: 12px; color: #94a3b8; word-break: break-all; }}
+.__ai_duration {{ font-size: 12px; color: #64748b; }}
+
+/* ---- Collapsible Sections ---- */
+.__ai_section {{
+  border: 1px solid #1e293b; border-radius: 8px; margin-bottom: 12px; overflow: hidden;
+}}
+.__ai_section_toggle {{
+  width: 100%; text-align: left; padding: 10px 14px;
+  background: #1e293b; color: #cbd5e1; border: none;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  display: flex; align-items: center; justify-content: space-between;
+  font-family: inherit;
+}}
+.__ai_section_toggle:hover {{ background: #273449; }}
+.__ai_section_toggle .__ai_arrow {{ transition: transform 0.2s; }}
+.__ai_section_toggle.__ai_collapsed .__ai_arrow {{ transform: rotate(-90deg); }}
+.__ai_section_content {{ padding: 12px 14px; display: block; }}
+.__ai_section_content.__ai_hidden {{ display: none; }}
+
+/* ---- Tables ---- */
+.__ai_table {{
+  width: 100%; border-collapse: collapse; font-size: 11px;
+}}
+.__ai_table th {{
+  text-align: left; padding: 6px 8px; background: #1e293b;
+  color: #94a3b8; font-weight: 600; border-bottom: 1px solid #334155;
+  white-space: nowrap;
+}}
+.__ai_table td {{
+  padding: 6px 8px; border-bottom: 1px solid #1e293b;
+  color: #cbd5e1; vertical-align: top;
+}}
+.__ai_table code {{
+  font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 11px;
+}}
+.__ai_table .__ai_pass {{ color: #4ade80; }}
+.__ai_table .__ai_fail {{ color: #f87171; }}
+
+/* ---- Body Preview ---- */
+.__ai_body_pre {{
+  background: #0f172a; border: 1px solid #1e293b; border-radius: 6px;
+  padding: 10px; font-size: 11px; line-height: 1.5;
+  overflow: auto; max-height: 300px; white-space: pre-wrap;
+  word-break: break-all; color: #cbd5e1;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  margin: 0;
+}}
+.__ai_truncated_note {{
+  font-size: 11px; color: #fbbf24; margin-top: 6px;
+  display: flex; align-items: center; gap: 4px;
+}}
+.__ai_empty {{ font-size: 12px; color: #64748b; padding: 8px 0; }}
+</style>
+
+<div id="__ai_panel_btn" class="__ai_panel_btn" onclick="__aiTogglePanel()">
+  <span style="font-size:18px">📋</span> 用例详情
+</div>
+
+<div id="__ai_overlay" class="__ai_overlay" onclick="__aiClosePanel()"></div>
+<div id="__ai_drawer" class="__ai_drawer">
+  <div class="__ai_drawer_header">
+    <h3>📋 用例请求/响应详情</h3>
+    <button class="__ai_drawer_close" onclick="__aiClosePanel()">✕</button>
+  </div>
+  <div class="__ai_case_selector">
+    <select id="__ai_case_select" onchange="__aiRenderCase()"></select>
+  </div>
+  <div id="__ai_drawer_body" class="__ai_drawer_body"></div>
+</div>
+
+<script>
+(function() {{
+  try {{
+    var __aiData = JSON.parse(document.getElementById('__ai_tc_data').textContent);
+  }} catch(e) {{ __aiData = []; }}
+  var __aiOpen = false;
+
+  window.__aiTogglePanel = function() {{
+    __aiOpen = !__aiOpen;
+    document.getElementById('__ai_overlay').className = '__ai_overlay' + (__aiOpen ? ' __ai_open' : '');
+    document.getElementById('__ai_drawer').className = '__ai_drawer' + (__aiOpen ? ' __ai_open' : '');
+    if (__aiOpen) __aiRenderCase();
+  }};
+  window.__aiClosePanel = function() {{
+    __aiOpen = false;
+    document.getElementById('__ai_overlay').className = '__ai_overlay';
+    document.getElementById('__ai_drawer').className = '__ai_drawer';
+  }};
+
+  // Populate dropdown
+  (function() {{
+    var sel = document.getElementById('__ai_case_select');
+    sel.innerHTML = '';
+    for (var i = 0; i < __aiData.length; i++) {{
+      var c = __aiData[i];
+      var icon = c.status === 'passed' ? '✓' : c.status === 'failed' ? '✗' : '⊘';
+      var opt = document.createElement('option');
+      opt.value = i;
+      opt.textContent = icon + ' ' + c.method + ' ' + (c.endpoint || c.name);
+      sel.appendChild(opt);
+    }}
+  }})();
+
+  window.__aiRenderCase = function() {{
+    var idx = parseInt(document.getElementById('__ai_case_select').value);
+    if (isNaN(idx) || idx < 0 || idx >= __aiData.length) return;
+    var c = __aiData[idx];
+    var statusLabel = c.status === 'passed' ? '通过' : c.status === 'failed' ? '失败' : c.status;
+    var statusCls = c.status === 'passed' ? '__ai_badge_pass' : c.status === 'failed' ? '__ai_badge_fail' : '__ai_badge_skip';
+
+    var html = '';
+    // Meta row
+    html += '<div class="__ai_meta">';
+    html += '<span class="__ai_badge ' + statusCls + '">' + statusLabel + '</span>';
+    html += '<span class="__ai_method">' + __aiEsc(c.method) + '</span>';
+    html += '<span class="__ai_url">' + __aiEsc(c.endpoint) + '</span>';
+    if (c.duration_ms) html += '<span class="__ai_duration">' + c.duration_ms + 'ms</span>';
+    html += '</div>';
+
+    // Error
+    if (c.error_message) {{
+      html += '<div style="background:#450a0a;color:#fca5a5;padding:8px 12px;border-radius:6px;margin-bottom:12px;font-size:12px;">' + __aiEsc(c.error_message) + '</div>';
+    }}
+
+    // Request section
+    html += __aiSection('📤 Request', __aiRenderRequest(c));
+
+    // Response section
+    html += __aiSection('📥 Response', __aiRenderResponse(c));
+
+    // Assertions section
+    html += __aiSection('🔍 Assertions (' + c.assertions.length + ')', __aiRenderAssertions(c));
+
+    document.getElementById('__ai_drawer_body').innerHTML = html;
+  }};
+
+  function __aiSection(title, content) {{
+    var id = '__ai_sec_' + Math.random().toString(36).slice(2,8);
+    return '<div class="__ai_section">' +
+      '<button class="__ai_section_toggle" onclick="var c=this.nextElementSibling;var t=!c.classList.contains(\'__ai_hidden\');c.classList.toggle(\'__ai_hidden\',t);this.classList.toggle(\'__ai_collapsed\',t)">' +
+        title + '<span class="__ai_arrow">▼</span>' +
+      '</button>' +
+      '<div class="__ai_section_content">' + content + '</div>' +
+    '</div>';
+  }}
+
+  function __aiRenderRequest(c) {{
+    var r = c.request;
+    var html = '';
+    html += '<div style="font-size:12px;color:#94a3b8;margin-bottom:6px;">' + __aiEsc(r.method) + ' ' + __aiEsc(r.url) + '</div>';
+    html += __aiTable(Object.entries(r.headers || {{}}), 'Header', 'Value');
+    if (r.body) {{
+      html += '<div style="margin-top:8px;font-size:11px;font-weight:600;color:#94a3b8;">Body:</div>';
+      html += '<pre class="__ai_body_pre">' + __aiPretty(r.body) + '</pre>';
+      if (r.body_truncated) html += '<div class="__ai_truncated_note">⚠ 响应体已截断</div>';
+    }} else {{
+      html += '<div class="__ai_empty">(无请求体)</div>';
+    }}
+    return html;
+  }}
+
+  function __aiRenderResponse(c) {{
+    var r = c.response;
+    var html = '';
+    var s = r.status || '?';
+    var sc = (typeof s === 'number' && s >= 200 && s < 300) ? '#4ade80' : (typeof s === 'number' && s >= 400) ? '#f87171' : '#94a3b8';
+    html += '<div style="font-size:12px;margin-bottom:6px;">Status: <span style="color:' + sc + ';font-weight:700">' + s + '</span> ' + __aiEsc(r.statusText || '') + '</div>';
+    html += __aiTable(Object.entries(r.headers || {{}}), 'Header', 'Value');
+    if (r.body) {{
+      html += '<div style="margin-top:8px;font-size:11px;font-weight:600;color:#94a3b8;">Body:</div>';
+      html += '<pre class="__ai_body_pre">' + __aiPretty(r.body) + '</pre>';
+      if (r.body_truncated) html += '<div class="__ai_truncated_note">⚠ 响应体已截断</div>';
+    }} else {{
+      html += '<div class="__ai_empty">(无响应体)</div>';
+    }}
+    return html;
+  }}
+
+  function __aiRenderAssertions(c) {{
+    if (!c.assertions.length) return '<div class="__ai_empty">(无断言记录)</div>';
+    var rows = '';
+    for (var i = 0; i < c.assertions.length; i++) {{
+      var a = c.assertions[i];
+      var cls = a.passed ? '__ai_pass' : '__ai_fail';
+      var icon = a.passed ? '✓' : '✗';
+      var exp = a.expected !== undefined ? String(a.expected) : '-';
+      var act = a.actual !== undefined ? String(a.actual) : '-';
+      rows += '<tr>' +
+        '<td class="' + cls + '">' + icon + '</td>' +
+        '<td>' + __aiEsc(a.type || '') + '</td>' +
+        '<td><code>' + __aiEsc(exp.length > 60 ? exp.slice(0,60)+'...' : exp) + '</code></td>' +
+        '<td><code>' + __aiEsc(act.length > 60 ? act.slice(0,60)+'...' : act) + '</code></td>' +
+        '<td>' + __aiEsc((a.message || '').length > 120 ? a.message.slice(0,120)+'...' : (a.message || '')) + '</td>' +
+      '</tr>';
+    }}
+    return '<table class="__ai_table"><thead><tr><th></th><th>类型</th><th>预期</th><th>实际</th><th>消息</th></tr></thead><tbody>' + rows + '</tbody></table>';
+  }}
+
+  function __aiTable(entries, labelH, labelV) {{
+    if (!entries.length) return '<div class="__ai_empty">(无数据)</div>';
+    var rows = '';
+    for (var i = 0; i < entries.length; i++) {{
+      rows += '<tr><td style="color:#94a3b8;white-space:nowrap">' + __aiEsc(String(entries[i][0])) + '</td><td><code>' + __aiEsc(String(entries[i][1])) + '</code></td></tr>';
+    }}
+    return '<table class="__ai_table"><thead><tr><th>' + labelH + '</th><th>' + labelV + '</th></tr></thead><tbody>' + rows + '</tbody></table>';
+  }}
+
+  function __aiPretty(raw) {{
+    try {{
+      var parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      return __aiEsc(JSON.stringify(parsed, null, 2));
+    }} catch(e) {{ return __aiEsc(String(raw)); }}
+  }}
+
+  function __aiEsc(s) {{
+    if (!s) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }}
+}})();
+</script>'''
+
+    # Inject before </body>
+    body_end = re.compile(r'</body>', re.IGNORECASE)
+    if body_end.search(html_content):
+        html_content = body_end.sub(panel_code + '\n</body>', html_content, count=1)
+    else:
+        html_content += panel_code
+
+    return html_content
+
+
 @router.get("/attachments/{attachment_id}/report-files/{file_path:path}")
 async def get_report_file(
     attachment_id: UUID,
@@ -971,6 +1558,32 @@ async def get_report_file(
         with open(target_file, 'r', encoding='utf-8') as f:
             html_content = f.read()
         html_content = _inject_platform_favicon(html_content)
+        # 对 API 测试报告注入修正统计横幅 + 用例详情面板
+        if (attachment.entity_type == AttachmentEntityType.API_TEST_REPORT
+                and file_path.endswith("index.html")):
+            corrected_stats = await _get_corrected_api_test_stats(
+                attachment, db
+            )
+            if corrected_stats:
+                html_content = _inject_corrected_stats_banner(
+                    html_content, corrected_stats
+                )
+            # 注入用例详情面板（请求/响应/断言）
+            try:
+                test_run = await _get_test_run_for_attachment(attachment, db)
+                if test_run:
+                    test_cases = await _get_test_case_details(test_run.id, db)
+                    if test_cases:
+                        test_cases_json = json.dumps(
+                            test_cases, ensure_ascii=False, default=str
+                        )
+                        html_content = _inject_test_details_panel(
+                            html_content, test_cases_json
+                        )
+            except Exception as e:
+                logger.warning(
+                    "[get_report_file] 注入用例详情面板失败: %s", e
+                )
         return HTMLResponse(content=html_content)
 
     # 对于其他文件，使用 FileResponse 但不设置 filename，让浏览器根据 MIME 类型处理

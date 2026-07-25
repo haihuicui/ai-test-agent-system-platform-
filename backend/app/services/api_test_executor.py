@@ -1810,7 +1810,8 @@ class APITestExecutor:
         )
         logger.info("[APITestExecutor] 测试报告已上传: %s", object_name)
 
-        # 4. 更新测试运行记录
+        # 4. 刷新 run_record 以读取 _process_test_results 修正后的统计
+        await session.refresh(run_record)
         run_record.report_path = object_name
 
         # 5. 创建附件记录（只有找到 endpoint 时才创建，否则前端无法展示）
