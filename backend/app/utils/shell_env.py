@@ -202,42 +202,50 @@ async def ensure_playwright_mcp_project(
 
     async with _playwright_mcp_init_lock:
         if not await run_sync(playwright_test.exists):
-            proc = await asyncio.create_subprocess_exec(
+            try:
+                proc = await asyncio.create_subprocess_exec(
+                    npm,
+                    "install",
+                    cwd=str(root),
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                )
+                stdout, stderr = await proc.communicate()
+                if proc.returncode != 0:
+                    raise RuntimeError(
+                        f"Failed to install @playwright/test in {root}:"
+                        f"\n{stderr.decode('utf-8', errors='replace')}"
+                        f"\n{stdout.decode('utf-8', errors='replace')}"
+                    )
+            except (NotImplementedError, OSError) as e:
+                print(f"[Web MCP] 跳过 npm install (当前环境不支持子进程): {e}")
+                # 跳过 Playwright 依赖安装，运行时若无 node_modules 将报清晰错误。
+                # 开发环境建议手动执行 npm install。
+
+        ## 兜底安装浏览器二进制。构建期可能只在 api workspace 预装 Chromium；
+        ## 且 Docker volume 中的 node_modules 与浏览器缓存可能不同步，因此每次
+        ## ensure 都检查一次，已安装时 Playwright 会快速跳过。
+        try:
+            browser_proc = await asyncio.create_subprocess_exec(
                 npm,
+                "exec",
+                "--",
+                "playwright",
                 "install",
+                "chromium",
                 cwd=str(root),
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            stdout, stderr = await proc.communicate()
-            if proc.returncode != 0:
+            browser_stdout, browser_stderr = await browser_proc.communicate()
+            if browser_proc.returncode != 0:
                 raise RuntimeError(
-                    f"Failed to install @playwright/test in {root}:"
-                    f"\n{stderr.decode('utf-8', errors='replace')}"
-                    f"\n{stdout.decode('utf-8', errors='replace')}"
+                    f"Failed to install Playwright browsers in {root}:"
+                    f"\n{browser_stderr.decode('utf-8', errors='replace')}"
+                    f"\n{browser_stdout.decode('utf-8', errors='replace')}"
                 )
-
-        # 兜底安装浏览器二进制。构建期可能只在 api workspace 预装 Chromium；
-        # 且 Docker volume 中的 node_modules 与浏览器缓存可能不同步，因此每次
-        # ensure 都检查一次，已安装时 Playwright 会快速跳过。
-        browser_proc = await asyncio.create_subprocess_exec(
-            npm,
-            "exec",
-            "--",
-            "playwright",
-            "install",
-            "chromium",
-            cwd=str(root),
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        browser_stdout, browser_stderr = await browser_proc.communicate()
-        if browser_proc.returncode != 0:
-            raise RuntimeError(
-                f"Failed to install Playwright browsers in {root}:"
-                f"\n{browser_stderr.decode('utf-8', errors='replace')}"
-                f"\n{browser_stdout.decode('utf-8', errors='replace')}"
-            )
+        except (NotImplementedError, OSError) as e:
+            print(f"[Web MCP] 跳过 playwright install (当前环境不支持子进程): {e}")
 
 
 async def get_playwright_mcp_command_args(root_dir: str, headless: bool = False) -> tuple[str, list[str]]:

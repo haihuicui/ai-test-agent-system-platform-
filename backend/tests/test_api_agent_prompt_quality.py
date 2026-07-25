@@ -1,10 +1,11 @@
 """API Agent 提示词质量与断言门禁回归测试。
 
-锁定方案三（提示词瘦身）+ 两个 P0 快赢项（去 force 后门、删条件断言反模式）的成果：
-1. SYSTEM_PROMPT 已瘦身，且保留全部红线；
-2. 条件断言反模式（if (x !== undefined) expect(...)）只出现在"禁止"语境，不再是正面示例；
-3. save_test_script 不再有 force 放行开关，WEAK 一律硬拒；
-4. 断言质量门禁行为符合"每用例 ≥1 状态码 + ≥2 有效业务断言"的统一口径。
+锁定方案三（提示词三层瘦身）+ 阶段规则注入 + 代码兜底的成果：
+1. SYSTEM_PROMPT 已瘦身（核心 ~66 行），场景规则移入 _STAGE_RULES；
+2. 代码强制的规则不再占用 prompt 篇幅（由 tools/middleware 兜底）；
+3. 条件断言反模式（if (x !== undefined) expect(...)）只出现在"禁止"语境；
+4. save_test_script 不再有 force 放行开关，WEAK 一律硬拒；
+5. 断言质量门禁行为符合"每用例 ≥1 状态码 + ≥2 有效业务断言"的统一口径。
 """
 from __future__ import annotations
 
@@ -27,7 +28,24 @@ def _read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
+def _extract_all_prompt_text() -> str:
+    """提取 SYSTEM_PROMPT + _STAGE_RULES 的完整文本（模拟 agent 实际收到的内容）。"""
+    src = _read(AGENT_PY)
+    m = re.search(r'SYSTEM_PROMPT = """(.*?)"""', src, re.DOTALL)
+    assert m, "未在 agent.py 中找到 SYSTEM_PROMPT"
+    core = m.group(1)
+
+    # 提取 _STAGE_RULES 字典中的所有阶段规则文本
+    rules_match = re.search(r'_STAGE_RULES: dict\[str, str\] = \{(.*?)\}', src, re.DOTALL)
+    stage_text = ""
+    if rules_match:
+        stage_text = rules_match.group(1)
+
+    return core + "\n" + stage_text
+
+
 def _extract_system_prompt() -> str:
+    """仅提取核心 SYSTEM_PROMPT（用于瘦身检查）。"""
     src = _read(AGENT_PY)
     m = re.search(r'SYSTEM_PROMPT = """(.*?)"""', src, re.DOTALL)
     assert m, "未在 agent.py 中找到 SYSTEM_PROMPT"
@@ -50,39 +68,72 @@ def _antipattern_occurrences(text: str) -> list[tuple[str, bool]]:
 
 
 # ---------------------------------------------------------------------------
-# 1. 提示词瘦身 + 红线保留
+# 1. 提示词三层瘦身 + 红线保留
 # ---------------------------------------------------------------------------
 
 def test_system_prompt_is_slimmed():
-    """瘦身目标：远低于原始 381 行，锁定在 200 行以内。"""
+    """瘦身目标：核心 prompt 远低于原始 100+ 行，锁定在 80 行以内。"""
     prompt = _extract_system_prompt()
     line_count = prompt.count("\n") + 1
-    assert line_count < 200, f"SYSTEM_PROMPT 仍有 {line_count} 行，瘦身不彻底"
+    assert line_count < 80, f"SYSTEM_PROMPT 仍有 {line_count} 行，瘦身不彻底"
 
 
 @pytest.mark.parametrize("red_line", [
-    "无放行开关",                       # 门禁硬性，无 force 后门
-    "derive_test_skeleton",             # 用例须有确定性底座
-    "禁止 fallback token",              # 禁 process.env.X || 'test'
-    "修复即更新",                       # 传原 endpoint_id 更新而非新建
-    "禁止硬编码",                       # 禁 URL/token/业务唯一值
-    "execute_api_script_by_artifact_id",  # 按附件执行已有脚本
-    "1 个状态码断言 + 2 个有效业务断言",   # 统一断言口径
-    "一次对话一个场景",                  # 场景数量控制
-    "场景步骤必须基于接口 schema",        # 场景必填字段
-    "路径参数必须闭环映射",              # 路径参数映射
-    "创建类步骤必须提取 ID 并配 teardown",  # 创建类步骤 teardown
-    "分页/列表步骤必须做业务断言",        # 分页业务断言
-    "模板变量语法必须规范",              # 模板变量空格
+    "禁硬编码",                        # 红线 1
+    "fallback token",                  # 红线 2: 禁 process.env.X || 'test'
+    "derive_test_skeleton",            # 红线 3: 用例须有确定性底座
+    "修复不降断言",                    # 红线 4: 保留 400/401/403 预期
+    "token 失效是环境问题",            # 红线 5
+    "重试上限",                        # 红线 6: 同一操作最多重试 3 次
+    "成果必存",                        # 红线 7
+    "自动获取接口信息",                # 红线 8
+    "必传 execution_config",           # 红线 9
+    "假阳性必检",                      # 红线 10
 ])
-def test_system_prompt_keeps_red_lines(red_line: str):
+def test_core_prompt_keeps_critical_red_lines(red_line: str):
+    """核心 SYSTEM_PROMPT 必须保留所有代码无法强制的高危红线。"""
     prompt = _extract_system_prompt()
-    assert red_line in prompt, f"SYSTEM_PROMPT 缺失红线: {red_line}"
+    assert red_line in prompt, f"核心 SYSTEM_PROMPT 缺失关键红线: {red_line}"
+
+
+@pytest.mark.parametrize("rule_text", [
+    "场景规范",
+    "request_body",
+    "`{xxx}`",
+    "add_teardown_step",
+    "模板变量语法",
+    "覆盖旧场景",
+    "add_step_extractor",
+])
+def test_stage_rules_contain_scenario_guidelines(rule_text: str):
+    """场景相关的红线已移入 _STAGE_RULES，由中间件按需注入。"""
+    src = _read(AGENT_PY)
+    # 提取 _STAGE_RULES 区域（从定义开始到下一个顶级定义）
+    start = src.find("_STAGE_RULES: dict[str, str]")
+    assert start > 0, "未找到 _STAGE_RULES 定义"
+    # 找到下一个顶级赋值或类定义
+    rest = src[start:]
+    # _STAGE_RULES 以 } 结尾，后面跟空行和下一个定义
+    end_of_rules = rest.find('\n\n# ===')
+    if end_of_rules > 0:
+        stage_text = rest[:end_of_rules]
+    else:
+        # Fallback: take the next 2000 chars
+        stage_text = rest[:2000]
+    assert rule_text in stage_text, f"_STAGE_RULES 缺失场景规范: {rule_text}"
+
+
+def test_tool_gates_mentioned_in_core_prompt():
+    """核心 prompt 必须告知 agent 工具内置门禁的存在（代码强制规则不需要展开说）。"""
+    prompt = _extract_system_prompt()
+    assert "工具内置门禁" in prompt, "未告知 agent 存在工具门禁"
+    assert "save_test_script" in prompt, "未提及 save_test_script 门禁"
+    assert "audit_script_assertions" in prompt, "未提及断言预检工具"
 
 
 def test_system_prompt_does_not_endorse_conditional_assertion():
     """条件断言反模式只允许出现在"禁止"语境，不得作为正面示例。"""
-    prompt = _extract_system_prompt()
+    prompt = _extract_all_prompt_text()
     occurrences = _antipattern_occurrences(prompt)
     bad = [ctx for ctx, is_prohib in occurrences if not is_prohib]
     assert not bad, f"提示词中条件断言被用作正面示例: {bad}"
@@ -192,29 +243,20 @@ def test_gate_treats_broad_truthiness_as_weak(report):
 
 def test_system_prompt_asks_for_execution_after_generation():
     """生成流程末尾必须主动说明已保存并输出执行邀约标记。"""
-    prompt = _extract_system_prompt()
+    prompt = _extract_all_prompt_text()
     assert "执行邀约" in prompt, "缺少执行邀约步骤"
     assert "尚未执行" in prompt, "未明确告知用户尚未执行"
-    assert "暂无 HTML 报告" in prompt or "暂无 HTML 报告和执行摘要" in prompt
+    assert "暂无 HTML 报告" in prompt or "暂无 HTML 测试报告和执行摘要" in prompt
     assert "<EXECUTION_INVITATION>" in prompt, "未提供执行邀约标记示例"
     assert '"type":"execution_invitation"' in prompt, "执行邀约标记类型不正确"
-    assert "不要以开放文字反问用户" in prompt, "未禁止开放文字反问"
 
 
 def test_system_prompt_prohibits_execution_without_confirmation():
-    """必须通过执行邀约标记获得用户决策后，方可调用执行类工具。"""
-    prompt = _extract_system_prompt()
-    assert "[执行邀约]" in prompt or "收到用户通过面板提交的决策" in prompt
-    assert "方可调用执行类工具" in prompt
+    """收到用户决策后方可调用执行类工具。"""
+    prompt = _extract_all_prompt_text()
+    assert "[执行邀约]" in prompt or "收到用户决策" in prompt
     assert "execute_api_script" in prompt
     assert "execute_scenario" in prompt
-
-
-def test_system_prompt_rest_endpoint_generation_only():
-    """REST 生成端口应仅生成不执行。"""
-    prompt = _extract_system_prompt()
-    assert "REST 生成端口仅生成不执行" in prompt
-    assert "generate-from-schema" in prompt
 
 
 def test_api_agent_has_hitl_for_dangerous_tools():

@@ -71,6 +71,34 @@ def get_image_model():
 # noqa  Mi8zOmFIVnBZMlhsdEpUbXRiZm92b2s2Y214MWVBPT06ODkzY2FhOWI=
 
 
+def get_text_model_with_temperature(temperature: float = 0.3):
+    """创建指定 temperature 的文本模型。
+
+    用于按 Agent 阶段动态调整温度：
+    - 分析/评审阶段（0.1-0.3）→ 确定性输出
+    - 生成阶段（0.5）→ 增加多样性和创造性
+    - 格式化阶段（0.0）→ 机械性输出
+
+    注意：此函数不使用 lru_cache，每次调用都新建实例；
+    ChatDeepSeek 实例本身创建成本很低（仅配置参数，不建连）。
+    """
+    from langchain_deepseek import ChatDeepSeek
+    try:
+        model = ChatDeepSeek(
+            api_key=settings.deepseek_api_key,
+            model=settings.llm_model,
+            temperature=temperature,
+        )
+        model.profile = ModelProfile(max_input_tokens=128000)
+        return model
+    except Exception as e:
+        logger.warning(
+            "Failed to create text model (t=%.1f), falling back to default: %s",
+            temperature, e,
+        )
+        return text_model  # 降级到默认模型
+
+
 # 全局模型实例（供各 Agent 直接导入使用）
 text_model = get_text_model()
 image_model = get_image_model()
