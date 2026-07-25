@@ -22,6 +22,7 @@ from sqlalchemy import select
 
 from app.agents.tools.api.skeleton_tools import _schema_type
 from app.config.database import async_session_factory
+from app.agents.tools.api._cache import cached_read
 from app.models.api_endpoint import APIEndpoint
 
 _SUCCESS_STATUS = ("200", "201", "202", "204")
@@ -152,6 +153,7 @@ def _flatten(schema: Any, prefix: str = "", required_fields: Optional[list] = No
 # ---------------------------------------------------------------------------
 
 @tool
+@cached_read("get_response_schema")
 async def get_response_schema(endpoint_id: str, status: Optional[str] = None) -> dict:
     """获取端点响应 schema，用于生成契约断言（expectSchema 整体校验响应体）。
 

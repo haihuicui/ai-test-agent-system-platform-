@@ -61,11 +61,26 @@ def _looks_like_meta_question(text: str) -> bool:
     return any(re.search(p, cleaned) for p in patterns)
 
 
+_SENTINEL = object()
+
+
+def _set_runtime_cache(runtime: Any, attr: str, value: Any) -> None:
+    """安全写入 runtime 缓存属性；runtime 不可写时静默跳过。"""
+    try:
+        object.__setattr__(runtime, attr, value)
+    except (AttributeError, TypeError):
+        pass
+
+
 def resolve_enable_rag(messages: list[Any] | None, runtime: Any) -> bool:
     """解析 RAG 开关的唯一权威实现。
 
     优先级：最近一条 human 消息的 ``additional_kwargs.enable_rag``
     > 运行时上下文 ``context.enable_rag`` > 默认 True。
+
+    性能优化：首次解析后缓存到 ``runtime._cached_enable_rag``，
+    同一 model-call 周期内后续调用（RAGMiddleware / RagAwareSkillsMiddleware）
+    直接读取缓存，避免对消息历史的 O(n) 重复遍历。
 
     注意：
     - 只从 human 消息读取开关，避免从 AI / tool 消息的 additional_kwargs
@@ -76,20 +91,30 @@ def resolve_enable_rag(messages: list[Any] | None, runtime: Any) -> bool:
     - 若用户询问的是 Agent 自身的 skill / 能力等元问题，自动关闭 RAG，
       避免不必要的 ~8s 检索延迟。
     """
+    # ── 读取缓存：同一 model-call 周期内不复算 ──
+    cached = getattr(runtime, "_cached_enable_rag", _SENTINEL) if runtime else _SENTINEL
+    if cached is not _SENTINEL:
+        return bool(cached)
+
     for msg in reversed(messages or []):
         if getattr(msg, "type", None) == "human":
             ak = getattr(msg, "additional_kwargs", None) or {}
             if isinstance(ak, dict) and "enable_rag" in ak:
-                return bool(ak["enable_rag"])
+                result = bool(ak["enable_rag"])
+                _set_runtime_cache(runtime, "_cached_enable_rag", result)
+                return result
 
             # 元问题无需检索历史知识库，直接跳过 RAG 以减少延迟。
             text = _extract_message_text(msg)
             if _looks_like_meta_question(text):
+                _set_runtime_cache(runtime, "_cached_enable_rag", False)
                 return False
             break  # 最近的 human 消息未携带开关 -> 回退到 context
 
     context = getattr(runtime, "context", None) if runtime else None
-    return getattr(context, "enable_rag", True) if context else True
+    result = getattr(context, "enable_rag", True) if context else True
+    _set_runtime_cache(runtime, "_cached_enable_rag", result)
+    return result
 
 
 class RAGMiddleware(AgentMiddleware):

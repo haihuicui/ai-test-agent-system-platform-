@@ -22,6 +22,7 @@ from app.agents.testcase.module_self_check_middleware import ModuleSelfCheckMidd
 from app.agents.testcase.phase_review_middleware import PhaseReviewMiddleware
 from app.agents.testcase.rag_middleware import RAGMiddleware, RagAwareSkillsMiddleware, resolve_enable_rag
 from app.agents.testcase.state_compaction_middleware import StaleToolResultOffloadMiddleware
+from app.agents.testcase.intent_router_middleware import IntentRouterMiddleware
 from app.agents.testcase.tool_call_validation_middleware import (
     ToolCallAdjacencyMiddleware,
     patch_model_for_tool_call_adjacency,
@@ -99,8 +100,14 @@ class ContextInjectionMiddleware(AgentMiddleware):
     ) -> ModelResponse:
         ctx = request.runtime.context
 
-        # RAG 开关：统一走 resolve_enable_rag（只从 human 消息读取，
-        # 避免从 AI / tool 消息的 additional_kwargs 误读）
+        # RAG 开关：每次 model call 前清除上一轮缓存，然后统一走 resolve_enable_rag
+        # 解析一次后缓存到 runtime，后续 RAGMiddleware / RagAwareSkillsMiddleware
+        # 直接读缓存，避免对消息历史的 O(n) 重复遍历（从 3 次降到 1 次）。
+        if runtime := request.runtime:
+            try:
+                object.__delattr__(runtime, "_cached_enable_rag")
+            except (AttributeError, TypeError):
+                pass
         enable_rag = resolve_enable_rag(request.messages, request.runtime)
 
         rag_instruction = (
@@ -180,17 +187,38 @@ create_test_case_tool(
 
 
 def _has_image_in_messages(request: ModelRequest) -> bool:
-    """遍历 request.messages，检测消息中是否包含图片 block。"""
+    """遍历 request.messages，检测消息中是否包含图片 block。
+
+    同一 model-call 周期内消息不会新增图片，结果缓存到 runtime 避免
+    每次 O(n) 遍历（99%+ 的对话是纯文本）。
+    """
+    runtime = getattr(request, "runtime", None)
+    if runtime:
+        cached = getattr(runtime, "_has_image", None)
+        if cached is not None:
+            return bool(cached)
+
+    result = False
     for message in request.messages:
         content = message.content
         if isinstance(content, list):
             for block in content:
                 if isinstance(block, dict):
                     if block.get("type") in ("image", "image_url"):
-                        return True
+                        result = True
+                        break
                 elif hasattr(block, "type") and block.type in ("image", "image_url"):
-                    return True
-    return False
+                    result = True
+                    break
+        if result:
+            break
+
+    if runtime:
+        try:
+            object.__setattr__(runtime, "_has_image", result)
+        except (AttributeError, TypeError):
+            pass
+    return result
 
 
 @wrap_model_call
@@ -198,13 +226,12 @@ async def dynamic_model_selection(request: ModelRequest, handler) -> ModelRespon
     """
     根据对话消息中是否含有图片，动态切换底层模型：
       - 含有图片 -> image_model（多模态视觉模型）
-      - 纯文本   -> deepseek_model（成本更低、速度更快）
+      - 纯文本   -> text_model（成本更低、速度更快）
     """
     if _has_image_in_messages(request):
         model = image_model
     else:
         model = text_model
-# pragma: no cover  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2U1ZkTlZnPT06OTM3YzViOWQ=
 
     return await handler(request.override(model=model))
 
@@ -300,12 +327,18 @@ SYSTEM_PROMPT = """
 若用例已写入 JSONL 文件，**必须**调用 `preview_test_cases` 工具读取并展示关键用例。
 **禁止**仅输出汇总表就进入评审，否则系统将要求补充。
 
+### Phase 4 质量评审完成后
+
+- 质量评审报告通过（人工确认或自动审批）后，**必须调用 `write_todos` 将 Phase 4 任务标记为 `completed`**。
+- 质量评审报告未通过（退回返工）时，**不要**标记完成，保持 `in_progress` 状态，直到通过为止。
+
 ### Phase 5 输出格式选择特别说明
 
 - 进入 Phase 5 后，**先输出 `## 输出格式化`** 触发格式选择面板，**不要以自然语言询问用户"你希望什么格式"**。
 - 格式选择面板会提供：Markdown / Excel / JSON / CSV。
 - 收到用户选择的格式后，直接按该格式生成最终交付物，禁止输出过渡语句。
 - 若用户选择 Excel，调用 `export_test_cases_to_excel` 生成文件，并在后续消息中说明文件路径。
+- **交付物生成完毕后，必须调用 `write_todos` 将 Phase 5 任务标记为 `completed`，并将所有任务状态确保为 `completed`。**
 
 ---
 
@@ -566,6 +599,8 @@ async def make_agent(model: Any | None = None) -> AsyncIterator[Pregel]:
                不传时使用默认的 text_model。
     """
     context_middleware = ContextInjectionMiddleware()
+    # 意图感知路由：简单任务（导出、评审等）跳过无关 Phase
+    intent_router_middleware = IntentRouterMiddleware()
     rag_middleware = RAGMiddleware()
     # 陈旧大工具结果（read_file / grep）卸载：控制 checkpoint / 历史 state 体积
     stale_offload_middleware = StaleToolResultOffloadMiddleware(backend=composite_backend)
@@ -593,6 +628,7 @@ async def make_agent(model: Any | None = None) -> AsyncIterator[Pregel]:
         system_prompt=SYSTEM_PROMPT,
         middleware=[
             skills_middleware,
+            intent_router_middleware,
             context_middleware,
             rag_middleware,
             stale_offload_middleware,

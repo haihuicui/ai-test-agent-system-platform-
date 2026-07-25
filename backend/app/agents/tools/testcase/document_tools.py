@@ -4,6 +4,7 @@
 提供从 URL 下载并解析文档内容的功能，支持 PDF、图片、TXT 等格式。
 """
 
+import asyncio
 import logging
 import os
 from typing import Optional
@@ -122,8 +123,13 @@ async def parse_document_from_url(
         return {"success": False, "error": f"文档解析失败: {str(e)}"}
 
 
+# ── RAG MCP 客户端单例：避免每次 make_agent() 重建 SSE 连接 ──
+_rag_tools_cache: list | None = None
+_rag_tools_lock = asyncio.Lock()
+
+
 async def get_rag_tools() -> list:
-    """获取 RAG MCP 工具。
+    """获取 RAG MCP 工具（单例模式，首次调用建立 SSE 连接后缓存复用）。
 
     SSE 地址通过环境变量 RAG_MCP_URL 配置（容器部署时指向 rag-server 服务，
     如 http://rag-server:8008/sse）；缺省回退到开发环境地址。
@@ -132,19 +138,29 @@ async def get_rag_tools() -> list:
     Returns:
         RAG 工具列表
     """
-    try:
-        from langchain_mcp_adapters.client import MultiServerMCPClient
+    global _rag_tools_cache
+    if _rag_tools_cache is not None:
+        return _rag_tools_cache
 
-        client = MultiServerMCPClient({
-            "rag-server": {
-                "url": os.environ.get("RAG_MCP_URL", "http://192.168.60.103/mcp/sse"),  #http://192.168.60.103:8008/sse
-                "transport": "sse",
-            }
-        })
-# pylint: disable  My80OmFIVnBZMlhsdEpUbXRiZm92b2s2WTJ4c05BPT06M2RjZTI1Zjk=
+    async with _rag_tools_lock:
+        if _rag_tools_cache is not None:
+            return _rag_tools_cache
 
-        tools = await client.get_tools()
-        return tools
-    except Exception as e:
-        logger.warning(f"Failed to load RAG MCP tools: {e}")
-        return []
+        try:
+            from langchain_mcp_adapters.client import MultiServerMCPClient
+
+            client = MultiServerMCPClient({
+                "rag-server": {
+                    "url": os.environ.get("RAG_MCP_URL", "http://192.168.60.103/mcp/sse"),
+                    "transport": "sse",
+                }
+            })
+
+            tools = await client.get_tools()
+            _rag_tools_cache = tools
+            logger.info("RAG MCP 客户端已初始化，共 %d 个工具", len(tools))
+            return tools
+        except Exception as e:
+            logger.warning(f"Failed to load RAG MCP tools: {e}")
+            _rag_tools_cache = []  # 缓存空列表，下次不再重试
+            return []

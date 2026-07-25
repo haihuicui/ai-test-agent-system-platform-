@@ -20,6 +20,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config.database import get_db
+from app.agents.tools.api._cache import cached_read
 from app.models.api_endpoint import APIEndpoint
 from app.models.attachment import Attachment
 from app.models.folder import Folder
@@ -113,6 +114,7 @@ from app.services.openapi_parser import OpenAPIParser
 
 
 @tool
+@cached_read("list_api_endpoints")
 async def list_api_endpoints(
     project_identifier: str,
     folder_id: str | None = None,
@@ -237,6 +239,7 @@ async def list_api_endpoints(
 
 
 @tool
+@cached_read("get_endpoint_details")
 async def get_endpoint_details(
     endpoint_id: str
 ) -> str:
@@ -305,6 +308,7 @@ async def get_endpoint_details(
 
 
 @tool
+@cached_read("get_multiple_endpoints_details")
 async def get_multiple_endpoints_details(
     endpoint_ids: list[str]
 ) -> str:
@@ -396,6 +400,7 @@ async def get_multiple_endpoints_details(
 
 
 @tool
+@cached_read("get_folder_structure")
 async def get_folder_structure(
     project_identifier: str,
     folder_type: str = "api_test"

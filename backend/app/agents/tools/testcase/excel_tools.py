@@ -207,7 +207,7 @@ def _resolve_input_path(input_path: str | Path) -> Path:
     return resolved
 
 
-def _parse_json_objects(text: str, source: str) -> list[Any]:
+def _parse_json_objects(text: str, source: str, max_objects: int | None = None) -> list[Any]:
     """从文本中解析出所有 JSON 对象，对常见的「脏」格式有强容错。
 
     无需调用方保证文件是严格的 JSONL，自动兼容：
@@ -215,6 +215,9 @@ def _parse_json_objects(text: str, source: str) -> list[Any]:
       - 整文件 JSON 数组：[ {...}, {...} ]
       - 多个对象挤在同一行、对象跨多行、对象之间用逗号或空白分隔
         （例如 LLM 直接拼接产出的 `{...},{...},{...}`）
+
+    max_objects: 解析对象上限；到达后停止扫描，用于 preview 等「只看前几条」的场景，
+    避免对 200+ 条的大文件做全量 JSON 解析。
 
     实现上用 json.JSONDecoder().raw_decode 顺序扫描，不依赖换行边界，
     因此 Agent 不再需要在 LLM 侧手工合并/规整文件，从根本上规避
@@ -224,11 +227,13 @@ def _parse_json_objects(text: str, source: str) -> list[Any]:
     if not text:
         return []
 
-    # 整文件 JSON 数组：直接解析
+    # 整文件 JSON 数组：直接解析（但若 max_objects 很小，截断数组）
     if text.startswith("["):
         data = json.loads(text)
         if not isinstance(data, list):
             raise ValueError(f"用例数据文件顶层不是 JSON 数组：{source}")
+        if max_objects is not None and len(data) > max_objects:
+            return data[:max_objects]
         return data
 
     # 其余情况：顺序扫描出连续的 JSON 值，容忍逗号/空白分隔
@@ -236,6 +241,8 @@ def _parse_json_objects(text: str, source: str) -> list[Any]:
     objs: list[Any] = []
     idx, n = 0, len(text)
     while idx < n:
+        if max_objects is not None and len(objs) >= max_objects:
+            break
         # 跳过对象之间的空白与逗号分隔符
         while idx < n and text[idx] in " \t\r\n,":
             idx += 1
@@ -284,6 +291,7 @@ def _describe_missing_file(requested: str | Path, resolved: Path) -> str:
 def _load_test_cases_from_file(
     input_path: str | Path | list[str | Path],
     dedup: bool = True,
+    max_cases: int | None = None,
 ) -> list[dict[str, Any]]:
     """从工作目录下的一个或多个数据文件读取并合并测试用例列表。
 
@@ -297,6 +305,9 @@ def _load_test_cases_from_file(
 
     dedup=True 时按用例编号（或标题）去重，后出现的覆盖先出现的，
     用于消除多文件之间的重复用例。
+
+    max_cases: 每个文件最多解析的对象数；用于 preview 场景早期截断，
+    避免对 200+ 条 JSONL 做全量 JSON 解析。
     """
     paths = input_path if isinstance(input_path, (list, tuple)) else [input_path]
 
@@ -307,11 +318,19 @@ def _load_test_cases_from_file(
             raise FileNotFoundError(_describe_missing_file(p, real_path))
         text = real_path.read_text(encoding="utf-8").strip()
         if not text:
-            # 多文件场景下允许个别文件为空，跳过即可；单文件为空仍然报错
             if len(paths) == 1:
                 raise ValueError(f"用例数据文件为空：{p}")
             continue
-        cases.extend(_parse_json_objects(text, str(p)))
+        # 计算本文件还需解析多少条：总上限 - 已收集数
+        file_limit = None
+        if max_cases is not None:
+            remaining = max_cases - len(cases)
+            if remaining <= 0:
+                break
+            file_limit = remaining
+        cases.extend(_parse_json_objects(text, str(p), max_objects=file_limit))
+        if max_cases is not None and len(cases) >= max_cases:
+            break
 
     invalid = [i for i, c in enumerate(cases) if not isinstance(c, dict)]
     if invalid:

@@ -10,11 +10,13 @@ from uuid import UUID
 from langchain_core.tools import tool
 
 from app.config.database import get_db
+from app.agents.tools.api._cache import cached_read
 from app.services.environment_service import EnvironmentService
 from app.utils.exceptions import NotFoundException
 
 
 @tool
+@cached_read("get_project_environments")
 async def get_project_environments(project_identifier: str) -> str:
     """
     获取项目的所有环境配置（不包含敏感凭据）
@@ -62,6 +64,7 @@ async def get_project_environments(project_identifier: str) -> str:
 
 
 @tool
+@cached_read("get_environment_details")
 async def get_environment_details(project_identifier: str, env_id: str) -> str:
     """
     获取单个环境配置的详细信息（不包含敏感凭据）

@@ -5,7 +5,9 @@
 以及用例抽样预览能力（用于 Phase 3 人工评审）。
 """
 
+import asyncio
 import logging
+import os
 from typing import Optional, Any
 
 import httpx
@@ -23,10 +25,42 @@ logger = logging.getLogger(__name__)
 API_BASE_URL = settings.backend_api_url
 API_PREFIX = settings.api_prefix
 
+# ── 模块级持久化 HTTP 客户端（连接池复用，避免批量创建时每条用例重建 TCP 连接）──
+_session_client: httpx.AsyncClient | None = None
+_client_lock = asyncio.Lock()
+
+# 批量创建并发上限：避免瞬间并发打爆后端 API；可通过环境变量调控
+_BATCH_MAX_CONCURRENCY = int(os.environ.get("BATCH_CREATE_CONCURRENCY", "8"))
+
 
 def _get_api_url(path: str) -> str:
     """构建完整的 API URL"""
     return f"{API_BASE_URL}{API_PREFIX}{path}"
+
+
+async def _get_session_client() -> httpx.AsyncClient:
+    """获取/创建模块级持久化 AsyncClient（懒加载 + 连接池复用）。
+
+    所有通过 _make_http_request 发出的 HTTP 调用共享同一客户端实例，
+    利用 HTTP keep-alive 避免每条测试用例重建 TCP 连接。
+    """
+    global _session_client
+    if _session_client is not None and not _session_client.is_closed:
+        return _session_client
+
+    async with _client_lock:
+        if _session_client is not None and not _session_client.is_closed:
+            return _session_client
+        _session_client = httpx.AsyncClient(
+            timeout=httpx.Timeout(30.0),
+            limits=httpx.Limits(
+                max_keepalive_connections=20,
+                max_connections=100,
+                keepalive_expiry=30,
+            ),
+        )
+        logger.info("会话级 AsyncClient 已创建（keep-alive 连接池，并发上限 %d）", _BATCH_MAX_CONCURRENCY)
+        return _session_client
 
 
 def _resolve_field(data: dict[str, Any], *keys: str) -> Any:
@@ -73,17 +107,17 @@ async def _make_http_request(
     json_data: Optional[dict] = None,
     params: Optional[dict] = None,
 ) -> dict[str, Any]:
-    """发送 HTTP 请求的通用函数"""
+    """发送 HTTP 请求的通用函数（复用持久化连接池）。"""
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.request(
-                method=method,
-                url=url,
-                json=json_data,
-                params=params,
-            )
-            response.raise_for_status()
-            return response.json()
+        client = await _get_session_client()
+        response = await client.request(
+            method=method,
+            url=url,
+            json=json_data,
+            params=params,
+        )
+        response.raise_for_status()
+        return response.json()
     except httpx.HTTPStatusError as e:
         error_detail = e.response.text
         try:
@@ -465,7 +499,11 @@ async def _batch_create_test_cases_impl(
     test_cases: list[dict[str, Any]],
     folder_id: Optional[str] = None,
 ) -> dict[str, Any]:
-    """批量创建测试用例的内部实现"""
+    """批量创建测试用例（并发实现，复用连接池）。
+
+    通过 asyncio.gather + Semaphore 控制并发上限，每条用例间复用同一个
+    AsyncClient 连接池，避免逐条串行创建 + 每条的 TCP 握手开销。
+    """
     if not project_identifier:
         return {
             "success": False,
@@ -480,86 +518,81 @@ async def _batch_create_test_cases_impl(
             "message": "批量创建失败：测试用例列表为空"
         }
 
-    results = []
-    succeeded = 0
-    failed = 0
+    semaphore = asyncio.Semaphore(_BATCH_MAX_CONCURRENCY)
 
-    for index, test_case_data in enumerate(test_cases):
-        try:
-            name = test_case_data.get("name")
-            if not name:
-                results.append({
+    async def _create_one(index: int, test_case_data: dict[str, Any]) -> dict[str, Any]:
+        """创建单条用例（带并发控制 + 统一错误兜底）。"""
+        async with semaphore:
+            try:
+                name = test_case_data.get("name")
+                if not name:
+                    return {
+                        "index": index,
+                        "success": False,
+                        "name": None,
+                        "error": "测试用例名称不能为空",
+                    }
+
+                result = await _create_test_case_impl(
+                    project_identifier=project_identifier,
+                    folder_id=folder_id,
+                    name=name,
+                    description=_resolve_field(
+                        test_case_data,
+                        "description", "desc", "描述", "remarks", "备注", "remark",
+                    ),
+                    preconditions=_resolve_field(
+                        test_case_data, "preconditions", "precondition", "前置条件"
+                    ),
+                    priority=test_case_data.get("priority", "medium"),
+                    status=test_case_data.get("status", "new"),
+                    case_type=_resolve_field(
+                        test_case_data,
+                        "case_type", "type", "用例类型", "测试类型", "类型",
+                    ) or "functional",
+                    owner=test_case_data.get("owner"),
+                    tags=test_case_data.get("tags"),
+                    issues=test_case_data.get("issues"),
+                    automation_status=test_case_data.get("automation_status", "not_automated"),
+                    custom_fields=test_case_data.get("custom_fields"),
+                    template=test_case_data.get("template", "test_case"),
+                    test_case_steps=_normalize_steps(
+                        _resolve_field(test_case_data, "test_case_steps", "steps", "测试步骤")
+                    ),
+                    feature=test_case_data.get("feature"),
+                    scenario=test_case_data.get("scenario"),
+                    background=test_case_data.get("background"),
+                    module=_resolve_field(test_case_data, "module", "所属模块"),
+                    test_data=_resolve_field(test_case_data, "test_data", "测试数据"),
+                    case_number=_resolve_field(
+                        test_case_data, "case_number", "id", "用例编号", "identifier", "case_id", "编号"
+                    ),
+                )
+
+                case_data = result.get("data") or {}
+                return {
+                    "index": index,
+                    "success": result.get("success", False),
+                    "identifier": case_data.get("identifier") or case_data.get("case_number"),
+                    "name": name,
+                    "error": result.get("error"),
+                }
+
+            except Exception as e:
+                return {
                     "index": index,
                     "success": False,
-                    "name": None,
-                    "error": "测试用例名称不能为空",
-                })
-                failed += 1
-                continue
+                    "name": test_case_data.get("name"),
+                    "error": str(e),
+                }
 
-            result = await _create_test_case_impl(
-                project_identifier=project_identifier,
-                folder_id=folder_id,
-                name=name,
-                description=_resolve_field(
-                    test_case_data,
-                    "description", "desc", "描述", "remarks", "备注", "remark",
-                ),
-                preconditions=_resolve_field(
-                    test_case_data, "preconditions", "precondition", "前置条件"
-                ),
-                priority=test_case_data.get("priority", "medium"),
-                status=test_case_data.get("status", "new"),
-                case_type=_resolve_field(
-                    test_case_data,
-                    "case_type", "type", "用例类型", "测试类型", "类型",
-                ) or "functional",
-                owner=test_case_data.get("owner"),
-                tags=test_case_data.get("tags"),
-                issues=test_case_data.get("issues"),
-                automation_status=test_case_data.get("automation_status", "not_automated"),
-                custom_fields=test_case_data.get("custom_fields"),
-                template=test_case_data.get("template", "test_case"),
-                test_case_steps=_normalize_steps(
-                    _resolve_field(test_case_data, "test_case_steps", "steps", "测试步骤")
-                ),
-                feature=test_case_data.get("feature"),
-                scenario=test_case_data.get("scenario"),
-                background=test_case_data.get("background"),
-                module=_resolve_field(test_case_data, "module", "所属模块"),
-                test_data=_resolve_field(test_case_data, "test_data", "测试数据"),
-                case_number=_resolve_field(
-                    test_case_data, "case_number", "id", "用例编号", "identifier", "case_id", "编号"
-                ),
-            )
-# noqa  My80OmFIVnBZMlhsdEpUbXRiZm92b2s2YzNOVE5RPT06YjNlZWQyMDc=
+    # 并发创建所有用例；asyncio.gather 的 return_exceptions 已由内部 try/except 覆盖，
+    # 这里不再需要，gather 永不抛异常。
+    tasks = [_create_one(i, case) for i, case in enumerate(test_cases)]
+    results = await asyncio.gather(*tasks)
 
-            # 仅回传精简结果：完整用例对象（result["data"]）与输入用例体积很大，
-            # 会随每次批量创建整段写入 checkpoint / 历史 state，长会话下累积到数百 KB，
-            # 拖垮前端「加载历史对话」。Agent 后续只需要「成功/失败 + 用例标识」即可，
-            # 因此这里丢弃完整对象，只保留 index/success/identifier/name/error。
-            case_data = result.get("data") or {}
-            results.append({
-                "index": index,
-                "success": result.get("success", False),
-                "identifier": case_data.get("identifier") or case_data.get("case_number"),
-                "name": name,
-                "error": result.get("error"),
-            })
-
-            if result.get("success"):
-                succeeded += 1
-            else:
-                failed += 1
-
-        except Exception as e:
-            results.append({
-                "index": index,
-                "success": False,
-                "name": test_case_data.get("name"),
-                "error": str(e),
-            })
-            failed += 1
+    succeeded = sum(1 for r in results if r.get("success"))
+    failed = len(results) - succeeded
 
     return {
         "success": True,
@@ -567,7 +600,7 @@ async def _batch_create_test_cases_impl(
             "total": len(test_cases),
             "succeeded": succeeded,
             "failed": failed,
-            "results": results
+            "results": sorted(results, key=lambda r: r["index"]),
         },
         "message": f"批量创建完成：成功 {succeeded} 个，失败 {failed} 个"
     }
@@ -704,10 +737,14 @@ async def preview_test_cases(
     try:
         limit = max(1, min(int(limit), _PREVIEW_MAX_CASES))
 
+        # 无过滤条件时：可直接在文件读取阶段截断，避免全量解析大 JSONL 文件
+        has_filters = any([module, priority, case_type])
+        max_cases_val = None if has_filters else (limit * 2)  # 多读一些，给去重留余量
+
         if _is_file_path(source):
-            cases = _load_test_cases_from_file(source, dedup=False)
+            cases = _load_test_cases_from_file(source, dedup=False, max_cases=max_cases_val)
         else:
-            cases = _parse_json_objects(source, source="inline_json")
+            cases = _parse_json_objects(source, source="inline_json", max_objects=max_cases_val)
 
         if not cases:
             return {

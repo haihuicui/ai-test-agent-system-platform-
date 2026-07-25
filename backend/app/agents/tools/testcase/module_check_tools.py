@@ -93,26 +93,45 @@ def _case_number_key(case: dict[str, Any]) -> Any:
     return number if number else None
 
 
+# ── _collect_existing_case_numbers 缓存 ──
+# 大部分模块自检发生在同一对话内，JSONL 文件不会频繁变化。
+# 缓存在文件 mtime 不变时复用，避免每次 rglob 全量扫描并解析所有 JSONL。
+_scan_cache: dict[str, tuple[float, set[Any]]] = {}  # file_path_str -> (mtime, case_numbers)
+
+
 def _collect_existing_case_numbers(
     current_files: set[Path],
 ) -> set[Any]:
-    """扫描工作区中除当前文件外的其他用例数据文件，收集已有用例编号。"""
+    """扫描工作区中除当前文件外的其他用例数据文件，收集已有用例编号。
+
+    通过文件 mtime 做缓存失效：同一文件在 mtime 未变时复用已解析结果。
+    """
     existing_numbers: set[Any] = set()
     for f in _WORKSPACE_ROOT.rglob("*.jsonl"):
-        # 排除当前正在自检的文件
         if f.resolve() in current_files:
             continue
         try:
+            cache_key = str(f.resolve())
+            mtime = f.stat().st_mtime
+            cached = _scan_cache.get(cache_key)
+            if cached is not None and cached[0] == mtime:
+                existing_numbers.update(cached[1])
+                continue
+
             text = f.read_text(encoding="utf-8").strip()
             if not text:
+                _scan_cache[cache_key] = (mtime, set())
                 continue
+
+            numbers: set[Any] = set()
             for case in _parse_json_objects(text, str(f)):
                 if isinstance(case, dict):
                     key = _case_number_key(case)
                     if key is not None:
-                        existing_numbers.add(key)
+                        numbers.add(key)
+            _scan_cache[cache_key] = (mtime, numbers)
+            existing_numbers.update(numbers)
         except Exception:
-            # 扫描过程不应因单个文件损坏而中断
             logger.warning("扫描已有用例文件失败：%s", f, exc_info=True)
     return existing_numbers
 

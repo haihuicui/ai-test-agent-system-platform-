@@ -26,6 +26,7 @@ from langchain_core.tools import tool
 from sqlalchemy import select
 
 from app.config.database import async_session_factory
+from app.agents.tools.api._cache import cached_read
 from app.models.api_endpoint import APIEndpoint
 
 # 视为成功的 2xx 状态码
@@ -460,6 +461,7 @@ def _derive_skeletons(
 
 
 @tool
+@cached_read("derive_test_skeleton")
 async def derive_test_skeleton(endpoint_id: str) -> str:
     """
     从端点的 OpenAPI schema 确定性推导测试用例骨架。
