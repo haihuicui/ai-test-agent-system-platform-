@@ -152,12 +152,13 @@ class WebExecutionInvitationMiddleware(AgentMiddleware):
         if not payload:
             return None
 
-        # 防止同一条 AI 消息重复触发
-        after_ai = messages[messages.index(last_ai) + 1 :]
+        # ── 全局去重：若历史中已有 [执行邀约] HumanMessage，说明执行邀约
+        #     流程已触发过，后续 AI 消息再输出 <EXECUTION_INVITATION> 标记
+        #     属于模型行为错误，应拦截而非重复弹窗。
         if any(
             isinstance(m, HumanMessage)
             and str(m.content).startswith("[执行邀约]")
-            for m in after_ai
+            for m in messages
         ):
             return None
 

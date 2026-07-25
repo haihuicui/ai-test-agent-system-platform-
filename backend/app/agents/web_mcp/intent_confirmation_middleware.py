@@ -50,8 +50,26 @@ def _parse_intent_confirmation(content: str) -> dict[str, Any] | None:
         return None
 
     existing = payload.get("existing_function") or {}
-    if not existing.get("id") or not existing.get("identifier"):
+    candidates = payload.get("candidates") or []
+    has_existing = bool(existing.get("id") and existing.get("identifier"))
+    has_candidates = bool(
+        isinstance(candidates, list)
+        and len(candidates) > 0
+        and all(
+            isinstance(c, dict) and c.get("id") and c.get("identifier")
+            for c in candidates
+        )
+    )
+
+    if not has_existing and not has_candidates:
         return None
+
+    # 校验 candidates 列表，过滤无效条目
+    if isinstance(candidates, list) and len(candidates) > 0:
+        payload["candidates"] = [
+            c for c in candidates
+            if isinstance(c, dict) and c.get("id") and c.get("identifier")
+        ]
 
     return payload
 
@@ -60,14 +78,52 @@ def _build_resume_human_message(
     decision: str, payload: dict[str, Any], comment: str = ""
 ) -> HumanMessage:
     """根据用户决策构造恢复后的 HumanMessage。"""
-    existing = payload.get("existing_function", {})
-    function_id = existing.get("id", "")
-    identifier = existing.get("identifier", "")
-    display_name = existing.get("display_name", "")
+    existing = payload.get("existing_function") or {}
+    candidates = payload.get("candidates") or []
     comment_text = comment.strip()
     comment_clause = f"补充说明：{comment_text}。" if comment_text else ""
 
-    if decision == "expand":
+    # 解析被选中的功能信息
+    def _resolve_function_info(target_identifier: str = "") -> dict[str, str]:
+        """从 existing_function 或 candidates 中解析功能信息。"""
+        if existing.get("identifier") == target_identifier or not target_identifier:
+            return {
+                "function_id": existing.get("id", ""),
+                "identifier": existing.get("identifier", ""),
+                "display_name": existing.get("display_name", ""),
+            }
+        for c in candidates:
+            if c.get("id") == target_identifier or c.get("identifier") == target_identifier:
+                return {
+                    "function_id": c.get("id", ""),
+                    "identifier": c.get("identifier", ""),
+                    "display_name": c.get("display_name", ""),
+                }
+        return {
+            "function_id": existing.get("id", ""),
+            "identifier": existing.get("identifier", ""),
+            "display_name": existing.get("display_name", ""),
+        }
+
+    info = _resolve_function_info()
+    function_id = info["function_id"]
+    identifier = info["identifier"]
+    display_name = info["display_name"]
+
+    if decision.startswith("candidate:"):
+        # 用户从多个候选中选择了某个功能
+        selected_id = decision.split(":", 1)[1].strip()
+        info_sel = _resolve_function_info(selected_id)
+        function_id = info_sel["function_id"]
+        identifier = info_sel["identifier"]
+        display_name = info_sel["display_name"]
+        feedback = (
+            f"用户从 {len(candidates)} 个候选功能中选择了 {identifier}（{display_name}）。"
+            f"{comment_clause}"
+            "请基于该功能及其子功能，按生成测试流程（planner → case-designer → generator）"
+            "生成/完善测试计划、用例与脚本，并执行执行邀约。"
+        )
+    elif decision == "expand":
         feedback = (
             f"用户选择扩展已有功能 {identifier}（{display_name}）。"
             f"{comment_clause}"
@@ -85,6 +141,14 @@ def _build_resume_human_message(
             f"{comment_clause}"
             "请调用 get_function_details 展示信息，并在展示完信息后再次输出意图确认标记，"
             "供用户最终选择。"
+        )
+    elif decision == "execute":
+        feedback = (
+            f"用户选择立即执行 {identifier}（{display_name}）的测试。"
+            f"{comment_clause}"
+            "请调用 get_function_details 获取子功能列表，"
+            "然后 get_web_sub_function_artifacts → download_web_script → "
+            "execute_web_script → save_web_test_report 完成执行并保存报告。"
         )
     else:
         feedback = f"收到选择：{decision}。{comment_clause}请按用户意图继续。"
@@ -131,14 +195,38 @@ class WebIntentConfirmationMiddleware(AgentMiddleware):
         if not payload:
             return None
 
-        # 防止同一条 AI 消息重复触发
-        after_ai = messages[messages.index(last_ai) + 1 :]
-        if any(
-            isinstance(m, HumanMessage)
+        # ── 全局去重：若历史中已有 [Web意图确认] HumanMessage（非 view_details），
+        #     说明意图确认流程已完成，后续 AI 消息再输出 <INTENT_CONFIRMATION> 标记
+        #     属于模型行为错误，应拦截而非重复弹窗。
+        #     例外：view_details 决策会要求模型"展示完信息后再次输出意图确认标记"，
+        #     此时应允许再次触发。
+        existing_intent_msgs = [
+            m for m in messages
+            if isinstance(m, HumanMessage)
             and str(m.content).startswith("[Web意图确认]")
-            for m in after_ai
-        ):
-            return None
+        ]
+        if existing_intent_msgs:
+            last_intent_msg = existing_intent_msgs[-1]
+            ak = (last_intent_msg.additional_kwargs or {})
+            ic = ak.get("_web_intent_confirmation", {})
+            last_decision = ic.get("decision", "")
+            if last_decision and last_decision != "view_details":
+                return None
+
+        # ── 自动跳过确认：唯一功能 + 全部 pass + auto_skip 标记 ──
+        candidates = payload.get("candidates") or []
+        existing = payload.get("existing_function") or {}
+        auto_skip = payload.get("auto_skip", False)
+
+        has_single_existing = bool(existing.get("id")) and len(candidates) == 0
+        has_single_candidate = len(candidates) == 1 and not existing.get("id")
+
+        if auto_skip and (has_single_existing or has_single_candidate):
+            # 唯一精确匹配 → 自动选择 expand，不触发中断
+            return {
+                "messages": [_build_resume_human_message("expand", payload)],
+                "jump_to": "model",
+            }
 
         response = interrupt(payload)
 

@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Play, XCircle, Edit3, MessageSquareMore, ShieldAlert, ShieldCheck, Info } from "lucide-react";
+import { Play, XCircle, Edit3, MessageSquareMore, ShieldAlert, ShieldCheck, Info, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type RiskLevel = "low" | "medium" | "high";
@@ -87,6 +87,7 @@ export function ExecutionInvitationInterrupt({
   const [comment, setComment] = useState("");
   const [otherMode, setOtherMode] = useState(false);
   const [otherComment, setOtherComment] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const items = alternatives?.length ? alternatives : DEFAULT_ALTERNATIVES;
   const level = risk_level || "high";
@@ -95,12 +96,15 @@ export function ExecutionInvitationInterrupt({
   const RiskIcon = RISK_ICONS[level];
   const riskLabel = RISK_LABELS[level];
 
+  const isDisabled = isLoading || isSubmitting;
+
   const handleSelect = (key: string) => {
     if (key === "other") {
       setOtherMode(true);
       return;
     }
     setLastClicked(key);
+    setIsSubmitting(true);
     onResume({ decision: key, comment: comment.trim() || undefined });
   };
 
@@ -108,6 +112,7 @@ export function ExecutionInvitationInterrupt({
     const text = otherComment.trim();
     if (!text) return;
     setLastClicked("other");
+    setIsSubmitting(true);
     onResume({ decision: "other", comment: text });
   };
 
@@ -180,14 +185,23 @@ export function ExecutionInvitationInterrupt({
                   key={item.key}
                   onClick={() => handleSelect(item.key)}
                   variant={isPrimary ? "default" : "outline"}
-                  disabled={isLoading}
+                  disabled={isDisabled}
                   className={cn(
                     "h-auto items-center justify-center gap-2 p-3 text-center",
                     isPrimary && cn(executeColor, "text-white"),
                   )}
                 >
-                  <Icon className="h-4 w-4 shrink-0" />
-                  <span className="text-sm font-medium">{item.label}</span>
+                  {isSubmitting && lastClicked === item.key ? (
+                    <span className="inline-flex items-center gap-1">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      提交中...
+                    </span>
+                  ) : (
+                    <>
+                      <Icon className="h-4 w-4 shrink-0" />
+                      <span className="text-sm font-medium">{item.label}</span>
+                    </>
+                  )}
                 </Button>
               );
             })}
@@ -205,7 +219,7 @@ export function ExecutionInvitationInterrupt({
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               placeholder="例如：使用默认环境执行，或先检查脚本"
-              disabled={isLoading}
+              disabled={isDisabled}
               rows={level === "low" ? 1 : 2}
               className="resize-none bg-card text-sm"
             />
@@ -224,14 +238,14 @@ export function ExecutionInvitationInterrupt({
             value={otherComment}
             onChange={(e) => setOtherComment(e.target.value)}
             placeholder="例如：先把脚本改成使用 headless=false 再执行"
-            disabled={isLoading}
+            disabled={isDisabled}
             rows={3}
             className="resize-none bg-card text-sm"
           />
           <div className="flex gap-2">
             <Button
               onClick={handleOtherSubmit}
-              disabled={isLoading || !otherComment.trim()}
+              disabled={isDisabled || !otherComment.trim()}
               className="bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700"
             >
               提交
@@ -239,7 +253,7 @@ export function ExecutionInvitationInterrupt({
             <Button
               variant="outline"
               onClick={handleOtherCancel}
-              disabled={isLoading}
+              disabled={isDisabled}
             >
               取消
             </Button>
@@ -247,8 +261,9 @@ export function ExecutionInvitationInterrupt({
         </div>
       )}
 
-      {isLoading && lastClicked && (
-        <p className="mt-3 text-xs text-blue-600 dark:text-blue-300">
+      {(isLoading || isSubmitting) && lastClicked && (
+        <p className="mt-3 flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-300">
+          <Loader2 className="h-3 w-3 animate-spin" />
           已选择，正在继续...
         </p>
       )}
