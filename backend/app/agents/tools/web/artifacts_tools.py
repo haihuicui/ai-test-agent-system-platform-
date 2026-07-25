@@ -30,6 +30,159 @@ from app.config.database import async_session_factory
 from app.config.settings import settings
 
 
+# ============================================================================
+# 脚本质量扫描规则（基于 Playwright 最佳实践）
+# ============================================================================
+
+_SCRIPT_QUALITY_RULES = [
+    {
+        "id": "DEPRECATED_DOLLAR",
+        "severity": "error",
+        "pattern": r"page\.\$\(['\"]",
+        "message": "使用了废弃的 page.$() API（element handle 模式），应改用基于 locator 的定位方式",
+        "fix": (
+            "将 page.$('.foo') 替换为 page.locator('.foo')，"
+            "并直接链式操作而非保存引用：page.locator('.foo').click()"
+        ),
+    },
+    {
+        "id": "HARD_WAIT_LONG",
+        "severity": "warning",
+        "pattern": r"await\s+page\.waitForTimeout\(\s*(\d{4,})\s*\)",
+        "message": "发现硬编码等待 >1s，建议改用语义等待（waitForSelector / waitForResponse / waitForLoadState）",
+        "fix": (
+            "将 waitForTimeout 替换为语义等待，如：\n"
+            "  - 等待元素出现: await expect(page.locator('.loaded')).toBeVisible()\n"
+            "  - 等待网络空闲: await page.waitForLoadState('networkidle')\n"
+            "  - 等待请求: await page.waitForResponse(r => r.url().includes('/api/'))"
+        ),
+    },
+    {
+        "id": "UNSAFE_CLICK_NO_WAIT",
+        "severity": "warning",
+        "pattern": r"\.click\(\s*\)\s*;\s*\n\s*await\s+expect",
+        "message": "click() 后直接断言，无中间等待——点击触发页面跳转或异步渲染时可能导致不稳定",
+        "fix": "在 click() 和后续断言之间增加等待：await page.waitForLoadState('networkidle') 或 await expect(targetElement).toBeVisible()",
+    },
+    {
+        "id": "TEXTCONTENT_ASSERTION",
+        "severity": "info",
+        "pattern": r"expect\(.*?\.textContent\(\)\)",
+        "message": "使用 textContent() 做断言，Playwright 有更语义化的 API（toHaveText / toContainText），自带重试机制",
+        "fix": "将 expect(el.textContent()).toBe('X') 替换为 await expect(el).toHaveText('X')",
+    },
+    {
+        "id": "MISSING_BEFOREEACH_ISOLATION",
+        "severity": "info",
+        "pattern": r"test\.describe\(\s*['\"].*?['\"]\s*,\s*\(\s*\)\s*=>\s*\{",
+        "message": (
+            "检测到 test.describe 块，但未在文件中找到 test.beforeEach。"
+            "建议在 test.describe 内添加 test.beforeEach 做状态隔离"
+        ),
+        "fix": (
+            "在 test.describe 内添加：\n"
+            "  test.beforeEach(async ({ page }) => {\n"
+            "    await page.goto('/');\n"
+            "    await page.evaluate(() => localStorage.clear());\n"
+            "  });"
+        ),
+        # 特殊标记：此规则需要 _scan_script_quality 做二次校验
+        # ——仅当文件中同时存在 test.describe 且不存在 test.beforeEach 时才报告
+        "_require_before_each_absent": True,
+    },
+    {
+        "id": "CSS_SELECTOR_ONLY",
+        "severity": "warning",
+        "pattern": r"page\.locator\(\s*['\"](\.|#)[^'\"]+['\"]\s*\)",
+        "message": "使用纯 CSS class/id 选择器，页面样式变更会导致测试断裂。建议优先使用语义定位器（getByRole/getByLabel/getByTestId）",
+        "fix": (
+            "将 page.locator('.submit-btn') 替换为语义定位器，如：\n"
+            "  - page.getByRole('button', { name: 'Submit' })\n"
+            "  - page.getByTestId('submit-btn')\n"
+            "  - 或从测试计划中复制已验证的定位器"
+        ),
+    },
+    {
+        "id": "NO_SOFT_ASSERTION",
+        "severity": "info",
+        "pattern": r"expect\(.*?\)\.(toBe|toHave|toContain)",
+        "message": "多个独立断言考虑使用 expect.soft()，让后续断言继续执行而非立即终止，便于一次性收集完整的失败信息",
+        "fix": "将独立的 expect() 替换为 expect.soft()，特别是当多个断言相互不依赖时",
+        # 二次校验：跳过已使用 expect.soft 的行
+        "_require_no_soft_on_line": True,
+    },
+    {
+        "id": "NO_AUTO_RETRY",
+        "severity": "info",
+        "pattern": r"const\s+\w+\s*=\s*await\s+page\.\$\(|const\s+\w+\s*=\s*page\.locator\(\s*['\"]",
+        "message": "将 element handle 或 locator 保存到变量中使用，可能因 SPA 重渲染导致元素失效",
+        "fix": (
+            "不要保存 locator 引用：\n"
+            "  // ❌ const btn = page.locator('.btn'); await btn.click();\n"
+            "  // ✅ await page.locator('.btn').click();\n"
+            "Playwright locator 每次调用自动重新查询 DOM，在操作前一行直接使用即可。"
+        ),
+    },
+]
+
+
+def _scan_script_quality(script_content: str) -> list[dict]:
+    """扫描脚本中的反模式并返回问题列表（非阻塞，仅作为 Agent 自我修正的参考）。
+
+    每类规则只报告第一个匹配（防止重复噪音），按 severity 排序：
+    error > warning > info。
+
+    Args:
+        script_content: 完整的脚本文本内容。
+
+    Returns:
+        问题列表，按严重程度排序。每项含 id / severity / line / matched / message / fix。
+    """
+    severity_order = {"error": 0, "warning": 1, "info": 2}
+    issues: list[dict] = []
+
+    for rule in _SCRIPT_QUALITY_RULES:
+        # 二次校验：MISSING_BEFOREEACH_ISOLATION 需确认文件中确实没有 test.beforeEach
+        if rule.get("_require_before_each_absent"):
+            if re.search(r"test\.beforeEach\s*\(", script_content):
+                continue  # 已有 beforeEach → 不报告
+
+        match = re.search(rule["pattern"], script_content, re.MULTILINE)
+        if not match:
+            continue
+
+        # 二次校验：NO_SOFT_ASSERTION 需确认该行没有使用 expect.soft
+        if rule.get("_require_no_soft_on_line"):
+            line_start = script_content.rfind("\n", 0, match.start()) + 1
+            line_end = script_content.find("\n", match.end())
+            if line_end == -1:
+                line_end = len(script_content)
+            line_text = script_content[line_start:line_end]
+            if "expect.soft" in line_text:
+                continue  # 该行已使用 expect.soft → 不报告
+
+        line_no = script_content[:match.start()].count("\n") + 1
+        matched_text = match.group(0)[:100]  # 截断展示，防止长行溢出上下文
+        # 提取捕获组中的数字（如 waitForTimeout 的毫秒数）
+        capture_groups = match.groups()
+        fix = rule["fix"]
+        if capture_groups:
+            for i, g in enumerate(capture_groups):
+                fix = fix.replace(f"{{g{i}}}", str(g))
+
+        issues.append({
+            "id": rule["id"],
+            "severity": rule["severity"],
+            "line": line_no,
+            "matched": matched_text,
+            "message": rule["message"],
+            "fix": fix,
+        })
+
+    issues.sort(key=lambda x: severity_order.get(x["severity"], 99))
+    return issues
+
+
 def _resolve_workspace_path(file_path: str) -> Path:
     """
     解析文件路径，支持 MCP workspace 中的相对路径
@@ -247,10 +400,14 @@ async def save_web_test_plan(
 
 def _validate_test_cases(test_cases: list) -> Optional[str]:
     """
-    宽松校验测试用例结构，只拦截会污染下游 generator 的承重字段问题。
+    宽松校验测试用例结构 + 关键语义，只拦截会污染下游 generator 的承重字段问题。
 
-    只校验 generator 真正消费的字段，其余字段（tags/page_elements/prerequisites 等）
-    允许缺失，避免因校验过严导致 Agent 反复返工（"弹皮球"）。
+    校验分两层：
+    1. 结构层：generator 必须消费的字段（name / steps / action / verification_points）
+    2. 语义层：交互操作必须有 selector，验证点必须有可量化的 expected 描述
+
+    其余字段（tags/page_elements/prerequisites 等）允许缺失，避免因校验过严导致
+    Agent 反复返工（"弹皮球"）。
 
     支持参数化用例：is_parameterized / data_variants / parameter_description。
 
@@ -260,10 +417,14 @@ def _validate_test_cases(test_cases: list) -> Optional[str]:
     if not isinstance(test_cases, list) or not test_cases:
         return "test_cases 必须是非空列表"
 
+    # 交互类 action 需要引用定位器
+    _INTERACTIVE_ACTIONS = {"click", "fill", "type", "select", "check", "uncheck", "hover", "dblclick"}
+
     for i, tc in enumerate(test_cases):
         if not isinstance(tc, dict):
             return f"test_cases[{i}] 必须是对象(dict)，实际为 {type(tc).__name__}"
 
+        # ---- 结构层 ----
         name = tc.get("name")
         if not isinstance(name, str) or not name.strip():
             return f"test_cases[{i}].name 缺失或为空"
@@ -275,11 +436,38 @@ def _validate_test_cases(test_cases: list) -> Optional[str]:
             if not isinstance(step, dict) or not step.get("action"):
                 return f"test_cases[{i}].steps[{j}] 必须是含 action 字段的对象"
 
+            # ---- 语义层：交互操作必须有 selector/locator ----
+            action = (step.get("action") or "").lower()
+            if action in _INTERACTIVE_ACTIONS:
+                if not step.get("selector") and not step.get("locator"):
+                    return (
+                        f"test_cases[{i}].steps[{j}] 是交互操作 ({action})，"
+                        "但缺少 selector 或 locator 字段。"
+                        "请从测试计划中复制已验证的定位器，例如："
+                        '"selector": "getByTestId(\'submit-btn\')"'
+                    )
+
         vps = tc.get("verification_points")
         if not isinstance(vps, list) or not vps:
             return f"test_cases[{i}].verification_points 必须至少包含一个验证点"
 
-        # 参数化用例校验
+        # ---- 语义层：验证点必须有可量化的预期结果 ----
+        for j, vp in enumerate(vps):
+            if isinstance(vp, str):
+                if len(vp.strip()) < 10:
+                    return (
+                        f"test_cases[{i}].verification_points[{j}] 过短（<10字符），"
+                        f"当前值: '{vp}'。请描述具体可验证的期望结果，"
+                        "如 '登录成功后页面跳转到 /dashboard，显示 Welcome 欢迎语'"
+                    )
+            elif isinstance(vp, dict):
+                if not vp.get("expected") and not vp.get("assertion"):
+                    return (
+                        f"test_cases[{i}].verification_points[{j}] "
+                        "缺少 expected 或 assertion 字段，请描述具体的预期行为"
+                    )
+
+        # ---- 参数化用例校验 ----
         is_parameterized = tc.get("is_parameterized")
         data_variants = tc.get("data_variants")
         if is_parameterized is True:
@@ -519,13 +707,31 @@ async def save_web_test_script(
         await session.commit()
         await session.refresh(attachment)
 
+        # 脚本质量扫描（非阻塞，仅作为 Agent 自我修正的参考）
+        quality_issues = _scan_script_quality(script_content)
+        error_count = sum(1 for i in quality_issues if i["severity"] == "error")
+        warning_count = sum(1 for i in quality_issues if i["severity"] == "warning")
+        info_count = sum(1 for i in quality_issues if i["severity"] == "info")
+        quality_passed = error_count == 0
+
         return {
             "success": True,
             "attachment_id": str(attachment.id),
             "file_path": object_name,
             "language": script_language,
             "format": script_format,
-            "message": "测试脚本已保存"
+            "message": "测试脚本已保存",
+            "quality": {
+                "passed": quality_passed,
+                "errors": error_count,
+                "warnings": warning_count,
+                "info": info_count,
+                "issues": quality_issues[:10],  # 仅返回前 10 条，防止上下文溢出
+                "summary": (
+                    f"脚本质量扫描{'通过 ✓' if quality_passed else '未通过 ✗'}："
+                    f"{error_count} 错误, {warning_count} 警告, {info_count} 建议"
+                ),
+            },
         }
 
 # fmt: off  My80OmFIVnBZMlhsdEpUbXRiZm92b2s2Y0hCRFZnPT06MWExMTY3YzY=
@@ -1100,11 +1306,27 @@ async def save_web_test_report(
             )
 
             # 创建报告附件记录
-            description = f"Web 测试运行 {run_identifier} 的执行摘要报告"
-            if sub_function_name:
-                description = f"{sub_function_name} - {description}"
-            if screenshot_urls or video_urls:
-                description += f"（含 {len(screenshot_urls)} 张截图、{len(video_urls)} 个视频）"
+            # description 使用结构化 JSON，便于前端直接渲染状态标签和通过率卡片。
+            # @depends-on-frontend: EnhancedTestArtifactsPanel 需要增加 JSON.parse(description)
+            #   并渲染 passed/failed/total/screenshot_count 等字段的状态卡片。
+            #   在完成前端解析之前，human_summary 字段供 desc-only 展示场景兼容。
+            structured_desc = {
+                "type": "execution_report",
+                "sub_function": sub_function_name or "未知",
+                "run_identifier": run_identifier,
+                "passed": (execution_info or {}).get("stats", {}).get("passed", 0),
+                "failed": (execution_info or {}).get("stats", {}).get("failed", 0),
+                "skipped": (execution_info or {}).get("stats", {}).get("skipped", 0),
+                "total": (execution_info or {}).get("stats", {}).get("total", 0),
+                "screenshot_count": len(screenshot_urls),
+                "video_count": len(video_urls),
+                "human_summary": (
+                    f"{sub_function_name + ' - ' if sub_function_name else ''}"
+                    f"Web 测试运行 {run_identifier} 的执行摘要报告"
+                    f"{'（含 ' + str(len(screenshot_urls)) + ' 张截图、' + str(len(video_urls)) + ' 个视频）' if screenshot_urls or video_urls else ''}"
+                ),
+            }
+            description = json.dumps(structured_desc, ensure_ascii=False)
             attachment = Attachment(
                 entity_type=AttachmentEntityType.WEB_TEST_REPORT,
                 entity_id=artifact_entity_id,

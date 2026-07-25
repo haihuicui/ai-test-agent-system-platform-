@@ -406,3 +406,82 @@ class WebTestResult(Base, UUIDMixin, TimestampMixin):
         back_populates="test_results"
     )
     web_test: Mapped["WebTest"] = relationship("WebTest")
+
+
+class WebHealingKnowledge(Base, UUIDMixin, TimestampMixin):
+    """Web 测试修复知识图谱表。
+
+    存储 healer 每次成功/失败修复的经验记录，形成可检索的修复策略库。
+    通过规范化错误签名匹配，高置信度条目可直接应用而无需 LLM 诊断。
+
+    字段说明：
+    - error_signature: 规范化错误指纹（去掉动态值后的稳定签名）
+    - error_category: 错误类别（selector/timing/assertion/environment/application）
+    - fix_strategy: 人类可读的修复策略描述（给 Agent 看）
+    - fix_code_template: 可自动应用的代码模板（可选）
+    - confidence: 置信度 0-1，每次成功修复 +0.05，失败修复 -0.1
+    - apply_count / success_count: 应用次数和成功次数
+    """
+
+    __tablename__ = "web_healing_knowledge"
+    __table_args__ = {"comment": "Web 测试修复知识图谱表"}
+
+    # 错误签名（规范化后）
+    error_signature: Mapped[str] = mapped_column(
+        String(500),
+        nullable=False,
+        index=True,
+        comment="规范化错误指纹（去除动态值）",
+    )
+
+    # 错误类别
+    error_category: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        index=True,
+        comment="错误类别: selector/timing/assertion/environment/application",
+    )
+
+    # 修复策略
+    fix_strategy: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+        comment="修复策略描述（给 Agent 看的自然语言指引）",
+    )
+
+    # 代码模板（可自动应用的修复代码，可选）
+    fix_code_template: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        comment="可自动应用的代码模板",
+    )
+
+    # 置信度 0-1
+    confidence: Mapped[float] = mapped_column(
+        default=0.5,
+        server_default="0.5",
+        comment="修复成功率 (0-1)，每次成功 +0.05，失败 -0.1",
+    )
+
+    # 统计
+    apply_count: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        server_default="0",
+        comment="应用次数",
+    )
+    success_count: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        server_default="0",
+        comment="成功次数",
+    )
+
+    # 项目关联（可选，用于项目级隔离）
+    project_id: Mapped[UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("projects.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        comment="所属项目 ID（NULL 表示全局通用）",
+    )

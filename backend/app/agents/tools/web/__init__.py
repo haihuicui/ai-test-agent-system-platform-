@@ -34,6 +34,11 @@ from app.agents.tools.web.execution_tools import (
     execute_web_script,
 )
 
+from app.agents.tools.web.healing_tools import (
+    search_healing_knowledge,
+    record_healing_result,
+)
+
 # 按业务域分类的工具列表，供注册表使用
 FUNCTION_TOOLS = [
     list_web_functions,
@@ -64,9 +69,14 @@ SCRIPT_TOOLS = [
 EXECUTION_TOOLS = [
     execute_web_script,
 ]
+
+HEALING_KNOWLEDGE_TOOLS = [
+    search_healing_knowledge,
+    record_healing_result,
+]
 # pragma: no cover  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2WXpaeGVRPT06NmJiMGM5OTU=
 
-ALL_WEB_TOOLS = FUNCTION_TOOLS + ARTIFACT_TOOLS + SCRIPT_TOOLS + EXECUTION_TOOLS
+ALL_WEB_TOOLS = FUNCTION_TOOLS + ARTIFACT_TOOLS + SCRIPT_TOOLS + EXECUTION_TOOLS + HEALING_KNOWLEDGE_TOOLS
 
 
 def get_local_tools():
@@ -100,11 +110,15 @@ __all__ = [
     "delete_web_script",
     # 执行
     "execute_web_script",
+    # 修复知识图谱
+    "search_healing_knowledge",
+    "record_healing_result",
     # 分类列表
     "FUNCTION_TOOLS",
     "ARTIFACT_TOOLS",
     "SCRIPT_TOOLS",
     "EXECUTION_TOOLS",
+    "HEALING_KNOWLEDGE_TOOLS",
     "ALL_WEB_TOOLS",
     "get_local_tools",
 ]

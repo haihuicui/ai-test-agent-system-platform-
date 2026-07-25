@@ -61,6 +61,149 @@ async def _acquire_exec_lock(key: str) -> asyncio.Lock:
         return lock
 
 
+# ============================================================================
+# 智能执行调度
+# ============================================================================
+
+
+import hashlib  # noqa: E402
+
+
+def _compute_script_hash(script_path: Path) -> str:
+    """计算脚本内容 SHA256 hash，用于变更检测。"""
+    try:
+        content = script_path.read_bytes()
+        return hashlib.sha256(content).hexdigest()
+    except Exception:
+        return ""
+
+
+async def _get_last_execution(sub_function_id: str) -> Optional[dict]:
+    """获取子功能最近一次执行记录。
+
+    从 WebTestRun 表查询，按 created_at 倒序取最新一条。
+
+    Returns:
+        None 表示无历史记录；否则返回含 status / stats / script_hash 的字典。
+    """
+    try:
+        async with async_session_factory() as session:
+            # 通过 WebTest 关联到 WebTestRun
+            result = await session.execute(
+                select(WebTestRun)
+                .join(WebTest, WebTestRun.web_test_id == WebTest.id)
+                .where(WebTest.sub_function_id == UUID(sub_function_id))
+                .order_by(WebTestRun.created_at.desc())
+                .limit(1)
+            )
+            run = result.scalar_one_or_none()
+            if not run:
+                return None
+            return {
+                "id": str(run.id),
+                "status": run.status,
+                "passed_tests": run.passed_tests or 0,
+                "failed_tests": run.failed_tests or 0,
+                "skipped_tests": run.skipped_tests or 0,
+                "total_tests": run.total_tests or 0,
+                "duration_ms": run.duration_ms or 0,
+                "execution_config": run.execution_config or {},
+                "created_at": run.created_at.isoformat() if run.created_at else None,
+            }
+    except Exception as e:
+        print(f"[Execution Strategy] 获取历史执行记录失败: {e}")
+        return None
+
+
+def _compute_execution_strategy(
+    last_execution: Optional[dict],
+    script_hash: str,
+) -> dict:
+    """根据脚本变更和历史结果计算最优执行策略。
+
+    策略决策树：
+    1. 无历史记录 → full（全量执行，建立基线）
+    2. 脚本未变更 (hash 相同)
+       a. 上次全部通过 → skip（缓存命中）
+       b. 上次有失败 → failed_only（仅重跑失败用例）
+    3. 脚本已变更 → full（全量执行）
+    4. 上次执行是 skip → full（跳过链不超过 1 次）
+
+    Returns:
+        {"strategy": "full"|"skip"|"failed_only",
+         "reason": str,
+         "cached_result": dict|None,        # skip 时返回缓存结果
+         "grep_patterns": list[str]|None}    # failed_only 时返回 grep 模式
+    """
+    if not last_execution:
+        return {
+            "strategy": "full",
+            "reason": "无历史执行记录，全量执行建立基线",
+            "cached_result": None,
+            "grep_patterns": None,
+        }
+
+    last_hash = (last_execution.get("execution_config") or {}).get("script_hash", "")
+    last_all_passed = last_execution.get("failed_tests", 1) == 0
+
+    # 上次是 skip → 强制全量（避免 skip 链）
+    last_strategy = (last_execution.get("execution_config") or {}).get("strategy", "full")
+    if last_strategy == "skip":
+        return {
+            "strategy": "full",
+            "reason": "上次执行被跳过，本次强制全量执行以避免跳过链",
+            "cached_result": None,
+            "grep_patterns": None,
+        }
+
+    if script_hash and script_hash == last_hash:
+        if last_all_passed:
+            return {
+                "strategy": "skip",
+                "reason": (
+                    "脚本未变更 + 上次全部通过 ("
+                    f"{last_execution.get('passed_tests', 0)}/"
+                    f"{last_execution.get('total_tests', 0)}) → 跳过执行"
+                ),
+                "cached_result": {
+                    "last_run_id": last_execution.get("id"),
+                    "status": last_execution.get("status"),
+                    "passed_tests": last_execution.get("passed_tests"),
+                    "failed_tests": last_execution.get("failed_tests"),
+                    "total_tests": last_execution.get("total_tests"),
+                    "duration_ms": last_execution.get("duration_ms"),
+                    "created_at": last_execution.get("created_at"),
+                },
+                "grep_patterns": None,
+            }
+        else:
+            # 有失败用例 → 仅重跑失败的
+            # TODO: 实现 --grep 模式拼接。需从上次 WebTestRun 的 WebTestResult 中
+            #       提取失败用例标题，拼接为 playwright test --grep "title1|title2"。
+            #       当前回退为全量执行，避免漏跑。
+            return {
+                "strategy": "full",  # TODO: 改回 "failed_only" 当 --grep 实现后
+                "reason": (
+                    "脚本未变更但上次有失败用例 ("
+                    f"{last_execution.get('failed_tests', 0)}/"
+                    f"{last_execution.get('total_tests', 0)}) → 全量重跑"
+                    "（failed_only 策略的 --grep 模式尚未实现，暂回退全量）"
+                ),
+                "cached_result": None,
+                "grep_patterns": None,
+            }
+
+    return {
+        "strategy": "full",
+        "reason": (
+            "脚本已变更" if script_hash != last_hash
+            else f"脚本未变更但上次状态为 {last_execution.get('status')} → 全量重跑"
+        ),
+        "cached_result": None,
+        "grep_patterns": None,
+    }
+
+
 def get_workspace_tests_dir() -> Path:
     """
     获取 WORKSPACE 测试目录路径
@@ -90,6 +233,7 @@ async def execute_web_script(
     project_identifier: str = "PR-1",
     sub_function_id: Optional[str] = None,
     headless: Optional[bool] = None,
+    force: bool = False,
 ) -> str:
     """
     执行已下载到 MCP 测试目录的 Web 测试脚本
@@ -97,10 +241,11 @@ async def execute_web_script(
     此工具会：
     1. 验证脚本文件存在于 workspace 测试目录
     2. 静态校验脚本可被收集（--list，不起浏览器）
-    3. 执行 Playwright 测试（输出按 execution_id 隔离，互不覆盖）
-    4. 解析 JSON 结构化结果（用例级 pass/fail/时长）
-    5. 将测试报告打包保存到 MinIO 并创建附件记录
-    6. 更新子功能的测试运行次数与最近状态
+    3. **智能调度**：检测脚本是否变更、上次执行结果，决定跳过/增量/全量
+    4. 执行 Playwright 测试（输出按 execution_id 隔离，互不覆盖）
+    5. 解析 JSON 结构化结果（用例级 pass/fail/时长）
+    6. 将测试报告打包保存到 MinIO 并创建附件记录
+    7. 更新子功能的测试运行次数与最近状态
 
     Args:
         local_script_path: 本地脚本文件的完整路径（相对或绝对路径）
@@ -109,11 +254,14 @@ async def execute_web_script(
         project_identifier: 项目标识符，用于保存测试报告
         sub_function_id: 子功能 ID（可选，用于更新测试统计）
         headless: 是否以无头模式运行浏览器（可选，默认读取 settings.web_mcp_headless）
+        force: 强制全量执行，跳过智能调度（默认 False。设为 True 时忽略缓存/增量策略）
 
     Returns:
         JSON 格式的执行结果，包含：
         - success: 是否成功
         - script_path: 执行的脚本路径
+        - strategy: 使用的执行策略 (full / skip / failed_only)
+        - strategy_reason: 策略选择原因
         - execution_result: 执行结果（stdout, stderr, duration, return_code, stats, cases）
         - report_attachment_id: 测试报告附件 ID（如果生成了报告）
         - error: 错误信息（如果有）
@@ -148,7 +296,45 @@ async def execute_web_script(
 
         script_filename = script_path.name
 
-        # 3. 同一子功能（或脚本）串行 + 全局并发上限
+        # 3. 智能执行调度（force=True 时跳过）
+        execution_strategy = None
+        script_hash = ""
+        if not force and sub_function_id:
+            script_hash = _compute_script_hash(script_path)
+            last_execution = await _get_last_execution(sub_function_id)
+            execution_strategy = _compute_execution_strategy(last_execution, script_hash)
+
+            # skip: 脚本未变 + 上次全部通过 → 直接返回缓存结果
+            if execution_strategy["strategy"] == "skip":
+                cached = execution_strategy["cached_result"]
+                return json.dumps({
+                    "success": True,
+                    "script_path": str(script_path),
+                    "script_filename": script_filename,
+                    "strategy": "skip",
+                    "strategy_reason": execution_strategy["reason"],
+                    "cached_from_run_id": cached.get("last_run_id") if cached else None,
+                    "execution_result": {
+                        "success": True,
+                        "duration": (cached.get("duration_ms", 0) or 0) / 1000 if cached else 0,
+                        "stats": {
+                            "total": cached.get("total_tests", 0) if cached else 0,
+                            "passed": cached.get("passed_tests", 0) if cached else 0,
+                            "failed": cached.get("failed_tests", 0) if cached else 0,
+                            "skipped": cached.get("skipped_tests", 0) if cached else 0,
+                        },
+                        "cached": True,
+                        "cached_from": cached.get("created_at") if cached else None,
+                    },
+                    "message": f"脚本未变更且上次全部通过，已跳过执行。如需强制全量执行，请设置 force=true。",
+                }, ensure_ascii=False, indent=2)
+        else:
+            execution_strategy = {
+                "strategy": "full",
+                "reason": "强制执行，跳过智能调度" if force else "无子功能 ID，无法查询历史",
+            }
+
+        # 4. 同一子功能（或脚本）串行 + 全局并发上限
         exec_lock_key = sub_function_id or script_filename
         exec_lock = await _acquire_exec_lock(exec_lock_key)
         async with exec_lock:
@@ -157,6 +343,8 @@ async def execute_web_script(
                     script_path=script_path,
                     script_filename=script_filename,
                     project_root=project_root,
+                    script_hash=script_hash,
+                    execution_strategy=execution_strategy,
                     framework=framework,
                     reporter=reporter,
                     project_identifier=project_identifier,
@@ -182,9 +370,13 @@ async def _execute_and_report(
     project_identifier: str,
     sub_function_id: Optional[str],
     headless: Optional[bool],
+    script_hash: str = "",
+    execution_strategy: Optional[dict] = None,
 ) -> str:
     """在并发锁内执行脚本、解析结构化结果并保存报告。返回给 agent 的 JSON。"""
     print(f"[Web Script Execution] 准备执行脚本: {script_path}")
+    if execution_strategy:
+        print(f"[Web Script Execution] 执行策略: {execution_strategy['strategy']} — {execution_strategy['reason']}")
 
     # 3. 确定相对路径（相对于项目根目录，playwright 以 project_root 为工作目录）
     try:
@@ -280,6 +472,8 @@ async def _execute_and_report(
                 headless=resolved_headless,
                 framework=framework,
                 reporter=reporter,
+                script_hash=script_hash,
+                execution_strategy=execution_strategy,
             )
 
             # 8c. 更新子功能的测试运行次数与最近状态
@@ -306,8 +500,13 @@ async def _execute_and_report(
         "script_path": str(script_path),
         "script_filename": script_filename,
         "execution_id": execution_id,
-        "execution_result": execution_result
+        "execution_result": execution_result,
     }
+
+    # 附加执行策略信息
+    if execution_strategy:
+        result["strategy"] = execution_strategy["strategy"]
+        result["strategy_reason"] = execution_strategy["reason"]
 
     if report_attachment_id:
         result["report_attachment_id"] = report_attachment_id
@@ -561,6 +760,8 @@ async def _persist_structured_run(
     headless: bool,
     framework: str,
     reporter: str,
+    script_hash: str = "",
+    execution_strategy: Optional[dict] = None,
 ) -> Optional[str]:
     """把结构化执行结果写入 WebTestRun / WebTestResult 表（用例级趋势分析的数据源）。
 
@@ -629,6 +830,8 @@ async def _persist_structured_run(
                     "headless": headless,
                     "framework": framework,
                     "reporter": reporter,
+                    "script_hash": script_hash or "",
+                    "strategy": (execution_strategy or {}).get("strategy", "full"),
                 },
                 total_tests=stats.get("total", 0),
                 passed_tests=stats.get("passed", 0),
