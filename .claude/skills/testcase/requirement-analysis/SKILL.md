@@ -47,6 +47,42 @@ description: 当用户提供需求文档、产品PRD、用户故事、功能描�
 | 用户认证 | 第三方登录 | 微信/支付宝OAuth | P1 | 中 | 功能+兼容 |
 ```
 
+### Step 3.5：结构化矩阵持久化（强制）
+
+完成功能矩阵表格后，**必须调用 `save_feature_matrix_tool`** 将矩阵保存为 JSONL 文件。这确保 Phase 3/4 能读取结构化的功能点清单做覆盖对照，不再依赖对话记忆。
+
+```python
+save_feature_matrix_tool(
+    features=[
+        {
+            "id": "FP-001",
+            "module": "用户认证",
+            "feature": "手机号登录",
+            "test_points": ["验证码有效期5min", "验证码发送频率限制", "错误次数锁定"],
+            "priority": "P0",
+            "risk_level": "高",
+            "test_type": ["功能", "安全"],
+            "source": "需求原文 §2.1"
+        },
+        # ... 每个功能点一条记录
+    ],
+    output_file="feature_matrix.jsonl",
+    project_identifier=project_identifier
+)
+```
+
+**字段规范**：
+- `id`: 功能点唯一编号，格式 `FP-NNN`（如 FP-001, FP-002）
+- `module`: 所属业务模块名称
+- `feature`: 功能点名称（简短描述）
+- `test_points`: 测试要点列表，每项一个具体的测试关注点
+- `priority`: P0/P1/P2/P3
+- `risk_level`: 高/中/低
+- `test_type`: 测试类型列表，如 ["功能", "安全", "边界"]
+- `source`: 来源标注，如 "需求原文 §2.1" 或 "[RAG·高置信]"
+
+> ⚡ **强制要求**：只输出 Markdown 矩阵而不调用本工具的 Phase 1 是不完整的。后续 Phase 3 用例设计和 Phase 4 质量评审将失去确定性覆盖对照的能力。
+
 ### Step 4：风险识别与标注
 重点标注以下高风险区域：
 - 🔴 **安全风险**：认证、授权、数据加密、SQL注入点、XSS

@@ -88,6 +88,32 @@ def _has_case_preview(content: str) -> bool:
     return has_case_number and (has_steps or has_test_data)
 
 
+def _has_coverage_mapping(content: str) -> bool:
+    """检测 Phase 4 质量评审报告中是否包含了覆盖对照信息。
+
+    满足以下任一条件即为通过：
+    1. 报告中提到了 feature_matrix（说明 LLM 读取了结构化矩阵）
+    2. 包含逐功能点的覆盖对照表（同时出现 FP- 和 TC- 编号）
+    3. 标注了 [无结构化矩阵] 降级说明（Phase 1 被跳过时的合法降级）
+    """
+    # 条件 1：提到了结构化矩阵文件
+    if "feature_matrix" in content:
+        return True
+
+    # 条件 2：包含功能点-用例覆盖对照（FP- + TC- 或 "功能点" + "用例编号" 配对）
+    has_fp = bool(re.search(r"FP-\d+", content)) or "功能点" in content
+    has_tc = bool(re.search(r"TC-\w+", content)) or "用例编号" in content
+    has_coverage = "覆盖率" in content or "覆盖" in content
+    if has_fp and has_tc and has_coverage:
+        return True
+
+    # 条件 3：标注了结构化矩阵缺失
+    if "无结构化矩阵" in content:
+        return True
+
+    return False
+
+
 def _extract_preview(content: str, phase: str) -> str:
     """提取报告预览，用于展示给用户的摘要。"""
     return content.strip()
@@ -266,6 +292,36 @@ class PhaseReviewMiddleware(AgentMiddleware):
             for m in after_ai
         ):
             return None
+
+        # Phase 4 覆盖对照兜底：评审报告缺少逐功能点覆盖对照时，拦截要求补充。
+        # 与 Phase 3 的 _has_case_preview 同理 —— 不依赖 prompt 质量，
+        # 由代码确定性检查报告是否包含覆盖映射信息。
+        if phase == "quality-review" and not _has_coverage_mapping(content):
+            current_round = _compute_review_round(messages, phase)
+            return {
+                "messages": [
+                    _build_review_human_message(
+                        phase=phase,
+                        round=current_round,
+                        feedback=(
+                            "当前 Phase 4 质量评审报告缺少功能覆盖对照信息，"
+                            "无法确认覆盖率评分是否基于 Phase 1 的功能矩阵。\n\n"
+                            "请执行以下操作后重新输出 `## 📊 测试用例质量评审报告`：\n"
+                            "1. 使用文件读取工具读取 `feature_matrix.jsonl`，获取全部功能点清单\n"
+                            "2. 逐功能点对照已生成的用例，以表格形式列出覆盖状态：\n"
+                            "   | 功能点 ID | 模块 | 功能点 | 优先级 | 是否已覆盖 | 对应用例编号 |\n"
+                            "   |----------|------|--------|--------|----------|------------|\n"
+                            "3. 未覆盖的功能点（尤其是 P0）必须标记为 🔴 严重问题\n\n"
+                            "若 feature_matrix.jsonl 不存在（Phase 1 未保存），"
+                            "请在报告中标注 '[无结构化矩阵] 覆盖度基于对话历史判断，可能存在遗漏'。"
+                        ),
+                        decision_type="request_changes",
+                        comment="报告缺少覆盖对照信息",
+                        checklist={item["key"]: False for item in _REVIEW_CHECKLIST},
+                    )
+                ],
+                "jump_to": "model",
+            }
 
         phase_name = _PHASE_DISPLAY_NAMES[phase]
 

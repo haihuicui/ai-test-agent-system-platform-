@@ -13,6 +13,7 @@ from app.agents.testcase.phase_review_middleware import (
     _compute_review_round,
     _extract_quality_score,
     _has_case_preview,
+    _has_coverage_mapping,
 )
 
 
@@ -236,6 +237,239 @@ class TestPhaseReviewAuditabilityFallback:
             isinstance(m, HumanMessage) and "缺少具体用例内容" in m.content
             for m in result.get("messages", [])
         )
+
+
+class TestHasCoverageMapping:
+    """测试 Phase 4 覆盖对照表的检测逻辑。"""
+
+    def test_mentions_feature_matrix(self):
+        """条件1：提到了 feature_matrix 文件 → 通过"""
+        content = """
+## 📊 测试用例质量评审报告
+
+已读取 feature_matrix.jsonl，共 15 个功能点。
+
+### 质量评分
+综合评分：85 分
+"""
+        assert _has_coverage_mapping(content) is True
+
+    def test_has_fp_tc_coverage_table(self):
+        """条件2：包含 FP- + TC- 编号的覆盖对照表 → 通过"""
+        content = """
+## 📊 测试用例质量评审报告
+
+| 功能点 ID | 模块 | 功能点 | 是否已覆盖 | 对应用例编号 |
+|----------|------|--------|----------|------------|
+| FP-001 | 用户认证 | 登录 | ✅ | TC-AUTH-001 |
+| FP-002 | 用户认证 | 注册 | ❌ | - |
+
+覆盖率：50%（1/2）
+"""
+        assert _has_coverage_mapping(content) is True
+
+    def test_has_chinese_field_mapping(self):
+        """条件2 变体：中文"功能点"+"用例编号"+"覆盖" → 通过"""
+        content = """
+## 📊 测试用例质量评审报告
+
+功能点：手机号登录 → 用例编号 TC-AUTH-001 → 已覆盖
+功能点：密码找回 → 未覆盖
+
+覆盖度分析：以上 2 个功能点中有 1 个已覆盖
+"""
+        assert _has_coverage_mapping(content) is True
+
+    def test_fallback_no_matrix_notation(self):
+        """条件3：标注了 [无结构化矩阵] → 通过（合法降级）"""
+        content = """
+## 📊 测试用例质量评审报告
+
+[无结构化矩阵] 覆盖度基于对话历史判断，可能存在遗漏。
+
+综合评分：80 分
+"""
+        assert _has_coverage_mapping(content) is True
+
+    def test_only_has_coverage_but_no_mapping(self):
+        """仅有"覆盖率"字样但无 FP-/TC- 编号 → 不通过"""
+        content = """
+## 📊 测试用例质量评审报告
+
+所有功能点已完整覆盖，覆盖率 100%。
+
+综合评分：90 分
+"""
+        assert _has_coverage_mapping(content) is False
+
+    def test_only_score_no_coverage_info(self):
+        """仅有评分，没有任何覆盖信息 → 不通过"""
+        content = """
+## 📊 测试用例质量评审报告
+
+综合评分：88 分
+
+### 准确性检查
+预期结果均可验证。
+"""
+        assert _has_coverage_mapping(content) is False
+
+    def test_only_fp_no_tc(self):
+        """有 FP- 编号但无 TC- 编号 → 不通过（条件2要求两者同时出现）"""
+        content = """
+## 📊 测试用例质量评审报告
+
+已覆盖功能点：FP-001, FP-002, FP-003
+
+综合评分：85 分
+"""
+        assert _has_coverage_mapping(content) is False
+
+    def test_has_tc_but_no_fp(self):
+        """有 TC- 编号但无 FP- 编号 → 不通过"""
+        content = """
+## 📊 测试用例质量评审报告
+
+生成的用例：TC-AUTH-001 ~ TC-AUTH-020，覆盖完整。
+
+综合评分：85 分
+"""
+        assert _has_coverage_mapping(content) is False
+
+
+class TestPhase4CoverageFallback:
+    """测试 Phase 4 覆盖对照表的兜底拦截。"""
+
+    def _make_state(self, ai_content: str, human_messages: list | None = None):
+        return {
+            "messages": [
+                *(human_messages or []),
+                AIMessage(content=ai_content),
+            ]
+        }
+
+    def test_phase4_without_coverage_mapping_returns_request_changes(self):
+        """Phase 4 报告缺少覆盖对照 → 拦截要求补充"""
+        middleware = PhaseReviewMiddleware()
+        state = self._make_state("""
+## 📊 测试用例质量评审报告
+
+所有用例质量良好，覆盖完整。
+
+综合评分：90 分
+
+### 准确性检查
+预期结果均可验证。
+""")
+        result = middleware.after_model(state, None)
+
+        assert result is not None
+        assert "messages" in result
+        assert result.get("jump_to") == "model"
+
+        msg = result["messages"][0]
+        assert isinstance(msg, HumanMessage)
+        assert "缺少功能覆盖对照信息" in msg.content
+        assert "feature_matrix.jsonl" in msg.content
+        assert "逐功能点" in msg.content
+
+    def test_phase4_with_feature_matrix_mention_passes(self, monkeypatch):
+        """Phase 4 报告提到了 feature_matrix → 通过覆盖检查，进入正常 interrupt"""
+        monkeypatch.setattr(
+            "app.agents.testcase.phase_review_middleware.interrupt",
+            lambda request: {"decision": "approve", "message": "", "checklist": {}},
+        )
+
+        middleware = PhaseReviewMiddleware()
+        state = self._make_state("""
+## 📊 测试用例质量评审报告
+
+已读取 feature_matrix.jsonl，共 15 个功能点，其中 14 个已覆盖，1 个未覆盖（FP-012 退款流程）。
+
+综合评分：88 分
+""")
+        result = middleware.after_model(state, None)
+
+        assert result is not None
+        assert "messages" in result
+        # 不应包含兜底拦截的 HumanMessage
+        assert not any(
+            isinstance(m, HumanMessage) and "缺少功能覆盖对照信息" in m.content
+            for m in result.get("messages", [])
+        )
+
+    def test_phase4_with_fallback_notation_passes(self, monkeypatch):
+        """Phase 4 标注了 [无结构化矩阵] → 通过"""
+        monkeypatch.setattr(
+            "app.agents.testcase.phase_review_middleware.interrupt",
+            lambda request: {"decision": "approve", "message": "", "checklist": {}},
+        )
+
+        middleware = PhaseReviewMiddleware()
+        state = self._make_state("""
+## 📊 测试用例质量评审报告
+
+[无结构化矩阵] 覆盖度基于对话历史判断，可能存在遗漏。
+
+综合评分：80 分
+""")
+        result = middleware.after_model(state, None)
+
+        assert result is not None
+        assert "messages" in result
+        assert not any(
+            isinstance(m, HumanMessage) and "缺少功能覆盖对照信息" in m.content
+            for m in result.get("messages", [])
+        )
+
+    def test_non_quality_review_phase_ignored(self, monkeypatch):
+        """非 Phase 4 报告不应触发覆盖对照检查"""
+        monkeypatch.setattr(
+            "app.agents.testcase.phase_review_middleware.interrupt",
+            lambda request: {"decision": "approve", "message": "", "checklist": {}},
+        )
+
+        middleware = PhaseReviewMiddleware()
+        state = self._make_state("""
+## 需求解析报告
+
+共 5 个模块，15 个功能点。
+
+（这是一份 Phase 1 报告，不应触发 Phase 4 的覆盖检查）
+""")
+        result = middleware.after_model(state, None)
+
+        assert result is not None
+        assert "messages" in result
+        assert not any(
+            isinstance(m, HumanMessage) and "缺少功能覆盖对照信息" in m.content
+            for m in result.get("messages", [])
+        )
+
+    def test_phase4_auto_reject_still_triggers(self):
+        """Phase 4 低分报告：即使有覆盖映射，仍触发自动退回"""
+        middleware = PhaseReviewMiddleware()
+        state = self._make_state("""
+## 📊 测试用例质量评审报告
+
+已读取 feature_matrix.jsonl。覆盖率 60%（9/15）。
+
+| FP-001 | 用户认证 | 登录 | P0 | ✅ | TC-AUTH-001 |
+| FP-002 | 用户认证 | 注册 | P0 | ❌ | - |
+
+综合评分：60 分
+
+（评分低于 75 应该触发自动退回，不应被覆盖检查拦截）
+""")
+        result = middleware.after_model(state, None)
+
+        assert result is not None
+        assert "messages" in result
+        msg = result["messages"][0]
+        assert isinstance(msg, HumanMessage)
+        # 应该触发的是自动退回，不是覆盖检查
+        assert "系统自动退回" in msg.content
+        assert "缺少功能覆盖对照信息" not in msg.content
 
 
 if __name__ == "__main__":

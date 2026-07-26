@@ -4,6 +4,7 @@
 本目录包含所有测试用例生成智能体的工具定义，按功能分类组织：
 - 测试用例管理: 创建、更新、批量操作、预览
 - 模块自检: 用例质量自检、离线 manifest
+- 功能矩阵: 结构化功能测试矩阵存储
 - 文档解析: 从 URL 下载并解析文档内容
 - Excel 导出: 将测试用例导出为 Excel 文件
 """
@@ -32,6 +33,10 @@ from app.agents.tools.testcase.module_check_tools import (
     save_test_case_manifest_tool,
 )
 
+from app.agents.tools.testcase.feature_matrix_tools import (
+    save_feature_matrix_tool,
+)
+
 # 按业务域分类的工具列表
 TESTCASE_TOOLS = [
     create_test_case_tool,
@@ -40,6 +45,7 @@ TESTCASE_TOOLS = [
     preview_test_cases,
     module_self_check_tool,
     save_test_case_manifest_tool,
+    save_feature_matrix_tool,
 ]
 
 DOCUMENT_TOOLS = [
@@ -89,6 +95,8 @@ __all__ = [
     # 模块自检与 manifest
     "module_self_check_tool",
     "save_test_case_manifest_tool",
+    # 功能矩阵
+    "save_feature_matrix_tool",
     # 文档解析
     "parse_document_from_url",
     # Excel 导出
