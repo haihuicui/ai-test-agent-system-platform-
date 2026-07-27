@@ -21,11 +21,14 @@ description: 测试用例质量自动评审Skill。在完成测试用例生成�
 
 **操作步骤：**
 
-1. 使用文件读取工具读取 `feature_matrix.jsonl`，获取全部功能点清单
+1. 读取功能矩阵文件，路径规则与 Phase 1 保存时保持一致：
+   - 传入了 `project_identifier`：`<project_identifier>/feature_matrix.jsonl`
+   - 未传入 `project_identifier`：`feature_matrix.jsonl`
+   - 后端代码可通过 `load_feature_matrix(project_identifier="...")` 获取同一文件
 2. 扫描所有用例 JSONL 文件（或用 `preview_test_cases` 抽样各模块），建立"功能点 → 用例"映射
 3. 输出覆盖率摘要（如 "22/25 个功能点已覆盖，覆盖率 88%"）
 
-**若 feature_matrix.jsonl 不存在**（Phase 1 未调用 `save_feature_matrix_tool`），在报告中明确标注：
+**若 feature_matrix.jsonl 不存在**（Phase 1 未调用 `save_feature_matrix_tool` 或 project_identifier 目录不匹配），在报告中明确标注：
 > ⚠️ [无结构化矩阵] 覆盖度基于对话历史判断，可能存在遗漏。建议回退 Phase 1 重新生成功能矩阵。
 
 ---

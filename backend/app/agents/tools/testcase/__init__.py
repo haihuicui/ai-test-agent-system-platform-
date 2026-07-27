@@ -34,6 +34,8 @@ from app.agents.tools.testcase.module_check_tools import (
 )
 
 from app.agents.tools.testcase.feature_matrix_tools import (
+    load_feature_matrix,
+    resolve_feature_matrix_path,
     save_feature_matrix_tool,
 )
 
@@ -97,6 +99,8 @@ __all__ = [
     "save_test_case_manifest_tool",
     # 功能矩阵
     "save_feature_matrix_tool",
+    "resolve_feature_matrix_path",
+    "load_feature_matrix",
     # 文档解析
     "parse_document_from_url",
     # Excel 导出

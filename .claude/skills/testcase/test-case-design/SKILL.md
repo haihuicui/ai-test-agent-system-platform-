@@ -381,15 +381,22 @@ Body:
 
 ### 模块开始前
 
-使用文件读取工具读取 `feature_matrix.jsonl`，筛选出属于当前模块的功能点清单。例如当前模块为"用户认证"时：
+使用文件读取工具读取功能矩阵。读取路径需与 Phase 1 保存路径保持一致：
+- 若 Phase 1 传入了 `project_identifier`，文件位于 `<project_identifier>/feature_matrix.jsonl`
+- 若未传入，文件位于 `feature_matrix.jsonl`
+
+例如当前项目为 `order-system`、当前模块为"用户认证"时：
 
 ```
-从 feature_matrix.jsonl 中筛选 module == "用户认证" 的功能点：
+从 order-system/feature_matrix.jsonl 中筛选 module == "用户认证" 的功能点：
   FP-001: 手机号登录 (P0, 高风险)
   FP-002: 第三方登录 (P1, 中风险)
   FP-003: 密码找回 (P1, 中风险)
   ...
 ```
+
+> 后端代码中可通过 `load_feature_matrix(project_identifier="...")` 获取同一位置的矩阵；
+> LLM 直接使用文件读取工具时，请按上述规则拼写路径。
 
 ### 模块完成后
 
@@ -401,7 +408,7 @@ Body:
 
 ## Phase 3 完成报告可审性要求
 
-当所有模块用例设计完成、准备输出 `## 测试用例生成完成` 触发人工评审时，报告正文**必须**包含具体用例内容，而不仅仅是汇总表。
+当所有模块用例设计完成、准备输出 `## 测试用例生成完成` 触发人工评审时，报告正文**必须**包含具体用例内容，而不仅仅是汇总表。**仅输出汇总表会被系统自动退回，无法进入人工评审卡片**。
 
 ### 必须展示的内容
 
@@ -410,14 +417,15 @@ Body:
    - 用例名称、case_number、module、priority、case_type
    - 测试数据 test_data（关键字段）
    - 前置条件 preconditions
-   - 测试步骤与预期结果 test_case_steps
+   - 测试步骤 test_case_steps
+   - **预期结果 expected_result（必须独立展示，不要混在步骤里；可从步骤的 result 字段聚合，也可单独给出）**
 3. **设计亮点与风险说明**：
    - 覆盖的边界场景、异常场景、安全场景
    - 未覆盖或需要人工确认的点
 
 ### JSONL 文件场景
 
-如果用例已分批写入 JSONL 文件（例如 API 不可用或用例数量过多），**必须**调用 `preview_test_cases` 工具读取文件中的关键用例，并在报告中展示。
+如果用例已分批写入 JSONL 文件（例如 API 不可用或用例数量过多），**必须**调用 `preview_test_cases` 工具读取文件中的关键用例，并在报告中展示。该工具返回的字段中已包含 `expected_result`，请一并展示。
 
 ```python
 preview_test_cases(source="/test_cases.jsonl", limit=3)
@@ -428,6 +436,8 @@ preview_test_cases(source="/test_cases.jsonl", limit=3)
 - 仅输出"共 XX 条用例，已保存到文件"就进入评审
 - 用"质量校验已通过"代替具体用例展示
 - 只展示用例标题列表而不展示步骤、数据、预期结果
+- 只展示 test_case_steps 而不独立展示 expected_result
+- 连续多次被系统退回仍不补充具体用例
 
-> 只有审核者能看到具体用例内容时，Phase 3 评审才有意义。
+> 只有审核者能看到具体用例内容时，Phase 3 评审才有意义。系统会检测报告中是否包含用例编号 + 测试步骤/测试数据，缺少任一要素都会自动退回。
 

@@ -13,6 +13,22 @@ description: 当用户提供需求文档、产品PRD、用户故事、功能描�
 
 ## 执行流程
 
+### Step 0：初始化全阶段任务清单（强制）
+
+在开始分析之前，**必须先调用 `write_todos` 创建完整的 5 阶段任务清单**。即使当前只进行需求分析，也必须把 Phase 2~5 创建为 `pending` 状态，让用户看到完整的工作路线图。
+
+```python
+write_todos(todos=[
+    {"id": "phase-1", "content": "Phase 1: 需求分析 - 输出需求解析报告", "status": "in_progress"},
+    {"id": "phase-2", "content": "Phase 2: 测试策略 - 输出测试策略报告", "status": "pending"},
+    {"id": "phase-3", "content": "Phase 3: 用例设计 - 设计逐模块测试用例", "status": "pending"},
+    {"id": "phase-4", "content": "Phase 4: 质量评审 - 输出质量评审报告", "status": "pending"},
+    {"id": "phase-5", "content": "Phase 5: 输出格式化 - 生成最终交付物", "status": "pending"},
+])
+```
+
+> ⚡ **强制要求**：只创建当前阶段任务会导致用户无法预知后续流程，属于违规。必须在首次响应用户前完成本步骤。
+
 ### Step 1：文档结构解析
 首先对输入文档进行结构化拆解，识别：
 - **文档类型**：PRD / 接口文档 / 用户故事 / 设计稿描述 / 口头需求
@@ -49,7 +65,9 @@ description: 当用户提供需求文档、产品PRD、用户故事、功能描�
 
 ### Step 3.5：结构化矩阵持久化（强制）
 
-完成功能矩阵表格后，**必须调用 `save_feature_matrix_tool`** 将矩阵保存为 JSONL 文件。这确保 Phase 3/4 能读取结构化的功能点清单做覆盖对照，不再依赖对话记忆。
+完成功能矩阵表格并**得到用户通过评审后**，**必须调用 `save_feature_matrix_tool`** 将矩阵保存为 JSONL 文件。这确保 Phase 3/4 能读取结构化的功能点清单做覆盖对照，不再依赖对话记忆。
+
+> ⚠️ **重要顺序**：输出 `## 需求解析报告` / `## 功能测试矩阵` 后，**本消息内禁止附带任何工具调用**（包括 `save_feature_matrix_tool`、`write_todos` 等）。系统会基于阶段标题自动弹出人工评审卡片；只有收到用户的通过/跳过决策后，才允许执行保存等后续工具调用。
 
 ```python
 save_feature_matrix_tool(
@@ -81,7 +99,14 @@ save_feature_matrix_tool(
 - `test_type`: 测试类型列表，如 ["功能", "安全", "边界"]
 - `source`: 来源标注，如 "需求原文 §2.1" 或 "[RAG·高置信]"
 
+**路径隔离说明**：
+- 调用时必须传入 `project_identifier`，工具会自动把 `feature_matrix.jsonl` 保存到该项目的专属目录下
+- 例如 `project_identifier="order-system"` 时，实际文件路径为 `order-system/feature_matrix.jsonl`
+- 这样可避免不同项目的功能矩阵互相覆盖；Phase 3/4 读取时也应使用同一 `project_identifier` 对应的目录
+- 后端读取函数 `load_feature_matrix(project_identifier="...")` 与保存端使用完全相同的路径解析规则
+
 > ⚡ **强制要求**：只输出 Markdown 矩阵而不调用本工具的 Phase 1 是不完整的。后续 Phase 3 用例设计和 Phase 4 质量评审将失去确定性覆盖对照的能力。
+> ⚡ **顺序红线**：不要在输出阶段报告的同一条消息里调用工具，否则会导致人工评审卡片无法弹出。
 
 ### Step 4：风险识别与标注
 重点标注以下高风险区域：

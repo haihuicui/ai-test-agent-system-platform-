@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -48,12 +49,98 @@ _VALID_TEST_TYPES = {
     "异常", "边界", "单元", "集成", "端到端", "回归",
 }
 
+# test_type 常见同义词 → 标准值映射
+# LLM 在中文上下文中常输出"界面""功能测试"等非标准值，自动映射可减少反复调用。
+_TEST_TYPE_SYNONYMS: dict[str, str] = {
+    "界面": "UI",
+    "ui": "UI",
+    "Ui": "UI",
+    "功能测试": "功能",
+    "功能性": "功能",
+    "功能性测试": "功能",
+    "安全测试": "安全",
+    "安全性": "安全",
+    "安全性测试": "安全",
+    "性能测试": "性能",
+    "兼容性": "兼容",
+    "兼容测试": "兼容",
+    "兼容性测试": "兼容",
+    "接口测试": "接口",
+    "api": "接口",
+    "Api": "接口",
+    "API": "接口",
+    "数据测试": "数据",
+    "异常场景": "异常",
+    "异常测试": "异常",
+    "异常流程": "异常",
+    "边界值": "边界",
+    "边界测试": "边界",
+    "边界值测试": "边界",
+    "单元测试": "单元",
+    "集成测试": "集成",
+    "端到端测试": "端到端",
+    "e2e": "端到端",
+    "E2E": "端到端",
+    "回归测试": "回归",
+}
 
-def _resolve_matrix_path(output_file: str) -> Path:
-    """将输出文件路径解析到 workspace_root 下，禁止越权。"""
+
+def _normalize_test_types(
+    test_types: list[Any], index: int
+) -> tuple[list[str], list[str]]:
+    """将 test_type 中的常见同义词映射到标准值。
+
+    返回 (标准化后的列表, 自动修正警告列表)。无法识别的值保持原样，
+    由后续 _validate_feature_point 统一报错，避免脏数据落盘。
+    """
+    normalized: list[str] = []
+    warnings: list[str] = []
+    for t in test_types:
+        if not isinstance(t, str):
+            normalized.append(str(t))
+            continue
+        t_stripped = t.strip()
+        canonical = _TEST_TYPE_SYNONYMS.get(t_stripped, t_stripped)
+        normalized.append(canonical)
+        if canonical != t_stripped:
+            warnings.append(
+                f"第 {index + 1} 条 test_type 自动修正：'{t_stripped}' → '{canonical}'"
+            )
+    return normalized, warnings
+
+
+def _sanitize_project_identifier(project_identifier: str) -> str:
+    """将项目标识符清理为可用作目录名的字符串。
+
+    移除首尾空白，替换文件系统非法字符与路径分隔符为下划线，
+    并拒绝 '.' / '..' 等会造成路径歧义的值。
+    """
+    cleaned = project_identifier.strip()
+    # Windows/Unix 路径分隔符及非法字符统一替换为下划线
+    cleaned = re.sub(r'[\\/:*?"<>|]+', "_", cleaned)
+    if not cleaned or cleaned in (".", ".."):
+        raise ValueError(f"无效的项目标识符：{project_identifier!r}")
+    return cleaned
+
+
+def _resolve_matrix_path(output_file: str, project_identifier: str = "") -> Path:
+    """将输出文件路径解析到 workspace_root 下，禁止越权。
+
+    若提供了 project_identifier 且 output_file 仅为文件名（未显式指定目录），
+    则自动将文件隔离到 workspace_root/<project_identifier>/ 下，避免多项目冲突。
+    若 output_file 显式包含子目录或是绝对路径，则尊重原有路径结构。
+    """
     raw = Path(output_file)
 
-    if raw.anchor:
+    # 用户显式指定了目录结构（含子目录或绝对路径）时，不再追加项目隔离目录
+    has_explicit_directory = bool(raw.anchor) or (
+        len(raw.parts) > 1 and raw.parent.name not in ("", ".")
+    )
+
+    if project_identifier.strip() and not has_explicit_directory:
+        safe_id = _sanitize_project_identifier(project_identifier)
+        rel = Path(safe_id) / raw.name
+    elif raw.anchor:
         try:
             if raw.is_absolute() and raw.resolve().is_relative_to(_WORKSPACE_ROOT):
                 return raw.resolve()
@@ -73,6 +160,102 @@ def _resolve_matrix_path(output_file: str) -> Path:
             f"输出文件路径越权：{output_file} 解析后超出工作目录 {_WORKSPACE_ROOT}"
         )
     return resolved
+
+
+def resolve_feature_matrix_path(
+    project_identifier: str = "",
+    output_file: str = "feature_matrix.jsonl",
+) -> Path:
+    """解析功能矩阵文件在 workspace 中的实际路径。
+
+    保存端和读取端共用同一套路径解析规则，确保 Phase 1 写入的位置与
+    Phase 3/4 读取的位置一致。
+
+    Args:
+        project_identifier: 项目标识符。传入时文件会隔离到项目专属目录。
+        output_file: 矩阵文件名，默认 feature_matrix.jsonl。
+
+    Returns:
+        解析后的绝对路径。
+    """
+    return _resolve_matrix_path(output_file, project_identifier)
+
+
+def load_feature_matrix(
+    project_identifier: str = "",
+    output_file: str = "feature_matrix.jsonl",
+) -> dict[str, Any]:
+    """读取结构化功能测试矩阵 JSONL 文件。
+
+    供 Phase 3/4 代码或工具使用，读取路径与 save_feature_matrix_tool 的
+    保存路径保持完全一致。文件不存在时返回明确错误，不抛出异常。
+
+    Args:
+        project_identifier: 项目标识符。
+        output_file: 矩阵文件名，默认 feature_matrix.jsonl。
+
+    Returns:
+        {
+          "success": bool,
+          "file": str,
+          "features": list[dict],
+          "count": int,
+          "modules": ["模块1", ...],
+          "error": str   # 仅失败时
+        }
+    """
+    try:
+        resolved = _resolve_matrix_path(output_file, project_identifier)
+        if not resolved.exists():
+            return {
+                "success": False,
+                "file": str(resolved),
+                "features": [],
+                "count": 0,
+                "modules": [],
+                "error": f"功能矩阵文件不存在：{resolved}",
+            }
+
+        features: list[dict[str, Any]] = []
+        modules: list[str] = []
+        for line in resolved.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError as e:
+                return {
+                    "success": False,
+                    "file": str(resolved),
+                    "features": [],
+                    "count": 0,
+                    "modules": [],
+                    "error": f"JSONL 解析失败：{e}",
+                }
+            if isinstance(record, dict):
+                features.append(record)
+                module = str(record.get("module", "")).strip()
+                if module and module not in modules:
+                    modules.append(module)
+
+        return {
+            "success": True,
+            "file": str(resolved),
+            "features": features,
+            "count": len(features),
+            "modules": modules,
+        }
+    except Exception as e:
+        logger.exception("load_feature_matrix 执行失败")
+        return {
+            "success": False,
+            "file": str(_resolve_matrix_path(output_file, project_identifier)),
+            "features": [],
+            "count": 0,
+            "modules": [],
+            "error": str(e),
+        }
 
 
 def _validate_feature_point(fp: dict[str, Any], index: int) -> list[str]:
@@ -114,6 +297,7 @@ def _validate_feature_point(fp: dict[str, Any], index: int) -> list[str]:
 
     # test_type 枚举校验：非法值直接报错，而非仅日志警告。
     # Phase 4 的覆盖匹配依赖 test_type 字段正确性，静默通过会导致脏数据落盘。
+    # 注意：调用方应先用 _normalize_test_types 将常见同义词映射为标准值。
     test_types = fp.get("test_type", [])
     if isinstance(test_types, list):
         unknown = [t for t in test_types if t not in _VALID_TEST_TYPES]
@@ -144,9 +328,14 @@ async def save_feature_matrix_tool(
 ) -> dict[str, Any]:
     """将功能测试矩阵保存为结构化 JSONL 文件。
 
-    在 Phase 1 需求分析完成后**必须调用本工具**，将功能测试矩阵从对话历史中
-    持久化到磁盘文件。该文件是跨 Phase 信息传递的唯一可靠方式——Phase 3 用例设计
-    和 Phase 4 质量评审均可读取该文件做确定性覆盖对照，不再依赖 LLM 记忆。
+    在 Phase 1 需求分析完成后、**人工评审通过（或用户选择跳过）后**必须调用本工具，
+    将功能测试矩阵从对话历史中持久化到磁盘文件。该文件是跨 Phase 信息传递的唯一
+    可靠方式——Phase 3 用例设计和 Phase 4 质量评审均可读取该文件做确定性覆盖对照，
+    不再依赖 LLM 记忆。
+
+    重要顺序：请先输出阶段报告标题（`## 需求解析报告` / `## 功能测试矩阵`），
+    等待系统弹出人工评审卡片；在收到用户通过/跳过决策后，再调用本工具保存矩阵。
+    若将本工具调用与阶段报告标题放在同一条消息中，评审卡片会被系统跳过。
 
     Args:
         features: 功能点列表，每个元素必须包含：
@@ -158,8 +347,10 @@ async def save_feature_matrix_tool(
             - risk_level: 风险等级 (高/中/低)
             - test_type: 测试类型列表 (如 ["功能", "安全"])
             - source: 来源标注 (可选, 如 "需求原文 §2.1")
-        output_file: 输出文件路径 (默认 feature_matrix.jsonl)
-        project_identifier: 项目标识符 (可选)
+        output_file: 输出文件路径 (默认 feature_matrix.jsonl)。
+            若传入 project_identifier 且本参数仅为文件名，文件会自动隔离到
+            workspace_root/<project_identifier>/ 目录下，避免多项目冲突。
+        project_identifier: 项目标识符 (可选)。仅用于路径隔离和写入记录元数据。
 
     Returns:
         {
@@ -182,10 +373,22 @@ async def save_feature_matrix_tool(
                 "message": "功能点列表为空，无法保存。请先输出 ## 功能测试矩阵 后再调用本工具。",
             }
 
+        # 0. 标准化 test_type 同义词，减少 LLM 因非标准值反复调用。
+        # 深拷贝避免修改传入的原始对象，同时收集自动修正警告。
+        normalized_features: list[dict[str, Any]] = []
+        normalization_warnings: list[str] = []
+        for i, fp in enumerate(features):
+            fp_copy = dict(fp)
+            if isinstance(fp_copy.get("test_type"), list):
+                normalized_types, warns = _normalize_test_types(fp_copy["test_type"], i)
+                fp_copy["test_type"] = normalized_types
+                normalization_warnings.extend(warns)
+            normalized_features.append(fp_copy)
+
         # 1. 逐条校验（Pydantic args_schema 已保证 features 是 list[dict]）
         all_errors: list[str] = []
         seen_ids: set[str] = set()
-        for i, fp in enumerate(features):
+        for i, fp in enumerate(normalized_features):
             errors = _validate_feature_point(fp, i)
             all_errors.extend(errors)
             fp_id = fp.get("id", "")
@@ -195,7 +398,7 @@ async def save_feature_matrix_tool(
                 seen_ids.add(fp_id.strip())
 
         if all_errors:
-            return {
+            result: dict[str, Any] = {
                 "success": False,
                 "file": output_file,
                 "count": len(features),
@@ -206,15 +409,18 @@ async def save_feature_matrix_tool(
                     f"请根据 errors 列表修正后重新调用。"
                 ),
             }
+            if normalization_warnings:
+                result["warnings"] = normalization_warnings
+            return result
 
         # 2. 解析路径并写入
-        resolved = _resolve_matrix_path(output_file)
+        resolved = _resolve_matrix_path(output_file, project_identifier)
         resolved.parent.mkdir(parents=True, exist_ok=True)
 
         # 统计信息
         modules: list[str] = []
         priority_dist: dict[str, int] = {}
-        for fp in features:
+        for fp in normalized_features:
             module = str(fp.get("module", "")).strip()
             if module and module not in modules:
                 modules.append(module)
@@ -224,7 +430,7 @@ async def save_feature_matrix_tool(
 
         # 写入 JSONL（每行一个 JSON 对象）
         lines: list[str] = []
-        for fp in features:
+        for fp in normalized_features:
             # 补充元数据
             record = dict(fp)
             if "saved_at" not in record:
@@ -248,11 +454,12 @@ async def save_feature_matrix_tool(
         return {
             "success": True,
             "file": str(resolved),
-            "count": len(features),
+            "count": len(normalized_features),
             "modules": modules,
             "priority_distribution": priority_dist,
             "saved_at": datetime.now(timezone.utc).isoformat(),
             "summary": summary,
+            "warnings": normalization_warnings or [],
         }
 
     except Exception as e:

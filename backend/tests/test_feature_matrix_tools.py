@@ -12,7 +12,10 @@ from pathlib import Path
 import pytest
 
 from app.agents.tools.testcase.feature_matrix_tools import (
+    _normalize_test_types,
     _validate_feature_point,
+    load_feature_matrix,
+    resolve_feature_matrix_path,
     save_feature_matrix_tool,
 )
 
@@ -132,6 +135,43 @@ class TestValidateFeaturePoint:
 
 
 # ═════════════════════════════════════════════════════════════════════════════
+# TestNormalizeTestTypes
+# ═════════════════════════════════════════════════════════════════════════════
+
+class TestNormalizeTestTypes:
+    def test_ui_synonym(self):
+        normalized, warnings = _normalize_test_types(["界面"], 0)
+        assert normalized == ["UI"]
+        assert any("界面" in w and "UI" in w for w in warnings)
+
+    def test_functional_synonyms(self):
+        for val in ["功能测试", "功能性", "功能性测试"]:
+            normalized, _ = _normalize_test_types([val], 0)
+            assert normalized == ["功能"], f"{val} 应映射为 功能"
+
+    def test_security_and_performance_synonyms(self):
+        normalized, _ = _normalize_test_types(["安全测试", "性能测试"], 0)
+        assert normalized == ["安全", "性能"]
+
+    def test_multiple_mixed_values(self):
+        normalized, warnings = _normalize_test_types(
+            ["界面", "功能测试", "API", "边界值"], 1
+        )
+        assert normalized == ["UI", "功能", "接口", "边界"]
+        assert len(warnings) == 4
+        assert any("第 2 条" in w for w in warnings)
+
+    def test_standard_values_unchanged(self):
+        normalized, warnings = _normalize_test_types(["功能", "UI", "安全"], 0)
+        assert normalized == ["功能", "UI", "安全"]
+        assert warnings == []
+
+    def test_non_string_value_converted(self):
+        normalized, _ = _normalize_test_types([123, None], 0)
+        assert normalized == ["123", "None"]
+
+
+# ═════════════════════════════════════════════════════════════════════════════
 # TestSaveFeatureMatrixTool
 # ═════════════════════════════════════════════════════════════════════════════
 
@@ -141,8 +181,9 @@ def temp_workspace(monkeypatch):
     with tempfile.TemporaryDirectory(prefix="test_matrix_") as tmpdir:
         from app.agents.tools.testcase import feature_matrix_tools as fmt
         original = fmt._WORKSPACE_ROOT
-        monkeypatch.setattr(fmt, "_WORKSPACE_ROOT", Path(tmpdir).resolve())
-        yield Path(tmpdir)
+        resolved = Path(tmpdir).resolve()
+        monkeypatch.setattr(fmt, "_WORKSPACE_ROOT", resolved)
+        yield resolved
         monkeypatch.setattr(fmt, "_WORKSPACE_ROOT", original)
 
 
@@ -223,15 +264,133 @@ class TestSaveFeatureMatrixTool:
         assert (temp_workspace / "feature_matrix.jsonl").is_file()
 
     def test_project_identifier_injected(self, temp_workspace):
-        """传入 project_identifier → 每条记录应注入该字段"""
+        """传入 project_identifier → 每条记录应注入该字段，并隔离到项目目录"""
         result = _call(save_feature_matrix_tool,
             features=[{**VALID_FEATURE}],
             project_identifier="test-project-123")
         assert result["success"] is True
+        # 路径隔离：文件应位于 workspace/test-project-123/feature_matrix.jsonl
+        assert "test-project-123" in result["file"]
 
-        saved_file = temp_workspace / "feature_matrix.jsonl"
+        saved_file = temp_workspace / "test-project-123" / "feature_matrix.jsonl"
+        assert saved_file.is_file()
         data = json.loads(saved_file.read_text(encoding="utf-8").strip())
         assert data["project_identifier"] == "test-project-123"
+
+    def test_project_identifier_isolates_default_path(self, temp_workspace):
+        """默认 output_file + project_identifier → 隔离到项目子目录"""
+        result = _call(save_feature_matrix_tool,
+            features=[{**VALID_FEATURE}],
+            project_identifier="order-system")
+        assert result["success"] is True
+        saved_file = Path(result["file"])
+        assert saved_file.relative_to(temp_workspace) == Path("order-system") / "feature_matrix.jsonl"
+        assert saved_file.is_file()
+        # 未提供 project_identifier 时不应污染 order-system 目录
+        assert not (temp_workspace / "feature_matrix.jsonl").exists()
+
+    def test_explicit_subdirectory_not_isolated(self, temp_workspace):
+        """显式指定 output_file 子目录时，尊重原路径，不追加 project_identifier"""
+        result = _call(save_feature_matrix_tool,
+            features=[{**VALID_FEATURE}],
+            output_file="custom/subdir/matrix.jsonl",
+            project_identifier="order-system")
+        assert result["success"] is True
+        saved_file = Path(result["file"])
+        assert saved_file.relative_to(temp_workspace) == Path("custom") / "subdir" / "matrix.jsonl"
+        assert saved_file.is_file()
+        # 不应在项目隔离目录下创建副本
+        assert not (temp_workspace / "order-system" / "matrix.jsonl").exists()
+
+    def test_project_identifier_sanitization(self, temp_workspace):
+        """project_identifier 含非法字符时应被清理为合法目录名"""
+        result = _call(save_feature_matrix_tool,
+            features=[{**VALID_FEATURE}],
+            project_identifier="proj/abc:test?")
+        assert result["success"] is True
+        saved_file = Path(result["file"])
+        # 非法字符被替换为下划线
+        assert saved_file.relative_to(temp_workspace) == Path("proj_abc_test_") / "feature_matrix.jsonl"
+        assert saved_file.is_file()
+
+    def test_synonyms_are_normalized_on_save(self, temp_workspace):
+        """test_type 同义词应被自动修正为标准值并保存"""
+        features = [
+            {**VALID_FEATURE, "test_type": ["界面", "功能测试", "API"]},
+            {**VALID_FEATURE, "id": "FP-002", "test_type": ["安全性", "边界值"]},
+        ]
+        result = _call(save_feature_matrix_tool, features=features)
+        assert result["success"] is True
+        assert result["count"] == 2
+        # 应返回自动修正警告
+        assert len(result.get("warnings", [])) == 5
+        assert any("界面" in w for w in result["warnings"])
+
+        saved_file = temp_workspace / "feature_matrix.jsonl"
+        lines = saved_file.read_text(encoding="utf-8").strip().split("\n")
+        assert len(lines) == 2
+        first = json.loads(lines[0])
+        assert first["test_type"] == ["UI", "功能", "接口"]
+        second = json.loads(lines[1])
+        assert second["test_type"] == ["安全", "边界"]
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# TestResolveAndLoadFeatureMatrix
+# ═════════════════════════════════════════════════════════════════════════════
+
+class TestResolveAndLoadFeatureMatrix:
+    def test_resolve_default_path_without_project(self, temp_workspace):
+        """无 project_identifier 时，默认路径在 workspace_root 根目录"""
+        path = resolve_feature_matrix_path()
+        assert path.relative_to(temp_workspace) == Path("feature_matrix.jsonl")
+
+    def test_resolve_isolated_path_with_project(self, temp_workspace):
+        """有 project_identifier 时，路径隔离到项目子目录"""
+        path = resolve_feature_matrix_path(project_identifier="billing-system")
+        assert path.relative_to(temp_workspace) == Path("billing-system") / "feature_matrix.jsonl"
+
+    def test_resolve_respects_explicit_subdirectory(self, temp_workspace):
+        """显式子目录不应被 project_identifier 覆盖"""
+        path = resolve_feature_matrix_path(
+            project_identifier="billing-system",
+            output_file="archived/matrix.jsonl")
+        assert path.relative_to(temp_workspace) == Path("archived") / "matrix.jsonl"
+
+    def test_load_feature_matrix_success(self, temp_workspace):
+        """load_feature_matrix 应能读取 save_feature_matrix_tool 保存的文件"""
+        features = [
+            {**VALID_FEATURE},
+            {**VALID_FEATURE, "id": "FP-002", "module": "订单管理", "feature": "创建订单"},
+        ]
+        save_result = _call(save_feature_matrix_tool,
+            features=features,
+            project_identifier="load-test")
+        assert save_result["success"] is True
+
+        load_result = load_feature_matrix(project_identifier="load-test")
+        assert load_result["success"] is True
+        assert load_result["count"] == 2
+        assert {fp["id"] for fp in load_result["features"]} == {"FP-001", "FP-002"}
+        assert "用户认证" in load_result["modules"]
+        assert "订单管理" in load_result["modules"]
+
+    def test_load_feature_matrix_not_found(self, temp_workspace):
+        """文件不存在时返回明确错误"""
+        result = load_feature_matrix(project_identifier="non-existent-project")
+        assert result["success"] is False
+        assert "不存在" in result.get("error", "")
+        assert result["count"] == 0
+
+    def test_load_feature_matrix_invalid_jsonl(self, temp_workspace):
+        """JSONL 包含非法行时返回解析错误"""
+        resolved = resolve_feature_matrix_path(project_identifier="bad-json")
+        resolved.parent.mkdir(parents=True, exist_ok=True)
+        resolved.write_text('{"id": "FP-001"}\n{not valid json}\n', encoding="utf-8")
+
+        result = load_feature_matrix(project_identifier="bad-json")
+        assert result["success"] is False
+        assert "解析失败" in result.get("error", "")
 
 
 if __name__ == "__main__":

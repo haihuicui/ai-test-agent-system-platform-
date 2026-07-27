@@ -136,6 +136,10 @@ async def save_feature_matrix_tool(
 }
 ```
 
+**路径隔离**：调用时传入 `project_identifier` 后，工具会自动将文件保存到 `workspace_root/<project_identifier>/feature_matrix.jsonl`，避免多项目共用同一 workspace 时互相覆盖。若 `output_file` 仅为文件名则隔离生效；若显式包含子目录或绝对路径，则尊重原有路径结构。
+
+**读取端配套**：后端提供 `resolve_feature_matrix_path(project_identifier, output_file)` 与 `load_feature_matrix(project_identifier, output_file)`，使用与保存端完全相同的路径解析规则，确保 Phase 3/4 代码读取时定位到同一文件。
+
 ---
 
 #### 工具 2: `read_feature_matrix_tool`
