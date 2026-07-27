@@ -123,10 +123,10 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
     return raw === "true";
   });
   const [autoApproveThreshold, setAutoApproveThreshold] = useState(() => {
-    if (typeof window === "undefined") return 80;
+    if (typeof window === "undefined") return 95;
     const raw = window.localStorage.getItem("chat_auto_approve_threshold");
-    const num = raw ? parseInt(raw, 10) : 80;
-    return Number.isNaN(num) ? 80 : Math.max(0, Math.min(100, num));
+    const num = raw ? parseInt(raw, 10) : 95;
+    return Number.isNaN(num) ? 95 : Math.max(0, Math.min(100, num));
   });
   const [autoExecuteEnabled, setAutoExecuteEnabled] = useState(() => {
     if (typeof window === "undefined") return false;
@@ -174,6 +174,19 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
     isReachingEnd,
     historyPages,
   } = useChatContext();
+
+  // 从 interrupt 恢复时，必须携带当前 RAG / 自动审批 / 自动执行设置，
+  // 否则 buildAgentContext() 会使用默认值，导致自动审批状态不一致。
+  const resumeInterruptWithOptions = useCallback(
+    (value: any) => {
+      resumeInterrupt(value, {
+        enable_rag: enableRag,
+        auto_approve_threshold: autoApproveEnabled ? autoApproveThreshold : 100,
+        auto_execute_enabled: autoExecuteEnabled,
+      });
+    },
+    [resumeInterrupt, enableRag, autoApproveEnabled, autoApproveThreshold, autoExecuteEnabled]
+  );
 
   // 保持 sendMessage 的最新引用，并自动带上当前 RAG / 自动审批 / 自动执行设置
   React.useEffect(() => {
@@ -731,7 +744,7 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
       // 防止 React 严格模式下重复触发
       if (autoResumeTriggeredRef.current) return;
       autoResumeTriggeredRef.current = true;
-      resumeInterrupt({ decision: "execute" });
+      resumeInterruptWithOptions({ decision: "execute" });
     }
   }, [isExecutionInvitationInterrupt, interrupt, isResumingInterrupt, autoExecuteEnabled, resumeInterrupt]);
 
@@ -849,7 +862,7 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
                     ui={messageUi}
                     stream={isLastMessage ? stream : undefined}
                     onResumeInterrupt={
-                      isLastMessage ? resumeInterrupt : undefined
+                      isLastMessage ? resumeInterruptWithOptions : undefined
                     }
                     graphId={isLastMessage ? assistant?.graph_id : undefined}
                   />
@@ -879,7 +892,7 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
                   <OutputFormatInterrupt
                     formats={(interrupt.value as any).formats || []}
                     description={(interrupt.value as any).description}
-                    onResume={resumeInterrupt}
+                    onResume={resumeInterruptWithOptions}
                     isLoading={isResumingInterrupt}
                   />
                 </div>
@@ -890,7 +903,7 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
                     actionRequest={Array.from(actionRequestsMap!.values())[0]}
                     reviewConfig={Array.from(reviewConfigsMap!.values())[0]}
                     reviewRounds={currentPhaseReviewRounds}
-                    onResume={resumeInterrupt}
+                    onResume={resumeInterruptWithOptions}
                     isLoading={isResumingInterrupt}
                   />
                 </div>
@@ -904,7 +917,7 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
                     existing_function={(interrupt.value as any).existing_function}
                     alternatives={(interrupt.value as any).alternatives}
                     candidates={(interrupt.value as any).candidates}
-                    onResume={resumeInterrupt}
+                    onResume={resumeInterruptWithOptions}
                     isLoading={isResumingInterrupt}
                   />
                 </div>
@@ -922,7 +935,7 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
                     alternatives={(interrupt.value as any).alternatives}
                     risk_level={(interrupt.value as any).risk_level}
                     risk_reason={(interrupt.value as any).risk_reason}
-                    onResume={resumeInterrupt}
+                    onResume={resumeInterruptWithOptions}
                     isLoading={isResumingInterrupt}
                   />
                 </div>

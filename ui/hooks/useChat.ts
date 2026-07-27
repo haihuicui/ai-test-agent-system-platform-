@@ -278,6 +278,7 @@ export function useChat({
     (options?: {
       enable_rag?: boolean;
       auto_approve_threshold?: number;
+      auto_execute_enabled?: boolean;
     }): Record<string, any> => {
       const context = activeAssistant?.config?.configurable || {};
       return {
@@ -307,7 +308,7 @@ export function useChat({
     (
       content: string,
       contentBlocks?: ChatAttachmentBlock[],
-      options?: { enable_rag?: boolean; auto_approve_threshold?: number }
+      options?: { enable_rag?: boolean; auto_approve_threshold?: number; auto_execute_enabled?: boolean }
     ) => {
       const imageBlocks = contentBlocks?.filter(isImageBlock) ?? [];
       const pdfBlocks = contentBlocks?.filter(isFileBlock) ?? [];
@@ -402,10 +403,13 @@ export function useChat({
   );
 
   const continueStream = useCallback(
-    (hasTaskToolCall?: boolean) => {
+    (
+      hasTaskToolCall?: boolean,
+      options?: { enable_rag?: boolean; auto_approve_threshold?: number; auto_execute_enabled?: boolean }
+    ) => {
       stream.submit(undefined, {
         config: buildRunConfig({ recursion_limit: 1000 }),
-        context: buildAgentContext(),
+        context: buildAgentContext(options),
         ...(hasTaskToolCall
           ? { interruptAfter: ["tools"] }
           : { interruptBefore: ["tools"] }),
@@ -432,11 +436,14 @@ export function useChat({
   const [isResumingInterrupt, setIsResumingInterrupt] = useState(false);
 
   const resumeInterrupt = useCallback(
-    (value: any) => {
+    (
+      value: any,
+      options?: { enable_rag?: boolean; auto_approve_threshold?: number; auto_execute_enabled?: boolean }
+    ) => {
       setIsResumingInterrupt(true);
       stream.submit(null, {
         command: { resume: value },
-        context: buildAgentContext(),
+        context: buildAgentContext(options),
       });
       // Update thread list when resuming from interrupt
       onHistoryRevalidate?.();
