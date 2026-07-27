@@ -360,7 +360,7 @@ services:
     depends_on:
       lightrag:
         condition: service_healthy
-    command: ["python", "/app/backend/app/agents/tools/testcase/mcp/rag_server.py", "--transport", "sse", "--port", "8008"]
+    command: ["python", "/app/backend/app/agents/tools/testcase/mcp/rag_server.py", "--transport", "sse", "--port", "8008", "--path", "/mcp"]
     networks: [internal]
 
 volumes:

@@ -780,6 +780,11 @@ def parse_arguments():
         "--port", type=int, default=8008,
         help="SSE 服务器端口号 (默认: 8008)"
     )
+    parser.add_argument(
+        "--path", type=str, default="",
+        help="FastMCP 挂载路径前缀（如 /mcp）。用于 nginx 反代场景，"
+             "确保 SSE endpoint 返回的 /messages 路径包含此前缀。"
+    )
     return parser.parse_args()
 
 
@@ -800,7 +805,10 @@ def main():
     }
 
     if args.transport == "sse":
-        mcp.run(transport="sse", port=args.port, host="0.0.0.0")
+        sse_kwargs = {"port": args.port, "host": "0.0.0.0"}
+        if args.path:
+            sse_kwargs["path"] = args.path
+        mcp.run(transport="sse", **sse_kwargs)
     else:
         mcp.run()
 

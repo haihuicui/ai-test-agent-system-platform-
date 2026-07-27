@@ -7,6 +7,7 @@
 import asyncio
 import logging
 import os
+import threading
 from typing import Optional
 
 import httpx
@@ -124,8 +125,12 @@ async def parse_document_from_url(
 
 
 # ── RAG MCP 客户端单例：避免每次 make_agent() 重建 SSE 连接 ──
+# 使用 threading.Lock 而非 asyncio.Lock，因为 LangGraph 的 background
+# workers 运行在 ThreadPoolExecutor 中，各自拥有独立的事件循环；
+# 模块级 asyncio.Lock 会绑定到错误的 event loop，导致
+# "is bound to a different event loop" 错误。
 _rag_tools_cache: list | None = None
-_rag_tools_lock = asyncio.Lock()
+_rag_tools_lock = threading.Lock()
 
 
 async def get_rag_tools() -> list:
@@ -139,28 +144,33 @@ async def get_rag_tools() -> list:
         RAG 工具列表
     """
     global _rag_tools_cache
+
+    # 快速路径：缓存已就绪，无锁读取
     if _rag_tools_cache is not None:
         return _rag_tools_cache
 
-    async with _rag_tools_lock:
+    # 锁内二次检查 + 标记"连接中"，避免多个 worker 同时发起 SSE 连接
+    with _rag_tools_lock:
         if _rag_tools_cache is not None:
             return _rag_tools_cache
+        # 先写入哨兵值防止并发重入（后续成功/失败会覆盖）
+        _rag_tools_cache = []
 
-        try:
-            from langchain_mcp_adapters.client import MultiServerMCPClient
+    try:
+        from langchain_mcp_adapters.client import MultiServerMCPClient
 
-            client = MultiServerMCPClient({
-                "rag-server": {
-                    "url": os.environ.get("RAG_MCP_URL", "http://192.168.60.103/mcp/sse"),
-                    "transport": "sse",
-                }
-            })
+        client = MultiServerMCPClient({
+            "rag-server": {
+                "url": os.environ.get("RAG_MCP_URL", "http://192.168.60.103:8008/sse"),
+                "transport": "sse",
+            }
+        })
 
-            tools = await client.get_tools()
-            _rag_tools_cache = tools
-            logger.info("RAG MCP 客户端已初始化，共 %d 个工具", len(tools))
-            return tools
-        except Exception as e:
-            logger.warning(f"Failed to load RAG MCP tools: {e}")
-            _rag_tools_cache = []  # 缓存空列表，下次不再重试
-            return []
+        tools = await client.get_tools()
+        _rag_tools_cache = tools
+        logger.info("RAG MCP 客户端已初始化，共 %d 个工具", len(tools))
+        return tools
+    except Exception as e:
+        logger.warning(f"Failed to load RAG MCP tools: {e}")
+        _rag_tools_cache = []  # 缓存空列表，后续不再重试
+        return []
