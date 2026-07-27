@@ -28,6 +28,34 @@ _CASE_NUMBER_PATTERN = re.compile(
     r"^TC-[A-Za-z0-9一-鿿]+-[A-Za-z0-9一-鿿]+(?:-[A-Za-z0-9一-鿿]+)*-\d{2,}$"
 )
 
+# 优先级术语映射：兼容 AI 在 Phase 1/2 中使用的 P0/P1/P2/P3 表示法，
+# 自动转换为后端 API 期望的 critical/high/medium/low。
+_PRIORITY_NORMALIZE: dict[str, str] = {
+    "p0": "critical",
+    "p1": "high",
+    "p2": "medium",
+    "p3": "low",
+    # 同时兼容中文常见写法
+    "零级": "critical",
+    "一级": "high",
+    "二级": "medium",
+    "三级": "low",
+}
+
+
+def normalize_priority(priority: Any) -> str:
+    """将各种优先级表示统一为 API 期望的 ``critical/high/medium/low``。
+
+    兼容场景：
+    - AI 沿用 Phase 1/2 中的 P0/P1/P2/P3 术语
+    - 正常传入 critical/high/medium/low 时不改变
+    - 未知值原样返回（由后端 API 校验报错）
+    """
+    if not isinstance(priority, str):
+        return "medium"
+    key = priority.strip().lower()
+    return _PRIORITY_NORMALIZE.get(key, key)
+
 # 用于剥离预期结果首尾的引号与标点，再做模糊词精确匹配
 _STRIP_CHARS = " \t\n\"'“”‘’，,。.!！?？:：;；~～。"
 
@@ -96,5 +124,17 @@ def _validate_case(case: dict[str, Any]) -> list[str]:
                         f"第 {i + 1} 步预期结果 `{result}` 不可客观判定"
                         "（禁止“正确/成功/正常”等模糊词，需写明可验证的具体表现）"
                     )
+
+    # 若用例提供了顶层 expected_result，同样禁止模糊词
+    top_level_expected = (
+        case.get("expected_result")
+        or case.get("expected")
+        or case.get("预期结果")
+    )
+    if top_level_expected is not None and _is_fuzzy_result(str(top_level_expected)):
+        violations.append(
+            f"顶层预期结果 `{top_level_expected}` 不可客观判定"
+            "（禁止“正确/成功/正常”等模糊词，需写明可验证的具体表现）"
+        )
 
     return violations

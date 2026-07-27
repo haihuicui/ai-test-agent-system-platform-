@@ -17,8 +17,12 @@ from app.agents.tools.testcase.excel_tools import (
     _load_test_cases_from_file,
     _parse_json_objects,
 )
-from app.agents.tools.testcase.export_common import extract_field
+from app.agents.tools.testcase.export_common import (
+    extract_expected_results_from_steps,
+    extract_field,
+)
 from app.config.settings import settings
+from app.utils.testcase_validation import normalize_priority
 
 logger = logging.getLogger(__name__)
 
@@ -171,7 +175,7 @@ async def _create_test_case_impl(
     request_data: dict[str, Any] = {
         "name": name,
         "template": template,
-        "priority": priority,
+        "priority": normalize_priority(priority),
         "status": status,
         "case_type": case_type,
         "automation_status": automation_status,
@@ -353,7 +357,7 @@ async def _update_test_case_impl(
     if preconditions is not None:
         request_data["preconditions"] = preconditions
     if priority is not None:
-        request_data["priority"] = priority
+        request_data["priority"] = normalize_priority(priority)
     if status is not None:
         request_data["status"] = status
     if case_type is not None:
@@ -644,6 +648,7 @@ _PREVIEW_MAX_STEPS = 5
 _PREVIEW_MAX_DATA_KEYS = 10
 _PREVIEW_MAX_DATA_VALUE_LEN = 200
 _PREVIEW_MAX_CASES = 10
+_PREVIEW_MAX_EXPECTED_RESULT_LEN = 500
 
 
 def _is_file_path(source: str) -> bool:
@@ -671,6 +676,15 @@ def _truncate_steps(steps: Any) -> Any:
             "result": "",
         })
     return truncated
+
+
+def _truncate_expected_result(result: Any) -> Any:
+    """截断预期结果文本，控制 checkpoint 体积。"""
+    if not isinstance(result, str):
+        return result
+    if len(result) <= _PREVIEW_MAX_EXPECTED_RESULT_LEN:
+        return result
+    return result[:_PREVIEW_MAX_EXPECTED_RESULT_LEN] + "..."
 
 
 def _truncate_test_data(test_data: Any) -> Any:
@@ -771,6 +785,13 @@ async def preview_test_cases(
             test_data = extract_field(case, "test_data", "测试数据", "data", default=None)
             preconditions = extract_field(case, "preconditions", "前置条件", "precondition", default=None)
 
+            # 优先使用顶层预期结果字段，否则从步骤 result 聚合
+            expected_result = extract_field(
+                case, "expected_result", "expected", "预期结果", default=None
+            )
+            if not expected_result and isinstance(steps, list):
+                expected_result = extract_expected_results_from_steps(steps)
+
             preview_cases.append({
                 "case_number": extract_field(case, "case_number", "id", "用例编号", "identifier", "case_id", "编号"),
                 "name": extract_field(case, "name", "title", "用例标题", "标题", "用例名称"),
@@ -780,6 +801,7 @@ async def preview_test_cases(
                 "preconditions": preconditions if isinstance(preconditions, list) else [preconditions] if preconditions else [],
                 "test_case_steps": _truncate_steps(steps),
                 "test_data": _truncate_test_data(test_data),
+                "expected_result": _truncate_expected_result(expected_result or ""),
             })
 
         return {

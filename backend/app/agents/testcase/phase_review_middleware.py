@@ -17,7 +17,7 @@ from langchain.agents.middleware.human_in_the_loop import (
     ReviewConfig,
 )
 from langchain_core.messages import AIMessage, HumanMessage
-from langgraph.types import interrupt
+from langgraph.types import Overwrite, interrupt
 
 
 _PHASE_PATTERNS: dict[str, list[str]] = {
@@ -81,10 +81,33 @@ def _has_case_preview(content: str) -> bool:
 
     宽松匹配：只要报告中同时出现用例编号标识和测试步骤/测试数据标识，
     即认为展示了具体用例，可通过人工评审。
+
+    支持中英文及常见同义词，避免 LLM 用"操作步骤"/"输入数据"等变体时被误判。
+    同时兼容符合规范的 `TC-XXX` 用例编号格式，避免未写"用例编号/case_number"
+    字样时被误判为仅汇总信息。
     """
-    has_case_number = "case_number" in content or "用例编号" in content
-    has_steps = "test_case_steps" in content or "测试步骤" in content
-    has_test_data = "test_data" in content or "测试数据" in content
+    case_number_markers = ["case_number", "用例编号", "用例 ID", "用例ID", "编号"]
+    has_explicit_case_number = any(marker in content for marker in case_number_markers)
+
+    # 兼容 LLM 直接展示 TC-[项目]-[模块]-[序号] 编号的场景
+    tc_number_pattern = re.compile(
+        r"TC-[A-Za-z0-9一-鿿]+(?:-[A-Za-z0-9一-鿿]+)*-\d{2,}"
+    )
+    has_tc_number = bool(tc_number_pattern.search(content))
+    has_case_number = has_explicit_case_number or has_tc_number
+
+    steps_markers = [
+        "test_case_steps", "测试步骤", "操作步骤", "用例步骤", "执行步骤",
+        "步骤", "测试流程", "操作流程",
+    ]
+    has_steps = any(marker in content for marker in steps_markers)
+
+    data_markers = [
+        "test_data", "测试数据", "输入数据", "用例数据", "测试输入",
+        "数据", "输入值",
+    ]
+    has_test_data = any(marker in content for marker in data_markers)
+
     return has_case_number and (has_steps or has_test_data)
 
 
@@ -231,6 +254,20 @@ def _build_review_human_message(
     )
 
 
+def _strip_tool_calls(ai_msg: AIMessage) -> AIMessage:
+    """创建 AI 消息副本，移除 tool_calls 与 additional_kwargs 中的 tool_calls。
+
+    用于阶段报告与工具调用混在单条消息时的兜底拆分：只保留文本内容，
+    让 PhaseReviewMiddleware 能正常检测到阶段标题并弹出评审卡片。
+    """
+    new_msg = ai_msg.model_copy()
+    new_msg.tool_calls = []
+    ak = dict(getattr(new_msg, "additional_kwargs", {}) or {})
+    ak.pop("tool_calls", None)
+    new_msg.additional_kwargs = ak
+    return new_msg
+
+
 class PhaseReviewMiddleware(AgentMiddleware):
     """
     阶段报告人工评审中间件。
@@ -252,12 +289,35 @@ class PhaseReviewMiddleware(AgentMiddleware):
         if not last_ai:
             return None
 
-        # 如果当前 AI 消息还有待审批的工具调用，先交给 HumanInTheLoopMiddleware 处理
+        content = str(last_ai.content or "")
+        phase = _detect_phase(content)
+
+        # 兜底：阶段报告与工具调用混在单条 AI 消息中。
+        # 模型有时会未遵守 prompt，在输出阶段标题后继续附带工具调用，
+        # 导致本中间件因 tool_calls 存在而跳过评审。这里拆分出纯文本阶段报告，
+        # 并提示模型分步输出；下次 model call 时即可正常触发人工评审卡片。
+        if phase and last_ai.tool_calls:
+            cleaned_ai = _strip_tool_calls(last_ai)
+            phase_name = _PHASE_DISPLAY_NAMES[phase]
+            return {
+                "messages": Overwrite(value=[
+                    *messages[: messages.index(last_ai)],
+                    cleaned_ai,
+                    HumanMessage(
+                        content=(
+                            f"检测到 {phase_name} 阶段报告与工具调用混在一起，"
+                            "人工评审卡片无法弹出。请仅输出阶段报告文本（不要附带任何工具调用），"
+                            "等待系统弹出人工评审卡片并收到用户决策后，再执行后续工具调用。"
+                        )
+                    ),
+                ]),
+                "jump_to": "model",
+            }
+
+        # 如果当前 AI 消息有工具调用但不含阶段报告，先交给 HumanInTheLoopMiddleware 处理
         if last_ai.tool_calls:
             return None
 
-        content = str(last_ai.content or "")
-        phase = _detect_phase(content)
         if not phase:
             return None
 
@@ -270,11 +330,13 @@ class PhaseReviewMiddleware(AgentMiddleware):
                         phase=phase,
                         round=current_round,
                         feedback=(
-                            "当前 Phase 3 报告仅包含汇总信息，缺少具体用例内容，无法完成人工评审。"
-                            "请补充每个模块的关键用例详情（至少 1 条 P0 用例和 1 条边界/异常/安全用例的完整字段："
-                            "用例名称、case_number、module、priority、case_type、test_data、preconditions、test_case_steps），"
-                            "然后重新输出 `## 测试用例生成完成`。"
-                            "若用例已写入 JSONL 文件，请调用 preview_test_cases 工具读取并展示关键用例。"
+                            "当前 Phase 3 报告仅包含汇总信息，系统未检测到具体用例内容，无法进入人工评审卡片。"
+                            "请在报告中补充每个模块的关键用例详情，满足以下任一方式即可：\n"
+                            "1. 若用例已写入 JSONL 文件：调用 `preview_test_cases(source='文件名.jsonl', limit=3)` 读取并展示关键用例；\n"
+                            "2. 直接在报告中 inline 展示：每个模块至少 1 条 P0 用例和 1 条边界/异常/安全用例，包含完整字段："
+                            "用例名称、case_number、module、priority、case_type、test_data、preconditions、test_case_steps、expected_result（预期结果）。\n"
+                            "补充完成后，重新输出 `## 测试用例生成完成` 触发人工评审。"
+                            "注意：若你已经在报告中展示了具体用例但仍收到本条反馈，请检查是否同时包含 '用例编号/case_number' 和 '测试步骤/操作步骤/test_case_steps' 或 '测试数据/test_data' 字样。"
                         ),
                         decision_type="request_changes",
                         comment="报告缺少具体用例内容",
@@ -369,7 +431,11 @@ class PhaseReviewMiddleware(AgentMiddleware):
                             _build_review_human_message(
                                 phase=phase,
                                 round=current_round,
-                                feedback=f"报告已确认。{auto_comment} 请继续执行下一阶段。",
+                                feedback=(
+                                    f"报告已确认。{auto_comment}"
+                                    " 请先调用 write_todos 将 Phase 4 标记为 completed"
+                                    " 后再进入 Phase 5。"
+                                ),
                                 decision_type="approve",
                                 comment=auto_comment,
                                 checklist={item["key"]: True for item in _REVIEW_CHECKLIST},
@@ -484,6 +550,18 @@ class PhaseReviewMiddleware(AgentMiddleware):
                 feedback = f"报告已确认。评审意见：{comment} 请在后续阶段注意以上意见，并继续执行下一阶段。"
             else:
                 feedback = "报告已确认，请继续执行下一阶段。"
+
+            # 追加任务状态同步提示（避免 AI 跳过 write_todos 直接干活）
+            feedback += (
+                " 请先调用 write_todos 更新任务状态（当前阶段→completed，下一阶段→in_progress）后再继续。"
+            )
+
+            # test-strategy 阶段通过后提示读取功能矩阵（避免 AI 跳过矩阵直接设计用例）
+            if phase == "test-strategy":
+                feedback += (
+                    " 进入 Phase 3 前，必须使用文件读取工具读取 feature_matrix.jsonl"
+                    " 获取当前模块的功能点清单，确保用例设计基于结构化矩阵。"
+                )
         elif decision_type == "request_changes":
             checklist_feedback = _build_checklist_feedback(checklist, comment, phase_name)
             if checklist_feedback:
