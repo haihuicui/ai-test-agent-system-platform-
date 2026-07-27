@@ -83,7 +83,7 @@ if [ ! -f "lightrag/.env" ]; then
     LIGHTRAG_TOKEN="$(openssl rand -hex 32)"
 
     sed -i.bak \
-        -e "s|^AUTH_ACCOUNTS=.*|AUTH_ACCOUNTS='admin:123456'|" \
+        -e "s|^AUTH_ACCOUNTS=.*|AUTH_ACCOUNTS='admin:${RAG_PASS}'|" \
         -e "s|^TOKEN_SECRET=.*|TOKEN_SECRET=${LIGHTRAG_TOKEN}|" \
         -e "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=${PGPASS}|" \
         -e "s|^NEO4J_PASSWORD=.*|NEO4J_PASSWORD=${NEO4J_PASS}|" \
