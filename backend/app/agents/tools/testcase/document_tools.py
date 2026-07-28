@@ -130,24 +130,45 @@ async def parse_document_from_url(
 # 模块级 asyncio.Lock 会绑定到错误的 event loop，导致
 # "is bound to a different event loop" 错误。
 _rag_tools_cache: list | None = None
+_rag_tools_cache_ts: float = 0.0  # 缓存写入时间戳（用于 TTL 过期重试）
 _rag_tools_lock = threading.Lock()
+
+# 失败缓存 TTL（秒）：超过此时间后允许重试连接 RAG MCP 服务
+_RAG_CACHE_FAILURE_TTL = 60.0
 
 
 async def get_rag_tools() -> list:
     """获取 RAG MCP 工具（单例模式，首次调用建立 SSE 连接后缓存复用）。
 
-    SSE 地址通过环境变量 RAG_MCP_URL 配置（容器部署时指向 rag-server 服务，
-    如 http://rag-server:8008/sse）；缺省回退到开发环境地址。
+    SSE 地址通过环境变量 RAG_MCP_URL 配置；缺省回退到本机 rag_server.py
+    默认地址 http://127.0.0.1:8008/sse（与 rag_server.py 的 --port 8008 保持一致）。
     连接失败时优雅降级为空工具列表，不影响 agent 启动。
+
+    **失败重试**：连接失败后缓存空列表，但超过 _RAG_CACHE_FAILURE_TTL 秒后
+    会自动重试，避免 RAG MCP 服务晚于 Agent 启动时永久不可用。
 
     Returns:
         RAG 工具列表
     """
-    global _rag_tools_cache
+    global _rag_tools_cache, _rag_tools_cache_ts
+    import time as _time
 
-    # 快速路径：缓存已就绪，无锁读取
+    # 快速路径：缓存已就绪（非空），无锁读取
     if _rag_tools_cache is not None:
-        return _rag_tools_cache
+        # 检查失败缓存是否过期（空列表 != None）
+        if len(_rag_tools_cache) == 0:
+            elapsed = _time.monotonic() - _rag_tools_cache_ts
+            if elapsed < _RAG_CACHE_FAILURE_TTL:
+                return _rag_tools_cache
+            # TTL 过期：清空缓存触发重试
+            with _rag_tools_lock:
+                if _rag_tools_cache is not None and len(_rag_tools_cache) == 0:
+                    elapsed2 = _time.monotonic() - _rag_tools_cache_ts
+                    if elapsed2 >= _RAG_CACHE_FAILURE_TTL:
+                        logger.info("RAG MCP 失败缓存已过期（%.0fs），尝试重新连接", elapsed2)
+                        _rag_tools_cache = None  # 重置，触发重连
+        else:
+            return _rag_tools_cache
 
     # 锁内二次检查 + 标记"连接中"，避免多个 worker 同时发起 SSE 连接
     with _rag_tools_lock:
@@ -161,16 +182,18 @@ async def get_rag_tools() -> list:
 
         client = MultiServerMCPClient({
             "rag-server": {
-                "url": os.environ.get("RAG_MCP_URL", "http://192.168.60.103/mcp/sse"),   # http://192.168.60.103:8008/sse
+                "url": os.environ.get("RAG_MCP_URL", "http://127.0.0.1:8008/sse"),
                 "transport": "sse",
             }
         })
 
         tools = await client.get_tools()
         _rag_tools_cache = tools
+        _rag_tools_cache_ts = _time.monotonic()
         logger.info("RAG MCP 客户端已初始化，共 %d 个工具", len(tools))
         return tools
     except Exception as e:
         logger.warning(f"Failed to load RAG MCP tools: {e}")
-        _rag_tools_cache = []  # 缓存空列表，后续不再重试
+        _rag_tools_cache = []  # 缓存空列表，60s 后自动重试
+        _rag_tools_cache_ts = _time.monotonic()
         return []
