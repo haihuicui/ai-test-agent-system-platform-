@@ -11,6 +11,57 @@ description: 在需求解析完成后，用于制定系统性的测试策略。�
 - 用户需要评估测试覆盖是否充分
 - 项目有时间约束，需要优先级排序
 
+---
+
+## 快速模式条件跳过（强制检查）
+
+在开始执行本阶段前，**必须先检查 `feature_matrix.jsonl` 中的功能点数量**：
+
+```python
+matrix = load_feature_matrix(project_identifier="...")
+feature_count = len([f for f in matrix.get("features", []) if f.get("id", "").startswith("FP-")])
+```
+
+| 功能点数 | 行为 |
+|---------|------|
+| ≤10 | **跳过本阶段**。测试策略已合并到 Phase 1 需求分析报告的「测试策略（精简）」章节。将当前 phase 标记为 `skipped`。**注意**：在快速模式（Phase 1 已完成合并输出）下本 SKILL 不会被系统调用；此检查是标准/完整模式的安全网 |
+| >10 | **执行本阶段**。按以下流程制定完整的测试策略报告 |
+
+> ⚡ **目的**：对小型项目（≤10 FP），独立的测试策略阶段是过度设计——策略信息已在 Phase 1 报告中以精简形式呈现。跳过本阶段可节省一次阶段评审交互。
+
+---
+
+## 阶段约束读取（强制 — Phase 2 开始前必须执行）
+
+在制定测试策略前，**必须先读取 Phase 1 保存的结构化功能矩阵中的 `constraints` 记录**，确保用户在前序阶段的所有反馈被准确传递：
+
+```python
+# 通过 load_feature_matrix() 读取功能矩阵，从中提取 constraints 记录
+matrix = load_feature_matrix(project_identifier="...")  # 与 Phase 1 相同的读取函数
+constraints = matrix.get("constraints", {}) if isinstance(matrix, dict) else {}
+# constraints 字段示例：
+# {
+#     "test_types": ["functional"],
+#     "scope": "系统配置模块 only",
+#     "assumptions_confirmed": False,
+#     "blocking_assumptions": [...],
+#     "user_feedback_summary": {...}
+# }
+```
+
+**约束应用规则**：
+
+| 约束字段 | 如何应用 | 示例 |
+|---------|---------|------|
+| `test_types` | 测试类型选择表中**直接排除不在列表中的类型**，标记为 "❌ 用户指定不执行" | 用户指定 `["functional"]` → 安全/性能/兼容性全部排除 |
+| `scope` | 测试深度分配表**仅列出范围内模块**，不推测范围外模块 | 用户指定"系统配置模块 only" → 不出现任务管理/配气模板 |
+| `assumptions_confirmed` | 若为 `False`，在策略报告中标注 ⚠️ 警告；若用户在 Phase 2 阶段评审中确认了阻塞性假设，**更新** feature_matrix.jsonl 中 `constraints.assumptions_confirmed` 为 `True` | "检测到阻塞性假设未确认，测试数据基准可能变更" |
+| `user_feedback_summary` | 在策略报告的"测试目标"中引用用户反馈作为上下文 | "基于用户'仅测功能类型'的要求……" |
+
+> ⚡ **强制要求**：如果 feature_matrix.jsonl 中不存在 `constraints` 记录（Phase 1 未写入），在策略报告中标注 "⚠️ [无阶段约束] 测试策略可能超出用户预期范围"。
+>
+> 🔄 **assumptions_confirmed 更新职责**：Phase 2 是阻塞性假设确认的**最后窗口**。如果用户在 Phase 2 阶段评审中逐条确认了阻塞性假设（或明确回复"按默认值继续"），Phase 2 必须在 `write_todos` 更新状态前更新 `constraints.assumptions_confirmed` 为 `True`。Phase 3/4 读取到此字段为 `True` 后，不再提示假设未确认警告。
+
 ## 测试类型选择决策树
 
 ### 🔹 功能测试（必选）
@@ -88,6 +139,12 @@ OS版本兼容     → iOS 14+/Android 8+
 ## 测试策略输出模板
 
 ```markdown
+### 📌 报告提要（TL;DR）
+- 测试类型：仅功能测试（含端口通信），安全/性能/兼容性按用户约束排除
+- 测试深度：P0 功能点（端口连接/保存配置）深度覆盖，P1 功能点中度覆盖
+- 执行方式：全手工测试（桌面端工业软件）
+- 环境依赖：需要串口模拟器（Virtual Serial Port Emulator）
+
 ## 测试策略报告
 
 ### 一、测试目标
@@ -150,6 +207,20 @@ OS版本兼容     → iOS 14+/Android 8+
 | 成本效益 | 10% | 测试投入与预期收益的匹配度（1-5分） |
 
 ### 测试类型执行决策
+
+> ⚠️ **精简规则**：当 `constraints.test_types` 已明确限定测试类型（如用户反馈"仅测功能类型"），**跳过评分矩阵的计算和展示**，直接输出简化决策表：
+>
+> ```markdown
+> | 测试类型 | 决策 | 依据 |
+> |---------|------|------|
+> | 功能测试 | ✅ 执行 | 用户指定（Phase 1 约束）+ 综合评分 4.60 |
+> | 接口/通信测试 | ✅ 执行 | 综合评分 3.95，端口通信为核心依赖 |
+> | 安全测试 | ❌ 排除 | 用户指定"仅测功能类型" |
+> | 性能测试 | ❌ 排除 | 用户指定"仅测功能类型" |
+> | 兼容性测试 | ❌ 排除 | 用户指定"仅测功能类型" |
+> ```
+>
+> 仅在用户**未**限定测试类型时，才展开完整的量化评分卡计算。
 
 对每个测试类型，计算加权总分：
 

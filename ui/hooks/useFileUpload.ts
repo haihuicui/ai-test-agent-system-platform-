@@ -23,6 +23,7 @@ export function useFileUpload({
   const [contentBlocks, setContentBlocks] = useState<ChatAttachmentBlock[]>(
     initialBlocks
   );
+  const [isUploading, setIsUploading] = useState(false);
   const dropRef = useRef<HTMLDivElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const dragCounter = useRef(0);
@@ -108,9 +109,14 @@ export function useFileUpload({
   const handleFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
-    const newBlocks = await processFiles(Array.from(files));
-    if (newBlocks.length > 0) {
-      setContentBlocks((prev) => [...prev, ...newBlocks]);
+    setIsUploading(true);
+    try {
+      const newBlocks = await processFiles(Array.from(files));
+      if (newBlocks.length > 0) {
+        setContentBlocks((prev) => [...prev, ...newBlocks]);
+      }
+    } finally {
+      setIsUploading(false);
     }
     e.target.value = "";
   };
@@ -142,9 +148,14 @@ export function useFileUpload({
       return new File([file], `pasted-file.${ext}`, { type: file.type });
     });
 
-    const newBlocks = await processFiles(namedFiles);
-    if (newBlocks.length > 0) {
-      setContentBlocks((prev) => [...prev, ...newBlocks]);
+    setIsUploading(true);
+    try {
+      const newBlocks = await processFiles(namedFiles);
+      if (newBlocks.length > 0) {
+        setContentBlocks((prev) => [...prev, ...newBlocks]);
+      }
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -174,9 +185,14 @@ export function useFileUpload({
       setDragOver(false);
 
       if (!e.dataTransfer) return;
-      const newBlocks = await processFiles(Array.from(e.dataTransfer.files));
-      if (newBlocks.length > 0) {
-        setContentBlocks((prev) => [...prev, ...newBlocks]);
+      setIsUploading(true);
+      try {
+        const newBlocks = await processFiles(Array.from(e.dataTransfer.files));
+        if (newBlocks.length > 0) {
+          setContentBlocks((prev) => [...prev, ...newBlocks]);
+        }
+      } finally {
+        setIsUploading(false);
       }
     };
     const handleWindowDragEnd = () => {
@@ -243,5 +259,6 @@ export function useFileUpload({
     resetBlocks,
     dragOver,
     handlePaste,
+    isUploading,
   };
 }

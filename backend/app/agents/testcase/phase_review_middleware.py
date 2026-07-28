@@ -22,9 +22,14 @@ from langgraph.types import Overwrite, interrupt
 
 _PHASE_PATTERNS: dict[str, list[str]] = {
     "requirement-analysis": [
+        # Markdown heading 格式 (## 开头)
         r"##\s*需求解析报告",
         r"##\s*需求解析摘要",
         r"##\s*功能测试矩阵",
+        # Emoji 格式 (兼容 SKILL.md 输出规范中的 📊/📋 前缀)
+        r"📊\s*需求解析报告",
+        r"📊\s*需求解析摘要",
+        r"📋\s*功能测试矩阵",
     ],
     "test-strategy": [
         r"##\s*测试策略报告",
@@ -137,6 +142,112 @@ def _has_coverage_mapping(content: str) -> bool:
     return False
 
 
+def _detect_phase3_coverage_gap(content: str) -> list[str]:
+    """检测 Phase 3 报告中标注为 0% 覆盖的模块。
+
+    从报告的覆盖对照表中提取覆盖率列显示为 0% 或标明"无用例"的模块名。
+    若报告不含覆盖对照表，返回空列表（由 _has_case_preview 负责兜底）。
+
+    Returns:
+        未覆盖的模块名列表。空列表 = 所有可见模块至少有一条用例。
+    """
+    uncovered: list[str] = []
+
+    # 模式1：Markdown 表格行 "| 设备管理 | 4 | 0 | 0% ❌ | ..."
+    for line in content.splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("|"):
+            continue
+        # 同时检测 "0%" 覆盖标记和配套的否定信号
+        has_zero_pct = "0%" in stripped
+        has_negative = any(
+            kw in stripped for kw in ("❌", "未覆盖", "0 条", "0条", "无用例", "无任何")
+        )
+        if not (has_zero_pct and has_negative):
+            continue
+
+        cells = [c.strip() for c in stripped.split("|")]
+        # 至少需要 2 列：模块名 + 覆盖数据
+        meaningful = [c for c in cells if c and c not in ("", "---", "------")]
+        if len(meaningful) < 2:
+            continue
+
+        module_name = meaningful[0]
+        # 排除表头行和汇总行
+        if module_name.lower() in ("模块", "---", "汇总", "合计", "总计", "module"):
+            continue
+
+        uncovered.append(module_name)
+
+    # 模式2：中文段落描述 "设备管理（FP-017~FP-020）完全无用例"
+    desc_pattern = re.compile(
+        r"(FP-\d+(?:~FP-\d+)?)\s*[（(]?\s*(\S+?)\s*[）)]?\s*(?:完全)?无(?:任何)?(?:测试)?用例",
+    )
+    for match in desc_pattern.finditer(content):
+        detail = match.group(2).strip() if match.group(2) else match.group(1)
+        if detail and detail not in uncovered:
+            uncovered.append(detail)
+
+    # 去重，保留顺序
+    return list(dict.fromkeys(uncovered))
+
+
+def _detect_uncovered_p0(content: str) -> list[str]:
+    """检测 Phase 4 质量评审报告中标注为未覆盖的 P0 功能点。
+
+    从评审报告的覆盖对照表中提取优先级为 P0 且标记为未覆盖的功能点 ID。
+    若报告不含覆盖对照表，返回空列表。
+
+    Returns:
+        未覆盖的 P0 功能点 ID 列表。空列表 = 所有 P0 均有覆盖或无法解析。
+    """
+    uncovered_p0: list[str] = []
+
+    # 模式1：表格行 "| FP-016 | ... | P0 | ... | 🔴 未覆盖/未覆盖 |"
+    for line in content.splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("|"):
+            continue
+        cells = [c.strip() for c in stripped.split("|")]
+        # 至少需要 4 列：FP-ID | ... | 优先级 | 覆盖状态
+        meaningful = [c for c in cells if c and c not in ("", "---", "------")]
+        if len(meaningful) < 3:
+            continue
+
+        # 检查是否为 P0 行
+        has_p0 = any("P0" in c for c in meaningful)
+        if not has_p0:
+            continue
+
+        # 检查是否标记为未覆盖
+        has_uncovered = any(
+            kw in stripped
+            for kw in ("🔴", "❌", "未覆盖", "0%", "0 条", "0条", "无用例", "无任何")
+        )
+        if not has_uncovered:
+            continue
+
+        # 提取 FP 编号（第一个匹配的 FP-\d+）
+        fp_match = re.search(r"FP-\d+", stripped)
+        if fp_match:
+            fp_id = fp_match.group(0)
+            if fp_id not in uncovered_p0:
+                uncovered_p0.append(fp_id)
+
+    # 模式2：段落描述 "FP-016、FP-020 完全未覆盖（P0）"
+    # 注意：[^。\n] 限制在同一行内匹配，防止跨行误匹配表格中的其他 FP 编号。
+    desc_pattern = re.compile(
+        r"((?:FP-\d+(?:[,、]\s*)?)+)\s*[^。\n]*(?:完全)?未覆盖[^。\n]*P0",
+    )
+    for match in desc_pattern.finditer(content):
+        fp_ids = re.findall(r"FP-\d+", match.group(0))
+        for fp_id in fp_ids:
+            if fp_id not in uncovered_p0:
+                uncovered_p0.append(fp_id)
+
+    return uncovered_p0
+
+
 def _extract_preview(content: str, phase: str) -> str:
     """提取报告预览，用于展示给用户的摘要。"""
     return content.strip()
@@ -165,6 +276,10 @@ def _build_checklist_feedback(
 
 
 _QUALITY_SCORE_PATTERNS: list[re.Pattern[str]] = [
+    # Markdown 表格加粗格式：| **综合评分** | — | **[58.1]** | [58.1%] |
+    re.compile(r"\*\*综合评分\*\*\s*\|[^|]*\|\s*\*{0,2}\[?(\d+(?:\.\d+)?)\]?\*{0,2}"),
+    # Markdown 表格无加粗格式：| 综合评分 | — | 58.1 | 58.1% |
+    re.compile(r"综合评分\s*\|[^|]*\|\s*\[?(\d+(?:\.\d+)?)\]?"),
     # 综合评分：85 分 / 综合评分: 85
     re.compile(r"综合评分[：:]\s*(\d+(?:\.\d+)?)\s*分?"),
     # 评分：85 分
@@ -228,6 +343,33 @@ def _compute_review_round(messages: list[Any], phase: str) -> int:
             if isinstance(review_round, dict) and review_round.get("phase") == phase:
                 max_round = max(max_round, int(review_round.get("round", 0)))
     return max_round + 1
+
+
+def _get_completed_phases(messages: list[Any]) -> set[str]:
+    """扫描消息历史，返回已完成评审（approved/skipped）的阶段集合。
+
+    从 HumanMessage 的 _review_round 元数据中提取 decision 为 approve
+    或 skip 的阶段。用于检测跨阶段跳步（如 Phase 4 报告出现但 Phase 3
+    从未完成评审）。
+    """
+    completed: set[str] = set()
+    for msg in messages:
+        if not isinstance(msg, HumanMessage):
+            continue
+        review_round = (getattr(msg, "additional_kwargs", None) or {}).get("_review_round")
+        if not isinstance(review_round, dict):
+            continue
+        decision = review_round.get("decision", "")
+        if decision in ("approve", "skip"):
+            completed.add(review_round.get("phase", ""))
+    return completed
+
+
+# Phase 3→4 跨阶段跳步检测的生效条件：
+# 仅当对话中至少存在 1 条 AI 消息（说明不是在 Phase 1 初始阶段），
+# 且功能点数 >= 该阈值时才拦截。小型项目（≤10 FP）走 3 阶段模式，
+# Phase 3/4 合并，跳步检测不适用。
+_MIN_FP_FOR_PHASE3_REVIEW = 11
 
 
 def _build_review_human_message(
@@ -346,6 +488,40 @@ class PhaseReviewMiddleware(AgentMiddleware):
                 "jump_to": "model",
             }
 
+        # Phase 3 完成覆盖率门禁：检测报告中是否有模块标注为 0% 覆盖。
+        # 若报告表格中有 "0% ❌" 或 "无用例" 等标记，说明部分模块未完成设计，
+        # 自动退回要求继续设计，不弹出人工评审卡片（最大 _MAX_AUTO_REJECT_ROUNDS 轮）。
+        if phase == "test-case-generation":
+            uncovered_modules = _detect_phase3_coverage_gap(content)
+            if uncovered_modules:
+                current_round = _compute_review_round(messages, phase)
+                if current_round <= _MAX_AUTO_REJECT_ROUNDS:
+                    module_list = "、".join(uncovered_modules[:8])
+                    suffix = "…" if len(uncovered_modules) > 8 else ""
+                    return {
+                        "messages": [
+                            _build_review_human_message(
+                                phase=phase,
+                                round=current_round,
+                                feedback=(
+                                    f"当前 Phase 3 报告显示以下 {len(uncovered_modules)} 个模块"
+                                    f" 无任何测试用例覆盖：{module_list}{suffix}。\n\n"
+                                    f"Phase 3 的完成标准是**所有功能点至少有一条用例**。"
+                                    f"请继续设计未完成模块的用例，全部完成后再输出"
+                                    f" `## 测试用例生成完成` 触发人工评审。\n\n"
+                                    f"（第 {current_round} 轮自动退回，"
+                                    f"最多 {_MAX_AUTO_REJECT_ROUNDS} 轮）"
+                                ),
+                                decision_type="auto_reject",
+                                comment=(
+                                    f"覆盖率不完整：{len(uncovered_modules)} 个模块无用例"
+                                ),
+                                checklist={item["key"]: False for item in _REVIEW_CHECKLIST},
+                            )
+                        ],
+                        "jump_to": "model",
+                    }
+
         # 防御性检查：如果该 AI 消息后已存在同阶段的评审反馈，避免重复中断
         after_ai = messages[messages.index(last_ai) + 1 :]
         if any(
@@ -392,12 +568,11 @@ class PhaseReviewMiddleware(AgentMiddleware):
         # 不应触发自动通过/退回。
         if phase == "quality-review":
             score = _extract_quality_score(content)
+
+            # 自动退回：评分低于质量红线，直接注入返工反馈。
+            # 此项检查优先级最高 —— 即使 Phase 3 被跳过，低分报告也应先退回。
             if score is not None:
                 current_round = _compute_review_round(messages, phase)
-
-                # 自动退回：评分低于质量红线，直接注入返工反馈（确定性执行，
-                # 不依赖模型自觉遵守 prompt 中的"评分 < 75 需回退"规则）。
-                # 超过 _MAX_AUTO_REJECT_ROUNDS 轮后降级为人工评审，避免死循环。
                 if score < _AUTO_REJECT_SCORE and current_round <= _MAX_AUTO_REJECT_ROUNDS:
                     auto_comment = (
                         f"报告综合评分 {score:.0f} 分，低于质量红线 {_AUTO_REJECT_SCORE:.0f} 分，"
@@ -411,6 +586,9 @@ class PhaseReviewMiddleware(AgentMiddleware):
                                 feedback=(
                                     f"{auto_comment} 请根据质量评审报告中指出的问题补充、"
                                     f"修改测试用例，完成后重新输出质量评审报告。"
+                                    f"\n\n⚠️ 若确认跳过返工、以当前不完整状态继续，"
+                                    f"请回复「确认跳过返工」。"
+                                    f"跳过返工意味着交付残缺用例集，可能导致线上缺陷遗漏。"
                                 ),
                                 decision_type="auto_reject",
                                 comment=auto_comment,
@@ -420,29 +598,148 @@ class PhaseReviewMiddleware(AgentMiddleware):
                         "jump_to": "model",
                     }
 
-                # 自动审批：当报告质量评分达到阈值时，跳过人工评审卡片
-                threshold = _get_auto_approve_threshold(runtime, messages)
-                if threshold < 100.0 and score >= threshold:
-                    auto_comment = (
-                        f"报告综合评分 {score:.0f} 分，达到自动审批阈值 {threshold:.0f} 分，系统自动通过。"
-                    )
+            # Phase 3→4 跨阶段跳步检测：Phase 4 报告出现但 Phase 3 未评审。
+            # 在自动退回之后检查 —— 低分报告直接退回，不需要额外提示跳步。
+            completed = _get_completed_phases(messages)
+            if "test-case-generation" not in completed:
+                has_case_context = any(
+                    "TC-" in str(getattr(m, "content", ""))
+                    or "batch_create_test_cases" in str(getattr(m, "tool_calls", ""))
+                    for m in messages
+                    if isinstance(m, AIMessage)
+                )
+                if has_case_context:
+                    current_round = _compute_review_round(messages, phase)
                     return {
                         "messages": [
                             _build_review_human_message(
                                 phase=phase,
                                 round=current_round,
                                 feedback=(
-                                    f"报告已确认。{auto_comment}"
-                                    " 请先调用 write_todos 将 Phase 4 标记为 completed"
-                                    " 后再进入 Phase 5。"
+                                    "⚠️ 检测到 Phase 3（测试用例生成）尚未经过人工评审，"
+                                    "但当前已输出 Phase 4 质量评审报告。\n\n"
+                                    "正确的流程顺序为：\n"
+                                    "1. 完成所有模块用例设计后，输出 `## 测试用例生成完成`"
+                                    " 触发 Phase 3 人工评审卡片\n"
+                                    "2. 用户确认用例后，再进入 Phase 4 质量评审\n\n"
+                                    "请按以下步骤补救：\n"
+                                    "1. 输出 Phase 3 完成报告（含每个模块的关键用例抽样展示，"
+                                    "至少 1 条 P0 + 1 条边界/异常用例的完整字段）\n"
+                                    "2. 标题使用 `## 测试用例生成完成` 触发人工评审卡片\n"
+                                    "3. 待用户审批通过后，再重新进入 Phase 4 质量评审\n\n"
+                                    "（跨阶段跳步拦截 —— 确保用户有机会在评审前审阅具体用例）"
                                 ),
-                                decision_type="approve",
-                                comment=auto_comment,
-                                checklist={item["key"]: True for item in _REVIEW_CHECKLIST},
+                                decision_type="request_changes",
+                                comment="Phase 3 人工评审被跳过，需回退补完",
+                                checklist={item["key"]: False for item in _REVIEW_CHECKLIST},
                             )
                         ],
                         "jump_to": "model",
                     }
+
+            # 自动审批：当报告质量评分达到阈值时，跳过人工评审卡片
+            if score is not None:
+                current_round = _compute_review_round(messages, phase)
+                threshold = _get_auto_approve_threshold(runtime, messages)
+                if threshold < 100.0 and score >= threshold:
+                    # ⚠️ 未覆盖 P0 门禁：即使评分达标，若报告中存在
+                    # 未覆盖的 P0 功能点，阻止自动审批，强制弹出人工评审卡片。
+                    uncovered_p0 = _detect_uncovered_p0(content)
+                    if uncovered_p0:
+                        fp_list = "、".join(uncovered_p0)
+                        # 构造带 P0 未覆盖警告的人工评审卡片
+                        hitl_request = HITLRequest(
+                            action_requests=[
+                                ActionRequest(
+                                    name=f"{phase}_review",
+                                    args={
+                                        "phase": phase,
+                                        "phase_name": phase_name,
+                                        "preview": _extract_preview(content, phase),
+                                        "checklist": _REVIEW_CHECKLIST,
+                                    },
+                                    description=(
+                                        f"⚠️ 已完成 {phase_name}（评分 {score:.0f}），"
+                                        f"但检测到 {len(uncovered_p0)} 个 P0 功能点未覆盖"
+                                        f"（{fp_list}）。"
+                                        f"系统已阻止自动审批，请人工审阅并决定是否继续。"
+                                    ),
+                                )
+                            ],
+                            review_configs=[
+                                ReviewConfig(
+                                    action_name=f"{phase}_review",
+                                    allowed_decisions=["approve", "reject"],
+                                )
+                            ],
+                        )
+                        response = interrupt(hitl_request)
+                        # 解析用户决策
+                        decision_type = "approve"
+                        comment = ""
+                        checklist: dict[str, bool] = {}
+                        if isinstance(response, dict):
+                            decision_type = response.get("decision") or "approve"
+                            comment = (response.get("message") or "").strip()
+                            checklist = response.get("checklist") or {}
+                        elif isinstance(response, list) and response:
+                            old_decision = response[0]
+                            if isinstance(old_decision, dict):
+                                decision_type = old_decision.get("type") or "approve"
+                                if decision_type == "reject":
+                                    decision_type = "request_changes"
+                                comment = (old_decision.get("message") or "").strip()
+                        current_round = _compute_review_round(messages, phase)
+                        if decision_type == "approve":
+                            fb = (
+                                f"报告已确认（⚠️ 用户已知悉 {len(uncovered_p0)} 个 P0"
+                                f" 功能点未覆盖：{fp_list}）。"
+                                " 请先调用 write_todos 更新任务状态后再进入 Phase 5。"
+                            )
+                            if comment:
+                                fb += f" 评审意见：{comment}"
+                        elif decision_type == "request_changes":
+                            fb = (
+                                f"报告需要修改。请根据未覆盖 P0（{fp_list}）"
+                                f" 和以下意见补充用例：{comment}" if comment
+                                else f"报告需要修改。请补充 {fp_list} 的用例覆盖。"
+                            )
+                        else:
+                            fb = f"收到反馈（{decision_type}）：{comment}" if comment else "收到反馈，请按指示继续。"
+                        return {
+                            "messages": [
+                                _build_review_human_message(
+                                    phase=phase,
+                                    round=current_round,
+                                    feedback=fb,
+                                    decision_type=decision_type,
+                                    comment=comment,
+                                    checklist=checklist,
+                                )
+                            ],
+                            "jump_to": "model",
+                        }
+                    else:
+                        auto_comment = (
+                            f"报告综合评分 {score:.0f} 分，达到自动审批阈值 {threshold:.0f} 分，系统自动通过。"
+                        )
+                        return {
+                            "messages": [
+                                _build_review_human_message(
+                                    phase=phase,
+                                    round=current_round,
+                                    feedback=(
+                                        f"报告已确认。{auto_comment}"
+                                        " 请先调用 write_todos 将 Phase 4 标记为 completed"
+                                        " 后再进入 Phase 5。"
+                                    ),
+                                    decision_type="approve",
+                                    comment=auto_comment,
+                                    checklist={item["key"]: True for item in _REVIEW_CHECKLIST},
+                                )
+                            ],
+                            "jump_to": "model",
+                        }
 
         action_name = f"{phase}_review"
 

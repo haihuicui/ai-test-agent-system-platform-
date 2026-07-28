@@ -366,9 +366,13 @@ Body:
 
 ❌ **禁止出现**以下情况（如出现需立即修正）：
 - 预期结果使用"正确显示"、"正常运行"、"成功"等无法客观验证的描述
-- 一个用例包含多个不相关的验证点
+- 一个用例包含多个不相关的验证点（违反原子性：一条用例只验证一个检查点）
 - 步骤中使用"等待片刻"、"稍后"等无法量化的时间描述
 - 前置条件不可重现（如"用户刚刚进行过某操作"）
+- **`test_data` 为空对象 `{}`**
+  - 即使纯 UI 操作用例（翻页、导航、按钮点击）没有输入数据，也必须填入至少一个上下文描述字段
+  - 正确示例：`{"当前页码": 1, "每页条数": 10}` 或 `{"操作类型": "编辑按钮点击验证"}`
+  - ❌ 错误示例：`{}`
 - 缺少关键测试数据导致用例无法独立执行
 - **接口测试用例缺少具体的请求 Body 和预期响应结构**
 - **兼容性测试用例未明确标注目标浏览器/设备版本**
@@ -384,6 +388,54 @@ Body:
 使用文件读取工具读取功能矩阵。读取路径需与 Phase 1 保存路径保持一致：
 - 若 Phase 1 传入了 `project_identifier`，文件位于 `<project_identifier>/feature_matrix.jsonl`
 - 若未传入，文件位于 `feature_matrix.jsonl`
+
+**除了功能点清单，还须提取 `constraints` 字段**（如果 Phase 1 已写入），确保用例设计不违背用户限定：
+```
+从 constraints 中获取：
+  - test_types: ["functional"]           → 用例的 case_type 必须在此列表内
+  - scope: "系统配置模块 only"            → 仅设计范围内模块的用例
+  - blocking_assumptions: [...]          → 边界值使用的范围如来自默认假设，在备注中标注
+```
+
+### 🚫 假设确认强制门禁（Phase 3 准入检查）
+
+在开始设计用例之前，**必须**检查 `constraints.assumptions_confirmed` 的值：
+
+```python
+constraints = matrix.get("constraints", {})
+assumptions_confirmed = constraints.get("assumptions_confirmed", True)  # 无 constraints 时默认为 True
+
+if not assumptions_confirmed:
+    blocking = constraints.get("blocking_assumptions", [])
+    # ⛔ 阻断进入 Phase 3
+    # 输出以下警告并等待用户确认：
+    print(f"""
+    ⛔ 检测到 {len(blocking)} 个阻塞性假设尚未逐条确认：
+    
+    {chr(10).join(f'  {i+1}. {a}' for i, a in enumerate(blocking))}
+    
+    这些假设直接影响约 {estimate_affected_cases(blocking)} 条边界值用例的有效性。
+    在确认这些假设前进入用例设计阶段，可能导致大量用例返工。
+    
+    请选择：
+    A. 逐条确认上述假设（推荐）
+    B. 回复"按默认值继续" — 接受所有默认假设并继续（风险自负）
+    C. 修改某个假设 — 如"配气稳定时间实际范围是 0~60 秒"
+    
+    ⚠️ 回复 A/B/C 之前，Phase 3 不会开始。
+    """)
+    # 不执行后续用例设计，等待用户决策
+    return  # ← 硬阻断
+```
+
+**门禁放行条件**（满足任一即可）：
+1. `assumptions_confirmed == True`（Phase 1 或 Phase 2 已更新）
+2. 用户回复"按默认值继续"（视为确认所有默认假设）
+3. 用户逐条确认/修改了所有阻塞性假设
+
+> ⚡ **目的**：Phase 1 会列出澄清问题，Phase 2 会再次提醒，但这个门禁是**最后的防线**。即使用户在前两阶段都说"报告已确认"但从未逐条确认假设，此门禁仍然会触发。这是为了消除"假设债务静默传播"——整个用例集建立在未经验证的前提上。
+
+> ⚠️ **门禁放行后**：必须在 `write_todos` 中将 Phase 3 状态标记为 `in_progress` 之前，更新 `constraints.assumptions_confirmed` 为 `True`，防止 Phase 4 再次重复检查。
 
 例如当前项目为 `order-system`、当前模块为"用户认证"时：
 
@@ -403,6 +455,64 @@ Body:
 在 `write_todos` 中标注已覆盖的功能点 ID（如 "已覆盖 FP-001~FP-005"），确保每个功能点至少对应 1 条用例。
 
 > ⚡ **目的**：防止 Phase 3 设计过程中遗忘 Phase 1 分析出的功能点。若 feature_matrix.jsonl 不存在，在 `write_todos` 中标注 "[无结构化矩阵，覆盖度可能不完整]"。
+
+### 用例编号防冲突机制（强制）
+
+用例编号冲突是高频问题（如对话记录中从 TC-PR-SC-001~046 冲突到 tc_sysconfig_v3.jsonl）。必须遵守以下预防规则：
+
+**规则一：优先使用非全局自增的编号格式**
+
+```
+推荐格式（用于 JSONL 内部文件）：{模块缩写}-{FP_ID}-{序号}
+
+示例（JSONL 阶段）：
+  SC-FP001-01 → 系统配置(SC)模块，FP-001 功能点，第 1 条用例
+  SC-FP002-01 → 系统配置(SC)模块，FP-002 功能点，第 1 条用例
+
+优点：
+  - 不同功能点之间编号天然隔离，不会冲突
+  - 从编号即可看出属于哪个功能点，便于 Phase 4 覆盖对照
+  - 即使系统缓存了旧编号，新功能点的编号也不会受污染
+
+注意：此格式用于批量写入工具的内部管理，最终交付物可映射为 output-formatter 约定的格式
+（如 TC-{PROJECT}-{MODULE}-{NNN}，参见 output-formatter SKILL.md）。
+在 Excel 导出或最终报告中按需转换编号格式。
+```
+
+**规则二：必须在写入前查询现有最大编号**
+
+在调用 `batch_create_test_cases_tool` 或写入 JSONL 文件前：
+```
+1. 读取目标文件（如果文件已存在）或调用 preview_test_cases 查询已有用例
+2. 确定当前已占用的最大序号
+3. 新用例从 max+1 开始编号
+4. 如果使用 TC-{module}-{global-seq} 格式，确认起始编号与已有用例不重叠
+```
+
+**规则三：自检失败后的修复流程（避免改名绕过缓存）**
+
+当 `module_self_check_tool` 返回失败时：
+```markdown
+❌ 禁止做法：
+  - 将文件重命名为 v2/v3 来绕过系统缓存  ← 这会导致编号混乱和文件碎片
+  - 更换编号前缀但不修复根本问题
+
+✅ 正确做法：
+  1. 读取当前文件，定位自检失败的具体用例（如 "步骤缺少 result 字段"）
+  2. 在原文件中修复这些问题（用 Edit 工具或整体重写）
+  3. 使用 `force_overwrite=True` 参数重新调用 `module_self_check_tool`
+  4. 如果工具不支持 force_overwrite，先用删除工具清理旧记录，再用新数据提交
+```
+
+---
+
+## Phase 3 完成门禁
+
+**覆盖率必须 100%**：所有功能点至少有一条用例。Phase 3 完成报告中的覆盖对照表会被中间件检测 — 包含 `0% ❌` 或 `无用例` 标记时将自动退回。
+
+### 大型项目（>30 FP）分模块 TodoWrite
+
+Phase 3 开始时将 TodoWrite 拆分为模块级，每个模块一条 todo，逐个推进。全部模块 `completed` 后才能标记 Phase 3 `completed`。中型项目在 activeForm 中标注进度（如 "已完成 2/5 模块"）。
 
 ---
 

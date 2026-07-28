@@ -12,7 +12,10 @@ from langgraph.types import Overwrite
 from app.agents.testcase.phase_review_middleware import (
     PhaseReviewMiddleware,
     _compute_review_round,
+    _detect_phase3_coverage_gap,
+    _detect_uncovered_p0,
     _extract_quality_score,
+    _get_completed_phases,
     _has_case_preview,
     _has_coverage_mapping,
 )
@@ -509,9 +512,11 @@ class TestPhase4CoverageFallback:
         )
 
     def test_phase4_auto_reject_still_triggers(self):
-        """Phase 4 低分报告：即使有覆盖映射，仍触发自动退回"""
+        """Phase 4 低分报告：即使有覆盖映射，仍触发自动退回。
+        注意：需要 Phase 3 已完成评审，否则跨阶段跳步检测会优先拦截。"""
         middleware = PhaseReviewMiddleware()
-        state = self._make_state("""
+        state = self._make_state(
+            """
 ## 📊 测试用例质量评审报告
 
 已读取 feature_matrix.jsonl。覆盖率 60%（9/15）。
@@ -522,7 +527,20 @@ class TestPhase4CoverageFallback:
 综合评分：60 分
 
 （评分低于 75 应该触发自动退回，不应被覆盖检查拦截）
-""")
+""",
+            human_messages=[
+                HumanMessage(
+                    content="[阶段评审：test-case-generation] 用户反馈：已确认",
+                    additional_kwargs={
+                        "_review_round": {
+                            "phase": "test-case-generation",
+                            "round": 1,
+                            "decision": "approve",
+                        }
+                    },
+                ),
+            ],
+        )
         result = middleware.after_model(state, None)
 
         assert result is not None
@@ -638,5 +656,546 @@ class TestPhaseReportToolCallSeparation:
         assert "阶段评审" in msg.content
 
 
+class TestExtractQualityScoreTableFormat:
+    """验证表格格式评分的提取（修复自动退回失效的根因）。"""
+
+    @pytest.mark.parametrize(
+        ("content", "expected"),
+        [
+            # 表格加粗格式 — 完整 Markdown 行（这是 bug 根源的格式）
+            (
+                "| **综合评分** | — | **[58.1]** | **[58.1]%** |",
+                58.1,
+            ),
+            # 表格无加粗格式
+            ("综合评分 | — | 72.5 | 72.5%", 72.5),
+            # 列间无空格变体
+            ("**综合评分**|—|**[85.0]**|**85.0%**|", 85.0),
+            # 多列表格上下文（使用不带格式的纯表格文本）
+            (
+                "| **基础评分** | **100** | **[63.1]** | **[63.1%]** |\n"
+                "| **综合评分** | — | **[58.1]** | **[58.1%]** |",
+                58.1,
+            ),
+        ],
+    )
+    def test_table_format_scores(self, content, expected):
+        assert _extract_quality_score(content) == expected
+
+    def test_table_format_multiline_full_report(self):
+        """完整质量评审报告表格中提取评分。"""
+        content = (
+            "| **完整性** | 30 | 18 | 60% |\n"
+            "| **准确性** | 25 | 14 | 56% |\n"
+            "| **有效性** | 25 | 14.5 | 58% |\n"
+            "| **可执行性** | 20 | 11.6 | 58% |\n"
+            "| **基础评分** | **100** | **[63.1]** | **[63.1%]** |\n"
+            "| 交叉验证减分 | — | -5 | — |\n"
+            "| **综合评分** | — | **[58.1]** | **[58.1%]** |"
+        )
+        assert _extract_quality_score(content) == 58.1
+
+    @pytest.mark.parametrize(
+        "content",
+        [
+            # 范围外分数应返回 None
+            "综合评分：-5",
+            "综合评分：120 分",
+        ],
+    )
+    def test_table_out_of_range_returns_none(self, content):
+        assert _extract_quality_score(content) is None
+
+
+class TestDetectPhase3CoverageGap:
+    """验证 Phase 3 覆盖率缺口检测。"""
+
+    def test_all_covered_returns_empty(self):
+        content = """
+| ModuleA | 3 | 10 | 100% ✅ | all covered |
+| ModuleB | 4 | 16 | 100% ✅ | all covered |
+"""
+        assert _detect_phase3_coverage_gap(content) == []
+
+    def test_mixed_coverage_detects_uncovered(self):
+        """部分覆盖、部分未覆盖的场景应正确识别未覆盖模块。"""
+        # 使用表格行直接构建，避免三引号内中文在特定环境下编码问题
+        covered_row = "| CoveredModule | 3 | 10 | 100% ✅ | all covered |"
+        uncovered_1 = "| UncoveredModA | 4 | 0 | 0% ❌ | no cases |"
+        uncovered_2 = "| UncoveredModB | 2 | 0 | 0% ❌ | no cases |"
+        content = "\n".join([uncovered_1, uncovered_2, covered_row])
+
+        result = _detect_phase3_coverage_gap(content)
+
+        # 应识别出 2 个未覆盖模块，覆盖模块不在结果中
+        assert "UncoveredModA" in result
+        assert "UncoveredModB" in result
+        assert "CoveredModule" not in result
+        assert len(result) == 2
+
+    def test_zero_cases_chinese_format(self):
+        content = """
+| 系统配置 | 1 | 0条 | 0% ❌ | 无用例 |
+"""
+        result = _detect_phase3_coverage_gap(content)
+        assert "系统配置" in result
+
+    def test_no_coverage_table_returns_empty(self):
+        """无覆盖对照表时返回空（由其他检查兜底）"""
+        content = "共生成 10 条用例。全部模块已完成。"
+        assert _detect_phase3_coverage_gap(content) == []
+
+    def test_header_row_excluded(self):
+        """表头行不应被识别为未覆盖模块"""
+        content = """
+| 模块 | 功能点数 | 用例数 | 覆盖率 |
+|------|---------|--------|--------|
+| 登录 | 3 | 5 | 100% ✅ |
+"""
+        assert _detect_phase3_coverage_gap(content) == []
+
+    def test_summary_row_excluded(self):
+        """汇总行不应被识别为模块"""
+        content = """
+| 合计 | 38 | 43 | 0% ❌ | 仅 34.2% |
+"""
+        assert _detect_phase3_coverage_gap(content) == []
+
+
+class TestPhase3CoverageGate:
+    """集成测试：Phase 3 覆盖率不全时中间件自动退回。"""
+
+    def _make_state(self, ai_content: str, human_messages=None):
+        return {
+            "messages": [
+                *(human_messages or []),
+                AIMessage(content=ai_content),
+            ]
+        }
+
+    def test_uncovered_modules_trigger_auto_reject(self):
+        middleware = PhaseReviewMiddleware()
+        state = self._make_state("""
+## 测试用例生成完成
+
+### 关键用例抽样
+- case_number: TC-PR2-BG-001
+- test_case_steps: 输入数据
+- test_data: {"name": "test"}
+
+### 覆盖度分析
+| 模块 | 功能点数 | 用例数 | 覆盖率 | 缺口说明 |
+|------|---------|--------|--------|---------|
+| 标气管理 | 3 | 10 | 100% ✅ | 全部覆盖 |
+| 设备管理 | 4 | 0 | 0% ❌ | 无用例 |
+""")
+        result = middleware.after_model(state, None)
+
+        assert result is not None
+        assert "messages" in result
+        assert result.get("jump_to") == "model"
+        msg = result["messages"][0]
+        assert isinstance(msg, HumanMessage)
+        assert "设备管理" in msg.content
+        assert ("继续设计" in msg.content or "完成后再输出" in msg.content)
+
+    def test_full_coverage_proceeds_normally(self, monkeypatch):
+        """全部覆盖时不应触发门禁，正常走 interrupt"""
+        monkeypatch.setattr(
+            "app.agents.testcase.phase_review_middleware.interrupt",
+            lambda request: {"decision": "approve", "message": "", "checklist": {}},
+        )
+
+        middleware = PhaseReviewMiddleware()
+        state = self._make_state("""
+## 测试用例生成完成
+
+### 关键用例抽样
+- case_number: TC-PR2-BG-001
+- test_case_steps: 输入数据
+- test_data: {"name": "test"}
+
+### 覆盖度分析
+| 模块 | 功能点数 | 用例数 | 覆盖率 |
+|------|---------|--------|--------|
+| 标气管理 | 3 | 10 | 100% ✅ |
+| 配气模板 | 4 | 16 | 100% ✅ |
+""")
+        result = middleware.after_model(state, None)
+
+        assert result is not None
+        assert "messages" in result
+        assert not any(
+            isinstance(m, HumanMessage) and "继续设计" in str(m.content)
+            for m in result.get("messages", [])
+        )
+
+    def test_no_coverage_table_skips_gate(self, monkeypatch):
+        """报告中无覆盖对照表时应跳过门禁（由 _has_case_preview 等其他兜底处理）"""
+        monkeypatch.setattr(
+            "app.agents.testcase.phase_review_middleware.interrupt",
+            lambda request: {"decision": "approve", "message": "", "checklist": {}},
+        )
+
+        middleware = PhaseReviewMiddleware()
+        state = self._make_state("""
+## 测试用例生成完成
+
+### 关键用例抽样
+- case_number: TC-PR2-BG-001
+- test_case_steps: 打开页面，验证列表加载
+- test_data: {"page": 1}
+- expected_result: 列表正常显示
+""")
+        result = middleware.after_model(state, None)
+
+        assert result is not None
+        assert "messages" in result
+        # 没有覆盖表时不应触发覆盖率退回
+        assert not any(
+            isinstance(m, HumanMessage) and "覆盖率不完整" in str(m.content)
+            for m in result.get("messages", [])
+        )
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+
+class TestDetectUncoveredP0:
+    """验证 Phase 4 报告中未覆盖 P0 功能点的检测。"""
+
+    def test_no_uncovered_p0_returns_empty(self):
+        content = """
+| FP-001 | 配气模板 | 创建模板 | P0 | ✅ 已覆盖 | TC-PR-PT-001~008 |
+| FP-002 | 任务管理 | 批次号 | P0 | ✅ 已覆盖 | TC-PR-TASK-001~004 |
+"""
+        assert _detect_uncovered_p0(content) == []
+
+    def test_uncovered_p0_detected_single(self):
+        content = """
+| FP-016 | 数据隔离 | 实验室切换 | P0 | 🔴 未覆盖 | — |
+| FP-017 | 数据隔离 | 隔离模块 | P0 | ✅ 已覆盖 | TC-PR-ISOLATE-001 |
+"""
+        result = _detect_uncovered_p0(content)
+        assert "FP-016" in result
+        assert "FP-017" not in result
+        assert len(result) == 1
+
+    def test_uncovered_p0_detected_multiple(self):
+        content = """
+| FP-016 | 数据隔离 | 实验室切换 | P0 | 🔴 未覆盖 | — |
+| FP-020 | 进样列表 | 质控字段 | P0 | 🔴 未覆盖 | — |
+| FP-001 | 配气模板 | 创建模板 | P0 | ✅ 已覆盖 | TC-001 |
+"""
+        result = _detect_uncovered_p0(content)
+        assert "FP-016" in result
+        assert "FP-020" in result
+        assert len(result) == 2
+
+    def test_p1_uncovered_ignored(self):
+        """只有 P1 未覆盖时不报警"""
+        content = """
+| FP-005 | 模板列表 | 分页 | P1 | 0% ❌ | 无用例 |
+| FP-006 | 任务管理 | 导出 | P2 | 0% ❌ | 无用例 |
+"""
+        assert _detect_uncovered_p0(content) == []
+
+    def test_chinese_paragraph_format(self):
+        content = "FP-016、FP-020 完全未覆盖（P0），需回退 Phase 3 补充。"
+        result = _detect_uncovered_p0(content)
+        assert "FP-016" in result
+        assert "FP-020" in result
+
+    def test_emoji_markers(self):
+        content = """
+| FP-019 | 结果对比 | 判定结论 | P0 | ❌ 未覆盖 | — |
+"""
+        result = _detect_uncovered_p0(content)
+        assert "FP-019" in result
+
+    def test_no_coverage_table_returns_empty(self):
+        """无对照表时返回空列表"""
+        content = "综合评分：85 分。所有 P0 功能点均已覆盖。"
+        assert _detect_uncovered_p0(content) == []
+
+
+class TestGetCompletedPhases:
+    """验证已完成阶段的提取。"""
+
+    def test_no_completed_phases(self):
+        messages = [HumanMessage(content="开始分析")]
+        assert _get_completed_phases(messages) == set()
+
+    def test_approved_phase_returned(self):
+        msg = HumanMessage(
+            content="[阶段评审：requirement-analysis] 用户反馈：已确认",
+            additional_kwargs={
+                "_review_round": {
+                    "phase": "requirement-analysis",
+                    "round": 1,
+                    "decision": "approve",
+                }
+            },
+        )
+        assert _get_completed_phases([msg]) == {"requirement-analysis"}
+
+    def test_skipped_phase_returned(self):
+        msg = HumanMessage(
+            content="[阶段评审：test-strategy] 用户反馈：跳过",
+            additional_kwargs={
+                "_review_round": {
+                    "phase": "test-strategy",
+                    "round": 1,
+                    "decision": "skip",
+                }
+            },
+        )
+        assert _get_completed_phases([msg]) == {"test-strategy"}
+
+    def test_request_changes_not_returned(self):
+        """request_changes 不算完成"""
+        msg = HumanMessage(
+            content="[阶段评审：quality-review] 用户反馈：需要修改",
+            additional_kwargs={
+                "_review_round": {
+                    "phase": "quality-review",
+                    "round": 1,
+                    "decision": "request_changes",
+                }
+            },
+        )
+        assert _get_completed_phases([msg]) == set()
+
+    def test_multiple_phases(self):
+        msgs = [
+            HumanMessage(
+                content="[阶段评审：requirement-analysis]",
+                additional_kwargs={
+                    "_review_round": {"phase": "requirement-analysis", "round": 1, "decision": "approve"}
+                },
+            ),
+            HumanMessage(
+                content="[阶段评审：test-strategy]",
+                additional_kwargs={
+                    "_review_round": {"phase": "test-strategy", "round": 1, "decision": "approve"}
+                },
+            ),
+        ]
+        assert _get_completed_phases(msgs) == {"requirement-analysis", "test-strategy"}
+
+
+class TestCrossPhaseSkipDetection:
+    """集成测试：跨阶段跳步检测。"""
+
+    def _make_state(self, ai_content: str, human_msgs=None):
+        return {
+            "messages": [
+                *(human_msgs or []),
+                AIMessage(content=ai_content),
+            ]
+        }
+
+    def test_skip_detected_when_phase4_without_phase3(self):
+        """Phase 4 报告出现但 Phase 3 从未评审，且有用例上下文 → 拦截"""
+        middleware = PhaseReviewMiddleware()
+        state = self._make_state(
+            """
+## 📊 测试用例质量评审报告
+
+已读取 feature_matrix.jsonl。功能覆盖率 90%。
+
+| FP-001 | 配气模板 | 创建模板 | P0 | ✅ 已覆盖 | TC-PR-PT-001 |
+| FP-002 | 任务管理 | 批次号 | P0 | ✅ 已覆盖 | TC-PR-TASK-001 |
+
+综合评分：85 分
+""",
+            human_msgs=[
+                HumanMessage(content="设计测试用例"),
+                AIMessage(content="TC-PR-PT-001: 验证创建模板", tool_calls=[]),
+            ],
+        )
+        result = middleware.after_model(state, None)
+
+        assert result is not None
+        assert result.get("jump_to") == "model"
+        msg = result["messages"][0]
+        assert isinstance(msg, HumanMessage)
+        assert "Phase 3" in msg.content
+        assert "尚未经过人工评审" in msg.content
+        assert "测试用例生成完成" in msg.content
+
+    def test_no_skip_when_phase3_was_completed(self, monkeypatch):
+        """Phase 3 已完成评审 → Phase 4 正常通过"""
+        monkeypatch.setattr(
+            "app.agents.testcase.phase_review_middleware.interrupt",
+            lambda request: {"decision": "approve", "message": "", "checklist": {}},
+        )
+        middleware = PhaseReviewMiddleware()
+        state = self._make_state(
+            """
+## 📊 测试用例质量评审报告
+
+已读取 feature_matrix.jsonl。
+
+| FP-001 | 配气模板 | P0 | ✅ | TC-PR-PT-001 |
+
+综合评分：90 分
+""",
+            human_msgs=[
+                HumanMessage(
+                    content="[阶段评审：test-case-generation] 用户反馈：已确认",
+                    additional_kwargs={
+                        "_review_round": {
+                            "phase": "test-case-generation",
+                            "round": 1,
+                            "decision": "approve",
+                        }
+                    },
+                ),
+                AIMessage(content="Phase 3 已通过"),
+            ],
+        )
+        result = middleware.after_model(state, None)
+
+        assert result is not None
+        # 不应触发跨阶段跳步拦截
+        assert not any(
+            isinstance(m, HumanMessage) and "Phase 3" in str(m.content) and "人工评审" in str(m.content)
+            for m in result.get("messages", [])
+        )
+
+    def test_no_skip_when_no_case_context(self, monkeypatch):
+        """对话中无用例上下文时（如 Phase 4 直接从 Phase 2 后开始），不触发跳步拦截"""
+        monkeypatch.setattr(
+            "app.agents.testcase.phase_review_middleware.interrupt",
+            lambda request: {"decision": "approve", "message": "", "checklist": {}},
+        )
+        middleware = PhaseReviewMiddleware()
+        state = self._make_state(
+            """
+## 📊 测试用例质量评审报告
+
+[无结构化矩阵] 覆盖度基于对话历史判断。
+
+综合评分：80 分
+""",
+            human_msgs=[
+                HumanMessage(
+                    content="[阶段评审：test-strategy] 用户反馈：已确认",
+                    additional_kwargs={
+                        "_review_round": {"phase": "test-strategy", "round": 1, "decision": "approve"}
+                    },
+                ),
+            ],
+        )
+        # 没有 TC- 或 batch_create_test_cases 的上下文
+        result = middleware.after_model(state, None)
+
+        # 不应触发跨阶段跳步拦截
+        if result and "messages" in result:
+            assert not any(
+                isinstance(m, HumanMessage) and "Phase 3" in str(m.content) and "尚未经过人工评审" in str(m.content)
+                for m in result.get("messages", [])
+            )
+
+
+class TestPhase4UncoveredP0Gate:
+    """集成测试：Phase 4 未覆盖 P0 门禁。"""
+
+    def _make_state(self, ai_content: str, human_msgs=None):
+        return {
+            "messages": [
+                *(human_msgs or []),
+                AIMessage(content=ai_content),
+            ]
+        }
+
+    def test_uncovered_p0_blocks_auto_approve(self, monkeypatch):
+        """评审报告中有未覆盖 P0 → 阻止自动审批，弹出人工评审卡片"""
+        interrupt_called = []
+
+        def capture_interrupt(request):
+            interrupt_called.append(request)
+            return {"decision": "approve", "message": "已知悉风险", "checklist": {}}
+
+        monkeypatch.setattr(
+            "app.agents.testcase.phase_review_middleware.interrupt",
+            capture_interrupt,
+        )
+        monkeypatch.setattr(
+            "app.agents.testcase.phase_review_middleware._get_auto_approve_threshold",
+            lambda runtime, messages: 80.0,
+        )
+
+        middleware = PhaseReviewMiddleware()
+        state = self._make_state(
+            """
+## 📊 测试用例质量评审报告
+
+已读取 feature_matrix.jsonl。
+
+| FP-001 | 配气模板 | P0 | ✅ 已覆盖 | TC-001 |
+| FP-016 | 数据隔离 | 实验室切换 | P0 | 🔴 未覆盖 | — |
+| FP-020 | 进样列表 | 质控字段 | P0 | 🔴 未覆盖 | — |
+
+综合评分：85 分
+""",
+            human_msgs=[
+                HumanMessage(
+                    content="[阶段评审：test-case-generation] 用户反馈：已确认",
+                    additional_kwargs={
+                        "_review_round": {"phase": "test-case-generation", "round": 1, "decision": "approve"}
+                    },
+                ),
+            ],
+        )
+
+        result = middleware.after_model(state, None)
+
+        assert result is not None
+        # 应该触发了 interrupt（人工评审卡片），而不是自动通过
+        assert len(interrupt_called) > 0
+        # 检查返回的消息中包含未覆盖 P0 警告
+        msg = result["messages"][0]
+        assert isinstance(msg, HumanMessage)
+        assert "FP-016" in msg.content
+        assert "FP-020" in msg.content
+        assert "P0" in msg.content
+        assert "未覆盖" in msg.content
+
+    def test_all_p0_covered_allows_auto_approve(self, monkeypatch):
+        """所有 P0 已覆盖 + 评分达标 → 正常自动审批"""
+        monkeypatch.setattr(
+            "app.agents.testcase.phase_review_middleware._get_auto_approve_threshold",
+            lambda runtime, messages: 80.0,
+        )
+
+        middleware = PhaseReviewMiddleware()
+        state = self._make_state(
+            """
+## 📊 测试用例质量评审报告
+
+已读取 feature_matrix.jsonl。
+
+| FP-001 | 配气模板 | P0 | ✅ 已覆盖 | TC-001 |
+| FP-002 | 任务管理 | P0 | ✅ 已覆盖 | TC-002 |
+
+综合评分：85 分
+""",
+            human_msgs=[
+                HumanMessage(
+                    content="[阶段评审：test-case-generation] 用户反馈：已确认",
+                    additional_kwargs={
+                        "_review_round": {"phase": "test-case-generation", "round": 1, "decision": "approve"}
+                    },
+                ),
+            ],
+        )
+        result = middleware.after_model(state, None)
+
+        assert result is not None
+        msg = result["messages"][0]
+        assert isinstance(msg, HumanMessage)
+        assert "报告已确认" in msg.content
+        assert "系统自动通过" in msg.content

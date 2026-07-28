@@ -142,7 +142,9 @@ export function AIGenerateFromDocumentDialog({
         const fileType = uploadResult.data.content_type;
 
         // 构建提示词，包含文件URL（让智能体自己调用工具解析）
-        const chatPrompt = `请帮我从文档中生成测试用例。
+        const chatPrompt = `[系统提示] 用户上传了 PDF 文件 \`${fileName}\`，URL: ${fileUrl}。请调用 parse_document_from_url(url="${fileUrl}", document_type="application/pdf") 解析该文件获取上下文。
+
+请执行从需求到用例的完整流程，先解读此文档内容，然后逐步完成测试策略规划、测试场景构建、质量评审和最终输出：
 
 文档信息：
 - 文件名：${fileName}
@@ -153,7 +155,7 @@ export function AIGenerateFromDocumentDialog({
 ${additionalPrompt.trim() ? `补充说明：\n${additionalPrompt.trim()}\n\n` : ""}模板类型：${template === "test_case" ? "标准测试用例" : template === "test_case_bdd" ? "BDD测试用例" : "其他"}
 ${folderId ? `目标文件夹ID：${folderId}` : ""}
 
-请先使用 parse_document_from_url 工具解析文档内容，然后根据解析结果生成相应的测试用例。`;
+请先使用 parse_document_from_url 工具解析文档内容，然后根据解析结果产出相应的测试用例。`;
 
         // 打开聊天对话框
         onOpenChat(chatPrompt);

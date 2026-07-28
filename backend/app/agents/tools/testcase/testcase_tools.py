@@ -598,6 +598,29 @@ async def _batch_create_test_cases_impl(
     succeeded = sum(1 for r in results if r.get("success"))
     failed = len(results) - succeeded
 
+    # 上下文精简：全部成功时仅返回摘要统计，失败时才逐条展开详情。
+    # 避免 100+ 条用例的逐条成功信息撑爆对话上下文。
+    if failed == 0:
+        case_numbers = [
+            r.get("identifier") or ""
+            for r in sorted(results, key=lambda r: r["index"])
+        ]
+        return {
+            "success": True,
+            "data": {
+                "total": len(test_cases),
+                "succeeded": succeeded,
+                "failed": 0,
+                "case_numbers": case_numbers,
+            },
+            "message": (
+                f"批量创建完成：全部 {succeeded} 条用例提交成功。"
+                f"编号范围：{case_numbers[0]} ~ {case_numbers[-1]}"
+                if case_numbers else
+                f"批量创建完成：全部 {succeeded} 条用例提交成功。"
+            ),
+        }
+
     return {
         "success": True,
         "data": {

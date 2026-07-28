@@ -57,63 +57,73 @@ export function useThreadMessages(
     [client, enabled, threadId]
   );
 
-  const fetcher = async (key: MessagesKey): Promise<ThreadMessagesResponse> => {
-    if (!client) throw new Error("missing client");
+  // 稳定 fetcher 引用，避免每次渲染创建新函数导致 SWR 内部状态重置
+  const fetcher = useCallback(
+    async (key: MessagesKey): Promise<ThreadMessagesResponse> => {
+      if (!client) throw new Error("missing client");
 
-    const params: Record<string, string> = { limit: String(key.limit) };
-    if (key.beforeCheckpointId) {
-      params.before_checkpoint_id = key.beforeCheckpointId;
-    }
-
-    if (process.env.NODE_ENV === "development") {
-      // eslint-disable-next-line no-console
-      console.debug("[useThreadMessages] fetching", `threads/${key.threadId}/messages`, params);
-    }
-
-    try {
-      // SDK 尚未暴露 /messages 端点，通过底层 fetch 调用。
-      // 直接用浏览器 fetch，绕过 SDK 的 AsyncCaller 重试/队列，便于在 Network 面板定位请求。
-      const apiUrl = resolveDeploymentUrl(
-        (client as any).apiUrl || process.env.NEXT_PUBLIC_LANGGRAPH_API_URL
-      );
-      const url = new URL(
-        `threads/${key.threadId}/messages`,
-        apiUrl.endsWith("/") ? apiUrl : `${apiUrl}/`
-      );
-      url.searchParams.set("limit", String(key.limit));
+      const params: Record<string, string> = { limit: String(key.limit) };
       if (key.beforeCheckpointId) {
-        url.searchParams.set("before_checkpoint_id", key.beforeCheckpointId);
+        params.before_checkpoint_id = key.beforeCheckpointId;
       }
-
-      const response = await fetch(url.toString(), {
-        headers: (client as any).defaultHeaders || {},
-      });
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${await response.text()}`);
-      }
-      const result = await response.json();
 
       if (process.env.NODE_ENV === "development") {
         // eslint-disable-next-line no-console
-        console.debug("[useThreadMessages] response", result);
+        console.debug("[useThreadMessages] fetching", `threads/${key.threadId}/messages`, params);
       }
 
-      return result as ThreadMessagesResponse;
-    } catch (err) {
-      if (process.env.NODE_ENV === "development") {
-        // eslint-disable-next-line no-console
-        console.error("[useThreadMessages] fetch error", err);
-      }
-      throw err;
-    }
-  };
+      try {
+        // SDK 尚未暴露 /messages 端点，通过底层 fetch 调用。
+        // 直接用浏览器 fetch，绕过 SDK 的 AsyncCaller 重试/队列，便于在 Network 面板定位请求。
+        const apiUrl = resolveDeploymentUrl(
+          (client as any).apiUrl || process.env.NEXT_PUBLIC_LANGGRAPH_API_URL
+        );
+        const url = new URL(
+          `threads/${key.threadId}/messages`,
+          apiUrl.endsWith("/") ? apiUrl : `${apiUrl}/`
+        );
+        url.searchParams.set("limit", String(key.limit));
+        if (key.beforeCheckpointId) {
+          url.searchParams.set("before_checkpoint_id", key.beforeCheckpointId);
+        }
 
-  const swr = useSWRInfinite(getKey, fetcher, {
-    initialSize: 1,
-    revalidateOnMount: true,
-    revalidateFirstPage: false,
-    revalidateOnFocus: false,
-  });
+        const response = await fetch(url.toString(), {
+          headers: (client as any).defaultHeaders || {},
+        });
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+        }
+        const result = await response.json();
+
+        if (process.env.NODE_ENV === "development") {
+          // eslint-disable-next-line no-console
+          console.debug("[useThreadMessages] response", result);
+        }
+
+        return result as ThreadMessagesResponse;
+      } catch (err) {
+        if (process.env.NODE_ENV === "development") {
+          // eslint-disable-next-line no-console
+          console.error("[useThreadMessages] fetch error", err);
+        }
+        throw err;
+      }
+    },
+    [client]
+  );
+
+  // 稳定 config 引用，避免 SWR 内部配置对比导致不必要的重新验证
+  const swrConfig = useMemo(
+    () => ({
+      initialSize: 1,
+      revalidateOnMount: true,
+      revalidateFirstPage: false,
+      revalidateOnFocus: false,
+    }),
+    []
+  );
+
+  const swr = useSWRInfinite(getKey, fetcher, swrConfig);
 
   const messages = useMemo(
     () => swr.data?.flatMap((page) => page.messages) ?? [],

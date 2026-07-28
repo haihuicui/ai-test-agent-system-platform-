@@ -42,6 +42,7 @@ import type {
   ActionRequest,
   ReviewConfig,
 } from "@/lib/langgraph/types";
+import type { ChatAttachmentBlock } from "@/lib/langgraph/multimodal";
 import { Assistant, Message } from "@langchain/langgraph-sdk";
 import { extractStringFromMessageContent } from "@/lib/langgraph/utils";
 import { useChatContext } from "@/providers/ChatProvider";
@@ -141,10 +142,11 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
     removeBlock,
     resetBlocks,
     dragOver,
+    isUploading,
   } = useFileUpload();
   const { scrollRef, contentRef } = useStickToBottom();
   const initialPromptSentRef = useRef(false);
-  const sendMessageRef = useRef<((content: string) => void) | null>(null);
+  const sendMessageRef = useRef<((content: string, contentBlocks?: ChatAttachmentBlock[]) => void) | null>(null);
   const isMountedRef = useRef(true);
   const lastScrollTopRef = useRef(0);
   const scrollTopBeforeLoadRef = useRef(0);
@@ -190,8 +192,8 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
 
   // 保持 sendMessage 的最新引用，并自动带上当前 RAG / 自动审批 / 自动执行设置
   React.useEffect(() => {
-    sendMessageRef.current = (content: string) => {
-      sendMessage(content, [], {
+    sendMessageRef.current = (content: string, contentBlocks?: ChatAttachmentBlock[]) => {
+      sendMessage(content, contentBlocks ?? [], {
         enable_rag: enableRag,
         auto_approve_threshold: autoApproveEnabled ? autoApproveThreshold : 100,
         auto_execute_enabled: autoExecuteEnabled,
@@ -226,7 +228,7 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
     window.localStorage.setItem("chat_auto_execute_enabled", String(autoExecuteEnabled));
   }, [autoExecuteEnabled]);
 
-  const submitDisabled = isLoading || !assistant;
+  const submitDisabled = isLoading || !assistant || isUploading;
 
   const handleSubmit = useCallback(
     (e?: FormEvent) => {
@@ -1222,10 +1224,17 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
               <div className="flex items-center gap-4">
                 <Label
                   htmlFor="chat-file-input"
-                  className="flex cursor-pointer items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-primary"
+                  className={cn(
+                    "flex cursor-pointer items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-primary",
+                    isUploading && "pointer-events-none opacity-50"
+                  )}
                 >
-                  <Plus className="h-4 w-4" />
-                  <span>上传 PDF 或图片</span>
+                  {isUploading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Plus className="h-4 w-4" />
+                  )}
+                  <span>{isUploading ? "上传中..." : "上传 PDF 或图片"}</span>
                 </Label>
                 <input
                   id="chat-file-input"

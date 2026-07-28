@@ -1,7 +1,7 @@
 "use client";
 
 import useSWRInfinite from "swr/infinite";
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import type { Client, Config, ThreadState } from "@langchain/langgraph-sdk";
 import type { StateType } from "./useChat";
 
@@ -31,26 +31,7 @@ interface HistoryKey {
   before?: string;
 }
 
-function getKey(
-  client: Client | null,
-  enabled: boolean,
-  threadId: string | null | undefined
-) {
-  return (
-    pageIndex: number,
-    previousPageData: ThreadState<StateType>[] | null
-  ): HistoryKey | null => {
-    if (!enabled || !client || !threadId) return null;
-    // 上一页没有数据，说明已经到尽头
-    if (previousPageData && previousPageData.length === 0) return null;
-    const before =
-      previousPageData?.[previousPageData.length - 1]?.checkpoint?.checkpoint_id ??
-      undefined;
-    return { kind: "thread-history", threadId, limit: PAGE_SIZE, before };
-  };
-}
-
-async function fetcher(
+async function fetchHistoryPage(
   client: Client,
   key: HistoryKey
 ): Promise<ThreadState<StateType>[]> {
@@ -79,19 +60,46 @@ export function usePaginatedThreadHistory(
   // 当 threadId 为 null 时保持 initialSize: 0，由自动加载 effect 在
   // threadId 变为有效值后触发首屏拉取。
   const initialSize = threadId ? 1 : 0;
-  const swr = useSWRInfinite(
-    getKey(client, enabled, threadId),
-    (key) => {
-      if (!client) return Promise.reject(new Error("missing client"));
-      return fetcher(client, key);
+
+  // 稳定 getKey 引用，避免每次渲染创建新函数导致 SWR Infinite 认为 key 生成器变化
+  // 进而触发不必要的 revalidation，最终导致 "Maximum update depth exceeded" 错误。
+  const getKey = useCallback(
+    (
+      pageIndex: number,
+      previousPageData: ThreadState<StateType>[] | null
+    ): HistoryKey | null => {
+      if (!enabled || !client || !threadId) return null;
+      // 上一页没有数据，说明已经到尽头
+      if (previousPageData && previousPageData.length === 0) return null;
+      const before =
+        previousPageData?.[previousPageData.length - 1]?.checkpoint?.checkpoint_id ??
+        undefined;
+      return { kind: "thread-history", threadId, limit: PAGE_SIZE, before };
     },
-    {
+    [client, enabled, threadId]
+  );
+
+  // 稳定 fetcher 引用，避免不必要的 SWR 内部状态重置
+  const fetcher = useCallback(
+    async (key: HistoryKey): Promise<ThreadState<StateType>[]> => {
+      if (!client) return Promise.reject(new Error("missing client"));
+      return fetchHistoryPage(client, key);
+    },
+    [client]
+  );
+
+  // 稳定 config 引用，避免 SWR 内部配置对比失败导致重取
+  const swrConfig = useMemo(
+    () => ({
       initialSize,
       revalidateOnMount: true,
       revalidateFirstPage: false,
       revalidateOnFocus: false,
-    }
+    }),
+    [initialSize]
   );
+
+  const swr = useSWRInfinite(getKey, fetcher, swrConfig);
 
   const flattened = useMemo(() => swr.data?.flat() ?? [], [swr.data]);
 

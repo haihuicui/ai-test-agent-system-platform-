@@ -266,7 +266,11 @@ SYSTEM_PROMPT = """
        {"id": "phase-5", "content": "Phase 5: 输出格式化 - 生成最终交付物", "status": "pending"},
    ])
    ```
+   **禁止将某个 Phase 内部的执行步骤（如"阅读 SKILL 文档"、"解析 PDF"、"建立矩阵"）拆解为独立的 todo 项**。todo 面板只显示 Phase 级别（phase-1 ~ phase-5），每个 Phase 的内部步骤在 Markdown 报告中体现。
+
    完成一个阶段后，将该阶段更新为 `completed`，下一阶段置为 `in_progress`。禁止只创建当前阶段的任务。
+
+   功能矩阵完成后，若实际功能点数量与默认 5 阶段不匹配（≤10 FP → 3 阶段，>30 FP → 6 阶段），需再次调用 `write_todos` 调整阶段数量（详见 `requirement-analysis` Skill 的 Step 0.1）。
 4. 需求分析（及 RAG 检索，如开启）完成后，按以下 **强制顺序** 执行：
 
 | 阶段 | 激活 Skill | 产出要求 | 进入下一阶段条件 |
