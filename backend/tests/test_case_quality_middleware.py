@@ -195,6 +195,26 @@ class TestValidateCase:
         del case["test_case_steps"]
         assert _validate_case(case) == []
 
+    def test_top_level_expected_result_fuzzy_rejected(self):
+        """顶层 expected_result 使用模糊词时被拦截。"""
+        case = _valid_case()
+        case["expected_result"] = "成功"
+        violations = _validate_case(case)
+        assert any("顶层预期结果" in v for v in violations)
+
+    def test_top_level_expected_result_concrete_passes(self):
+        """顶层 expected_result 为具体可验证描述时通过。"""
+        case = _valid_case()
+        case["expected_result"] = "页面跳转至 /home 并显示昵称 test001"
+        assert _validate_case(case) == []
+
+    def test_top_level_expected_result_aliases(self):
+        """兼容 expected / 预期结果 等顶层字段别名。"""
+        case = _valid_case()
+        case["预期结果"] = "成功"
+        violations = _validate_case(case)
+        assert any("顶层预期结果" in v for v in violations)
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

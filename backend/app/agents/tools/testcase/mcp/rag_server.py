@@ -1,9 +1,9 @@
 """
-RAG MCP Server — 生产级多租户 RAG 查询服务
+RAG MCP Server — 生产级 RAG 查询服务
 
 基于 LightRAG API 的 MCP (Model Context Protocol) 服务器，提供：
 - 7 个专业工具: 查询、结构化检索、图谱探索、文档状态、健康检查
-- 多租户隔离: 通过 X-Space-Id 实现工作空间级数据隔离
+- 工作空间传递: 通过 LIGHTRAG-WORKSPACE 请求头传递工作空间意图（LightRAG 当前仅 /health 按请求头切换；其余端点使用 LightRAG 启动时配置的 rag.workspace，完整隔离需独立实例）
 - 认证支持: JWT Token / API Key 双重认证
 - 生产级可靠性: 自动重试、指数退避、连接池管理
 - 全面的错误处理与日志
@@ -41,7 +41,8 @@ logger = logging.getLogger("rag-mcp-server")
 
 VALID_QUERY_MODES = ("local", "global", "hybrid", "naive", "mix", "bypass")
 QueryMode = Literal["local", "global", "hybrid", "naive", "mix", "bypass"]
-SPACE_HEADER = "X-Space-Id"
+SPACE_HEADER = "LIGHTRAG-WORKSPACE"
+API_KEY_HEADER = "X-API-Key"
 DEFAULT_BASE_URL = "http://localhost:9621"
 DEFAULT_TIMEOUT = 120.0
 MAX_RETRIES = 3
@@ -51,6 +52,31 @@ DEFAULT_CACHE_TTL_SECONDS = float(os.environ.get("RAG_CACHE_TTL_SECONDS", "300")
 # 进程内缓存最大条目数，防止长期运行的 MCP server 内存无限增长。
 DEFAULT_CACHE_MAX_ENTRIES = int(os.environ.get("RAG_CACHE_MAX_ENTRIES", "1000"))
 CACHE_DISABLED = os.environ.get("RAG_CACHE_DISABLED", "").lower() in ("1", "true", "yes")
+
+# LightRAG /query 与 /query/data 实际接受的字段白名单
+# 来源：LightRAG/lightrag/api/routers/query_routes.py::QueryRequest
+QUERY_REQUEST_FIELDS = frozenset(
+    {
+        "query",
+        "mode",
+        "only_need_context",
+        "only_need_prompt",
+        "response_type",
+        "top_k",
+        "chunk_top_k",
+        "max_entity_tokens",
+        "max_relation_tokens",
+        "max_total_tokens",
+        "hl_keywords",
+        "ll_keywords",
+        "conversation_history",
+        "user_prompt",
+        "enable_rerank",
+        "include_references",
+        "include_chunk_content",
+        "stream",
+    }
+)
 
 
 # ============================================================================
@@ -171,7 +197,7 @@ class RAGServiceClient:
     特性：
     - 连接池管理（httpx.AsyncClient）
     - 自动重试 + 指数退避
-    - 多租户 X-Space-Id 请求头注入
+    - 工作空间 LIGHTRAG-WORKSPACE 请求头注入（LightRAG 当前仅 /health 按请求头切换；其余端点使用 LightRAG 启动时配置的 rag.workspace）
     - JWT 登录认证 / API Key 双重认证
     - JWT Token 自动获取与缓存
     """
@@ -241,7 +267,9 @@ class RAGServiceClient:
             if self._jwt_token:
                 headers["Authorization"] = f"Bearer {self._jwt_token}"
             elif self.api_key:
-                headers["Authorization"] = f"Bearer {self.api_key}"
+                headers[API_KEY_HEADER] = self.api_key
+            # 注意：LightRAG 当前仅 /health 会按请求头切换 workspace；
+            # 其余端点使用 LightRAG 启动时配置的 rag.workspace。
             if self.default_space_id:
                 headers[SPACE_HEADER] = self.default_space_id
             self._client = httpx.AsyncClient(
@@ -283,9 +311,15 @@ class RAGServiceClient:
         last_exc: Optional[Exception] = None
         for attempt in range(MAX_RETRIES):
             try:
+                # 防御性过滤：/query 与 /query/data 只发送 LightRAG 接受的字段
+                request_body = json_body
+                if request_body is not None and path in {"/query", "/query/data"}:
+                    request_body = {
+                        k: v for k, v in request_body.items() if k in QUERY_REQUEST_FIELDS
+                    }
                 resp = await client.request(
                     method, path,
-                    json=json_body, params=params,
+                    json=request_body, params=params,
                     headers=extra_headers if extra_headers else None,
                 )
                 resp.raise_for_status()
@@ -354,7 +388,6 @@ def _build_query_body(
     ll_keywords: Optional[List[str]] = None,
     conversation_history: Optional[List[Dict[str, Any]]] = None,
     enable_rerank: bool = True,
-    enable_vlm_enhanced: bool = False,
     include_references: bool = True,
     include_chunk_content: bool = False,
     response_type: Optional[str] = None,
@@ -370,7 +403,6 @@ def _build_query_body(
         "top_k": top_k,
         "chunk_top_k": chunk_top_k,
         "enable_rerank": enable_rerank,
-        "enable_vlm_enhanced": enable_vlm_enhanced,
         "include_references": include_references,
         "include_chunk_content": include_chunk_content,
         "stream": stream,
@@ -452,7 +484,6 @@ async def rag_query(
     top_k: int = 60,
     chunk_top_k: int = 10,
     enable_rerank: bool = False,
-    enable_vlm_enhanced: bool = True,
     max_entity_tokens: Optional[int] = None,
     max_relation_tokens: Optional[int] = None,
     max_total_tokens: Optional[int] = None,
@@ -470,7 +501,7 @@ async def rag_query(
     """通过知识库进行 LLM 生成式回答，返回自然语言答案和引用来源。
 
     适用场景：需要让 LLM 基于知识库内容生成完整答案的场景。
-    支持多种检索模式、VLM视觉增强、重排序、Token预算控制等高级功能。
+    支持多种检索模式、重排序、Token预算控制等高级功能。
 
     参数：
         query: 自然语言问题（至少3个字符）
@@ -484,7 +515,6 @@ async def rag_query(
         top_k: 检索的实体/关系数量（默认60）
         chunk_top_k: 检索的文本块数量（默认5）
         enable_rerank: 是否启用重排序以提高检索质量（默认True）
-        enable_vlm_enhanced: 是否启用VLM视觉增强查询，自动识别上下文中的图片并发送给视觉模型理解（默认False）
         max_entity_tokens: 实体上下文的最大Token数（可选，用于精细控制Token预算）
         max_relation_tokens: 关系上下文的最大Token数（可选）
         max_total_tokens: 整个查询上下文的总Token预算上限（可选）
@@ -496,7 +526,7 @@ async def rag_query(
         hl_keywords: 高层级关键词列表，用于引导检索方向（可选，留空则由LLM自动生成）
         ll_keywords: 低层级关键词列表，用于精炼检索焦点（可选，留空则由LLM自动生成）
         conversation_history: 对话历史，格式为 [{"role": "user/assistant", "content": "消息"}]，仅用于LLM上下文（可选）
-        space_id: 多租户空间ID（可选）
+        space_id: 工作空间ID（可选）。通过 LIGHTRAG-WORKSPACE 请求头传递；LightRAG 当前仅 /health 按请求头切换，其余端点使用 LightRAG 启动时配置的 workspace
 
     返回：LLM 生成的答案文本（含引用来源）
     """
@@ -506,7 +536,7 @@ async def rag_query(
     try:
         body = _build_query_body(
             query=query, mode=mode, top_k=top_k, chunk_top_k=chunk_top_k,
-            enable_rerank=enable_rerank, enable_vlm_enhanced=enable_vlm_enhanced,
+            enable_rerank=enable_rerank,
             max_entity_tokens=max_entity_tokens,
             max_relation_tokens=max_relation_tokens,
             max_total_tokens=max_total_tokens,
@@ -520,7 +550,7 @@ async def rag_query(
         response_text = result.get("response", "")
         return response_text if response_text else "(空响应)"
     except RAGAPIError as e:
-        return f"❌ RAG 查询失败: {e}"
+        return f"❌ RAG /query 失败 [HTTP {e.status_code}]: {e.detail}"
     except Exception as e:
         logger.exception("rag_query 异常")
         return f"❌ 查询异常: {e}"
@@ -535,7 +565,6 @@ async def rag_query_data(
     top_k: int = 60,
     chunk_top_k: int = 10,
     enable_rerank: bool = False,
-    enable_vlm_enhanced: bool = True,
     max_entity_tokens: Optional[int] = None,
     max_relation_tokens: Optional[int] = None,
     max_total_tokens: Optional[int] = None,
@@ -564,7 +593,6 @@ async def rag_query_data(
         top_k: 检索的实体/关系数量（默认60）
         chunk_top_k: 检索的文本块数量（默认5）
         enable_rerank: 是否启用重排序以提高检索质量（默认True）
-        enable_vlm_enhanced: 是否启用VLM视觉增强查询（默认False）
         max_entity_tokens: 实体上下文的最大Token数（可选）
         max_relation_tokens: 关系上下文的最大Token数（可选）
         max_total_tokens: 整个查询上下文的总Token预算上限（可选）
@@ -573,7 +601,7 @@ async def rag_query_data(
         hl_keywords: 高层级关键词列表（可选）
         ll_keywords: 低层级关键词列表（可选）
         conversation_history: 对话历史 [{"role": "user/assistant", "content": "消息"}]（可选）
-        space_id: 多租户空间ID（可选）
+        space_id: 工作空间ID（可选）。通过 LIGHTRAG-WORKSPACE 请求头传递；LightRAG 当前仅 /health 按请求头切换，其余端点使用 LightRAG 启动时配置的 workspace
 
     返回：JSON 格式的结构化数据（实体、关系、文本块、引用来源）
     """
@@ -583,7 +611,7 @@ async def rag_query_data(
     try:
         body = _build_query_body(
             query=query, mode=mode, top_k=top_k, chunk_top_k=chunk_top_k,
-            enable_rerank=enable_rerank, enable_vlm_enhanced=enable_vlm_enhanced,
+            enable_rerank=enable_rerank,
             max_entity_tokens=max_entity_tokens,
             max_relation_tokens=max_relation_tokens,
             max_total_tokens=max_total_tokens,
@@ -595,7 +623,10 @@ async def rag_query_data(
         result = await client.post("/query/data", body, space_id=space_id)
         return json.dumps(result, ensure_ascii=False, indent=2)
     except RAGAPIError as e:
-        return json.dumps({"error": str(e)}, ensure_ascii=False)
+        return json.dumps(
+            {"error": f"RAG /query/data 失败 [HTTP {e.status_code}]: {e.detail}"},
+            ensure_ascii=False,
+        )
     except Exception as e:
         logger.exception("rag_query_data 异常")
         return json.dumps({"error": str(e)}, ensure_ascii=False)
@@ -617,7 +648,7 @@ async def rag_graph_search(
     参数：
         query: 实体名称或关键词（模糊匹配）
         limit: 返回的最大结果数量（默认50，最大100）
-        space_id: 多租户空间ID（可选）
+        space_id: 工作空间ID（可选）。通过 LIGHTRAG-WORKSPACE 请求头传递；LightRAG 当前仅 /health 按请求头切换，其余端点使用 LightRAG 启动时配置的 workspace
 
     返回：JSON 格式的匹配标签列表
     """
@@ -627,7 +658,10 @@ async def rag_graph_search(
         result = await client.get("/graph/label/search", params=params, space_id=space_id)
         return json.dumps(result, ensure_ascii=False, indent=2)
     except RAGAPIError as e:
-        return json.dumps({"error": str(e)}, ensure_ascii=False)
+        return json.dumps(
+            {"error": f"RAG /graph/label/search 失败 [HTTP {e.status_code}]: {e.detail}"},
+            ensure_ascii=False,
+        )
     except Exception as e:
         logger.exception("rag_graph_search 异常")
         return json.dumps({"error": str(e)}, ensure_ascii=False)
@@ -649,7 +683,7 @@ async def rag_graph_get(
     参数：
         entity_name: 实体名称（精确匹配）
         max_depth: 子图探索深度（1-3，默认3）
-        space_id: 多租户空间ID（可选）
+        space_id: 工作空间ID（可选）。通过 LIGHTRAG-WORKSPACE 请求头传递；LightRAG 当前仅 /health 按请求头切换，其余端点使用 LightRAG 启动时配置的 workspace
 
     返回：JSON 格式的子图数据（节点和边）
     """
@@ -659,7 +693,10 @@ async def rag_graph_get(
         result = await client.get("/graphs", params=params, space_id=space_id)
         return json.dumps(result, ensure_ascii=False, indent=2)
     except RAGAPIError as e:
-        return json.dumps({"error": str(e)}, ensure_ascii=False)
+        return json.dumps(
+            {"error": f"RAG /graphs 失败 [HTTP {e.status_code}]: {e.detail}"},
+            ensure_ascii=False,
+        )
     except Exception as e:
         logger.exception("rag_graph_get 异常")
         return json.dumps({"error": str(e)}, ensure_ascii=False)
@@ -677,7 +714,7 @@ async def rag_graph_labels(
     适用场景：了解知识图谱的整体结构和实体分类。
 
     参数：
-        space_id: 多租户空间ID（可选）
+        space_id: 工作空间ID（可选）。通过 LIGHTRAG-WORKSPACE 请求头传递；LightRAG 当前仅 /health 按请求头切换，其余端点使用 LightRAG 启动时配置的 workspace
 
     返回：JSON 格式的标签列表
     """
@@ -686,68 +723,81 @@ async def rag_graph_labels(
         result = await client.get("/graph/label/list", space_id=space_id)
         return json.dumps(result, ensure_ascii=False, indent=2)
     except RAGAPIError as e:
-        return json.dumps({"error": str(e)}, ensure_ascii=False)
+        return json.dumps(
+            {"error": f"RAG /graph/label/list 失败 [HTTP {e.status_code}]: {e.detail}"},
+            ensure_ascii=False,
+        )
     except Exception as e:
         logger.exception("rag_graph_labels 异常")
         return json.dumps({"error": str(e)}, ensure_ascii=False)
 
 
-# # ---- 工具 6: rag_document_status (文档处理状态) ----
+# ---- 工具 6: rag_document_status (文档处理状态) ----
 
-# @mcp.tool()
-# async def rag_document_status(
-#     space_id: Optional[str] = None,
-#     ctx: Context = None,
-# ) -> str:
-#     """查询文档索引管线的处理状态。
+@mcp.tool()
+async def rag_document_status(
+    space_id: Optional[str] = None,
+    ctx: Context = None,
+) -> str:
+    """查询文档索引管线的处理状态。
 
-#     适用场景：监控文档处理进度、检查管线是否繁忙。
+    适用场景：监控文档处理进度、检查管线是否繁忙。
 
-#     参数：
-#         space_id: 多租户空间ID（可选）
+    参数：
+        space_id: 工作空间ID（可选）。通过 LIGHTRAG-WORKSPACE 请求头传递；LightRAG 当前仅 /health 按请求头切换，其余端点使用 LightRAG 启动时配置的 workspace
 
-#     返回：JSON 格式的管线状态（busy/进度/消息等）
-#     """
-#     client = _get_client(ctx)
-#     try:
-#         result = await client.get("/documents/pipeline_status", space_id=space_id)
-#         return json.dumps(result, ensure_ascii=False, indent=2)
-#     except RAGAPIError as e:
-#         return json.dumps({"error": str(e)}, ensure_ascii=False)
-#     except Exception as e:
-#         logger.exception("rag_document_status 异常")
-#         return json.dumps({"error": str(e)}, ensure_ascii=False)
+    返回：JSON 格式的管线状态（busy/进度/消息等）
+    """
+    client = _get_client(ctx)
+    try:
+        result = await client.get("/documents/pipeline_status", space_id=space_id)
+        return json.dumps(result, ensure_ascii=False, indent=2)
+    except RAGAPIError as e:
+        return json.dumps(
+            {"error": f"RAG /documents/pipeline_status 失败 [HTTP {e.status_code}]: {e.detail}"},
+            ensure_ascii=False,
+        )
+    except Exception as e:
+        logger.exception("rag_document_status 异常")
+        return json.dumps({"error": str(e)}, ensure_ascii=False)
 
 
-# # ---- 工具 7: rag_health (健康检查) ----
+# ---- 工具 7: rag_health (健康检查) ----
 
-# @mcp.tool()
-# async def rag_health(
-#     ctx: Context = None,
-# ) -> str:
-#     """检查 RAG 服务的健康状态。
+@mcp.tool()
+async def rag_health(
+    space_id: Optional[str] = None,
+    ctx: Context = None,
+) -> str:
+    """检查 RAG 服务的健康状态。
 
-#     适用场景：确认后端服务是否正常运行。
+    适用场景：确认后端服务是否正常运行。
 
-#     返回：JSON 格式的健康状态
-#     """
-#     client = _get_client(ctx)
-#     try:
-#         result = await client.get("/health")
-#         return json.dumps(result, ensure_ascii=False, indent=2)
-#     except RAGAPIError as e:
-#         return json.dumps({"status": "unhealthy", "error": str(e)}, ensure_ascii=False)
-#     except Exception as e:
-#         return json.dumps({"status": "unreachable", "error": str(e)}, ensure_ascii=False)
+    参数：
+        space_id: 工作空间ID（可选）。LightRAG /health 会按 LIGHTRAG-WORKSPACE 请求头切换 workspace
+
+    返回：JSON 格式的健康状态
+    """
+    client = _get_client(ctx)
+    try:
+        result = await client.get("/health", space_id=space_id)
+        return json.dumps(result, ensure_ascii=False, indent=2)
+    except RAGAPIError as e:
+        return json.dumps(
+            {"status": "unhealthy", "error": f"[HTTP {e.status_code}]: {e.detail}"},
+            ensure_ascii=False,
+        )
+    except Exception as e:
+        return json.dumps({"status": "unreachable", "error": str(e)}, ensure_ascii=False)
 
 
 # ============================================================================
 # 主入口点
 # ============================================================================
 
-def parse_arguments():
-    """解析命令行参数"""
-    parser = argparse.ArgumentParser(description="RAG MCP Server — 生产级多租户 RAG 查询服务")
+def _build_argument_parser() -> argparse.ArgumentParser:
+    """构造命令行参数解析器（方便测试直接检查默认值）"""
+    parser = argparse.ArgumentParser(description="RAG MCP Server — 生产级 RAG 查询服务")
     parser.add_argument(
         "--rag-url", type=str, default=DEFAULT_BASE_URL,
         help=f"LightRAG 服务器 URL (默认: {DEFAULT_BASE_URL})"
@@ -758,19 +808,19 @@ def parse_arguments():
     )
     parser.add_argument(
         "--username", type=str, default="admin",
-        help="多租户登录用户名（也可设 RAG_USERNAME 环境变量）"
+        help="登录用户名（也可设 RAG_USERNAME 环境变量）"
     )
     parser.add_argument(
-        "--password", type=str, default="admin123",
-        help="多租户登录密码（也可设 RAG_PASSWORD 环境变量）"
+        "--password", type=str, default=None,
+        help="登录密码（也可设 RAG_PASSWORD 环境变量）"
     )
     parser.add_argument(
         "--timeout", type=float, default=DEFAULT_TIMEOUT,
         help=f"请求超时时间/秒 (默认: {DEFAULT_TIMEOUT})"
     )
     parser.add_argument(
-        "--space-id", type=str, default="cmp_space",
-        help="默认多租户空间ID"
+        "--space-id", type=str, default=None,
+        help="默认工作空间ID，通过 LIGHTRAG-WORKSPACE 请求头传递（LightRAG 当前仅 /health 按请求头切换；不设置则不发送该头）"
     )
     parser.add_argument(
         "--transport", type=str, default="sse", choices=["sse", "stdio"],
@@ -785,7 +835,12 @@ def parse_arguments():
         help="FastMCP 挂载路径前缀（如 /mcp）。用于 nginx 反代场景，"
              "确保 SSE endpoint 返回的 /messages 路径包含此前缀。"
     )
-    return parser.parse_args()
+    return parser
+
+
+def parse_arguments(args=None):
+    """解析命令行参数"""
+    return _build_argument_parser().parse_args(args)
 
 
 def main():

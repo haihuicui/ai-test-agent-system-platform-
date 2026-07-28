@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
+from langgraph.types import Overwrite
 
 from app.agents.testcase.phase_review_middleware import (
     PhaseReviewMiddleware,
@@ -155,6 +156,63 @@ class TestHasCasePreview:
 """
         assert _has_case_preview(content) is False
 
+    def test_synonym_steps_and_data(self):
+        """操作步骤/输入数据等同义词应被识别为具体用例"""
+        content = """
+## 测试用例生成完成
+
+用例编号：TC-PROJ-LOGIN-001
+操作步骤：输入用户名密码，点击登录
+输入数据：username: test001
+"""
+        assert _has_case_preview(content) is True
+
+    def test_synonym_only_case_number_and_steps(self):
+        """用例编号 + 步骤（无数据）应被识别"""
+        content = """
+## 测试用例生成完成
+
+用例编号：TC-PROJ-LOGIN-001
+执行步骤：
+  1. 输入用户名
+  2. 点击登录
+"""
+        assert _has_case_preview(content) is True
+
+    def test_tc_number_pattern_without_explicit_label(self):
+        """未写 case_number/用例编号 字样，但出现 TC-XXX 编号 + 步骤 + 数据时应被识别"""
+        content = """
+## 测试用例生成完成
+
+P0 用例：连接可用设备成功（TC-SC-CONN-007）
+前置条件：设备已通电
+测试数据：{"端口号": "COM1"}
+步骤：①输入 COM1 ②点击连接
+"""
+        assert _has_case_preview(content) is True
+
+    def test_tc_number_pattern_only_steps(self):
+        """TC-XXX 编号 + 操作步骤（无测试数据）应被识别"""
+        content = """
+## 测试用例生成完成
+
+边界用例：端口号输入 - 边界值（TC-SC-CONN-006）
+操作步骤：
+  1. 输入 1 并移出焦点
+  2. 输入 65536 并移出焦点
+"""
+        assert _has_case_preview(content) is True
+
+    def test_only_tc_numbers_without_steps_or_data(self):
+        """仅列出 TC-XXX 编号但无步骤/数据时仍应被拦截"""
+        content = """
+## 测试用例生成完成
+
+已生成用例：TC-001、TC-002、TC-003。
+共 3 条用例。
+"""
+        assert _has_case_preview(content) is False
+
 
 class TestPhaseReviewAuditabilityFallback:
     def _make_state(self, ai_content: str, human_messages: list | None = None):
@@ -182,8 +240,11 @@ class TestPhaseReviewAuditabilityFallback:
 
         msg = result["messages"][0]
         assert isinstance(msg, HumanMessage)
-        assert "缺少具体用例内容" in msg.content
+        assert "系统未检测到具体用例内容" in msg.content
         assert "preview_test_cases" in msg.content
+        assert "人工评审卡片" in msg.content
+        assert "expected_result" in msg.content
+        assert "预期结果" in msg.content
 
     def test_phase3_with_preview_does_not_return_fallback(self, monkeypatch):
         # 模拟 interrupt 返回 approve 决策，避免在单测环境外调用 langgraph interrupt
@@ -205,6 +266,7 @@ class TestPhaseReviewAuditabilityFallback:
 - case_number: TC-PROJ-LOGIN-001
 - test_case_steps: 输入用户名密码，点击登录
 - test_data: username: test001
+- expected_result: 页面跳转 /home
 """)
         result = middleware.after_model(state, None)
 
@@ -470,6 +532,110 @@ class TestPhase4CoverageFallback:
         # 应该触发的是自动退回，不是覆盖检查
         assert "系统自动退回" in msg.content
         assert "缺少功能覆盖对照信息" not in msg.content
+
+
+class TestPhaseReportToolCallSeparation:
+    """测试阶段报告与工具调用混排时的兜底拆分。"""
+
+    def _make_state_with_tool_call(self, ai_content: str) -> dict:
+        return {
+            "messages": [
+                HumanMessage(content="分析需求"),
+                AIMessage(
+                    content=ai_content,
+                    tool_calls=[
+                        {
+                            "id": "call_1",
+                            "name": "save_feature_matrix_tool",
+                            "args": {"features": []},
+                            "type": "tool_call",
+                        }
+                    ],
+                ),
+            ]
+        }
+
+    def test_phase1_with_tool_calls_returns_split_feedback(self):
+        """Phase 1 报告附带工具调用时应拆分并要求分步输出"""
+        middleware = PhaseReviewMiddleware()
+        state = self._make_state_with_tool_call("""
+## 需求解析报告
+
+以上为 Phase 1 需求分析。
+""")
+        result = middleware.after_model(state, None)
+
+        assert result is not None
+        assert "messages" in result
+        assert result.get("jump_to") == "model"
+
+        updated = result["messages"]
+        assert isinstance(updated, Overwrite)
+        msgs = updated.value
+        assert len(msgs) == 3
+
+        # 原 HumanMessage 保留
+        assert isinstance(msgs[0], HumanMessage)
+        # 原 AI 消息被拆分为纯文本（无 tool_calls）
+        cleaned_ai = msgs[1]
+        assert isinstance(cleaned_ai, AIMessage)
+        assert "## 需求解析报告" in str(cleaned_ai.content)
+        assert not cleaned_ai.tool_calls
+        # 追加系统反馈，要求模型分步输出
+        feedback = msgs[2]
+        assert isinstance(feedback, HumanMessage)
+        assert "阶段报告与工具调用混在一起" in feedback.content
+        assert "人工评审卡片无法弹出" in feedback.content
+        assert "不要附带任何工具调用" in feedback.content
+
+    def test_phase1_with_tool_calls_preserves_other_messages(self):
+        """拆分时应保留阶段报告之前的所有消息"""
+        middleware = PhaseReviewMiddleware()
+        state = {
+            "messages": [
+                HumanMessage(content="开始分析"),
+                AIMessage(content="调用 write_todos", tool_calls=[{"id": "call_0", "name": "write_todos", "args": {}, "type": "tool_call"}]),
+                HumanMessage(content="工具结果"),
+                AIMessage(
+                    content="## 功能测试矩阵\n\n| FP-001 | ... |",
+                    tool_calls=[{"id": "call_1", "name": "save_feature_matrix_tool", "args": {}, "type": "tool_call"}],
+                ),
+            ]
+        }
+        result = middleware.after_model(state, None)
+
+        assert result is not None
+        updated = result["messages"]
+        assert isinstance(updated, Overwrite)
+        msgs = updated.value
+        assert len(msgs) == 5
+        assert isinstance(msgs[0], HumanMessage)
+        assert isinstance(msgs[1], AIMessage)
+        assert isinstance(msgs[2], HumanMessage)
+        cleaned_ai = msgs[3]
+        assert isinstance(cleaned_ai, AIMessage)
+        assert "## 功能测试矩阵" in str(cleaned_ai.content)
+        assert not cleaned_ai.tool_calls
+        assert isinstance(msgs[4], HumanMessage)
+
+    def test_phase1_without_tool_calls_triggers_interrupt(self, monkeypatch):
+        """Phase 1 报告无工具调用时应正常触发 interrupt"""
+        monkeypatch.setattr(
+            "app.agents.testcase.phase_review_middleware.interrupt",
+            lambda request: {"decision": "approve", "message": "", "checklist": {}},
+        )
+
+        middleware = PhaseReviewMiddleware()
+        state = {"messages": [HumanMessage(content="分析需求"), AIMessage(content="## 需求解析报告\n以上为 Phase 1。")]}
+        result = middleware.after_model(state, None)
+
+        assert result is not None
+        assert "messages" in result
+        # 正常触发评审，返回的 messages 不是 Overwrite，而是包含评审反馈 HumanMessage 的列表
+        assert not isinstance(result["messages"], Overwrite)
+        msg = result["messages"][0]
+        assert isinstance(msg, HumanMessage)
+        assert "阶段评审" in msg.content
 
 
 if __name__ == "__main__":

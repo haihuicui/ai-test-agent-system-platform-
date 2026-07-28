@@ -146,11 +146,65 @@ class TestPreviewTestCases:
         assert len(preview_steps) == 6
         assert "后续还有" in str(preview_steps[-1])
 
-    async def test_file_not_found(self):
-        result = await preview_test_cases.ainvoke({"source": "/not_exist_cases.jsonl"})
+    async def test_expected_result_aggregated_from_steps(self, workspace_tmp):
+        """未提供顶层 expected_result 时，应从 step.result 聚合生成。"""
+        cases = [
+            {
+                "name": "聚合预期结果",
+                "case_number": "TC-PROJ-LOGIN-003",
+                "module": "登录模块",
+                "priority": "high",
+                "test_case_steps": [
+                    {"step": "输入用户名密码", "result": "页面跳转 /home"},
+                    {"step": "点击退出", "result": "返回登录页"},
+                ],
+            }
+        ]
+        virtual_path = await _write_jsonl(workspace_tmp, "expected_result_aggregate.jsonl", cases)
+        result = await preview_test_cases.ainvoke({"source": virtual_path})
 
-        assert result["success"] is False
-        assert "文件不存在" in result["message"]
+        assert result["success"] is True
+        assert result["cases"][0]["expected_result"] == "1. 页面跳转 /home\n2. 返回登录页"
+
+    async def test_expected_result_from_top_level_field(self, workspace_tmp):
+        """存在顶层 expected_result 字段时优先使用。"""
+        cases = [
+            {
+                "name": "顶层预期结果",
+                "case_number": "TC-PROJ-LOGIN-004",
+                "module": "登录模块",
+                "priority": "high",
+                "expected_result": "账号锁定 30 分钟",
+                "test_case_steps": [
+                    {"step": "连续输错密码 5 次", "result": "提示账号已锁定"}
+                ],
+            }
+        ]
+        virtual_path = await _write_jsonl(workspace_tmp, "expected_result_top.jsonl", cases)
+        result = await preview_test_cases.ainvoke({"source": virtual_path})
+
+        assert result["success"] is True
+        assert result["cases"][0]["expected_result"] == "账号锁定 30 分钟"
+
+    async def test_expected_result_truncation(self, workspace_tmp):
+        """预期结果超长时应截断。"""
+        cases = [
+            {
+                "name": "超长预期结果",
+                "case_number": "TC-PROJ-LOGIN-005",
+                "module": "登录模块",
+                "priority": "high",
+                "expected_result": "A" * 1000,
+                "test_case_steps": [{"step": "步骤1", "result": "结果1"}],
+            }
+        ]
+        virtual_path = await _write_jsonl(workspace_tmp, "expected_result_long.jsonl", cases)
+        result = await preview_test_cases.ainvoke({"source": virtual_path})
+
+        assert result["success"] is True
+        preview_result = result["cases"][0]["expected_result"]
+        assert len(preview_result) < 1000
+        assert preview_result.endswith("...")
 
 
 if __name__ == "__main__":

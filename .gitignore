@@ -1,3 +1,6 @@
+# Documentation (generated/local)
+docs/
+
 # Environment & secrets
 .env
 .env.local
