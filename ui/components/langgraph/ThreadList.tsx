@@ -45,9 +45,22 @@ function getThreadColor(status: ThreadItem["status"]): string {
   return STATUS_COLORS[status] ?? "bg-gray-400";
 }
 
+/**
+ * 计算两个日期的日历天数差。
+ * 比较的是日历日期（年-月-日），而非 24 小时周期。
+ * 返回正数表示 date 在 now 之前的天数。
+ * 如果 date 在 now 之后（时钟偏差导致），视为同一天（返回 0）。
+ */
+function getCalendarDaysDiff(date: Date, now: Date): number {
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const diffTime = startOfToday.getTime() - startOfDate.getTime();
+  const days = Math.round(diffTime / (1000 * 60 * 60 * 24));
+  return Math.max(0, days);
+}
+
 function formatTime(date: Date, now = new Date()): string {
-  const diff = now.getTime() - date.getTime();
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const days = getCalendarDaysDiff(date, now);
 
   if (days === 0) return format(date, "HH:mm");
   if (days === 1) return "昨天";
@@ -167,8 +180,7 @@ export function ThreadList({
         return;
       }
 
-      const diff = now.getTime() - thread.updatedAt.getTime();
-      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const days = getCalendarDaysDiff(thread.updatedAt, now);
 
       if (days === 0) {
         groups.today.push(thread);
@@ -180,6 +192,13 @@ export function ThreadList({
         groups.older.push(thread);
       }
     });
+
+    // 每个分组内按 updatedAt 降序排列（最新在前）
+    for (const key of Object.keys(groups) as Array<keyof typeof GROUP_LABELS>) {
+      groups[key].sort(
+        (a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()
+      );
+    }
 
     return groups;
   }, [flattened]);
