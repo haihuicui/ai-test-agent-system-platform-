@@ -67,3 +67,7 @@ backend/test-results/
 backend/run_api_test_directly.py
 backend/start_fastapi_debug.py
 fastapi_debug.log
+
+# Debug artifacts (tool call validation, RAG query dumps)
+rag_query_result.json
+tool_call_validation_dumps/
