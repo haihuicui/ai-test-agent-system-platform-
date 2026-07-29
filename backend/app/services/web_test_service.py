@@ -6,6 +6,7 @@ Web 测试服务
 
 import asyncio
 import json
+import logging
 import os
 import shutil
 import zipfile
@@ -60,6 +61,9 @@ def _ensure_node_in_path(env: dict[str, str]) -> dict[str, str]:
     if paths_to_add:
         env = {**env, "PATH": os.pathsep.join(paths_to_add + [current_path])}
     return env
+
+
+logger = logging.getLogger(__name__)
 
 
 class WebTestService:
