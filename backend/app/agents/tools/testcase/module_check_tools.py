@@ -41,6 +41,14 @@ _PRIORITY_TO_LEVEL = {
 # 原子性启发式：结果描述中出现这些连接词，可能把多个检查点写在了一步里
 _ATOMICITY_HINT_WORDS = {"且", "同时", "分别", "以及"}
 
+# Happy Path 偏斜检测：预期结果中频繁出现这些模式时，可能缺少边界/异常覆盖
+_HAPPY_PATH_PATTERNS = (
+    "保存成功", "添加成功", "创建成功", "操作成功", "显示正确",
+    "回显正确", "刷新成功", "返回成功", "跳转成功", "提交成功",
+    "加载成功", "导入成功", "导出成功", "删除成功", "修改成功",
+    "正常显示", "正常跳转", "正常工作", "正常返回", "正常加载",
+)
+
 
 def _resolve_manifest_path(manifest_path: str) -> Path:
     """将 manifest 路径解析到 workspace_root 下，禁止越权。"""
@@ -161,6 +169,53 @@ def _check_atomicity_heuristic(case: dict[str, Any]) -> list[str]:
     return warnings
 
 
+def _check_happy_path_skew(cases: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """检测本批次用例是否存在 Happy Path 偏斜（缺少边界/异常覆盖）。
+
+    启发式：如果本批次 ≥ 3 条用例且 ≥ 80% 的预期结果包含
+    "xxx成功"/"正常xxx" 等纯正向模式，则提示可能缺少边界/异常用例。
+
+    Returns:
+        若触发偏斜则返回 violation dict（level=warning），否则返回 None。
+    """
+    if len(cases) < 3:
+        return None
+
+    happy_count = 0
+    for case in cases:
+        steps = case.get("test_case_steps") or []
+        if not isinstance(steps, list):
+            continue
+        all_results = " ".join(
+            str(s.get("result", "")) for s in steps if isinstance(s, dict)
+        )
+        # 也检查顶层 expected_result（如果有）
+        top_expected = (
+            case.get("expected_result")
+            or case.get("expected")
+            or case.get("预期结果")
+        )
+        if top_expected is not None:
+            all_results += " " + str(top_expected)
+
+        if any(p in all_results for p in _HAPPY_PATH_PATTERNS):
+            happy_count += 1
+
+    ratio = happy_count / len(cases)
+    if ratio >= 0.8:
+        return {
+            "case_number": None,
+            "case_name": None,
+            "level": "warning",
+            "messages": [
+                f"本批次 {len(cases)} 条用例中 {happy_count} 条（{ratio:.0%}）预期结果以正向验证为主"
+                "（如「保存成功」「正常显示」），建议至少补充 1 条边界值或异常输入用例。"
+                "若本模块功能点确无边界值场景（如纯流程跳转），可忽略此提示。"
+            ],
+        }
+    return None
+
+
 def _priority_to_level(priority: Any) -> str | None:
     """把各种 priority 表示统一成 P0/P1/P2/P3。"""
     if not isinstance(priority, str):
@@ -279,6 +334,12 @@ def _perform_module_self_check(
                     "messages": atomic_warnings,
                 }
             )
+
+    # 6. Happy Path 偏斜检测（仅 warning，不阻断）
+    # 当一批用例的预期结果全是"xxx成功"/"正常xxx"时，提示可能缺少边界/异常覆盖
+    happy_path_violation = _check_happy_path_skew(cases)
+    if happy_path_violation is not None:
+        violations.append(happy_path_violation)
 
     errors = [v for v in violations if v.get("level") == "error"]
     warnings = [v for v in violations if v.get("level") == "warning"]
