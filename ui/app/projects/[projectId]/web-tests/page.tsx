@@ -170,10 +170,14 @@ export default function WebTestsPage() {
   const [selectedWebFunction, setSelectedWebFunction] = React.useState<WebFunction | null>(null);
   const [artifactsRefreshTrigger, setArtifactsRefreshTrigger] = React.useState(0);
 
-  // 分页和筛选
+  // 分页和筛选 - 功能列表
   const [page, setPage] = React.useState(1);
-  const [pageSize, setPageSize] = React.useState(7);
+  const [pageSize, setPageSize] = React.useState(5);
   const [total, setTotal] = React.useState(0);
+  // 分页 - 子功能列表（独立分页状态）
+  const [subPage, setSubPage] = React.useState(1);
+  const [subPageSize, setSubPageSize] = React.useState(5);
+  const [subTotal, setSubTotal] = React.useState(0);
   const [searchQuery, setSearchQuery] = React.useState("");
   const [formatFilter, setFormatFilter] = React.useState("");
 
@@ -257,8 +261,8 @@ export default function WebTestsPage() {
       setLoading(true);
 
       const subFunctionsParams: any = {
-        p: page,
-        page_size: pageSize,
+        p: subPage,
+        page_size: subPageSize,
       };
       if (selectedFolderId) {
         subFunctionsParams.folder_id = selectedFolderId;
@@ -280,6 +284,7 @@ export default function WebTestsPage() {
 
       const subFunctionsItems = subFunctions.items || [];
       setWebSubFunctions(subFunctionsItems);
+      setSubTotal(subFunctions.total || 0);
 
       let items, total;
       if ((response as any).data) {
@@ -299,7 +304,7 @@ export default function WebTestsPage() {
     } finally {
       setLoading(false);
     }
-  }, [projectId, selectedFolderId, page, pageSize, searchQuery, formatFilter, testMode, t]);
+  }, [projectId, selectedFolderId, page, pageSize, subPage, subPageSize, searchQuery, formatFilter, testMode, t]);
 
   // 加载默认环境
   const loadDefaultEnvironment = React.useCallback(async () => {
@@ -362,6 +367,7 @@ export default function WebTestsPage() {
     setSelectedFolderId(folder?.id || null);
     setSelectedFolderName(folder?.name);
     setPage(1);
+    setSubPage(1);  // 切换文件夹时重置子功能分页
     setSelectedIds(new Set());
     // 切换文件夹时清除子功能选择，避免显示错误的测试成果物
     setSelectedSubFunctionId(null);
@@ -510,20 +516,32 @@ export default function WebTestsPage() {
     }));
   }, [selectedSubFunctionId, webSubFunctions]);
 
-  // 加载特定功能的子功能
-  const loadSubFunctionsForFunction = React.useCallback(async (functionId: string) => {
+  // 加载特定功能的子功能（带分页）
+  const loadSubFunctionsForFunction = React.useCallback(async (functionId: string, pageNum: number = 1) => {
     try {
-      const subFunctions = await listWebSubFunctions(projectId, {
+      const result = await listWebSubFunctions(projectId, {
         function_id: functionId,
-        p: 1,
-        page_size: 100,
+        p: pageNum,
+        page_size: subPageSize,
       });
-      setWebSubFunctions(subFunctions.items || []);
+      setWebSubFunctions(result.items || []);
+      setSubTotal(result.total || 0);
+      setSubPage(pageNum);
     } catch (error) {
       console.error("Failed to load sub-functions:", error);
       toast.error("加载子功能失败");
     }
-  }, [projectId]);
+  }, [projectId, subPageSize]);
+
+  // 子功能翻页处理
+  const handleSubPageChange = React.useCallback(async (newPage: number) => {
+    if (selectedWebFunction) {
+      await loadSubFunctionsForFunction(selectedWebFunction.id, newPage);
+    } else {
+      // 非抽屉模式：仅设置页码，useEffect 依赖 subPage 会自动触发 loadWebFunctions
+      setSubPage(newPage);
+    }
+  }, [selectedWebFunction, loadSubFunctionsForFunction]);
 
   const handleExecuteScript = (artifactId: string, fileName: string) => {
     const prompt = `${t("webTests.executeTestPrompt")}:
@@ -1481,10 +1499,11 @@ export default function WebTestsPage() {
         {/* 子功能列表抽屉 */}
         <Drawer open={subFunctionDrawerOpen} onOpenChange={(open) => {
           setSubFunctionDrawerOpen(open);
-          // 关闭抽屉时，恢复所有子功能列表
+          // 关闭抽屉时，重置子功能分页并恢复全部列表
           if (!open) {
-            loadWebFunctions();
             setSelectedWebFunction(null);
+            setSubPage(1);
+            // loadWebFunctions 由 useEffect 依赖 subPage/subPageSize 自动触发
           }
         }}>
           <DrawerContent direction="right" className="h-full w-[500px] border-l rounded-none">
@@ -1512,10 +1531,10 @@ export default function WebTestsPage() {
                   setSelectedSubFunctionId(subFunctionId);
                 }}
                 pagination={{
-                  page,
-                  pageSize,
-                  total: webSubFunctions.length,
-                  onPageChange: setPage,
+                  page: subPage,
+                  pageSize: subPageSize,
+                  total: subTotal,
+                  onPageChange: handleSubPageChange,
                 }}
                 showHeader={false}
               />
