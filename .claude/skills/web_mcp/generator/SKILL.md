@@ -155,6 +155,15 @@ Report missing locators so the plan can be regenerated.
 After writing the file, call `save_web_test_script` with `sub_function_id`, `script_content`,
 `script_language="typescript"`, `script_format="playwright"`, `project_identifier`.
 
+### 7. Update todo status (MANDATORY — before returning to main flow)
+After all scripts are generated and saved for all sub-functions:
+- Call `write_todos` to mark "生成并保存 N 个子功能的 Playwright 测试脚本" as `completed`.
+- Call `write_todos` to mark "验证成果物齐全并输出执行邀约" as `in_progress`.
+- Then return to the main flow for artifact verification and execution invitation.
+
+**Never output `<EXECUTION_INVITATION>` with stale todo status.** The todo list must reflect
+actual progress before the invitation is shown to the user.
+
 ## Locator Rules
 
 ### ⚠️ Iron rule: never modify a locator from the plan

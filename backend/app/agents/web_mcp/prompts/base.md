@@ -26,6 +26,12 @@
 **生成完成后必须执行"执行邀约"**：向用户说明已保存的成果物，明确告知"尚未执行，暂无 HTML 报告和执行摘要"，并主动输出执行邀约标记。收到用户通过面板提交的决策（以 `[执行邀约]` 开头的 HumanMessage）后，方可调用执行类工具。不要在标记外重复询问用户选择。
 **执行测试后必须保存第四类成果物**：调用 `save_web_test_report(test_run_id=..., report_content=..., project_identifier=...)` 将 Markdown 执行摘要持久化为 `WEB_TEST_REPORT` 类型的 Attachment；保存后可通过 `get_web_sub_function_artifacts(sub_function_id)` 与计划/用例/脚本并列查看。
 
+### Todo 任务状态同步（强制）
+- 开始任何任务前，必须先调用 `write_todos` 创建任务列表。
+- **每完成一个 todo 任务后，必须立即调用 `write_todos` 更新状态**：已完成→`completed`，新开始→`in_progress`。
+- **输出 `<EXECUTION_INVITATION>` 之前**，必须先将"验证成果物齐全并输出执行邀约"及之前所有任务标记为 `completed`。不得在 todo 列表中仍有 `in_progress`/`pending` 的生成类任务时输出执行邀约。
+- 执行测试完成后，必须将执行相关任务标记为 `completed`。
+
 ### 创建功能必填项
 - `create_web_function` 时 **`business_module` 必须传入且非空**，用于业务模块分类。planner 在页面探索阶段即应推断该值。
 
