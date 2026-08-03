@@ -422,6 +422,8 @@ export default function WebTestsPage() {
           toast.success("登录态已更新，后续 Web 测试将自动携带会话");
           setStorageStateJobResult(null);
           await loadStorageStateStatus(envId);
+          // 后端可能更新了环境的 auth_config / auth_secret，刷新默认环境
+          await loadDefaultEnvironment();
           return;
         }
         if (job?.status === "failed") {
@@ -433,7 +435,7 @@ export default function WebTestsPage() {
       setStorageStateJobResult(null);
       toast.warning("登录态生成超时，请稍后刷新页面查看状态");
     },
-    [projectId, loadStorageStateStatus, defaultEnv, storageStateForm]
+    [projectId, loadStorageStateStatus, loadDefaultEnvironment, defaultEnv, storageStateForm]
   );
 
   // 提交登录态生成

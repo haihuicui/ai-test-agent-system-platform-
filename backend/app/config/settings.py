@@ -205,6 +205,10 @@ class Settings(BaseSettings):
     # 使所有测试复用已登录会话，避免每条用例都走 UI 登录。默认 None（不启用）。
     web_mcp_storage_state: Optional[str] = None
 
+    # 登录态自动续期：生成成功后按 expires_at - buffer 调度一次重新生成。
+    web_mcp_storage_state_auto_renew_enabled: bool = True
+    web_mcp_storage_state_auto_renew_buffer_minutes: int = 30
+
     # Web 测试执行预算（超时/并发/重试，统一在此调整）。
     # 层级关系：单用例超时(web_exec_test_timeout_ms) < 整脚本执行超时(web_exec_timeout_seconds)。
     web_exec_test_timeout_ms: int = 60_000   # 单个测试用例超时（写入 playwright.config 的 timeout）

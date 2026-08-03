@@ -12,7 +12,7 @@ import os
 import shutil
 import subprocess
 import traceback
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 from uuid import UUID
@@ -369,14 +369,10 @@ class StorageStateService:
         """生成按项目+环境隔离的 storageState 输出文件路径。
 
         优先级：
-        1. settings.web_mcp_storage_state（全局配置，保持旧行为）
-        2. web_mcp_root/storage-state/{project_id}/{environment_id}/{job_id}.json
-        3. web_mcp_root/storage-state/global.json（兼容旧调用）
+        1. 有 project_id 和 job_id 时，使用项目/环境隔离路径
+        2. 否则回退到 settings.web_mcp_storage_state（全局配置，保持旧行为）
+        3. 再回退到 web_mcp_root/storage-state/global.json
         """
-        ss = getattr(settings, "web_mcp_storage_state", None)
-        if ss:
-            return str(Path(ss).resolve())
-
         root = Path(settings.web_mcp_root).resolve()
         if project_id is not None and job_id is not None:
             parts = ["storage-state", str(project_id)]
@@ -385,10 +381,14 @@ class StorageStateService:
             parts.append(f"{job_id}.json")
             return str(root / "/".join(parts))
 
+        ss = getattr(settings, "web_mcp_storage_state", None)
+        if ss:
+            return str(Path(ss).resolve())
+
         # 未配置全局路径且无足够信息时回退到工作区默认位置
         default = root / "storage-state" / "global.json"
         logger.warning(
-            "[StorageState] settings.web_mcp_storage_state 未配置，生成结果将写入默认路径: %s",
+            "[StorageState] 未提供 project_id/job_id 且未配置全局路径，生成结果将写入默认路径: %s",
             default,
         )
         return str(default)
@@ -513,20 +513,51 @@ class StorageStateService:
                     storage_state=str(output_path),
                 )
 
-                # 自动切换环境认证类型：若环境 auth_type 为 none，但已成功生成
-                # Web 登录态，则将其标记为 form_login，让后续 Web 测试链路能识别。
-                # 同时把 auth_config.storage_state 同步到 auth_config.form_login，
-                # 与环境 schema 的 FormLoginConfig 对齐。
-                if env is not None and env.auth_type == AuthType.NONE.value:
+                # 更新环境认证配置与凭据：测试环境下密码作为普通字段保存到 auth_secret，
+                # 与 username/selectors 一起写入 auth_config.form_login，供后续自动续期使用。
+                if env is not None:
                     auth_config = env.auth_config or {}
+                    form_login_selectors = {
+                        "pre_click_selector": selectors.pre_click_selector,
+                        "username_selector": selectors.username_selector,
+                        "password_selector": selectors.password_selector,
+                        "captcha_selector": selectors.captcha_selector,
+                        "submit_selector": selectors.submit_selector,
+                        "success_selector": selectors.success_selector,
+                    }
+                    # 过滤掉 None 值，保持配置简洁
+                    form_login_selectors = {
+                        k: v for k, v in form_login_selectors.items() if v
+                    }
+                    form_login = {
+                        "username": username,
+                        "login_url": selectors.login_url,
+                        "selectors": form_login_selectors,
+                    }
+                    if captcha:
+                        form_login["captcha"] = captcha
+
+                    # 向后兼容：若之前仅有 auth_config.storage_state，先同步到 form_login
                     storage_cfg = auth_config.get("storage_state")
                     if storage_cfg and "form_login" not in auth_config:
                         auth_config["form_login"] = storage_cfg
-                    env.auth_type = AuthType.FORM_LOGIN.value
+
+                    existing_form_login = auth_config.get("form_login", {})
+                    existing_form_login.update(form_login)
+                    auth_config["form_login"] = existing_form_login
+
+                    # 测试环境：密码作为普通字段明文保存
+                    env.auth_secret = password
                     env.auth_config = auth_config
+
+                    if env.auth_type == AuthType.NONE.value:
+                        env.auth_type = AuthType.FORM_LOGIN.value
+                        logger.info(
+                            "[StorageState] 环境 %s auth_type 自动切换为 form_login",
+                            env.id,
+                        )
                     logger.info(
-                        "[StorageState] 环境 %s auth_type 自动切换为 form_login",
-                        env.id,
+                        "[StorageState] 环境 %s 登录凭据已更新", env.id
                     )
 
                 attachment_id: Optional[UUID] = None
@@ -562,6 +593,32 @@ class StorageStateService:
                 job.stdout = stdout[:100_000]
                 job.stderr = stderr[:100_000]
                 await self.session.commit()
+
+                # 生成成功后，若环境已保存密码，则注册到期前自动续期调度
+                if (
+                    settings.web_mcp_storage_state_auto_renew_enabled
+                    and job.expires_at
+                    and env is not None
+                    and env.auth_secret
+                ):
+                    # 延迟导入避免与 scheduler_service 循环依赖
+                    from app.services.scheduler_service import get_scheduler_service
+
+                    buffer = timedelta(
+                        minutes=settings.web_mcp_storage_state_auto_renew_buffer_minutes
+                    )
+                    run_at = job.expires_at - buffer
+                    if run_at > datetime.now(timezone.utc):
+                        scheduler = get_scheduler_service()
+                        scheduler.schedule_storage_state_renewal(
+                            env_id=str(env.id),
+                            run_at=run_at,
+                        )
+                        logger.info(
+                            "[StorageState] 已注册自动续期: env=%s run_at=%s",
+                            env.id,
+                            run_at.isoformat(),
+                        )
 
                 logger.info(
                     "[StorageState] 任务完成 job=%s output=%s attachment=%s",

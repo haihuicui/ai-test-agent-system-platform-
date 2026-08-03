@@ -30,6 +30,7 @@ from app.repositories.web_test_repo import (
 from app.repositories.project_repo import ProjectRepository
 from app.repositories.environment_repo import EnvironmentRepository
 from app.schemas.enums import TestResultStatus
+from app.schemas.storage_state import LoginSelectors
 from app.utils.exceptions import NotFoundException
 from app.utils.playwright_report import map_playwright_status, parse_playwright_json
 from app.utils.shell_env import ensure_playwright_mcp_project
@@ -371,6 +372,7 @@ class WebTestService:
                     execution_config,
                 )
                 storage_state_path: Optional[str] = None
+                storage_state_renewal_hint: Optional[str] = None
                 if env and self._environment_has_login_state_config(env):
                     candidate_path = await self._resolve_storage_state_path(
                         session, web_test.project_id, env.id
@@ -392,6 +394,23 @@ class WebTestService:
                                 env.id,
                                 validation.reason,
                             )
+                            # 若环境已保存密码，则后台自动触发重新生成，不影响本次执行
+                            if (
+                                env.auth_type == AuthType.FORM_LOGIN.value
+                                and env.auth_secret
+                            ):
+                                asyncio.create_task(
+                                    self._trigger_storage_state_renewal(
+                                        env_id=env.id,
+                                        project_id=web_test.project_id,
+                                        reason=validation.reason,
+                                    )
+                                )
+                                storage_state_renewal_hint = (
+                                    f"[WebTest] 环境 {env.id} 的 storageState 已过期/无效"
+                                    f"（{validation.reason}），已自动触发重新生成。"
+                                    "本次测试继续执行，若脚本含 UI 登录兜底则使用兜底逻辑。"
+                                )
                 else:
                     if env:
                         logger.info(
@@ -447,6 +466,14 @@ class WebTestService:
                     # 保证前端日志弹窗一定能看到失败原因。
                     if not stderr_text and error:
                         stderr_text = error
+                    # 若本次运行因 storageState 失效触发了自动重生成，把提示写入 stderr，
+                    # 便于用户在执行日志中直接看到登录态状态。
+                    if storage_state_renewal_hint:
+                        stderr_text = (
+                            f"{storage_state_renewal_hint}\n\n{stderr_text}"
+                            if stderr_text
+                            else storage_state_renewal_hint
+                        )
                     if len(stdout_text) > _MAX_LOG_LENGTH:
                         stdout_text = stdout_text[:_MAX_LOG_LENGTH] + "\n...[truncated]"
                     if len(stderr_text) > _MAX_LOG_LENGTH:
@@ -520,6 +547,98 @@ class WebTestService:
                         await session.commit()
                 except Exception as inner:
                     print(f"Web 测试失败状态写入也失败了: {inner}")
+
+    async def _trigger_storage_state_renewal(
+        self,
+        env_id: UUID,
+        project_id: UUID,
+        reason: str,
+    ) -> None:
+        """在后台重新生成已失效的 storageState。
+
+        使用独立 session，避免影响当前 Web 测试执行流程。
+        """
+        # 延迟导入避免循环依赖
+        from app.services.storage_state_service import StorageStateService
+
+        try:
+            async with async_session_factory() as session:
+                env_repo = EnvironmentRepository(session)
+                env = await env_repo.get_by_id(env_id)
+                if not env:
+                    logger.warning("[WebTest] 自动重生成环境不存在，跳过: env=%s", env_id)
+                    return
+                if env.auth_type != AuthType.FORM_LOGIN.value:
+                    logger.warning("[WebTest] 自动重生成环境非 form_login，跳过: env=%s", env_id)
+                    return
+                if not env.auth_secret:
+                    logger.warning("[WebTest] 自动重生成环境未保存密码，跳过: env=%s", env_id)
+                    return
+
+                auth_config = env.auth_config or {}
+                form_login = auth_config.get("form_login")
+                if not form_login:
+                    logger.warning("[WebTest] 自动重生成缺少 form_login 配置，跳过: env=%s", env_id)
+                    return
+
+                username = form_login.get("username")
+                login_url = form_login.get("login_url")
+                selectors_dict = form_login.get("selectors", {})
+                if not username or not login_url:
+                    logger.warning("[WebTest] 自动重生成配置不完整，跳过: env=%s", env_id)
+                    return
+
+                selectors = LoginSelectors(
+                    pre_click_selector=selectors_dict.get("pre_click_selector") or None,
+                    login_url=login_url,
+                    username_selector=selectors_dict.get("username_selector", ""),
+                    password_selector=selectors_dict.get("password_selector", ""),
+                    captcha_selector=selectors_dict.get("captcha_selector") or None,
+                    submit_selector=selectors_dict.get("submit_selector", ""),
+                    success_selector=selectors_dict.get("success_selector", ""),
+                )
+                captcha = form_login.get("captcha")
+
+                project_repo = ProjectRepository(session)
+                project = await project_repo.get_by_id(project_id)
+                if not project:
+                    logger.warning("[WebTest] 自动重生成项目不存在，跳过: env=%s", env_id)
+                    return
+
+                service = StorageStateService(session)
+                job, *_ = await service.create_job(
+                    project_identifier=project.identifier,
+                    env_id=env.id,
+                    username=username,
+                    password=env.auth_secret,
+                    captcha=captcha,
+                    selectors=selectors,
+                    headless=True,
+                    save_attachment=True,
+                )
+                await service.execute_generation(
+                    job_id=job.id,
+                    username=username,
+                    password=env.auth_secret,
+                    captcha=captcha,
+                    selectors=selectors,
+                    headless=True,
+                    save_attachment=True,
+                    project_identifier=project.identifier,
+                )
+                logger.info(
+                    "[WebTest] storageState 自动重生成完成: env=%s job=%s reason=%s",
+                    env_id,
+                    job.id,
+                    reason,
+                )
+        except Exception as e:
+            logger.exception(
+                "[WebTest] storageState 自动重生成失败: env=%s reason=%s error=%s",
+                env_id,
+                reason,
+                e,
+            )
 
     @staticmethod
     def _environment_has_login_state_config(env: ProjectEnvironment) -> bool:

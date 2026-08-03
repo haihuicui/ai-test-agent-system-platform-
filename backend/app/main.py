@@ -254,6 +254,7 @@ async def lifespan(app: FastAPI):
     scheduler = get_scheduler_service()
     scheduler.start()
     await scheduler.load_schedules_from_db()
+    await scheduler.restore_storage_state_renewals()
 
     # 6. 注册僵尸 API 测试运行定时清理任务（每 2 分钟执行一次）
     from apscheduler.triggers.interval import IntervalTrigger

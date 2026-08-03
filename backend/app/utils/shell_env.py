@@ -16,6 +16,14 @@ from pathlib import Path
 from app.utils.sync_executor import run_sync
 
 
+def _validate_storage_state_if_present(path: Path) -> bool:
+    """校验 storageState 文件是否有效（延迟导入避免循环依赖）。"""
+    from app.utils.storage_state_validator import validate_storage_state
+
+    validation = validate_storage_state(path)
+    return validation.is_valid
+
+
 def _path_sep() -> str:
     """返回当前平台的路径分隔符。"""
     return os.pathsep
@@ -132,7 +140,7 @@ async def ensure_playwright_mcp_project(
     retries = settings.web_exec_retries
 
     # 全局登录态（storageState）：传入路径优先；未传入且允许回退时，再取全局配置。
-    # 文件存在时注入 config；未配置或文件缺失则不启用（保持现状）。
+    # 文件存在且校验有效时注入 config；未配置、文件缺失或校验无效则不启用（保持现状）。
     storage_state_line = ""
     ss = storage_state
     if not ss and use_global_storage_state_fallback:
@@ -140,8 +148,11 @@ async def ensure_playwright_mcp_project(
     if ss:
         ss_path = Path(ss)
         if await run_sync(ss_path.exists):
-            # JS 中用正斜杠，避免 Windows 反斜杠转义问题
-            storage_state_line = f"    storageState: {json.dumps(ss_path.as_posix())},\n"
+            if _validate_storage_state_if_present(ss_path):
+                # JS 中用正斜杠，避免 Windows 反斜杠转义问题
+                storage_state_line = f"    storageState: {json.dumps(ss_path.as_posix())},\n"
+            else:
+                print(f"[Web MCP] storageState 校验无效，跳过注入: {ss_path}")
         else:
             print(f"[Web MCP] 配置的 storageState 文件不存在，跳过注入: {ss_path}")
 

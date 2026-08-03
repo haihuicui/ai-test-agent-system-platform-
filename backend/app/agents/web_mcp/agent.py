@@ -39,6 +39,7 @@ from app.core.llms import text_model as model
 from app.models.environment import AuthType
 from app.repositories.environment_repo import EnvironmentRepository
 from app.utils.shell_env import build_shell_env, ensure_playwright_mcp_project, get_playwright_mcp_command_args
+from app.utils.storage_state_validator import validate_storage_state
 from app.utils.web_mcp_storage_state import resolve_project_storage_state_path
 from app.repositories.project_repo import ProjectRepository
 from app.config.database import async_session_factory
@@ -102,8 +103,10 @@ class WebContextInjectionMiddleware(AgentMiddleware):
         request: ModelRequest,
         handler: Callable[[ModelRequest], ModelResponse],
     ) -> ModelResponse:
-        project_identifier = request.runtime.context.project_identifier
-        folder_id = request.runtime.context.folder_id
+        # 兼容直接调用 agent 时未传入 runtime.context 的场景
+        context = getattr(request.runtime, "context", None)
+        project_identifier = getattr(context, "project_identifier", "") or ""
+        folder_id = getattr(context, "folder_id", "") or ""
 
         context_info = f"""
 
@@ -167,9 +170,12 @@ async def make_agent(config: RunnableConfig | None = None) -> AsyncIterator[Preg
         except RuntimeError:
             pass
 
-    # 解析项目级 storageState，回退到全局配置
+    # 解析项目级 storageState。项目已配置登录态时强制走项目/环境级，避免回退到全局过期的文件；
+    # 未配置登录态时不使用 storageState；仅在 project_identifier 为空或解析异常时才允许全局 fallback。
     storage_state: str | None = None
-    use_global_fallback = True
+    use_global_fallback = False
+    has_login_config = False
+
     if project_identifier:
         try:
             async with async_session_factory() as session:
@@ -180,7 +186,6 @@ async def make_agent(config: RunnableConfig | None = None) -> AsyncIterator[Preg
                     env = await EnvironmentRepository(
                         session
                     ).get_default_by_project(project.id)
-                    has_login_config = False
                     if env is not None:
                         if env.auth_type == AuthType.FORM_LOGIN.value:
                             has_login_config = True
@@ -194,14 +199,41 @@ async def make_agent(config: RunnableConfig | None = None) -> AsyncIterator[Preg
                         storage_state = await resolve_project_storage_state_path(
                             project_identifier, env.id if env else None
                         )
-                        use_global_fallback = False
+                        if storage_state:
+                            logger.info(
+                                "[WebMCPAgent] 使用项目级 storageState: %s",
+                                storage_state,
+                            )
+                        else:
+                            logger.warning(
+                                "[WebMCPAgent] 项目 %s 已配置 Web 登录但无有效项目级 "
+                                "storageState，不使用全局 fallback，将依赖脚本自身登录逻辑。",
+                                project_identifier,
+                            )
+                    else:
+                        logger.info(
+                            "[WebMCPAgent] 项目 %s 未配置 Web 登录，不使用 storageState。",
+                            project_identifier,
+                        )
         except Exception as exc:
             logger.warning(
                 "[WebMCPAgent] 解析项目默认环境登录态失败: %s", exc
             )
-    if not storage_state:
-        storage_state = settings.web_mcp_storage_state
-        use_global_fallback = True
+
+    # 仅在未解析到项目/未配置登录态时，才允许回退到全局配置，且必须校验有效。
+    if not storage_state and not has_login_config:
+        global_ss = settings.web_mcp_storage_state
+        if global_ss:
+            validation = validate_storage_state(global_ss)
+            if validation.is_valid:
+                storage_state = global_ss
+                use_global_fallback = True
+                logger.info("[WebMCPAgent] 使用全局 storageState: %s", storage_state)
+            else:
+                logger.warning(
+                    "[WebMCPAgent] 全局 storageState 无效，跳过注入: %s",
+                    validation.reason,
+                )
 
     # 确保 Playwright MCP 项目目录已初始化（配置、依赖），并注入登录态
     await ensure_playwright_mcp_project(
