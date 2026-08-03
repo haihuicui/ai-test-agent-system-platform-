@@ -248,9 +248,27 @@ def _detect_uncovered_p0(content: str) -> list[str]:
     return uncovered_p0
 
 
+# interrupt payload 预览上限：报告全文会原样进入 checkpoint，
+# 长报告（Phase 3/4 可达数十 KB）会持续膨胀历史体积，拖慢前端「加载历史对话」。
+# 这里只保留头尾摘要，完整内容始终可从对话历史消息中获取。
+_PREVIEW_HEAD_CHARS = 8000
+_PREVIEW_TAIL_CHARS = 2000
+
+
 def _extract_preview(content: str, phase: str) -> str:
-    """提取报告预览，用于展示给用户的摘要。"""
-    return content.strip()
+    """提取报告预览，用于展示给用户的摘要。
+
+    超长报告只保留头尾片段并标注省略长度，避免 interrupt payload
+    把整份报告再存一份进 checkpoint。
+    """
+    text = content.strip()
+    limit = _PREVIEW_HEAD_CHARS + _PREVIEW_TAIL_CHARS
+    if len(text) <= limit:
+        return text
+    head = text[:_PREVIEW_HEAD_CHARS]
+    tail = text[-_PREVIEW_TAIL_CHARS:]
+    omitted = len(text) - limit
+    return f"{head}\n\n… [中间 {omitted} 字符已省略，完整报告见上方对话] …\n\n{tail}"
 
 
 def _build_checklist_feedback(
@@ -370,6 +388,65 @@ def _get_completed_phases(messages: list[Any]) -> set[str]:
 # 且功能点数 >= 该阈值时才拦截。小型项目（≤10 FP）走 3 阶段模式，
 # Phase 3/4 合并，跳步检测不适用。
 _MIN_FP_FOR_PHASE3_REVIEW = 11
+
+
+# 阶段 → Phase 序号映射（用于审批通过/跳过后自动推进 write_todos 任务状态）
+_PHASE_TO_NUMBER: dict[str, int] = {
+    "requirement-analysis": 1,
+    "test-strategy": 2,
+    "test-case-generation": 3,
+    "quality-review": 4,
+}
+
+
+def _advance_phase_todos(state: dict[str, Any], phase: str) -> dict[str, Any]:
+    """将当前 Phase 的 todo 标记 completed、下一阶段（pending）置为 in_progress。
+
+    通过 content 中的 "Phase N" / "phase-N" 标记匹配 todo 项；匹配不到时返回
+    空 dict（不创建、不删除任何任务），避免破坏模型自定义的任务列表。
+    """
+    number = _PHASE_TO_NUMBER.get(phase)
+    todos = state.get("todos")
+    if not number or not isinstance(todos, list) or not todos:
+        return {}
+
+    def _matches(todo: Any, n: int) -> bool:
+        if not isinstance(todo, dict):
+            return False
+        content = str(todo.get("content", ""))
+        return bool(re.search(rf"phase\s*[-_]?\s*{n}\b", content, re.IGNORECASE))
+
+    new_todos = [dict(t) if isinstance(t, dict) else t for t in todos]
+    changed = False
+    for todo in new_todos:
+        if not isinstance(todo, dict):
+            continue
+        if _matches(todo, number) and todo.get("status") != "completed":
+            todo["status"] = "completed"
+            changed = True
+        elif _matches(todo, number + 1) and todo.get("status") == "pending":
+            todo["status"] = "in_progress"
+            changed = True
+    return {"todos": new_todos} if changed else {}
+
+
+def _todo_advance_note(state: dict[str, Any], phase: str) -> tuple[dict[str, Any], str]:
+    """自动推进任务状态，并返回给模型的配套提示文本。
+
+    Returns:
+        (state 更新 dict, 提示文本)。推进成功时提示模型无需再调 write_todos；
+        未匹配到标准 Phase 任务时回退为让模型自行更新的文本提示。
+    """
+    update = _advance_phase_todos(state, phase)
+    if update:
+        return update, (
+            "阶段任务状态已由系统自动更新（当前阶段→completed，"
+            "下一阶段→in_progress），无需再调用 write_todos。"
+        )
+    return {}, (
+        "请先调用 write_todos 更新任务状态"
+        "（当前阶段→completed，下一阶段→in_progress）后再继续。"
+    )
 
 
 def _build_review_human_message(
@@ -545,12 +622,13 @@ class PhaseReviewMiddleware(AgentMiddleware):
                             "当前 Phase 4 质量评审报告缺少功能覆盖对照信息，"
                             "无法确认覆盖率评分是否基于 Phase 1 的功能矩阵。\n\n"
                             "请执行以下操作后重新输出 `## 📊 测试用例质量评审报告`：\n"
-                            "1. 使用文件读取工具读取 `feature_matrix.jsonl`，获取全部功能点清单\n"
-                            "2. 逐功能点对照已生成的用例，以表格形式列出覆盖状态：\n"
+                            "1. 调用 `compute_coverage_report(project_identifier=...)`，"
+                            "系统会确定性计算逐功能点覆盖状态\n"
+                            "2. 将返回的 markdown_table 原样粘贴到报告的「覆盖度分析」章节：\n"
                             "   | 功能点 ID | 模块 | 功能点 | 优先级 | 是否已覆盖 | 对应用例编号 |\n"
                             "   |----------|------|--------|--------|----------|------------|\n"
                             "3. 未覆盖的功能点（尤其是 P0）必须标记为 🔴 严重问题\n\n"
-                            "若 feature_matrix.jsonl 不存在（Phase 1 未保存），"
+                            "若工具返回矩阵不存在（Phase 1 未保存），"
                             "请在报告中标注 '[无结构化矩阵] 覆盖度基于对话历史判断，可能存在遗漏'。"
                         ),
                         decision_type="request_changes",
@@ -691,20 +769,22 @@ class PhaseReviewMiddleware(AgentMiddleware):
                                 comment = (old_decision.get("message") or "").strip()
                         current_round = _compute_review_round(messages, phase)
                         if decision_type == "approve":
+                            todo_update, todo_note = _todo_advance_note(state, phase)
                             fb = (
                                 f"报告已确认（⚠️ 用户已知悉 {len(uncovered_p0)} 个 P0"
-                                f" 功能点未覆盖：{fp_list}）。"
-                                " 请先调用 write_todos 更新任务状态后再进入 Phase 5。"
+                                f" 功能点未覆盖：{fp_list}）。 {todo_note}"
                             )
                             if comment:
                                 fb += f" 评审意见：{comment}"
                         elif decision_type == "request_changes":
+                            todo_update = {}
                             fb = (
                                 f"报告需要修改。请根据未覆盖 P0（{fp_list}）"
                                 f" 和以下意见补充用例：{comment}" if comment
                                 else f"报告需要修改。请补充 {fp_list} 的用例覆盖。"
                             )
                         else:
+                            todo_update = {}
                             fb = f"收到反馈（{decision_type}）：{comment}" if comment else "收到反馈，请按指示继续。"
                         return {
                             "messages": [
@@ -718,8 +798,10 @@ class PhaseReviewMiddleware(AgentMiddleware):
                                 )
                             ],
                             "jump_to": "model",
+                            **todo_update,
                         }
                     else:
+                        todo_update, todo_note = _todo_advance_note(state, phase)
                         auto_comment = (
                             f"报告综合评分 {score:.0f} 分，达到自动审批阈值 {threshold:.0f} 分，系统自动通过。"
                         )
@@ -729,9 +811,7 @@ class PhaseReviewMiddleware(AgentMiddleware):
                                     phase=phase,
                                     round=current_round,
                                     feedback=(
-                                        f"报告已确认。{auto_comment}"
-                                        " 请先调用 write_todos 将 Phase 4 标记为 completed"
-                                        " 后再进入 Phase 5。"
+                                        f"报告已确认。{auto_comment} {todo_note}"
                                     ),
                                     decision_type="approve",
                                     comment=auto_comment,
@@ -739,6 +819,7 @@ class PhaseReviewMiddleware(AgentMiddleware):
                                 )
                             ],
                             "jump_to": "model",
+                            **todo_update,
                         }
 
         action_name = f"{phase}_review"
@@ -817,21 +898,27 @@ class PhaseReviewMiddleware(AgentMiddleware):
         current_round = _compute_review_round(messages, phase)
 
         # 快捷操作映射
+        todo_update: dict[str, Any] = {}
         if decision_type == "regenerate":
             feedback = comment or "请重新生成本阶段报告，优化不足之处。"
         elif decision_type == "skip":
+            todo_update, todo_note = _todo_advance_note(state, phase)
+            skip_note = (
+                f" {todo_note}" if todo_update else ""
+            )
             return {
                 "messages": [
                     _build_review_human_message(
                         phase=phase,
                         round=current_round,
-                        feedback=f"用户选择跳过 {phase_name}，请继续执行下一阶段。",
+                        feedback=f"用户选择跳过 {phase_name}，请继续执行下一阶段。{skip_note}",
                         decision_type=decision_type,
                         comment=comment,
                         checklist=checklist,
                     )
                 ],
                 "jump_to": "model",
+                **todo_update,
             }
         elif decision_type == "narrow_scope":
             feedback = (
@@ -848,10 +935,11 @@ class PhaseReviewMiddleware(AgentMiddleware):
             else:
                 feedback = "报告已确认，请继续执行下一阶段。"
 
-            # 追加任务状态同步提示（避免 AI 跳过 write_todos 直接干活）
-            feedback += (
-                " 请先调用 write_todos 更新任务状态（当前阶段→completed，下一阶段→in_progress）后再继续。"
-            )
+            # 任务状态自动推进：审批通过时直接更新 todos state，
+            # 避免依赖模型记得调用 write_todos；匹配不到标准 Phase 任务时
+            # 回退为文本提示，让模型自行更新。
+            todo_update, todo_note = _todo_advance_note(state, phase)
+            feedback += f" {todo_note}"
 
             # test-strategy 阶段通过后提示读取功能矩阵（避免 AI 跳过矩阵直接设计用例）
             if phase == "test-strategy":
@@ -880,6 +968,7 @@ class PhaseReviewMiddleware(AgentMiddleware):
                 )
             ],
             "jump_to": "model",
+            **todo_update,
         }
 
     async def aafter_model(

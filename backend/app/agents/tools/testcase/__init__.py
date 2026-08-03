@@ -39,6 +39,10 @@ from app.agents.tools.testcase.feature_matrix_tools import (
     save_feature_matrix_tool,
 )
 
+from app.agents.tools.testcase.coverage_tools import (
+    compute_coverage_report,
+)
+
 # 按业务域分类的工具列表
 TESTCASE_TOOLS = [
     create_test_case_tool,
@@ -48,6 +52,7 @@ TESTCASE_TOOLS = [
     module_self_check_tool,
     save_test_case_manifest_tool,
     save_feature_matrix_tool,
+    compute_coverage_report,
 ]
 
 DOCUMENT_TOOLS = [
@@ -101,6 +106,8 @@ __all__ = [
     "save_feature_matrix_tool",
     "resolve_feature_matrix_path",
     "load_feature_matrix",
+    # 覆盖对照
+    "compute_coverage_report",
     # 文档解析
     "parse_document_from_url",
     # Excel 导出

@@ -1,16 +1,16 @@
 """用例质量校验中间件。
 
-在 ``create_test_case_tool`` / ``batch_create_test_cases_tool`` 执行前做
-**确定性**质量校验（零 token 成本），把 SYSTEM_PROMPT 中的质量红线从
-"靠模型自觉"变成"代码强制"：
+对 ``create_test_case_tool`` 在创建前做**确定性**质量校验（零 token 成本），
+把 SYSTEM_PROMPT 中的质量红线从"靠模型自觉"变成"代码强制"：
 
 - 预期结果禁止"正确""成功""正常"等模糊词，必须可客观判定
 - 每条用例必须提供具体测试数据值（禁止空 test_data / 占位描述）
 - case_number 必须符合 ``TC-[项目]-[模块]-[序号]`` 格式
 - module（所属模块）必填
 
-校验不通过时拦截工具调用，返回错误 ToolMessage，模型当轮即可修正重试。
-创建成功后比对"提交数量 vs 成功数量"，有失败时追加提示让模型补全。
+批量创建（``batch_create_test_cases_tool``）的创建前校验统一由
+``ModuleSelfCheckMiddleware`` 执行（规则为本校验的超集），本中间件只做
+批量创建的后处理：比对"提交数量 vs 成功数量"，有失败时追加提示让模型补全。
 """
 
 from __future__ import annotations
@@ -35,8 +35,12 @@ logger = logging.getLogger(__name__)
 
 __all__ = ["CaseQualityGateMiddleware", "_validate_case", "_is_fuzzy_result"]
 
-# 只在创建路径上强制校验；update 允许部分字段更新，不拦截
-_CREATE_TOOLS = {"create_test_case_tool", "batch_create_test_cases_tool"}
+# 质量门禁分工（避免同一调用被两道门禁先后拦截、模型修一轮又被拦一轮）：
+# - 单条创建（create_test_case_tool）：本中间件做创建前校验；
+# - 批量创建（batch_create_test_cases_tool）：创建前校验统一由
+#   ModuleSelfCheckMiddleware 执行（其规则包含 _validate_case，是本校验的超集）；
+# - 本中间件仍负责批量创建的「后处理」：部分失败时在结果末尾追加失败清单。
+_SINGLE_CREATE_TOOL = "create_test_case_tool"
 _BATCH_TOOL = "batch_create_test_cases_tool"
 
 
@@ -44,11 +48,11 @@ def _precheck(request: ToolCallRequest) -> ToolMessage | None:
     """创建前校验；不通过时构造错误 ToolMessage 拦截本次调用。"""
     tool_call = request.tool_call
     name = tool_call.get("name")
-    if name not in _CREATE_TOOLS:
+    if name != _SINGLE_CREATE_TOOL:
         return None
 
     args = tool_call.get("args") or {}
-    cases = args.get("test_cases") if name == _BATCH_TOOL else [args]
+    cases = [args]
     if not cases:
         return None
 

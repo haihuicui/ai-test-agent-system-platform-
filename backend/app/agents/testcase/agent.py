@@ -186,54 +186,64 @@ create_test_case_tool(
         return await handler(request)
 
 
-def _has_image_in_messages(request: ModelRequest) -> bool:
-    """遍历 request.messages，检测消息中是否包含图片 block。
+# 只在最近窗口内的图片才触发多模态模型：用户传图后，图片块会永久留在消息
+# 历史中，若按全历史检测，后续所有轮次都会被迫走更贵的 image_model（"图片粘性"）。
+# 越过窗口的旧图片在请求侧替换为文本占位（不改 state），让对话回落到 text_model。
+_IMAGE_RECENT_WINDOW = 20
+_IMAGE_PLACEHOLDER = "[历史图片已省略：超出最近上下文窗口，如需重新分析请重新上传]"
 
-    同一 model-call 周期内消息不会新增图片，结果缓存到 runtime 避免
-    每次 O(n) 遍历（99%+ 的对话是纯文本）。
-    """
-    runtime = getattr(request, "runtime", None)
-    if runtime:
-        cached = getattr(runtime, "_has_image", None)
-        if cached is not None:
-            return bool(cached)
 
-    result = False
-    for message in request.messages:
-        content = message.content
-        if isinstance(content, list):
-            for block in content:
-                if isinstance(block, dict):
-                    if block.get("type") in ("image", "image_url"):
-                        result = True
-                        break
-                elif hasattr(block, "type") and block.type in ("image", "image_url"):
-                    result = True
-                    break
-        if result:
-            break
+def _message_has_image(message: Any) -> bool:
+    """检测单条消息是否包含图片 block。"""
+    content = getattr(message, "content", None)
+    if not isinstance(content, list):
+        return False
+    for block in content:
+        if isinstance(block, dict):
+            if block.get("type") in ("image", "image_url"):
+                return True
+        elif hasattr(block, "type") and block.type in ("image", "image_url"):
+            return True
+    return False
 
-    if runtime:
-        try:
-            object.__setattr__(runtime, "_has_image", result)
-        except (AttributeError, TypeError):
-            pass
-    return result
+
+def _strip_image_blocks(message: Any) -> Any:
+    """返回将图片块替换为文本占位后的消息副本（仅请求侧使用，不改 state）。"""
+    new_content = []
+    for block in message.content:
+        is_image = (
+            (isinstance(block, dict) and block.get("type") in ("image", "image_url"))
+            or (hasattr(block, "type") and block.type in ("image", "image_url"))
+        )
+        new_content.append(
+            {"type": "text", "text": _IMAGE_PLACEHOLDER} if is_image else block
+        )
+    return message.model_copy(update={"content": new_content})
 
 
 @wrap_model_call
 async def dynamic_model_selection(request: ModelRequest, handler) -> ModelResponse:
     """
     根据对话消息中是否含有图片，动态切换底层模型：
-      - 含有图片 -> image_model（多模态视觉模型）
-      - 纯文本   -> text_model（成本更低、速度更快）
-    """
-    if _has_image_in_messages(request):
-        model = image_model
-    else:
-        model = text_model
+      - 最近窗口内含有图片 -> image_model（多模态视觉模型）
+      - 纯文本 / 图片已越过窗口 -> text_model（成本更低、速度更快）
 
-    return await handler(request.override(model=model))
+    越过窗口的旧图片块会在请求副本中替换为文本占位，避免 text_model
+    收到不支持的图片 block；state 中的原始消息不受影响。
+    """
+    messages = list(request.messages or [])
+
+    if any(_message_has_image(m) for m in messages[-_IMAGE_RECENT_WINDOW:]):
+        return await handler(request.override(model=image_model))
+
+    older = messages[:-_IMAGE_RECENT_WINDOW] if len(messages) > _IMAGE_RECENT_WINDOW else []
+    if any(_message_has_image(m) for m in older):
+        messages = [
+            _strip_image_blocks(m) if _message_has_image(m) else m for m in messages
+        ]
+        request = request.override(messages=messages)
+
+    return await handler(request.override(model=text_model))
 
 
 # ============================================================================
@@ -372,21 +382,21 @@ SYSTEM_PROMPT = """
 
 ### Phase 4 特别说明（覆盖对照 - 强制）
 
-质量评审报告的"完整性检查"维度**不再依赖对话记忆**：
+质量评审报告的"完整性检查"维度**不再依赖对话记忆，也不要手工扫描文件对照**：
 
-1. **第一步**：使用文件读取工具读取 `feature_matrix.jsonl`，获取 Phase 1 产出的全部功能点
-2. **第二步**：扫描已生成的所有用例 JSONL 文件，逐功能点标注覆盖状态
-3. **第三步**：在质量评审报告的"覆盖度分析"章节中，**必须以表格形式逐功能点列出覆盖状态**：
+1. **第一步**：调用 `compute_coverage_report(project_identifier=...)`，系统会自动读取 `feature_matrix.jsonl` 并扫描全部用例 JSONL 文件，确定性计算逐功能点覆盖状态
+2. **第二步**：将返回的 `markdown_table` **原样粘贴**到质量评审报告的"覆盖度分析"章节（表格形如）：
 
    | 功能点 ID | 模块 | 功能点 | 优先级 | 是否已覆盖 | 对应用例编号 | 备注 |
    |----------|------|--------|--------|----------|------------|------|
    | FP-001 | 用户认证 | 手机号登录 | P0 | ✅ 已覆盖 | TC-AUTH-001, -002 | - |
    | FP-012 | 支付模块 | 部分退款 | P0 | ❌ 未覆盖 | - | 需补充用例 |
 
-4. 报告中的"覆盖率"百分比必须基于上述逐项对照的结果计算
-5. **未覆盖的 P0 功能点必须在报告中标记为 🔴 严重问题**
+3. 报告中的"覆盖率"百分比必须使用工具返回的 `coverage_rate`，不得自行估算
+4. **未覆盖的 P0 功能点（工具返回的 `uncovered_p0`）必须在报告中标记为 🔴 严重问题**；🟡 疑似覆盖项需说明"文本相似匹配，已人工确认"或补充用例
+5. 若工具返回矩阵不存在（如 Phase 1 被跳过），在报告中标注"[无结构化矩阵，覆盖度基于对话历史判断，可能存在遗漏]"
 
-> ⚡ **强制要求**：禁止凭对话历史中的记忆输出"覆盖完整"等断言。覆盖度分析必须有逐项对照表支撑。若 feature_matrix.jsonl 不存在（如 Phase 1 被跳过），在报告中标注"[无结构化矩阵，覆盖度基于对话历史判断，可能存在遗漏]"。
+> ⚡ **强制要求**：禁止凭对话历史中的记忆输出"覆盖完整"等断言，也禁止手工读文件逐条对照（既慢又易遗漏）。覆盖度分析必须有 `compute_coverage_report` 的逐项对照表支撑。
 
 ### Phase 4 质量评审完成后
 
@@ -676,7 +686,8 @@ async def make_agent(model: Any | None = None) -> AsyncIterator[Pregel]:
     stale_offload_middleware = StaleToolResultOffloadMiddleware(backend=composite_backend)
     # 阶段报告人工评审：需求分析、测试策略、质量评审完成后触发 HITL
     phase_review_middleware = PhaseReviewMiddleware()
-    # 用例创建质量门禁：创建前确定性校验质量红线，失败时拦截并返回违规清单
+    # 用例创建质量门禁：单条创建前确定性校验质量红线，失败时拦截并返回违规清单
+    # （批量创建的创建前校验由 ModuleSelfCheckMiddleware 统一执行）
     case_quality_gate_middleware = CaseQualityGateMiddleware()
     # 模块级自检中间件：批量创建前自动执行模块级自检，失败时拦截
     module_self_check_middleware = ModuleSelfCheckMiddleware()

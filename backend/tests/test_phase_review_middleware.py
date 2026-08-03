@@ -435,7 +435,7 @@ class TestPhase4CoverageFallback:
         msg = result["messages"][0]
         assert isinstance(msg, HumanMessage)
         assert "缺少功能覆盖对照信息" in msg.content
-        assert "feature_matrix.jsonl" in msg.content
+        assert "compute_coverage_report" in msg.content
         assert "逐功能点" in msg.content
 
     def test_phase4_with_feature_matrix_mention_passes(self, monkeypatch):

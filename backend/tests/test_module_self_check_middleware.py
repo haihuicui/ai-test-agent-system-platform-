@@ -143,7 +143,8 @@ class TestModuleSelfCheckMiddleware:
         assert result.status != "error"
 
     @pytest.mark.asyncio
-    async def test_missing_module_skips_check(self, middleware, ok_handler):
+    async def test_missing_module_triggers_fallback_check(self, middleware, ok_handler):
+        """无法推断期望模块时降级为逐条质量红线校验，违规则拦截。"""
         request = _make_request(
             "batch_create_test_cases_tool",
             {
@@ -153,7 +154,32 @@ class TestModuleSelfCheckMiddleware:
         )
         result = await middleware.awrap_tool_call(request, ok_handler)
         assert isinstance(result, ToolMessage)
-        assert result.status != "error"
+        assert result.status == "error"
+
+        payload = json.loads(result.content)
+        assert payload["success"] is False
+        assert any(
+            "module" in " ".join(v["messages"])
+            for v in payload["violations"]
+            if v["level"] == "error"
+        )
+
+    @pytest.mark.asyncio
+    async def test_missing_module_fallback_passes_when_cases_valid(self, middleware, ok_handler):
+        """降级校验下，合规用例（含 module 字段但无法推断众数的情况除外）放行。"""
+        valid = _valid_case("TC-PROJ-LOGIN-001")
+        valid["module"] = ""  # 触发降级路径，但其余字段合规 -> 仍被 _validate_case 拦截
+        request = _make_request(
+            "batch_create_test_cases_tool",
+            {
+                "project_identifier": "PROJ-1",
+                "test_cases": [valid],
+            },
+        )
+        result = await middleware.awrap_tool_call(request, ok_handler)
+        assert isinstance(result, ToolMessage)
+        # module 为空本身违反质量红线，降级校验应拦截
+        assert result.status == "error"
 
     @pytest.mark.asyncio
     async def test_sync_version_blocks(self, middleware):

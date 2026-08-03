@@ -1,12 +1,15 @@
 """模块级自检中间件。
 
-在 ``batch_create_test_cases_tool`` 执行前自动触发模块级自检，把
-``module_self_check_tool`` 的调用从"模型自觉"变成"代码强制"：
+``batch_create_test_cases_tool`` 的唯一创建前质量门禁（与 CaseQualityGateMiddleware
+分工：单条创建归后者，批量创建归本中间件，避免同一调用被两道门禁先后拦截）：
 
 - 自动提取批量创建参数中的 ``test_cases``
-- 复用 ``module_self_check_tool`` 的确定性校验逻辑
+- 复用 ``module_self_check_tool`` 的确定性校验逻辑（含 _validate_case 质量红线、
+  模块一致性、编号唯一性、P0 数量等）
 - 自检不通过时拦截本次批量创建，返回违规清单
 - 自检通过后继续执行原有批量创建逻辑
+- 无法推断期望模块时（用例缺少 module 字段），降级为仅执行 _validate_case
+  逐条校验，保证批量路径始终有质量门禁兜底
 """
 
 from __future__ import annotations
@@ -20,6 +23,7 @@ from langchain.agents.middleware import AgentMiddleware
 from langchain_core.messages import ToolMessage
 
 from app.agents.tools.testcase.module_check_tools import _perform_module_self_check
+from app.utils.testcase_validation import _validate_case
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -93,8 +97,38 @@ def _precheck(request: ToolCallRequest) -> ToolMessage | None:
 
     expected_module = _resolve_expected_module(test_cases)
     if not expected_module:
-        logger.info("模块自检中间件：无法推断 expected_module，跳过自检")
-        return None
+        # 无法推断期望模块（通常意味着用例缺 module 字段）：
+        # 降级为逐条质量红线校验，保证批量路径始终有门禁兜底。
+        fallback_violations = []
+        for index, case in enumerate(test_cases):
+            if not isinstance(case, dict):
+                continue
+            errors = _validate_case(case)
+            if errors:
+                fallback_violations.append(
+                    {
+                        "case_number": case.get("case_number") or case.get("case_id"),
+                        "case_name": case.get("name"),
+                        "level": "error",
+                        "messages": errors,
+                    }
+                )
+        if not fallback_violations:
+            logger.info("模块自检中间件：无法推断 expected_module，跳过自检")
+            return None
+        logger.info(
+            "模块自检中间件（降级校验）拦截 %s：%d 条违规",
+            _TARGET_TOOL,
+            len(fallback_violations),
+        )
+        result = {
+            "passed": False,
+            "total": len(test_cases),
+            "p0_count": 0,
+            "violations": fallback_violations,
+            "summary": f"共检查 {len(test_cases)} 条用例，发现 {len(fallback_violations)} 个错误",
+        }
+        return _build_error_tool_message(tool_call, result)
 
     # 中间件场景不掌握文件路径，传入空 set；与已保存其他文件的重复性检查
     # 由模型显式调用 module_self_check_tool 时覆盖。
