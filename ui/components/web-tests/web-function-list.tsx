@@ -273,7 +273,7 @@ export function WebFunctionList({
   };
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col min-h-0">
       {/* 批量操作栏 */}
       {selectedIds.size > 0 && (
         <div className="flex items-center gap-3 border-b bg-muted/50 px-4 py-2">
