@@ -3,6 +3,7 @@ import type { SuccessResponse } from "./types";
 
 export interface LoginSelectors {
   login_url: string;
+  pre_click_selector?: string;
   username_selector?: string;
   password_selector?: string;
   captcha_selector?: string;

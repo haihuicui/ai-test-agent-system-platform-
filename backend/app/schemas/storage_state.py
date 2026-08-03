@@ -12,6 +12,11 @@ from pydantic import BaseModel, Field
 class LoginSelectors(BaseModel):
     """表单登录定位器配置"""
 
+    pre_click_selector: Optional[str] = Field(
+        default=None,
+        description="密码登录模式切换按钮的 CSS 选择器。当登录页默认展示短信登录时，"
+                    "提供此选择器可在填写表单前自动点击切换。可选。",
+    )
     login_url: str = Field(..., description="登录页 URL")
     username_selector: str = Field(
         default="input[name='username']",

@@ -88,11 +88,10 @@ export async function getAttachmentDownloadUrl(
   projectIdentifier: string,
   attachmentId: string
 ): Promise<string> {
-  const response = await apiClient.get<{ url: string }>(
-    `/api/v2/projects/${projectIdentifier}/attachments/${attachmentId}`
+  const response = await apiClient.get<{ success: boolean; data: { url: string } }>(
+    `/projects/${projectIdentifier}/attachments/${attachmentId}`
   );
-
-  return response.url;
+  return response.data.url;
 }
 // NOTE  My80OmFIVnBZMlhsdEpUbXRiZm92b2s2VDBGamRnPT06YmU0MDk5ZjU=
 

@@ -298,6 +298,7 @@ class StorageStateService:
             if effective_selectors is None:
                 stored_selectors = cfg.get("selectors", {})
                 effective_selectors = LoginSelectors(
+                    pre_click_selector=stored_selectors.get("pre_click_selector") or None,
                     login_url=cfg.get("login_url", ""),
                     username_selector=stored_selectors.get("username_selector", ""),
                     password_selector=stored_selectors.get("password_selector", ""),
@@ -311,6 +312,16 @@ class StorageStateService:
                 )
                 if stored_captcha_selector:
                     effective_selectors.captcha_selector = stored_captcha_selector
+
+            # 将非空的 pre_click_selector / captcha_selector 回写到环境配置
+            if effective_selectors is not None and effective_selectors.pre_click_selector:
+                auth_config = env.auth_config or {}
+                auth_config.setdefault(target_key, {})
+                auth_config[target_key].setdefault("selectors", {})
+                auth_config[target_key]["selectors"][
+                    "pre_click_selector"
+                ] = effective_selectors.pre_click_selector
+                env.auth_config = auth_config
 
             # 将非空的验证码选择器回写到环境配置，方便下次预填充
             if (
@@ -434,6 +445,7 @@ class StorageStateService:
                     "LOGIN_PASSWORD": password,
                     "CAPTCHA": captcha or "",
                     "CAPTCHA_SELECTOR": selectors.captcha_selector or "",
+                    "PRE_CLICK_SELECTOR": selectors.pre_click_selector or "",
                     "USERNAME_SELECTOR": selectors.username_selector,
                     "PASSWORD_SELECTOR": selectors.password_selector,
                     "SUBMIT_SELECTOR": selectors.submit_selector,
@@ -693,6 +705,7 @@ test('login and save storage state', async ({ page }) => {
   const password = process.env.LOGIN_PASSWORD;
   const captcha = process.env.CAPTCHA;
   const captchaSelector = process.env.CAPTCHA_SELECTOR;
+  const preClickSelector = process.env.PRE_CLICK_SELECTOR;
   const outputPath = process.env.STORAGE_STATE_PATH;
   const submitSelector = process.env.SUBMIT_SELECTOR;
   const successSelector = process.env.SUCCESS_SELECTOR;
@@ -707,6 +720,12 @@ test('login and save storage state', async ({ page }) => {
   try {
     await page.goto(loginUrl);
     await page.waitForLoadState('networkidle');
+
+    if (preClickSelector) {
+      await page.locator(preClickSelector).waitFor({ state: 'visible', timeout: 10000 });
+      await page.locator(preClickSelector).click();
+      await page.waitForTimeout(500);
+    }
 
     await page.locator(process.env.USERNAME_SELECTOR).fill(username);
     await page.locator(process.env.PASSWORD_SELECTOR).fill(password);

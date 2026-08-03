@@ -332,7 +332,7 @@ class AttachmentService:
             raise NotFoundException(resource_type="附件", resource_id=attachment_id)
 
         # 生成预签名 URL
-        download_url = MinIOClient.get_presigned_url(
+        url = MinIOClient.get_presigned_url(
             object_name=attachment.object_name,
             expires=timedelta(hours=1),
         )
@@ -340,7 +340,7 @@ class AttachmentService:
         return AttachmentDownloadResponse(
             id=attachment.id,
             name=attachment.file_name,
-            download_url=download_url,
+            url=url,
             expires_in=3600,
         )
 

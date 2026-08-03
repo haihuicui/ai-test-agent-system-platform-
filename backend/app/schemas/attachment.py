@@ -87,7 +87,7 @@ class AttachmentDownloadResponse(BaseModel):
     """
     id: UUID = Field(..., description="附件 ID")
     name: str = Field(..., description="原始文件名")
-    download_url: str = Field(..., description="预签名下载 URL")
+    url: str = Field(..., description="预签名下载 URL")
     expires_in: int = Field(default=3600, description="URL 过期时间（秒）")
 
 

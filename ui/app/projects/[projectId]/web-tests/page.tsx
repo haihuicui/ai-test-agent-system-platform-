@@ -220,6 +220,7 @@ export default function WebTestsPage() {
     captcha: "",
     selectors: {
       login_url: "",
+      pre_click_selector: "",
       username_selector: "",
       password_selector: "",
       captcha_selector: "",
@@ -397,6 +398,7 @@ export default function WebTestsPage() {
       username: stored.username || "",
       selectors: {
         login_url: stored.login_url || prev.selectors?.login_url || "",
+        pre_click_selector: storedSelectors.pre_click_selector || "",
         username_selector: storedSelectors.username_selector || "",
         password_selector: storedSelectors.password_selector || "",
         captcha_selector: storedSelectors.captcha_selector || "",
@@ -419,22 +421,6 @@ export default function WebTestsPage() {
         if (job?.status === "completed") {
           toast.success("登录态已更新，后续 Web 测试将自动携带会话");
           setStorageStateJobResult(null);
-          // 成功后把本次输入的选择器保存到环境配置，下次打开自动回填
-          try {
-            await updateEnvironment(projectId, envId, {
-              auth_config: {
-                ...(defaultEnv?.auth_config || {}),
-                storage_state: {
-                  username: storageStateForm.username,
-                  password: storageStateForm.password,
-                  login_url: storageStateForm.selectors?.login_url,
-                  selectors: storageStateForm.selectors,
-                },
-              },
-            });
-          } catch (saveErr) {
-            console.error("Failed to save storage state selectors:", saveErr);
-          }
           await loadStorageStateStatus(envId);
           return;
         }
@@ -472,6 +458,42 @@ export default function WebTestsPage() {
       return;
     }
 
+    // 先生成再保存：先保存表单配置（用户名、选择器等），确保生成失败也不会丢失
+    try {
+      await updateEnvironment(projectId, defaultEnv.id, {
+        auth_config: {
+          ...(defaultEnv?.auth_config || {}),
+          storage_state: {
+            username: storageStateForm.username,
+            password: storageStateForm.password,
+            login_url: storageStateForm.selectors?.login_url,
+            selectors: storageStateForm.selectors,
+          },
+        },
+      });
+      // 本地更新 defaultEnv，避免 loadDefaultEnvironment 触发 useEffect 导致
+      // loadStorageStateStatus 被调用而不必要地刷新"最近生成时间"
+      setDefaultEnv((prev) =>
+        prev
+          ? {
+              ...prev,
+              auth_config: {
+                ...(prev.auth_config || {}),
+                storage_state: {
+                  username: storageStateForm.username,
+                  password: storageStateForm.password,
+                  login_url: storageStateForm.selectors?.login_url,
+                  selectors: storageStateForm.selectors,
+                },
+              },
+            }
+          : prev
+      );
+    } catch (saveErr) {
+      console.error("Failed to save storage state selectors before generation:", saveErr);
+      // 保存失败不阻塞生成
+    }
+
     setGeneratingStorageState(true);
     setStorageStateJobResult(null);
     try {
@@ -495,7 +517,8 @@ export default function WebTestsPage() {
       setScreenshotPreviewOpen(true);
     } catch (error: any) {
       console.error("Failed to get screenshot url:", error);
-      toast.error("获取截图链接失败");
+      const msg = error?.message || error?.response?.data?.message || "未知错误";
+      toast.error(`获取截图链接失败：${msg}`);
     }
   };
 
@@ -1250,8 +1273,8 @@ export default function WebTestsPage() {
             setStorageStateDialogOpen(open);
           }}
         >
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+            <DialogHeader className="shrink-0">
               <DialogTitle>登录态管理</DialogTitle>
               <DialogDescription>
                 配置表单登录信息并生成 Playwright storageState，后续 Web 测试将自动携带已登录会话。
@@ -1262,8 +1285,8 @@ export default function WebTestsPage() {
                 )}
               </DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleSubmitStorageState}>
-              <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
+            <form onSubmit={handleSubmitStorageState} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+              <div className="space-y-4 py-4 px-1 overflow-y-auto">
                 <div className="space-y-2">
                   <Label htmlFor="ss-username">用户名</Label>
                   <Input
@@ -1311,6 +1334,20 @@ export default function WebTestsPage() {
                     }
                     placeholder="https://example.com/login"
                     required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="ss-pre-click">模式切换选择器 <span className="text-muted-foreground">(可选)</span></Label>
+                  <Input
+                    id="ss-pre-click"
+                    value={storageStateForm.selectors?.pre_click_selector || ""}
+                    onChange={(e) =>
+                      setStorageStateForm({
+                        ...storageStateForm,
+                        selectors: { ...storageStateForm.selectors, pre_click_selector: e.target.value },
+                      })
+                    }
+                    placeholder='如登录页默认短信登录，需先点此按钮切换为密码登录，例: label:has-text("密码登录")'
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -1388,14 +1425,16 @@ export default function WebTestsPage() {
               </div>
 
               {storageStateJobResult?.status === "failed" && (
-                <div className="space-y-3 rounded-md border border-destructive/50 bg-destructive/5 p-3">
+                <div className="space-y-3 rounded-md border border-destructive/50 bg-destructive/5 p-3 max-h-[40vh] flex flex-col">
                   <div className="text-sm font-medium text-destructive">
                     生成失败
                   </div>
                   {storageStateJobResult.error_message && (
-                    <p className="text-sm text-destructive whitespace-pre-wrap">
-                      {storageStateJobResult.error_message}
-                    </p>
+                    <ScrollArea className="h-40 w-full rounded-md border border-destructive/20 bg-muted/30 p-2">
+                      <pre className="text-xs text-destructive whitespace-pre-wrap break-all">
+                        {storageStateJobResult.error_message}
+                      </pre>
+                    </ScrollArea>
                   )}
                   <div className="flex flex-wrap gap-2">
                     {storageStateJobResult.failure_screenshot_attachment_id && (
@@ -1452,7 +1491,7 @@ export default function WebTestsPage() {
                 </div>
               )}
 
-              <DialogFooter>
+              <DialogFooter className="shrink-0">
                 <Button
                   type="button"
                   variant="outline"
