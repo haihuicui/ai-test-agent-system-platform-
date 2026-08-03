@@ -295,6 +295,8 @@ class StorageStateService:
         if cfg:
             if not effective_username:
                 effective_username = cfg.get("username")
+            if not effective_captcha:
+                effective_captcha = cfg.get("captcha")
             if effective_selectors is None:
                 stored_selectors = cfg.get("selectors", {})
                 effective_selectors = LoginSelectors(
@@ -334,6 +336,13 @@ class StorageStateService:
                 auth_config[target_key]["selectors"][
                     "captcha_selector"
                 ] = effective_selectors.captcha_selector
+                env.auth_config = auth_config
+
+            # 将非空的验证码值回写到环境配置，方便自动化测试复用
+            if effective_captcha:
+                auth_config = env.auth_config or {}
+                auth_config.setdefault(target_key, {})
+                auth_config[target_key]["captcha"] = effective_captcha
                 env.auth_config = auth_config
 
         if not effective_username:

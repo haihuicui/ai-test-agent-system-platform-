@@ -394,7 +394,7 @@ export default function WebTestsPage() {
     const storedSelectors = stored.selectors || {};
     setStorageStateForm((prev) => ({
       password: stored.password || "",
-      captcha: "",
+      captcha: stored.captcha || "",
       username: stored.username || "",
       selectors: {
         login_url: stored.login_url || prev.selectors?.login_url || "",
@@ -466,6 +466,7 @@ export default function WebTestsPage() {
           storage_state: {
             username: storageStateForm.username,
             password: storageStateForm.password,
+            captcha: storageStateForm.captcha,
             login_url: storageStateForm.selectors?.login_url,
             selectors: storageStateForm.selectors,
           },
@@ -482,6 +483,7 @@ export default function WebTestsPage() {
                 storage_state: {
                   username: storageStateForm.username,
                   password: storageStateForm.password,
+                  captcha: storageStateForm.captcha,
                   login_url: storageStateForm.selectors?.login_url,
                   selectors: storageStateForm.selectors,
                 },
