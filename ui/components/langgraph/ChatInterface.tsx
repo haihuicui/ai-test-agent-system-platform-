@@ -108,6 +108,7 @@ const AGENT_CAPABILITIES: Record<string, { rag: boolean; autoApprove: boolean; a
 export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initialPrompt, onArtifactSaved }) => {
   const { t } = useLanguage();
   const capabilities = AGENT_CAPABILITIES[assistant?.assistant_id ?? ""] ?? { rag: false, autoApprove: false, autoExecute: false };
+  const showUpload = assistant?.assistant_id === "testcase_generator_agent";
   const [metaOpen, setMetaOpen] = useState<"tasks" | "files" | null>(null);
   const tasksContainerRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -1216,34 +1217,38 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               onPaste={handlePaste}
-              placeholder={isLoading ? "运行中..." : "输入您的消息，或上传 PDF / 图片..."}
+              placeholder={isLoading ? "运行中..." : showUpload ? "输入您的消息，或上传 PDF / 图片..." : "输入您的消息..."}
               className="font-inherit field-sizing-content flex-1 resize-none border-0 bg-transparent px-[18px] pb-[13px] pt-[14px] text-sm leading-7 text-primary outline-none placeholder:text-tertiary"
               rows={1}
             />
             <div className="flex items-center justify-between gap-2 p-3">
               <div className="flex items-center gap-4">
-                <Label
-                  htmlFor="chat-file-input"
-                  className={cn(
-                    "flex cursor-pointer items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-primary",
-                    isUploading && "pointer-events-none opacity-50"
-                  )}
-                >
-                  {isUploading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Plus className="h-4 w-4" />
-                  )}
-                  <span>{isUploading ? "上传中..." : "上传 PDF 或图片"}</span>
-                </Label>
-                <input
-                  id="chat-file-input"
-                  type="file"
-                  multiple
-                  accept="image/jpeg,image/png,image/gif,image/webp,application/pdf"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                />
+                {showUpload && (
+                  <>
+                    <Label
+                      htmlFor="chat-file-input"
+                      className={cn(
+                        "flex cursor-pointer items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-primary",
+                        isUploading && "pointer-events-none opacity-50"
+                      )}
+                    >
+                      {isUploading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Plus className="h-4 w-4" />
+                      )}
+                      <span>{isUploading ? "上传中..." : "上传 PDF 或图片"}</span>
+                    </Label>
+                    <input
+                      id="chat-file-input"
+                      type="file"
+                      multiple
+                      accept="image/jpeg,image/png,image/gif,image/webp,application/pdf"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                    />
+                  </>
+                )}
                 {capabilities.rag && (
                   <div className="flex items-center gap-2">
                     <Switch
