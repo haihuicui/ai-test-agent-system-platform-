@@ -27,6 +27,7 @@ from app.agents.testcase.tool_call_validation_middleware import (
     ToolCallAdjacencyMiddleware,
     patch_model_for_tool_call_adjacency,
 )
+from app.agents.testcase.context_overflow_patch import patch_model_for_context_overflow
 from app.config.settings import settings
 from app.core.llms import text_model, image_model
 from app.utils.shell_env import build_shell_env
@@ -36,6 +37,11 @@ from app.utils.shell_env import build_shell_env
 #  因此仅靠 ToolCallAdjacencyMiddleware.awrap_model_call 不够可靠）
 patch_model_for_tool_call_adjacency(text_model)
 patch_model_for_tool_call_adjacency(image_model)
+
+# 把 DeepSeek/网关的上下文超长 400 翻译为 ContextOverflowError，
+# 让 deepagents summarization 的「摘要+重试」兜底生效，避免大文档分析时 run 直接中断
+patch_model_for_context_overflow(text_model)
+patch_model_for_context_overflow(image_model)
 
 # ============================================================================
 # 后端配置
