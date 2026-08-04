@@ -172,6 +172,7 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
     isThreadLoading,
     interrupt,
     isResumingInterrupt,
+    isAwaitingResumeOutput,
     sendMessage,
     stopStream,
     retryFromError,
@@ -965,6 +966,22 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
                     </div>
                   </div>
                 )}
+              {/* 评审决策提交后的过渡空窗：卡片已消失、下一阶段首个输出未到达。
+                  上面的"思考中..."要求最后一条消息非 AI，而评审通过时最后一条恰好是
+                  AI 阶段报告，空窗期会完全无反馈，因此单独渲染此指示器。 */}
+              {isAwaitingResumeOutput && !interrupt && (
+                <div className="flex items-start gap-3 py-4">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-sm font-medium">AI 助手</span>
+                    <span className="text-sm text-muted-foreground">
+                      评审结果已提交，正在继续执行...
+                    </span>
+                  </div>
+                </div>
+              )}
               {isFormatSelectionInterrupt && interrupt && (
                 <div className="mt-4">
                   <OutputFormatInterrupt

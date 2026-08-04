@@ -15,6 +15,7 @@ import {
   ChevronDown,
   ChevronRight,
   FileText,
+  Loader2,
 } from "lucide-react";
 import type { ActionRequest, ReviewConfig } from "@/lib/langgraph/types";
 import { cn } from "@/lib/utils";
@@ -135,6 +136,10 @@ export function PhaseReviewInterrupt({
   const toggleChecklist = (key: string) => {
     setChecklist((prev) => ({ ...prev, [key]: !prev[key] }));
   };
+
+  // 某个决策按钮是否处于"已提交、等待服务端消费"状态：
+  // 用于把被点按钮切换为旋转 spinner + "提交中..."，直到卡片被服务端消费消失。
+  const isPending = (decision: string) => !!isLoading && lastClicked === decision;
 
   return (
     <div
@@ -263,8 +268,12 @@ export function PhaseReviewInterrupt({
             disabled={isLoading}
             className="gap-1.5"
           >
-            <RotateCcw size={14} />
-            <span>重新生成</span>
+            {isPending("regenerate") ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : (
+              <RotateCcw size={14} />
+            )}
+            <span>{isPending("regenerate") ? "提交中..." : "重新生成"}</span>
           </Button>
           <Button
             onClick={handleNarrowScope}
@@ -273,8 +282,12 @@ export function PhaseReviewInterrupt({
             disabled={isLoading}
             className="gap-1.5"
           >
-            <Target size={14} />
-            <span>缩小范围</span>
+            {isPending("narrow_scope") ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : (
+              <Target size={14} />
+            )}
+            <span>{isPending("narrow_scope") ? "提交中..." : "缩小范围"}</span>
           </Button>
           <Button
             onClick={handleSkip}
@@ -283,8 +296,12 @@ export function PhaseReviewInterrupt({
             disabled={isLoading}
             className="gap-1.5"
           >
-            <SkipForward size={14} />
-            <span>跳过本阶段</span>
+            {isPending("skip") ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : (
+              <SkipForward size={14} />
+            )}
+            <span>{isPending("skip") ? "提交中..." : "跳过本阶段"}</span>
           </Button>
         </div>
       </div>
@@ -320,11 +337,13 @@ export function PhaseReviewInterrupt({
               disabled={isLoading}
               className="gap-1.5 bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700"
             >
-              <RotateCcw size={14} />
+              {isPending("request_changes") ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <RotateCcw size={14} />
+              )}
               <span className="font-semibold">
-                {isLoading && lastClicked === "request_changes"
-                  ? "提交中..."
-                  : "开始返工"}
+                {isPending("request_changes") ? "提交中..." : "开始返工"}
               </span>
             </Button>
             <Button
@@ -337,11 +356,13 @@ export function PhaseReviewInterrupt({
                 "dark:hover:bg-red-950"
               )}
             >
-              <SkipForward size={14} />
+              {isPending("skip") ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <SkipForward size={14} />
+              )}
               <span className="font-semibold">
-                {isLoading && lastClicked === "skip"
-                  ? "提交中..."
-                  : "跳过返工（风险自负）"}
+                {isPending("skip") ? "提交中..." : "跳过返工（风险自负）"}
               </span>
             </Button>
           </>
@@ -357,11 +378,13 @@ export function PhaseReviewInterrupt({
                 "dark:hover:bg-red-950"
               )}
             >
-              <MessageSquareWarning size={14} />
+              {isPending("request_changes") ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <MessageSquareWarning size={14} />
+              )}
               <span className="font-semibold">
-                {isLoading && lastClicked === "request_changes"
-                  ? "提交中..."
-                  : "要求修改"}
+                {isPending("request_changes") ? "提交中..." : "要求修改"}
               </span>
             </Button>
 
@@ -371,9 +394,13 @@ export function PhaseReviewInterrupt({
               disabled={isLoading}
               className="bg-green-600 text-white hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700"
             >
-              <CheckCircle size={14} />
+              {isPending("approve") ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <CheckCircle size={14} />
+              )}
               <span className="font-semibold">
-                {isLoading && lastClicked === "approve" ? "提交中..." : "通过"}
+                {isPending("approve") ? "提交中..." : "通过"}
               </span>
             </Button>
           </>

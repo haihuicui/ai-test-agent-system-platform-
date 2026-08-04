@@ -211,6 +211,10 @@ export function useChat({
     return [...historical, ...stream.messages];
   }, [stream.messages, threadMessages.messages]);
 
+  // mergedMessages 的最新引用，供 resumeInterrupt 在稳定回调内读取提交基线。
+  const mergedMessagesRef = useRef(mergedMessages);
+  mergedMessagesRef.current = mergedMessages;
+
   // 当消息历史已经到达尽头时，不再自动加载。
   const isReachingEnd = !threadMessages.hasMore;
 
@@ -376,6 +380,9 @@ export function useChat({
   }, [onHistoryRevalidate]);
 
   const stopStream = useCallback(() => {
+    // 用户主动停止：清空 resume 等待状态，避免评审卡片按钮卡在"提交中..."。
+    resumeBaselineRef.current = null;
+    setResumeWaitPhase(null);
     streamRef.current.stop();
   }, []);
 
@@ -393,10 +400,24 @@ export function useChat({
     [buildRunConfig, buildAgentContext, onHistoryRevalidate]
   );
 
-  // 记录是否正在从 interrupt 恢复（点击评审卡片按钮后）。
-  // stream.isLoading 在中断出现时仍保持 true，导致评审按钮被长期禁用，
-  // 因此单独维护一个提交 resume 命令期间的本地 loading 状态。
-  const [isResumingInterrupt, setIsResumingInterrupt] = useState(false);
+  // resume 提交后的等待阶段：
+  // - "submitting"：resume 已发送、评审卡片仍在，等待服务端消费（按钮显示"提交中..."）。
+  // - "awaiting_output"：卡片已消失，等待下一阶段首个输出到达（显示过渡 loading）。
+  //
+  // 此前用单个 isResumingInterrupt + 依赖 [stream.isLoading, stream.interrupt, stream.error]
+  // 的 effect 复位。但 SDK 的 stream.interrupt 是 getter，每次访问都会经
+  // normalizeInterruptForClient 展开生成新对象（引用恒不相等），点击"通过"后的
+  // 下一次渲染 effect 立刻把状态重置，"提交中..." 只存活一帧——表现为点击后毫无反馈。
+  const [resumeWaitPhase, setResumeWaitPhase] = useState<
+    "submitting" | "awaiting_output" | null
+  >(null);
+
+  // 提交瞬间的基线：interrupt 内容签名（按值比较，规避上述引用不稳定问题）+
+  // 最后一条消息 id（用于检测新输出到达）。
+  const resumeBaselineRef = useRef<{
+    interruptSig: string | null;
+    lastMessageId: string | null;
+  } | null>(null);
 
   // 相同 payload 的重复 resume 去重窗口：SDK 会把所有 submit 串行排队
   // （不拒绝并发提交），双击或旧卡片未消失时的再次点击会被排队的下一个
@@ -419,7 +440,15 @@ export function useChat({
         return;
       }
       lastResumeRef.current = { sig, at: now };
-      setIsResumingInterrupt(true);
+      const baselineMessages = mergedMessagesRef.current;
+      resumeBaselineRef.current = {
+        interruptSig: JSON.stringify(
+          streamRef.current.interrupt?.value ?? null
+        ),
+        lastMessageId:
+          baselineMessages[baselineMessages.length - 1]?.id ?? null,
+      };
+      setResumeWaitPhase("submitting");
       streamRef.current.submit(null, {
         command: { resume: value },
         context: buildAgentContext(options),
@@ -430,14 +459,55 @@ export function useChat({
     [buildAgentContext, onHistoryRevalidate]
   );
 
-  // 恢复状态重置：resumeInterrupt 调用 stream.submit 后，interrupt 不会立即变化——
-  // SDK 先检查 values.__interrupt__（旧值），之后才检查 stream.isLoading。
-  // 当服务端开始处理（stream.isLoading → true）时说明 resume 已被消费；
-  // 当 interrupt 变化/消失/报错时也说明处理完成。三者任一变化都应重置，
-  // 否则按钮会永久卡死在"提交中..."。
+  // 阶段推进：submitting → awaiting_output（interrupt 被服务端消费、卡片消失）；
+  // 若出现的是内容不同的新 interrupt，说明下一阶段卡片已到达，直接结束等待。
+  // 注意 stream.interrupt 引用每次渲染都变（见上方注释），必须按内容签名比较。
   useEffect(() => {
-    setIsResumingInterrupt(false);
-  }, [stream.isLoading, stream.interrupt, stream.error]);
+    if (resumeWaitPhase !== "submitting" || !resumeBaselineRef.current) return;
+    if (stream.interrupt == null) {
+      setResumeWaitPhase("awaiting_output");
+      return;
+    }
+    const currentSig = JSON.stringify(stream.interrupt.value ?? null);
+    if (currentSig !== resumeBaselineRef.current.interruptSig) {
+      resumeBaselineRef.current = null;
+      setResumeWaitPhase(null);
+    }
+  }, [stream.interrupt, resumeWaitPhase]);
+
+  // 新输出到达（最后一条消息 id 变化）→ 结束等待，过渡 loading 消失。
+  useEffect(() => {
+    if (resumeWaitPhase !== "awaiting_output" || !resumeBaselineRef.current)
+      return;
+    const lastId = mergedMessages[mergedMessages.length - 1]?.id ?? null;
+    if (lastId !== resumeBaselineRef.current.lastMessageId) {
+      resumeBaselineRef.current = null;
+      setResumeWaitPhase(null);
+    }
+  }, [mergedMessages, resumeWaitPhase]);
+
+  // 兜底：报错时结束等待（卡片会重新可点，用户可重试）。
+  useEffect(() => {
+    if (resumeWaitPhase == null || stream.error == null) return;
+    resumeBaselineRef.current = null;
+    setResumeWaitPhase(null);
+  }, [stream.error, resumeWaitPhase]);
+
+  // 兜底：等待输出期间运行结束（如最终阶段通过后图直接走到 END，无新消息）。
+  // 仅对 awaiting_output 生效——submitting 阶段 isLoading 可能尚未被 SDK 置 true，
+  // 此时复位会再次造成"提交中..."一闪而过。
+  useEffect(() => {
+    if (resumeWaitPhase === "awaiting_output" && !stream.isLoading) {
+      resumeBaselineRef.current = null;
+      setResumeWaitPhase(null);
+    }
+  }, [stream.isLoading, resumeWaitPhase]);
+
+  // 兜底：切换线程时清空等待状态。
+  useEffect(() => {
+    resumeBaselineRef.current = null;
+    setResumeWaitPhase(null);
+  }, [threadId]);
 
   return {
     stream,
@@ -450,7 +520,9 @@ export function useChat({
     isLoading: stream.isLoading,
     isThreadLoading: stream.isThreadLoading || threadMessages.isLoading,
     interrupt: stream.interrupt,
-    isResumingInterrupt,
+    isResumingInterrupt: resumeWaitPhase !== null,
+    // 评审决策已提交、卡片已消失、下一阶段首个输出尚未到达的过渡等待期。
+    isAwaitingResumeOutput: resumeWaitPhase === "awaiting_output",
     getMessagesMetadata: stream.getMessagesMetadata,
     sendMessage,
     runSingleStep,
