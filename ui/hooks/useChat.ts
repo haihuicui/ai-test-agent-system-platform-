@@ -398,11 +398,27 @@ export function useChat({
   // 因此单独维护一个提交 resume 命令期间的本地 loading 状态。
   const [isResumingInterrupt, setIsResumingInterrupt] = useState(false);
 
+  // 相同 payload 的重复 resume 去重窗口：SDK 会把所有 submit 串行排队
+  // （不拒绝并发提交），双击或旧卡片未消失时的再次点击会被排队的下一个
+  // pending interrupt 消费，造成"幽灵确认"。10s 窗口内相同 payload 直接忽略；
+  // 正常流程中两个阶段的合法确认间隔以分钟计，不会误伤。
+  const lastResumeRef = useRef<{ sig: string; at: number } | null>(null);
+
   const resumeInterrupt = useCallback(
     (
       value: any,
       options?: { enable_rag?: boolean; auto_approve_threshold?: number; auto_execute_enabled?: boolean }
     ) => {
+      const sig = JSON.stringify(value) ?? "";
+      const now = Date.now();
+      if (
+        lastResumeRef.current &&
+        lastResumeRef.current.sig === sig &&
+        now - lastResumeRef.current.at < 10_000
+      ) {
+        return;
+      }
+      lastResumeRef.current = { sig, at: now };
       setIsResumingInterrupt(true);
       streamRef.current.submit(null, {
         command: { resume: value },

@@ -585,6 +585,63 @@ class TestPhase4CoverageFallback:
         assert "风险自负" in msg.content
 
 
+class TestStaleResumeRejection:
+    """过期/错投 resume 的拒绝与重弹测试（防止"幽灵确认"）。
+
+    背景：前端 SDK 将所有 submit 串行排队，Phase 1 评审卡片的重复提交
+    会被 Phase 2 的 pending interrupt 消费。_phase 绑定校验确保错投的
+    resume 不能消费当前阶段的评审卡片。
+    """
+
+    def test_stale_resume_triggers_reinterrupt(self, monkeypatch):
+        """_phase 不匹配的 resume 被拒绝并重新弹出当前阶段卡片。"""
+        responses = iter([
+            # 第一次：来自 requirement-analysis 卡片的过期 payload
+            {"decision": "approve", "message": "旧卡片评论", "_phase": "requirement-analysis"},
+            # 第二次：用户对当前阶段的真实决策
+            {"decision": "approve", "message": "真实决策", "_phase": "test-strategy"},
+        ])
+        calls = []
+
+        def fake_interrupt(request):
+            calls.append(request)
+            return next(responses)
+
+        monkeypatch.setattr(
+            "app.agents.testcase.phase_review_middleware.interrupt",
+            fake_interrupt,
+        )
+
+        middleware = PhaseReviewMiddleware()
+        state = {"messages": [AIMessage(content="## 测试策略报告\n\n策略内容...")]}
+        result = middleware.after_model(state, None)
+
+        # 过期 payload 被拒绝，卡片重新弹出一次
+        assert len(calls) == 2
+        assert result is not None
+        msg = result["messages"][0]
+        assert isinstance(msg, HumanMessage)
+        # 使用的是真实决策，而不是旧卡片的评论
+        assert "真实决策" in msg.content
+        assert "旧卡片评论" not in msg.content
+
+    def test_resume_without_phase_passes_through(self, monkeypatch):
+        """未携带 _phase 的旧版前端 payload 直接放行（向后兼容）。"""
+        monkeypatch.setattr(
+            "app.agents.testcase.phase_review_middleware.interrupt",
+            lambda request: {"decision": "approve", "message": "", "checklist": {}},
+        )
+
+        middleware = PhaseReviewMiddleware()
+        state = {"messages": [AIMessage(content="## 测试策略报告\n\n策略内容...")]}
+        result = middleware.after_model(state, None)
+
+        assert result is not None
+        msg = result["messages"][0]
+        assert isinstance(msg, HumanMessage)
+        assert "报告已确认" in msg.content
+
+
 class TestFormatSelectionDedup:
     """输出格式选择面板的防重复触发测试。"""
 

@@ -119,6 +119,9 @@ export function PhaseReviewInterrupt({
       decision,
       message: comment.trim(),
       checklist,
+      // 标记来源卡片所属阶段：后端据此校验 resume 归属，
+      // 防止重复提交/过期 payload 消费其他阶段的评审卡片（"幽灵确认"）。
+      _phase: actionRequest.args?.phase,
     });
     setLastClicked(decision as any);
   };

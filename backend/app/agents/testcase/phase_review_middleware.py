@@ -487,6 +487,31 @@ def _strip_tool_calls(ai_msg: AIMessage) -> AIMessage:
     return new_msg
 
 
+def _interrupt_with_phase_check(payload: Any, phase: str, max_reinterrupts: int = 3) -> Any:
+    """触发评审 interrupt，并校验 resume 是否属于当前阶段。
+
+    背景：前端 SDK 会把所有 submit 串行排队（不拒绝并发提交）。重复点击
+    或过期卡片产生的 resume 会被排队的下一个 pending interrupt 消费——
+    例如 Phase 1 评审卡片的 approve payload 落进 Phase 2 的评审卡片，
+    造成"幽灵确认"（用户并未评审 Phase 2）。
+
+    前端在 resume 中携带 `_phase` 标记来源卡片所属阶段；若与当前 interrupt
+    的阶段不匹配，则重新弹出当前阶段卡片等待真实决策。最多重弹
+    max_reinterrupts 次后兜底接受（避免极端情况下死循环）。
+    未携带 `_phase` 的旧版前端 payload 直接放行（向后兼容）。
+    """
+    response = interrupt(payload)
+    for _ in range(max_reinterrupts):
+        if not isinstance(response, dict):
+            return response
+        response_phase = response.get("_phase")
+        if response_phase is None or response_phase == phase:
+            return response
+        # 过期/错投的 resume：重新弹出当前阶段卡片
+        response = interrupt(payload)
+    return response
+
+
 class PhaseReviewMiddleware(AgentMiddleware):
     """
     阶段报告人工评审中间件。
@@ -694,7 +719,7 @@ class PhaseReviewMiddleware(AgentMiddleware):
                             )
                         ],
                     )
-                    response = interrupt(hitl_request)
+                    response = _interrupt_with_phase_check(hitl_request, phase)
 
                     decision_type = "rework"
                     comment = ""
@@ -832,7 +857,7 @@ class PhaseReviewMiddleware(AgentMiddleware):
                                 )
                             ],
                         )
-                        response = interrupt(hitl_request)
+                        response = _interrupt_with_phase_check(hitl_request, phase)
                         # 解析用户决策
                         decision_type = "approve"
                         comment = ""
@@ -907,11 +932,16 @@ class PhaseReviewMiddleware(AgentMiddleware):
 
         if phase == "output-format-selection":
             # 输出格式选择：使用自定义 payload，前端渲染专用 UI
-            response = interrupt({
-                "type": "format_selection",
-                "formats": _OUTPUT_FORMATS,
-                "description": "请选择最终交付物格式",
-            })
+            # 同样走 _phase 校验：阶段评审卡片的过期 resume（dict 带 _phase/decision）
+            # 错投到这里时会被重弹，避免被默认解析成 markdown。
+            response = _interrupt_with_phase_check(
+                {
+                    "type": "format_selection",
+                    "formats": _OUTPUT_FORMATS,
+                    "description": "请选择最终交付物格式",
+                },
+                phase,
+            )
 
             selected_format = "markdown"
             if isinstance(response, dict):
@@ -961,8 +991,9 @@ class PhaseReviewMiddleware(AgentMiddleware):
         # 触发 LangGraph 中断；恢复时返回用户决策对象
         # 前端 PhaseReviewInterrupt 发送：
         # { "decision": "approve|request_changes|regenerate|skip|narrow_scope",
-        #   "message": "...", "checklist": {"coverage": true, ...} }
-        response = interrupt(hitl_request)
+        #   "message": "...", "checklist": {"coverage": true, ...},
+        #   "_phase": "<来源卡片阶段>" }
+        response = _interrupt_with_phase_check(hitl_request, phase)
 
         decision_type = "approve"
         comment = ""
