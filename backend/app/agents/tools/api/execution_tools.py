@@ -637,7 +637,7 @@ async def _execute_script_internal(
             if reporter == "html":
                 # HTML 报告输出到目录；JSON reporter 输出到文件（避免 console.log 污染）
                 json_results_file = os.path.join(
-                    project_root, f"playwright-results-{uuid4().hex}.json"
+                    project_root, f"playwright-results-{uuid.uuid4().hex}.json"
                 )
                 if is_windows:
                     cmd = (
