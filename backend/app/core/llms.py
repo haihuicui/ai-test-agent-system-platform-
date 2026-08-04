@@ -74,13 +74,20 @@ def get_image_model():
 # noqa  Mi8zOmFIVnBZMlhsdEpUbXRiZm92b2s2Y214MWVBPT06ODkzY2FhOWI=
 
 
-def get_text_model_with_temperature(temperature: float = 0.3):
+def get_text_model_with_temperature(temperature: float = 0.3, max_tokens: int | None = None):
     """创建指定 temperature 的文本模型。
 
     用于按 Agent 阶段动态调整温度：
     - 分析/评审阶段（0.1-0.3）→ 确定性输出
     - 生成阶段（0.5）→ 增加多样性和创造性
     - 格式化阶段（0.0）→ 机械性输出
+
+    Args:
+        temperature: 采样温度
+        max_tokens: 输出 token 上限；None 时使用 settings.llm_max_tokens。
+            deepseek-v4 系列为推理模型，reasoning 也消耗该配额——
+            长评审报告场景（如对抗性评审子代理）需显式调大，
+            否则思考链会耗尽配额导致正文静默为空（finish_reason=length）。
 
     注意：此函数不使用 lru_cache，每次调用都新建实例；
     ChatDeepSeek 实例本身创建成本很低（仅配置参数，不建连）。
@@ -93,7 +100,7 @@ def get_text_model_with_temperature(temperature: float = 0.3):
             temperature=temperature,
             max_retries=settings.llm_max_retries,
             timeout=settings.llm_timeout,
-            max_tokens=settings.llm_max_tokens,
+            max_tokens=max_tokens if max_tokens is not None else settings.llm_max_tokens,
         )
         model.profile = ModelProfile(max_input_tokens=128000)
         return model

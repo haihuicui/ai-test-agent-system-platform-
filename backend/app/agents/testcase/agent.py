@@ -12,6 +12,7 @@ from typing import Any, AsyncIterator, Callable
 from deepagents import create_deep_agent as create_agent
 from deepagents.backends import FilesystemBackend, LocalShellBackend, CompositeBackend
 from deepagents.middleware._utils import append_to_system_message
+from deepagents.middleware.subagents import SubAgent
 from langchain.agents.middleware import AgentMiddleware, ModelRequest, ModelResponse, wrap_model_call
 from langgraph.pregel import Pregel
 
@@ -23,13 +24,14 @@ from app.agents.testcase.phase_review_middleware import PhaseReviewMiddleware
 from app.agents.testcase.rag_middleware import RAGMiddleware, RagAwareSkillsMiddleware, resolve_enable_rag
 from app.agents.testcase.state_compaction_middleware import StaleToolResultOffloadMiddleware
 from app.agents.testcase.intent_router_middleware import IntentRouterMiddleware
+from app.agents.testcase.subagent_result_guard_middleware import SubagentResultGuardMiddleware
 from app.agents.testcase.tool_call_validation_middleware import (
     ToolCallAdjacencyMiddleware,
     patch_model_for_tool_call_adjacency,
 )
 from app.agents.testcase.context_overflow_patch import patch_model_for_context_overflow
 from app.config.settings import settings
-from app.core.llms import text_model, image_model
+from app.core.llms import text_model, image_model, get_text_model_with_temperature
 from app.utils.shell_env import build_shell_env
 
 # 在模型序列化消息前做最后一道 tool-call 邻接修复
@@ -42,6 +44,89 @@ patch_model_for_tool_call_adjacency(image_model)
 # 让 deepagents summarization 的「摘要+重试」兜底生效，避免大文档分析时 run 直接中断
 patch_model_for_context_overflow(text_model)
 patch_model_for_context_overflow(image_model)
+
+# ============================================================================
+# 对抗性评审专用子代理（Phase 4 隔离评审）
+# ============================================================================
+#
+# 背景：general-purpose 子代理与主 Agent 共用 text_model（max_tokens=8192）。
+# deepseek-v4 系列为推理模型，reasoning 与正文共享 max_tokens 配额——
+# 逐条评审数十条用例的思考链会耗尽全部配额，导致子代理正常结束但最终
+# 消息正文为空（finish_reason=length），task 工具回传空 ToolMessage，
+# 主 Agent 误判为"环境异常"（实测 reasoning=8192/8192，content=0）。
+# 因此评审子代理使用独立模型实例（更大的输出预算），并把审查维度内置到
+# 系统提示，约定"逐模块写入结果文件、最终消息只回摘要"的输出契约。
+
+# 实测 69 条用例 × 8 维度评审的完整输出约 13.8K tokens（reasoning 11.9K +
+# 正文 ~2K），16384 留有 ~2.5K 余量；更大规模评审由结果文件契约兜底。
+ADVERSARIAL_REVIEWER_MAX_TOKENS = 16384
+
+ADVERSARIAL_REVIEWER_SYSTEM_PROMPT = """你是一个对抗性评审专家，以"蓄意破坏者"视角独立审查软件测试用例集。
+
+## 立场
+你的唯一目标是找出测试用例集中的缺陷。不要寻找"做得好的地方"，不要做任何正面评价，只输出问题和风险。每条缺陷必须引用具体用例编号与内容作为证据，禁止泛泛而谈；某维度确实无问题就写"无"。
+
+## 工作方式（强制 — 输出契约）
+1. 用 `read_file` 读取任务消息中给出的功能矩阵文件与用例 JSONL 文件（大文件用 offset/limit 分段读取）。
+2. **逐模块审查**：每审完一个模块，立即把该模块的发现写入独立结果文件 `{结果目录}/adversarial_review_m{模块序号}.md`（结果目录由任务消息指定），使用 `write_file` 创建；若文件已存在导致创建失败，改用 `edit_file` 更新。**禁止**把全部发现留到最后一次性输出。
+3. 全部模块审完后，把信任度评估写入 `{结果目录}/adversarial_review_summary.md`。
+4. **最终消息只返回 ≤300 字摘要**：严重缺陷数、可改进项数、信任度（高/中/低 + 最不可信区域 + 一句话理由）、结果文件清单。详细内容一律以结果文件为准。
+
+## 审查维度（逐条执行，P0/高风险功能点逐条审，P2/P3 抽样）
+1. **逻辑矛盾**：前置条件与测试数据是否自洽？步骤顺序是否合理？预期结果与操作是否有因果断裂？
+2. **覆盖盲区**：功能矩阵每个 test_point 是否至少被一条用例覆盖？高风险功能点用例密度是否 ≥6 条？
+3. **假设依赖风险**：边界值数据是否来自已确认的需求？来自默认假设的用例标注"待确认依赖"。
+4. **异常覆盖单调**：异常输入是否覆盖空值/超长值/Unicode/emoji/格式错误/中文等维度？
+5. **冗余检测**：是否存在逻辑完全相同只换测试数据的用例对？
+6. **可执行性缺陷**：前置条件可否独立准备？测试数据是否完整？步骤是否新人可执行？
+7. **断言可验证性**：预期结果是否含"正确/成功/正常/合理"等无法客观判定的模糊词？
+8. **原子性**：是否一条用例验证多个不相关检查点？
+
+## 高频缺陷模式（优先扫描，命中率最高）
+- 硬编码日期/时间戳（应断言格式而非固定值）
+- 配置/数值模块全 Happy Path
+- P0 功能点单用例覆盖（高风险 P0 至少正向+异常+边界各 1 条）
+- 导入功能零异常覆盖
+- 断言不可客观验证
+
+## 结果文件格式
+```markdown
+## 🔍 对抗性审查发现 — {模块名}
+
+### 🔴 严重缺陷（N 个）
+| # | 涉及用例 | 缺陷类型 | 详细描述 |
+|---|---------|---------|---------|
+
+### 🟡 可改进项（N 个）
+| # | 涉及用例 | 改进方向 | 详细描述 |
+|---|---------|---------|---------|
+```
+summary 文件写 `### 📊 信任度评估`（整体可信度 / 最不可信区域 / 理由）。
+"""
+
+# 独立模型实例：低温（评审要确定性）+ 双倍输出预算，并做同款异常/邻接修复
+adversarial_reviewer_model = get_text_model_with_temperature(
+    temperature=0.1,
+    max_tokens=ADVERSARIAL_REVIEWER_MAX_TOKENS,
+)
+patch_model_for_tool_call_adjacency(adversarial_reviewer_model)
+patch_model_for_context_overflow(adversarial_reviewer_model)
+
+ADVERSARIAL_REVIEWER_SUBAGENT: SubAgent = {
+    "name": "adversarial-reviewer",
+    "description": (
+        "对抗性评审专家：以蓄意破坏者视角独立审查测试用例集，只输出缺陷与风险。"
+        "用于 Phase 4 质量评审的隔离评审环节——在任务消息中提供功能矩阵/"
+        "用例文件清单与结果目录，子代理逐模块审查并把发现写入结果文件，"
+        "最终消息返回缺陷统计与信任度摘要。"
+    ),
+    "system_prompt": ADVERSARIAL_REVIEWER_SYSTEM_PROMPT,
+    "model": adversarial_reviewer_model,
+    # 显式空工具集：不继承主 Agent 的用例管理/RAG 工具（评审只需读文件），
+    # 文件工具（read_file/write_file/edit_file/ls/grep/glob）由子代理栈的
+    # FilesystemMiddleware 自动注入。
+    "tools": [],
+}
 
 # ============================================================================
 # 后端配置
@@ -721,6 +806,9 @@ async def make_agent(model: Any | None = None) -> AsyncIterator[Pregel]:
     module_self_check_middleware = ModuleSelfCheckMiddleware()
     # OpenAI 兼容接口要求 assistant tool_calls 后必须紧跟对应 ToolMessage
     tool_call_validation_middleware = ToolCallAdjacencyMiddleware()
+    # task 子代理空结果兜底：推理模型 max_tokens 被 reasoning 耗尽时，
+    # task 会回传空 ToolMessage，这里替换为可操作的诊断指引
+    subagent_result_guard_middleware = SubagentResultGuardMiddleware()
 
     # 加载所有工具（包括本地工具和 RAG MCP 工具）
     all_tools = await get_all_tools()
@@ -746,7 +834,10 @@ async def make_agent(model: Any | None = None) -> AsyncIterator[Pregel]:
             module_self_check_middleware,
             dynamic_model_selection,
             tool_call_validation_middleware,
+            subagent_result_guard_middleware,
         ],
+        # 显式声明的专用子代理会与默认 general-purpose 子代理并存
+        subagents=[ADVERSARIAL_REVIEWER_SUBAGENT],
         backend=composite_backend,
         context_schema=TestCaseGeneratorContext,
     )
