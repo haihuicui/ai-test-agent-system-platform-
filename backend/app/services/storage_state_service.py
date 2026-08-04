@@ -470,6 +470,20 @@ class StorageStateService:
                 if login_mode == "token_inject":
                     if not token_inject:
                         raise BadRequestException("token_inject 模式必须提供 token_inject 配置")
+                    # target_domains 为空时自动使用环境 base_url 提取域名
+                    if not token_inject.get("target_domains"):
+                        base_url = (env.base_url or "") if env else ""
+                        if base_url:
+                            from urllib.parse import urlparse
+                            parsed = urlparse(base_url)
+                            if parsed.netloc:
+                                token_inject["target_domains"] = [parsed.netloc]
+                                logger.info(
+                                    "[StorageState] target_domains 为空，自动使用环境 base_url 域名: %s",
+                                    parsed.netloc,
+                                )
+                    if not token_inject.get("target_domains"):
+                        raise BadRequestException("token_inject 配置缺少 target_domains，且无法从环境 base_url 提取")
                     await self._generate_by_token_inject(
                         job_id=job_id,
                         token_inject=token_inject,
