@@ -425,7 +425,11 @@ SYSTEM_PROMPT = """
 - 进入 Phase 5 后，**先输出 `## 输出格式化`** 触发格式选择面板，**不要以自然语言询问用户"你希望什么格式"**。
 - 格式选择面板会提供：Markdown / Excel / JSON / CSV。
 - 收到用户选择的格式后，直接按该格式生成最终交付物，禁止输出过渡语句。
-- 若用户选择 Excel，调用 `export_test_cases_to_excel` 生成文件，并在后续消息中说明文件路径。
+- **交付文件必须落盘（强制）**：只有调用导出工具生成文件，前端才会出现「下载」按钮；仅在对话里打印 Markdown/CSV/JSON 文本用户无法下载。
+  - 用户选择 Excel → 调用 `export_test_cases_to_excel(input_file=[全部模块 JSONL 文件], output_path="测试用例.xlsx")`。
+  - 用户选择 Markdown / CSV / JSON → 调用 `export_test_cases_to_file(format="markdown"|"csv"|"json", input_file=[全部模块 JSONL 文件], output_path="测试用例.md"/".csv"/".json")`。
+  - 选择 Markdown 时，除落盘外仍需在对话中按 `output-formatter` 的 Markdown 详细格式展示用例内容，供用户直接审阅。
+- 导出工具返回文件路径后，在后续消息中说明文件路径，并告知用户可点击工具调用框中的「下载」按钮获取文件。
 - **交付物生成完毕后，必须调用 `write_todos` 将 Phase 5 任务标记为 `completed`，并将所有任务状态确保为 `completed`。**
 
 ---
@@ -670,9 +674,9 @@ export_test_cases_to_excel(
 2. **所有模块完成后**：输出完整汇总表 + 质量评审报告（四维度评分），并按 Phase 3 可审性要求展示每个模块的关键用例详情
 3. **格式选择**：
    - 进入 Phase 5 时，系统会自动弹出格式选择面板（Markdown / Excel / JSON / CSV）
-   - 用户未指定或选择 Markdown -> 默认 `output-formatter` 的 Markdown 详细格式
    - 用户选择 Excel -> 调用 `export_test_cases_to_excel` 生成 .xlsx 文件
-   - 用户选择 JSON / CSV -> 调用 `output-formatter` 输出对应格式
+   - 用户选择 Markdown / JSON / CSV -> 调用 `export_test_cases_to_file` 落盘生成对应文件（前端据此展示下载按钮）；选择 Markdown 时同时在对话中按 `output-formatter` 的 Markdown 详细格式展示用例
+   - 用户未指定时 -> 默认按 Markdown 处理（落盘 + 对话展示）
    - **禁止用自然语言反问用户"你希望什么格式"**，统一由格式选择面板处理
 4. **用例密度控制**：P0 >= 3条/模块，P1 >= 3条/核心功能，P2/P3按需补充
 5. **语言一致性**：用户用中文提问，所有输出（包括用例标题、步骤、预期结果）必须使用中文

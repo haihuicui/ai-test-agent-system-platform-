@@ -26,6 +26,29 @@ import { LoadExternalComponent } from "@langchain/langgraph-sdk/react-ui";
 import { ToolApprovalInterrupt } from "@/components/langgraph/ToolApprovalInterrupt";
 import { downloadAgentFile } from "@/lib/api/agentFiles";
 
+/** 导出类工具名单：这类工具返回以 "/" 开头的工作区虚拟路径，前端据此展示下载按钮 */
+const EXPORT_TOOL_NAMES = new Set([
+  "export_test_cases_to_excel",
+  "export_test_cases_to_file",
+]);
+
+/** 按结果路径的扩展名生成下载按钮文案 */
+function downloadLabel(virtualPath: string): string {
+  const ext = virtualPath.split(".").pop()?.toLowerCase();
+  switch (ext) {
+    case "xlsx":
+      return "下载 Excel";
+    case "md":
+      return "下载 Markdown";
+    case "csv":
+      return "下载 CSV";
+    case "json":
+      return "下载 JSON";
+    default:
+      return "下载文件";
+  }
+}
+
 interface ArgItemProps {
   argKey: string;
   value: any;
@@ -107,7 +130,8 @@ export const ToolCallBox = React.memo<ToolCallBoxProps>(
       };
     }, [toolCall.name, toolCall.args, toolCall.result, toolCall.status]);
 
-    const isExcelExport = name === "export_test_cases_to_excel";
+    // 导出类工具：结果为以 "/" 开头的虚拟文件路径时，展示下载按钮
+    const isExportTool = EXPORT_TOOL_NAMES.has(name);
     const hasDownloadableResult =
       typeof result === "string" && result.startsWith("/");
 
@@ -115,15 +139,15 @@ export const ToolCallBox = React.memo<ToolCallBoxProps>(
       () =>
         !!uiComponent ||
         !!actionRequest ||
-        (isExcelExport && hasDownloadableResult)
+        (isExportTool && hasDownloadableResult)
     );
 
-    // 当 Excel 导出结果到达后自动展开工具调用框，方便用户看到下载按钮
+    // 当导出结果到达后自动展开工具调用框，方便用户看到下载按钮
     useEffect(() => {
-      if (isExcelExport && hasDownloadableResult) {
+      if (isExportTool && hasDownloadableResult) {
         setIsExpanded(true);
       }
-    }, [isExcelExport, hasDownloadableResult]);
+    }, [isExportTool, hasDownloadableResult]);
     const [expandedArgs, setExpandedArgs] = useState<Record<string, boolean>>(
       {}
     );
@@ -281,7 +305,7 @@ export const ToolCallBox = React.memo<ToolCallBoxProps>(
                     <h4 className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                       结果
                     </h4>
-                    {name === "export_test_cases_to_excel" &&
+                    {isExportTool &&
                       typeof result === "string" &&
                       result.startsWith("/") && (
                         <div className="mb-2">
@@ -292,7 +316,7 @@ export const ToolCallBox = React.memo<ToolCallBoxProps>(
                             className="gap-1.5"
                           >
                             <Download size={14} />
-                            <span>下载 Excel</span>
+                            <span>{downloadLabel(result)}</span>
                           </Button>
                         </div>
                       )}

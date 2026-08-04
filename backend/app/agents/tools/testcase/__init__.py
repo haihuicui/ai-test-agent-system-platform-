@@ -6,7 +6,7 @@
 - 模块自检: 用例质量自检、离线 manifest
 - 功能矩阵: 结构化功能测试矩阵存储
 - 文档解析: 从 URL 下载并解析文档内容
-- Excel 导出: 将测试用例导出为 Excel 文件
+- 导出: 将测试用例导出为 Excel / Markdown / CSV / JSON 文件
 """
 
 from typing import List
@@ -27,6 +27,7 @@ from app.agents.tools.testcase.document_tools import (
 
 from app.agents.tools.testcase.excel_tools import (
     export_test_cases_to_excel,
+    export_test_cases_to_file,
 )
 
 from app.agents.tools.testcase.module_check_tools import (
@@ -65,6 +66,7 @@ DOCUMENT_TOOLS = [
 
 EXCEL_TOOLS = [
     export_test_cases_to_excel,
+    export_test_cases_to_file,
 ]
 
 ALL_LOCAL_TOOLS = TESTCASE_TOOLS + DOCUMENT_TOOLS + EXCEL_TOOLS
@@ -118,6 +120,8 @@ __all__ = [
     "parse_document_from_url",
     # Excel 导出
     "export_test_cases_to_excel",
+    # 多格式导出（Markdown / CSV / JSON）
+    "export_test_cases_to_file",
     # 分类列表
     "TESTCASE_TOOLS",
     "DOCUMENT_TOOLS",

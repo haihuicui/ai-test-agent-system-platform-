@@ -29,6 +29,7 @@ from app.agents.tools.testcase.export_common import (
 from app.agents.tools.testcase.export_formats import (
     generate_test_cases_csv_bytes,
     generate_test_cases_json_bytes,
+    generate_test_cases_markdown_bytes,
 )
 # pragma: no cover  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2UWtSWGRBPT06OWM0ZDYxMTc=
 
@@ -62,11 +63,56 @@ _DEFAULT_COLUMN_WIDTHS = {
 
 
 
+def _ensure_suffix(path: Path, suffix: str) -> Path:
+    """确保导出路径以指定后缀结尾，缺失或不符时自动补全/替换。"""
+    if path.suffix.lower() != suffix:
+        return path.with_suffix(suffix)
+    return path
+
+
 def _ensure_xlsx_suffix(path: Path) -> Path:
     """确保导出路径以 .xlsx 结尾，缺失时自动补全。"""
-    if path.suffix.lower() != ".xlsx":
-        return path.with_suffix(".xlsx")
-    return path
+    return _ensure_suffix(path, ".xlsx")
+
+
+# 导出字典的标准键序，与 EXPORT_HEADERS 一一对应
+_EXPORT_DICT_KEYS = (
+    "id",
+    "title",
+    "module",
+    "type",
+    "priority",
+    "preconditions",
+    "steps",
+    "test_data",
+    "expected_results",
+    "remarks",
+)
+
+
+def _normalize_case_to_export_dict(case: dict[str, Any]) -> dict[str, Any]:
+    """把别名字典各异的原始用例归一化为标准导出字典（键见 _EXPORT_DICT_KEYS）。
+
+    供 Excel / CSV / JSON / Markdown 各格式生成器复用，保证不同格式的列内容一致。
+    """
+    steps = extract_field(case, "steps", "测试步骤", "test_case_steps", "test_steps", default=None)
+    expected_results = extract_field(case, "expected_results", "预期结果", "expected_result", "expected", default=None)
+    # 如果 case 级别没有预期结果，但步骤里带 result，则自动聚合
+    if not expected_results and steps:
+        expected_results = extract_expected_results_from_steps(steps)
+
+    return {
+        "id": extract_field(case, "id", "用例编号", "identifier", "case_id", "case_number", "编号"),
+        "title": extract_field(case, "title", "用例标题", "name", "标题", "用例名称"),
+        "module": extract_field(case, "module", "所属模块", "module_name", "功能模块", "模块"),
+        "type": localize_case_type(extract_field(case, "type", "用例类型", "case_type", "测试类型", "类型")),
+        "priority": localize_priority(extract_field(case, "priority", "优先级")),
+        "preconditions": flatten_preconditions(extract_field(case, "preconditions", "前置条件", "precondition", default=None)),
+        "steps": flatten_steps(steps),
+        "test_data": flatten_test_data(extract_field(case, "test_data", "测试数据", "data", default=None)),
+        "expected_results": flatten_expected_results(expected_results),
+        "remarks": extract_field(case, "remarks", "备注", "remark", "note", "description", "desc", "描述"),
+    }
 
 
 def generate_test_cases_excel_bytes(
@@ -94,24 +140,8 @@ def generate_test_cases_excel_bytes(
         cell.border = _BORDER
 
     for case in test_cases:
-        steps = extract_field(case, "steps", "测试步骤", "test_case_steps", "test_steps", default=None)
-        expected_results = extract_field(case, "expected_results", "预期结果", "expected_result", "expected", default=None)
-        # 如果 case 级别没有预期结果，但步骤里带 result，则自动聚合
-        if not expected_results and steps:
-            expected_results = extract_expected_results_from_steps(steps)
-
-        row = [
-            extract_field(case, "id", "用例编号", "identifier", "case_id", "case_number", "编号"),
-            extract_field(case, "title", "用例标题", "name", "标题", "用例名称"),
-            extract_field(case, "module", "所属模块", "module_name", "功能模块", "模块"),
-            localize_case_type(extract_field(case, "type", "用例类型", "case_type", "测试类型", "类型")),
-            localize_priority(extract_field(case, "priority", "优先级")),
-            flatten_preconditions(extract_field(case, "preconditions", "前置条件", "precondition", default=None)),
-            flatten_steps(steps),
-            flatten_test_data(extract_field(case, "test_data", "测试数据", "data", default=None)),
-            flatten_expected_results(expected_results),
-            extract_field(case, "remarks", "备注", "remark", "note", "description", "desc", "描述"),
-        ]
+        export_dict = _normalize_case_to_export_dict(case)
+        row = [export_dict[key] for key in _EXPORT_DICT_KEYS]
         ws.append(row)
         row_idx = ws.max_row
         for col_idx in range(1, len(headers) + 1):
@@ -140,14 +170,14 @@ def _to_virtual_path(real_path: Path) -> str:
     return "/" + rel.as_posix()
 
 
-def _resolve_workspace_path(output_path: str | Path) -> Path:
+def _resolve_workspace_path(output_path: str | Path, suffix: str = ".xlsx") -> Path:
     """将 Agent 传入的（虚拟）路径映射到真实 workspace_root 下。
 
     与 composite_backend 的 "/" 路由保持一致：
       - 绝对/虚拟根路径（如 "/测试用例.xlsx"）按相对 workspace_root 处理；
       - 相对路径（如 "测试用例.xlsx"）也落到 workspace_root 下；
       - 已经位于 workspace_root 内的真实绝对路径保持不变；
-      - 缺少 .xlsx 后缀时自动补全。
+      - 缺少指定后缀时自动补全（默认 .xlsx）。
     并禁止通过 ".." 越权写到 workspace_root 之外。
     """
     raw = Path(output_path)
@@ -156,7 +186,7 @@ def _resolve_workspace_path(output_path: str | Path) -> Path:
     if raw.anchor:
         try:
             if raw.is_absolute() and raw.resolve().is_relative_to(_WORKSPACE_ROOT):
-                return _ensure_xlsx_suffix(raw.resolve())
+                return _ensure_suffix(raw.resolve(), suffix)
         except (ValueError, OSError):
             pass
         # 其余带锚点的路径（虚拟根 "/xxx"、盘符根等）剥离锚点后按相对处理
@@ -173,7 +203,7 @@ def _resolve_workspace_path(output_path: str | Path) -> Path:
         raise ValueError(
             f"导出路径越权：{output_path} 解析后超出工作目录 {_WORKSPACE_ROOT}"
         )
-    return _ensure_xlsx_suffix(resolved)
+    return _ensure_suffix(resolved, suffix)
 
 
 def _resolve_input_path(input_path: str | Path) -> Path:
@@ -413,3 +443,72 @@ def export_test_cases_to_excel(
     excel_bytes = generate_test_cases_excel_bytes(test_cases, sheet_name)
     output_path.write_bytes(excel_bytes)
     return _to_virtual_path(output_path)
+
+
+# 文本类导出格式：format -> (文件后缀, 字节生成器)
+_TEXT_EXPORT_FORMATS = {
+    "markdown": (".md", generate_test_cases_markdown_bytes),
+    "csv": (".csv", generate_test_cases_csv_bytes),
+    "json": (".json", generate_test_cases_json_bytes),
+}
+
+
+@tool
+def export_test_cases_to_file(
+    output_path: str | Path,
+    format: str,
+    test_cases: list[dict[str, Any]] | None = None,
+    input_file: str | Path | list[str | Path] | None = None,
+    dedup: bool = True,
+) -> str:
+    """
+    将测试用例导出为文本类交付文件（Markdown / CSV / JSON），返回可下载的文件路径。
+
+    与 export_test_cases_to_excel 的关系：Excel 走 export_test_cases_to_excel；
+    用户在格式选择面板选择 Markdown / CSV / JSON 时，**必须调用本工具落盘**，
+    前端检测到本工具返回的文件路径后会自动展示「下载」按钮。
+    仅在对话里打印 Markdown/CSV 文本不会产生下载入口。
+
+    用例来源二选一（推荐使用 input_file 以规避「用例多时数据截断」）：
+      - input_file: 工作目录下的用例数据文件路径（.jsonl 或 .json），可传单个路径，
+        也可传路径列表一次性合并多个文件（如 Phase 3 产出的全部模块文件）。
+        合并与去重在服务端完成，不受单次模型输出长度限制，永不截断。
+      - test_cases: 直接内联传入的用例字典列表，仅适用于用例较少（约 < 30 条）的场景。
+    两者同时提供时，input_file 优先。
+
+    支持的字段别名与 export_test_cases_to_excel 完全一致
+    （id/case_number、title/name、module、type/case_type、priority、
+      preconditions、steps/test_case_steps、test_data、expected_results、remarks）。
+
+    Args:
+        output_path: 导出文件路径。相对/虚拟根路径（如 "测试用例.md" 或 "/测试用例.md"）
+            会映射到 Agent 工作目录（workspace_root）下；缺少对应后缀时自动补全。
+        format: 导出格式，取值 "markdown" / "csv" / "json"（不区分大小写）。
+        test_cases: 测试用例字典列表（用例少时使用）。
+        input_file: 用例数据文件（.jsonl/.json）路径或路径列表（用例多时推荐）。
+        dedup: 是否按用例编号（或标题）去重，默认 True。
+
+    Returns:
+        导出文件的虚拟路径字符串（以 "/" 为根），前端据此展示下载按钮。
+    """
+    fmt = format.strip().lower()
+    if fmt not in _TEXT_EXPORT_FORMATS:
+        raise ValueError(
+            f"不支持的导出格式：{format}（支持：{', '.join(_TEXT_EXPORT_FORMATS)}；Excel 请用 export_test_cases_to_excel）"
+        )
+    suffix, generator = _TEXT_EXPORT_FORMATS[fmt]
+
+    if input_file is not None:
+        test_cases = _load_test_cases_from_file(input_file, dedup=dedup)
+
+    if not test_cases:
+        raise ValueError(
+            "没有可导出的测试用例：请通过 input_file 提供用例数据文件，或通过 test_cases 内联传入用例列表。"
+        )
+
+    export_dicts = [_normalize_case_to_export_dict(case) for case in test_cases]
+
+    resolved = _resolve_workspace_path(output_path, suffix=suffix)
+    resolved.parent.mkdir(parents=True, exist_ok=True)
+    resolved.write_bytes(generator(export_dicts))
+    return _to_virtual_path(resolved)
