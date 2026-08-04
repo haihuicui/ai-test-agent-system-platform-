@@ -540,6 +540,12 @@ class PhaseReviewMiddleware(AgentMiddleware):
         if not phase:
             return None
 
+        # 格式选择防重复：用户选定格式后，交付汇报等后续消息若再次命中
+        # 「## 输出格式化」标题正则（如「## 输出格式化（Excel）」），不再弹选择面板。
+        # 仅对 output-format-selection 生效——评审类阶段允许因返工重新触发。
+        if phase == "output-format-selection" and phase in _get_completed_phases(messages):
+            return None
+
         # Phase 3 可审性兜底：仅输出汇总表、没有展示具体用例时，要求补充
         if phase == "test-case-generation" and not _has_case_preview(content):
             current_round = _compute_review_round(messages, phase)
@@ -651,26 +657,101 @@ class PhaseReviewMiddleware(AgentMiddleware):
             # 此项检查优先级最高 —— 即使 Phase 3 被跳过，低分报告也应先退回。
             if score is not None:
                 current_round = _compute_review_round(messages, phase)
+                # 低分返工改为人工确认卡片：弹出 interrupt 让用户选择
+                # [开始返工] / [跳过返工（风险自负）]，避免 agent 在用户无感知、
+                # 无干预手段的情况下消耗大量 token 自动返工。
                 if score < _AUTO_REJECT_SCORE and current_round <= _MAX_AUTO_REJECT_ROUNDS:
                     auto_comment = (
-                        f"报告综合评分 {score:.0f} 分，低于质量红线 {_AUTO_REJECT_SCORE:.0f} 分，"
-                        f"系统自动退回（第 {current_round} 轮自动返工）。"
+                        f"报告综合评分 {score:.0f} 分，低于质量红线 {_AUTO_REJECT_SCORE:.0f} 分"
+                        f"（第 {current_round}/{_MAX_AUTO_REJECT_ROUNDS} 轮返工确认）。"
                     )
+                    hitl_request = HITLRequest(
+                        action_requests=[
+                            ActionRequest(
+                                name=f"{phase}_rework",
+                                args={
+                                    "phase": phase,
+                                    "phase_name": phase_name,
+                                    "preview": _extract_preview(content, phase),
+                                    "checklist": _REVIEW_CHECKLIST,
+                                    "rework": {
+                                        "score": score,
+                                        "threshold": _AUTO_REJECT_SCORE,
+                                        "round": current_round,
+                                        "max_rounds": _MAX_AUTO_REJECT_ROUNDS,
+                                    },
+                                },
+                                description=(
+                                    f"{auto_comment} 请选择开始返工修复，"
+                                    "或跳过返工以当前状态继续交付（风险自负）。"
+                                ),
+                            )
+                        ],
+                        review_configs=[
+                            ReviewConfig(
+                                action_name=f"{phase}_rework",
+                                allowed_decisions=["approve", "reject"],
+                            )
+                        ],
+                    )
+                    response = interrupt(hitl_request)
+
+                    decision_type = "rework"
+                    comment = ""
+                    rework_checklist: dict[str, bool] = {}
+                    if isinstance(response, dict):
+                        decision_type = response.get("decision") or "rework"
+                        comment = (response.get("message") or "").strip()
+                        rework_checklist = response.get("checklist") or {}
+                    elif isinstance(response, list) and response:
+                        old_decision = response[0]
+                        if isinstance(old_decision, dict):
+                            decision_type = old_decision.get("type") or "rework"
+                            comment = (old_decision.get("message") or "").strip()
+
+                    if decision_type == "skip":
+                        # 用户确认跳过返工：复用 skip 语义推进 todos，注明风险自担
+                        todo_update, todo_note = _todo_advance_note(state, phase)
+                        skip_feedback = (
+                            f"用户已确认跳过返工（综合评分 {score:.0f} 分，"
+                            f"低于 {_AUTO_REJECT_SCORE:.0f} 分红线，风险自负），"
+                            "请继续执行下一阶段。"
+                        )
+                        if todo_update:
+                            skip_feedback += f" {todo_note}"
+                        if comment:
+                            skip_feedback += f" 补充说明：{comment}"
+                        return {
+                            "messages": [
+                                _build_review_human_message(
+                                    phase=phase,
+                                    round=current_round,
+                                    feedback=skip_feedback,
+                                    decision_type="skip",
+                                    comment=comment,
+                                    checklist=rework_checklist,
+                                )
+                            ],
+                            "jump_to": "model",
+                            **todo_update,
+                        }
+
+                    # 默认开始返工（decision=request_changes/rework 均视为确认返工）
+                    rework_feedback = (
+                        f"{auto_comment} 用户已确认开始返工。请根据质量评审报告中指出的问题"
+                        "补充、修改测试用例，完成后重新输出质量评审报告。"
+                    )
+                    if comment:
+                        rework_feedback += f"\n\n用户补充意见：{comment}"
                     return {
                         "messages": [
                             _build_review_human_message(
                                 phase=phase,
                                 round=current_round,
-                                feedback=(
-                                    f"{auto_comment} 请根据质量评审报告中指出的问题补充、"
-                                    f"修改测试用例，完成后重新输出质量评审报告。"
-                                    f"\n\n⚠️ 若确认跳过返工、以当前不完整状态继续，"
-                                    f"请回复「确认跳过返工」。"
-                                    f"跳过返工意味着交付残缺用例集，可能导致线上缺陷遗漏。"
-                                ),
-                                decision_type="auto_reject",
-                                comment=auto_comment,
-                                checklist={item["key"]: False for item in _REVIEW_CHECKLIST},
+                                feedback=rework_feedback,
+                                decision_type="rework",
+                                comment=comment,
+                                checklist=rework_checklist,
                             )
                         ],
                         "jump_to": "model",
@@ -843,8 +924,13 @@ class PhaseReviewMiddleware(AgentMiddleware):
 
             return {
                 "messages": [
-                    HumanMessage(
-                        content=f"[阶段评审：{phase}] 用户选择输出格式：{selected_format}。请按该格式输出最终交付物。"
+                    _build_review_human_message(
+                        phase=phase,
+                        round=_compute_review_round(messages, phase),
+                        feedback=f"用户选择输出格式：{selected_format}。请按该格式输出最终交付物。",
+                        decision_type="approve",
+                        comment="",
+                        checklist={},
                     )
                 ],
                 "jump_to": "model",

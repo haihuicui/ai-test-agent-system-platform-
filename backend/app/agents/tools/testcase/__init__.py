@@ -16,6 +16,7 @@ from app.agents.tools.testcase.testcase_tools import (
     create_test_case_tool,
     update_test_case_tool,
     batch_create_test_cases_tool,
+    batch_update_test_cases_tool,
     preview_test_cases,
 )
 
@@ -48,6 +49,7 @@ TESTCASE_TOOLS = [
     create_test_case_tool,
     update_test_case_tool,
     batch_create_test_cases_tool,
+    batch_update_test_cases_tool,
     preview_test_cases,
     module_self_check_tool,
     save_test_case_manifest_tool,
@@ -98,6 +100,7 @@ __all__ = [
     "create_test_case_tool",
     "update_test_case_tool",
     "batch_create_test_cases_tool",
+    "batch_update_test_cases_tool",
     "preview_test_cases",
     # 模块自检与 manifest
     "module_self_check_tool",

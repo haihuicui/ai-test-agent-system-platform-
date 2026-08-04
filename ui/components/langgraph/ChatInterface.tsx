@@ -29,6 +29,9 @@ import {
   Plus,
   Download,
   ChevronDown,
+  AlertTriangle,
+  RotateCcw,
+  X,
 } from "lucide-react";
 import { ChatMessage } from "@/components/langgraph/ChatMessage";
 import { OutputFormatInterrupt } from "@/components/langgraph/OutputFormatInterrupt";
@@ -171,6 +174,7 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
     isResumingInterrupt,
     sendMessage,
     stopStream,
+    retryFromError,
     resumeInterrupt,
     loadMoreHistory,
     isLoadingMoreHistory,
@@ -201,6 +205,27 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
       });
     };
   }, [sendMessage, enableRag, autoApproveEnabled, autoApproveThreshold, autoExecuteEnabled]);
+
+  // 运行失败恢复：携带当前 RAG / 自动审批 / 自动执行设置从断点继续
+  const retryWithOptions = useCallback(() => {
+    retryFromError({
+      enable_rag: enableRag,
+      auto_approve_threshold: autoApproveEnabled ? autoApproveThreshold : 100,
+      auto_execute_enabled: autoExecuteEnabled,
+    });
+  }, [retryFromError, enableRag, autoApproveEnabled, autoApproveThreshold, autoExecuteEnabled]);
+
+  // 错误横幅的本地忽略状态：以 error 对象引用为 key，新错误出现时自动重新展示
+  const [dismissedError, setDismissedError] = useState<unknown>(null);
+  const streamError = stream.error;
+  const streamErrorMessage = useMemo(() => {
+    if (!streamError) return "";
+    if (typeof streamError === "string") return streamError;
+    if (streamError instanceof Error) return streamError.message;
+    const anyErr = streamError as Record<string, any>;
+    return anyErr?.message || anyErr?.error || "未知错误";
+  }, [streamError]);
+  const showStreamError = !!streamError && streamError !== dismissedError && !isLoading;
 
   // 组件挂载/卸载标记
   React.useEffect(() => {
@@ -863,7 +888,14 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
                       isLastMessage ? reviewConfigsMap : undefined
                     }
                     ui={messageUi}
-                    stream={isLastMessage ? stream : undefined}
+                    stream={
+                      // stream 仅被 GenUI 组件（LoadExternalComponent）使用。
+                      // 无 UI 组件时传 undefined，避免 stream 对象随流式事件
+                      // 更换引用而击穿 ChatMessage 的 memo。
+                      isLastMessage && messageUi && messageUi.length > 0
+                        ? stream
+                        : undefined
+                    }
                     onResumeInterrupt={
                       isLastMessage ? resumeInterruptWithOptions : undefined
                     }
@@ -871,6 +903,49 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
                   />
                 );
               })}
+              {/* 运行失败横幅：让"静默终止"变为可见错误 + 一键从断点恢复 */}
+              {showStreamError && (
+                <div className="mt-4 w-full rounded-lg border-2 border-red-300 bg-red-50/80 p-4 dark:border-red-800 dark:bg-red-950/30">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-100 dark:bg-red-900">
+                      <AlertTriangle
+                        size={18}
+                        className="text-red-700 dark:text-red-200"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-base font-bold text-gray-900 dark:text-gray-100">
+                        运行已中断
+                      </h3>
+                      <p className="mt-1 break-words text-sm text-gray-700 dark:text-gray-200">
+                        {streamErrorMessage}
+                      </p>
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        已生成的内容不会丢失，可从最近的断点继续执行。
+                      </p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <Button
+                          onClick={retryWithOptions}
+                          size="sm"
+                          className="gap-1.5 bg-red-600 text-white hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700"
+                        >
+                          <RotateCcw size={14} />
+                          <span className="font-semibold">从断点继续</span>
+                        </Button>
+                        <Button
+                          onClick={() => setDismissedError(streamError)}
+                          variant="outline"
+                          size="sm"
+                          className="gap-1.5"
+                        >
+                          <X size={14} />
+                          <span>忽略</span>
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
               {/* AI 正在思考/调用工具但尚未输出内容时显示轻量指示器，改善长延迟下的用户感知。 */}
               {isLoading &&
                 !interrupt &&

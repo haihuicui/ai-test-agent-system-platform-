@@ -34,6 +34,9 @@ def get_text_model():
             api_key=settings.deepseek_api_key,
             model=settings.llm_model,
             temperature=0.3,
+            max_retries=settings.llm_max_retries,
+            timeout=settings.llm_timeout,
+            max_tokens=settings.llm_max_tokens,
         )
         model.profile = ModelProfile(max_input_tokens=128000)
         logger.info(f"Text model ready: deepseek/{settings.llm_model}")
@@ -88,6 +91,9 @@ def get_text_model_with_temperature(temperature: float = 0.3):
             api_key=settings.deepseek_api_key,
             model=settings.llm_model,
             temperature=temperature,
+            max_retries=settings.llm_max_retries,
+            timeout=settings.llm_timeout,
+            max_tokens=settings.llm_max_tokens,
         )
         model.profile = ModelProfile(max_input_tokens=128000)
         return model

@@ -31,7 +31,8 @@ class TestCaseRepository(BaseRepository[TestCase]):
         根据标识符或 UUID 获取测试用例
 
         Args:
-            identifier: 测试用例标识符 (TC-xxx) 或 UUID
+            identifier: 测试用例标识符 (TC-xxx)、UUID，或用例编号 (case_number，
+                如 Agent 生成的 TC-PR2-POS-001)
 
         Returns:
             Optional[TestCase]: 测试用例实例或 None
@@ -57,6 +58,20 @@ class TestCaseRepository(BaseRepository[TestCase]):
             .options(selectinload(TestCase.steps))
             .options(selectinload(TestCase.tags))
             .where(TestCase.identifier == identifier)
+        )
+        tc = result.scalar_one_or_none()
+        if tc:
+            return tc
+
+        # 兜底：按用例编号（case_number）查询。
+        # 用于 Agent 返工修复场景——Agent 只持有自己生成的 case_number，
+        # 不知道系统分配的 identifier。仅在上述两种精确匹配都失败时触发，
+        # 不影响既有调用方行为。
+        result = await self.session.execute(
+            select(TestCase)
+            .options(selectinload(TestCase.steps))
+            .options(selectinload(TestCase.tags))
+            .where(TestCase.case_number == identifier)
         )
         return result.scalar_one_or_none()
     

@@ -180,12 +180,21 @@ export function useChat({
     onThreadId: setThreadIdFromStream,
     defaultHeaders: { "x-auth-scheme": "langsmith" },
     fetchStateHistory: false,
+    // SDK 订阅级节流：把"每个 SSE 事件触发一次渲染"降为"每 50ms 最多一次"，
+    // 是流式卡顿治理的核心开关（此前每个 token 都穿透到 React 渲染树）。
+    throttle: 50,
     // Revalidate thread list when stream finishes, errors, or creates new thread
     onFinish: handleFinish,
     onError: onHistoryRevalidate,
     onCreated: onHistoryRevalidate,
     ...(thread ? { thread } : { thread: threadForStream }),
   });
+
+  // stream 对象随每个事件更换引用。通过 ref 访问最新 stream，
+  // 让下方所有 submit 类回调保持引用稳定（useCallback 不依赖 stream），
+  // 避免 ChatMessage memo / context 消费者被每事件的新回调引用击穿。
+  const streamRef = useRef(stream);
+  streamRef.current = stream;
 
   // 合并流式消息与历史消息（去重，按时间顺序排列）
   const mergedMessages = useMemo(() => {
@@ -209,69 +218,9 @@ export function useChat({
     threadMessages.loadMore();
   }, [threadMessages.loadMore]);
 
-  // 流式渲染节流：逐 token 推送时，把"每个 token 触发一次渲染"降为"每 ~33ms 一次"，
-  // 大幅减少长对话流式过程中的重复渲染。新消息（计数变化）和流结束时立即同步，
-  // 保证用户发送的消息即时显示、且不丢失最终内容；仅对最后一条消息的 token 增长做节流。
-  const STREAM_THROTTLE_MS = 33;
-  const [throttledMessages, setThrottledMessages] = useState<Message[]>(
-    mergedMessages
-  );
-  const latestMessagesRef = useRef<Message[]>(mergedMessages);
-  const flushedLenRef = useRef<number>(mergedMessages.length);
-  const lastSigRef = useRef<string>("");
-  const throttleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // 轻量签名：条数 + 末条 id + 末条内容长度。mergedMessages 每次渲染都是新引用，
-  // 用签名判断是否"真的变了"，避免无意义的 setState 造成无限更新循环。
-  const messagesSignature = (msgs: Message[]): string => {
-    const n = msgs.length;
-    if (n === 0) return "0";
-    const last = msgs[n - 1] as { id?: string; content?: unknown };
-    const c = last?.content;
-    const clen =
-      typeof c === "string" ? c.length : Array.isArray(c) ? c.length : 0;
-    return `${n}:${last?.id ?? ""}:${clen}`;
-  };
-
-  useEffect(() => {
-    const msgs = mergedMessages;
-    const sig = messagesSignature(msgs);
-    // 无实质变化（仅引用变了）→ 直接跳过，杜绝无限循环
-    if (sig === lastSigRef.current) return;
-    latestMessagesRef.current = msgs;
-
-    const flush = () => {
-      const latest = latestMessagesRef.current;
-      lastSigRef.current = messagesSignature(latest);
-      flushedLenRef.current = latest.length;
-      setThrottledMessages(latest);
-    };
-
-    // 非流式（加载历史/结束）或消息条数变化（新消息）→ 立即刷新
-    if (!stream.isLoading || msgs.length !== flushedLenRef.current) {
-      if (throttleTimerRef.current) {
-        clearTimeout(throttleTimerRef.current);
-        throttleTimerRef.current = null;
-      }
-      flush();
-      return;
-    }
-
-    // 流式中且仅最后一条内容增长 → 节流（尾随刷新）
-    if (throttleTimerRef.current) return;
-    throttleTimerRef.current = setTimeout(() => {
-      throttleTimerRef.current = null;
-      flush();
-    }, STREAM_THROTTLE_MS);
-  }, [mergedMessages, stream.isLoading]);
-
-  // 卸载时清理定时器
-  useEffect(
-    () => () => {
-      if (throttleTimerRef.current) clearTimeout(throttleTimerRef.current);
-    },
-    []
-  );
+  // 注：SDK 层已做 50ms 订阅级节流（见上方 useStream 的 throttle 选项），
+  // 此前这里的 33ms 手动节流（throttledMessages + 签名 + 定时器）已被取代并移除，
+  // 直接使用 mergedMessages，由 ChatMessage 的 memo 承担未变消息的跳过渲染。
 
   // 从 assistant config 中提取并构建 Agent 运行时上下文
   const buildAgentContext = useCallback(
@@ -343,7 +292,7 @@ export function useChat({
       // 运行时上下文必须通过 submit 的 options.context 传递给 LangGraph，
       // 不能放在 input 中；否则 request.runtime.context 会保持为空，
       // 导致 project_identifier 为空而创建失败。
-      stream.submit(
+      streamRef.current.submit(
         { messages: [newMessage] },
         {
           optimisticValues: (prev) => ({
@@ -356,7 +305,7 @@ export function useChat({
       // Update thread list immediately when sending a message
       onHistoryRevalidate?.();
     },
-    [stream, buildRunConfig, buildAgentContext, onHistoryRevalidate]
+    [buildRunConfig, buildAgentContext, onHistoryRevalidate]
   );
 
   const runSingleStep = useCallback(
@@ -367,7 +316,7 @@ export function useChat({
       optimisticMessages?: Message[]
     ) => {
       if (checkpoint) {
-        stream.submit(undefined, {
+        streamRef.current.submit(undefined, {
           ...(optimisticMessages
             ? { optimisticValues: { messages: optimisticMessages } }
             : {}),
@@ -379,7 +328,7 @@ export function useChat({
             : { interruptBefore: ["tools"] }),
         });
       } else {
-        stream.submit(
+        streamRef.current.submit(
           { messages },
           {
             config: buildRunConfig(),
@@ -389,7 +338,7 @@ export function useChat({
         );
       }
     },
-    [stream, buildRunConfig, buildAgentContext]
+    [buildRunConfig, buildAgentContext]
   );
 
   const setFiles = useCallback(
@@ -407,7 +356,7 @@ export function useChat({
       hasTaskToolCall?: boolean,
       options?: { enable_rag?: boolean; auto_approve_threshold?: number; auto_execute_enabled?: boolean }
     ) => {
-      stream.submit(undefined, {
+      streamRef.current.submit(undefined, {
         config: buildRunConfig({ recursion_limit: 1000 }),
         context: buildAgentContext(options),
         ...(hasTaskToolCall
@@ -417,18 +366,32 @@ export function useChat({
       // Update thread list when continuing stream
       onHistoryRevalidate?.();
     },
-    [stream, buildRunConfig, buildAgentContext, onHistoryRevalidate]
+    [buildRunConfig, buildAgentContext, onHistoryRevalidate]
   );
 
   const markCurrentThreadAsResolved = useCallback(() => {
-    stream.submit(null, { command: { goto: "__end__", update: null } });
+    streamRef.current.submit(null, { command: { goto: "__end__", update: null } });
     // Update thread list when marking thread as resolved
     onHistoryRevalidate?.();
-  }, [stream, onHistoryRevalidate]);
+  }, [onHistoryRevalidate]);
 
   const stopStream = useCallback(() => {
-    stream.stop();
-  }, [stream]);
+    streamRef.current.stop();
+  }, []);
+
+  // 运行失败后的断点恢复：submit(undefined) 从线程最新 checkpoint 继续执行。
+  // 与 continueStream 的区别：不携带 interruptBefore/After（那是单步调试用），
+  // 用于 stream.error 后的「从断点继续」按钮。
+  const retryFromError = useCallback(
+    (options?: { enable_rag?: boolean; auto_approve_threshold?: number; auto_execute_enabled?: boolean }) => {
+      streamRef.current.submit(undefined, {
+        config: buildRunConfig({ recursion_limit: 1000 }),
+        context: buildAgentContext(options),
+      });
+      onHistoryRevalidate?.();
+    },
+    [buildRunConfig, buildAgentContext, onHistoryRevalidate]
+  );
 
   // 记录是否正在从 interrupt 恢复（点击评审卡片按钮后）。
   // stream.isLoading 在中断出现时仍保持 true，导致评审按钮被长期禁用，
@@ -441,14 +404,14 @@ export function useChat({
       options?: { enable_rag?: boolean; auto_approve_threshold?: number; auto_execute_enabled?: boolean }
     ) => {
       setIsResumingInterrupt(true);
-      stream.submit(null, {
+      streamRef.current.submit(null, {
         command: { resume: value },
         context: buildAgentContext(options),
       });
       // Update thread list when resuming from interrupt
       onHistoryRevalidate?.();
     },
-    [stream, buildAgentContext, onHistoryRevalidate]
+    [buildAgentContext, onHistoryRevalidate]
   );
 
   // 恢复状态重置：resumeInterrupt 调用 stream.submit 后，interrupt 不会立即变化——
@@ -467,7 +430,7 @@ export function useChat({
     email: stream.values.email,
     ui: stream.values.ui,
     setFiles,
-    messages: throttledMessages,
+    messages: mergedMessages,
     isLoading: stream.isLoading,
     isThreadLoading: stream.isThreadLoading || threadMessages.isLoading,
     interrupt: stream.interrupt,
@@ -477,6 +440,7 @@ export function useChat({
     runSingleStep,
     continueStream,
     stopStream,
+    retryFromError,
     markCurrentThreadAsResolved,
     resumeInterrupt,
     isReachingEnd,

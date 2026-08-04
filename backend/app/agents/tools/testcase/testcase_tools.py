@@ -666,6 +666,152 @@ async def batch_create_test_cases_tool(
         }
 
 
+async def _batch_update_test_cases_impl(
+    project_identifier: str,
+    test_cases: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """批量更新测试用例（按 case_number 定位，并发实现）。
+
+    用于质量评审返工场景：Agent 按问题清单定点修复用例后同步更新系统库，
+    避免系统库与 JSONL 文件 / 导出交付物分叉。
+    每条用例只需携带 case_number + 要修改的字段（部分更新语义）。
+    """
+    if not project_identifier:
+        return {
+            "success": False,
+            "error": "project_identifier 不能为空，请确认 AI 助手已正确获取项目上下文",
+            "message": "批量更新失败：project_identifier 为空",
+        }
+
+    if not test_cases:
+        return {
+            "success": False,
+            "error": "测试用例列表为空",
+            "message": "批量更新失败：测试用例列表为空",
+        }
+
+    semaphore = asyncio.Semaphore(_BATCH_MAX_CONCURRENCY)
+
+    async def _update_one(index: int, test_case_data: dict[str, Any]) -> dict[str, Any]:
+        """更新单条用例（带并发控制 + 统一错误兜底）。"""
+        async with semaphore:
+            case_number = _resolve_field(
+                test_case_data,
+                "case_number", "id", "用例编号", "identifier", "case_id", "编号",
+            )
+            if not case_number:
+                return {
+                    "index": index,
+                    "success": False,
+                    "case_number": None,
+                    "error": "缺少 case_number，无法定位要更新的用例",
+                }
+            try:
+                result = await _update_test_case_impl(
+                    project_identifier=project_identifier,
+                    test_case_identifier=case_number,
+                    name=test_case_data.get("name"),
+                    description=_resolve_field(
+                        test_case_data,
+                        "description", "desc", "描述", "remarks", "备注", "remark",
+                    ),
+                    preconditions=_resolve_field(
+                        test_case_data, "preconditions", "precondition", "前置条件"
+                    ),
+                    priority=test_case_data.get("priority"),
+                    status=test_case_data.get("status"),
+                    case_type=_resolve_field(
+                        test_case_data,
+                        "case_type", "type", "用例类型", "测试类型", "类型",
+                    ),
+                    test_case_steps=_normalize_steps(
+                        _resolve_field(test_case_data, "test_case_steps", "steps", "测试步骤")
+                    ),
+                    module=_resolve_field(test_case_data, "module", "所属模块"),
+                    test_data=_resolve_field(test_case_data, "test_data", "测试数据"),
+                )
+                return {
+                    "index": index,
+                    "success": result.get("success", False),
+                    "case_number": case_number,
+                    "error": result.get("error")
+                    or (None if result.get("success") else result.get("message")),
+                }
+            except Exception as e:
+                return {
+                    "index": index,
+                    "success": False,
+                    "case_number": case_number,
+                    "error": str(e),
+                }
+
+    tasks = [_update_one(i, case) for i, case in enumerate(test_cases)]
+    results = await asyncio.gather(*tasks)
+
+    succeeded = sum(1 for r in results if r.get("success"))
+    failed = len(results) - succeeded
+
+    # 上下文精简：全部成功时仅返回摘要；有失败时只展开失败项详情。
+    if failed == 0:
+        return {
+            "success": True,
+            "data": {
+                "total": len(test_cases),
+                "succeeded": succeeded,
+                "failed": 0,
+            },
+            "message": f"批量更新完成：全部 {succeeded} 条用例已同步到系统库。",
+        }
+
+    failed_items = [r for r in sorted(results, key=lambda r: r["index"]) if not r.get("success")]
+    return {
+        "success": True,
+        "data": {
+            "total": len(test_cases),
+            "succeeded": succeeded,
+            "failed": failed,
+            "failed_items": failed_items,
+        },
+        "message": (
+            f"批量更新部分完成：成功 {succeeded} 条，失败 {failed} 条。"
+            "失败项见 failed_items（通常是 case_number 在系统库中不存在）。"
+        ),
+    }
+
+
+@tool
+async def batch_update_test_cases_tool(
+    project_identifier: str,
+    test_cases: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """
+    批量更新测试用例工具（按 case_number 定位，通过 HTTP 接口调用）。
+
+    每条用例只需提供 case_number 和要修改的字段，未提供的字段保持原值。
+    典型用途：质量评审返工后，把定点修复的用例同步更新到系统库。
+
+    Args:
+        project_identifier: 项目标识符，如 'PROJ-001'
+        test_cases: 待更新用例列表，每个元素至少包含 case_number，
+            可选字段与 create_test_case_tool 相同（name/preconditions/priority/
+            case_type/test_case_steps/module/test_data/remarks 等）
+
+    Returns:
+        dict: 包含批量更新结果的字典（全部成功时仅返回统计摘要）
+    """
+    try:
+        return await _batch_update_test_cases_impl(
+            project_identifier=project_identifier,
+            test_cases=test_cases,
+        )
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "message": f"批量更新测试用例失败: {str(e)}"
+        }
+
+
 # 控制 preview_test_cases 返回体积，避免写入 checkpoint 时膨胀
 _PREVIEW_MAX_STEPS = 5
 _PREVIEW_MAX_DATA_KEYS = 10

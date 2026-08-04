@@ -12,9 +12,13 @@ import {
   RotateCcw,
   SkipForward,
   Target,
+  ChevronDown,
+  ChevronRight,
+  FileText,
 } from "lucide-react";
 import type { ActionRequest, ReviewConfig } from "@/lib/langgraph/types";
 import { cn } from "@/lib/utils";
+import { MarkdownContent } from "@/components/langgraph/MarkdownContent";
 // NOTE  MS8zOmFIVnBZMlhsdEpUbXRiZm92b3FzUm1jZz09OjZhYjY1ZjQy
 
 interface PhaseReviewInterruptProps {
@@ -84,6 +88,17 @@ export function PhaseReviewInterrupt({
   const description =
     actionRequest.description || `已完成 ${phaseName}，请审阅并决定下一步。`;
 
+  // 后端传入的报告预览（头 8000 + 尾 2000 字符截断）。此前版本从未渲染它，
+  // 用户只能上翻对话找报告原文——现在直接在卡片内展示。
+  const reportPreview = (actionRequest.args?.preview as string) || "";
+  const [showReport, setShowReport] = useState(true);
+
+  // 低分返工确认模式：后端在评分低于红线时传入 rework 标记，
+  // 卡片切换为 [开始返工] / [跳过返工（风险自负）] 两个决策按钮。
+  const rework = actionRequest.args?.rework as
+    | { score: number; threshold: number; round: number; max_rounds: number }
+    | undefined;
+
   const uncheckedItems = useMemo(
     () => checklistItems.filter((item) => !checklist[item.key]),
     [checklistItems, checklist]
@@ -119,30 +134,59 @@ export function PhaseReviewInterrupt({
   };
 
   return (
-    <div className="w-full rounded-lg border-2 border-orange-300 bg-orange-50/80 p-4 dark:border-orange-700 dark:bg-orange-950/30">
+    <div
+      className={cn(
+        "w-full rounded-lg border-2 p-4",
+        rework
+          ? "border-red-300 bg-red-50/80 dark:border-red-800 dark:bg-red-950/30"
+          : "border-orange-300 bg-orange-50/80 dark:border-orange-700 dark:bg-orange-950/30"
+      )}
+    >
       {/* 头部 */}
       <div className="mb-4 flex items-start gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-orange-100 dark:bg-orange-900">
+        <div
+          className={cn(
+            "flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
+            rework
+              ? "bg-red-100 dark:bg-red-900"
+              : "bg-orange-100 dark:bg-orange-900"
+          )}
+        >
           <AlertCircle
             size={18}
-            className="text-orange-700 dark:text-orange-200"
+            className={cn(
+              rework
+                ? "text-red-700 dark:text-red-200"
+                : "text-orange-700 dark:text-orange-200"
+            )}
           />
         </div>
         <div className="flex-1">
           <div className="flex items-center gap-2">
             <h3 className="text-base font-bold text-gray-900 dark:text-gray-100">
-              需要人工评审：{phaseName}
+              {rework
+                ? `质量评审未达标：${rework.score} 分（红线 ${rework.threshold} 分）`
+                : `需要人工评审：${phaseName}`}
             </h3>
-            <span className="rounded-md bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-800 dark:bg-orange-900 dark:text-orange-200">
+            <span
+              className={cn(
+                "rounded-md px-2 py-0.5 text-xs font-medium",
+                rework
+                  ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+                  : "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200"
+              )}
+            >
               第 {currentRound} 轮
             </span>
           </div>
           <p className="mt-1 text-sm text-gray-700 dark:text-gray-200">
             {description}
           </p>
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            报告内容已在上方对话中展示，可直接在此给出评审意见。
-          </p>
+          {!reportPreview && (
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              报告内容已在上方对话中展示，可直接在此给出评审意见。
+            </p>
+          )}
 
           {previousRound?.comment && (
             <div className="mt-2 rounded-md border border-orange-200 bg-orange-100/50 p-2 dark:border-orange-800 dark:bg-orange-900/30">
@@ -157,8 +201,28 @@ export function PhaseReviewInterrupt({
         </div>
       </div>
 
-      {/* 评审维度清单 */}
-      {checklistItems.length > 0 && (
+      {/* 报告内容展示区（可折叠，默认展开） */}
+      {reportPreview && (
+        <div className="mb-4 rounded-md border border-orange-200 bg-white/60 dark:border-orange-800 dark:bg-black/20">
+          <button
+            type="button"
+            onClick={() => setShowReport((v) => !v)}
+            className="flex w-full items-center gap-1.5 px-3 py-2 text-left text-xs font-bold uppercase tracking-wider text-gray-600 hover:text-gray-800 dark:text-gray-300 dark:hover:text-gray-100"
+          >
+            {showReport ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            <FileText size={14} />
+            报告内容{showReport ? "（点击收起）" : "（点击展开）"}
+          </button>
+          {showReport && (
+            <div className="max-h-[480px] overflow-y-auto border-t border-orange-200 px-3 py-2 dark:border-orange-800">
+              <MarkdownContent content={reportPreview} streaming={false} />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 评审维度清单（返工确认模式下隐藏——决策只有两个：返工或跳过） */}
+      {checklistItems.length > 0 && !rework && (
         <div className="mb-4 rounded-md border border-orange-200 bg-white/60 p-3 dark:border-orange-800 dark:bg-black/20">
           <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">
             评审维度（取消未通过的项）
@@ -181,7 +245,8 @@ export function PhaseReviewInterrupt({
         </div>
       )}
 
-      {/* 快捷操作 */}
+      {/* 快捷操作（返工确认模式下隐藏） */}
+      {!rework && (
       <div className="mb-4">
         <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300"
         >
@@ -220,18 +285,23 @@ export function PhaseReviewInterrupt({
           </Button>
         </div>
       </div>
+      )}
 
       {/* 评审意见输入 */}
       <div className="mb-4">
         <label className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300"
         >
           <MessageSquareWarning size={14} />
-          评审意见（可选）
+          {rework ? "返工补充意见（可选）" : "评审意见（可选）"}
         </label>
         <Textarea
           value={comment}
           onChange={(e) => setComment(e.target.value)}
-          placeholder="如：整体方向 OK，但请补充边界值场景和安全测试用例..."
+          placeholder={
+            rework
+              ? "如：重点修复状态机矛盾和订单号耦合问题，其余次要问题可不处理..."
+              : "如：整体方向 OK，但请补充边界值场景和安全测试用例..."
+          }
           className="min-h-[80px] bg-card text-sm"
           disabled={isLoading}
         />
@@ -239,38 +309,75 @@ export function PhaseReviewInterrupt({
 
       {/* 主操作按钮 */}
       <div className="flex flex-wrap gap-2">
-        <Button
-          onClick={handleRequestChanges}
-          variant="outline"
-          size="sm"
-          disabled={isLoading}
-          className={cn(
-            "border-red-500 text-red-600 hover:bg-red-50 hover:text-red-700",
-            "dark:hover:bg-red-950"
-          )}
-        >
-          <MessageSquareWarning size={14} />
-          <span className="font-semibold">
-            {isLoading && lastClicked === "request_changes"
-              ? "提交中..."
-              : "要求修改"}
-          </span>
-        </Button>
+        {rework ? (
+          <>
+            <Button
+              onClick={handleRequestChanges}
+              size="sm"
+              disabled={isLoading}
+              className="gap-1.5 bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700"
+            >
+              <RotateCcw size={14} />
+              <span className="font-semibold">
+                {isLoading && lastClicked === "request_changes"
+                  ? "提交中..."
+                  : "开始返工"}
+              </span>
+            </Button>
+            <Button
+              onClick={handleSkip}
+              variant="outline"
+              size="sm"
+              disabled={isLoading}
+              className={cn(
+                "gap-1.5 border-red-500 text-red-600 hover:bg-red-50 hover:text-red-700",
+                "dark:hover:bg-red-950"
+              )}
+            >
+              <SkipForward size={14} />
+              <span className="font-semibold">
+                {isLoading && lastClicked === "skip"
+                  ? "提交中..."
+                  : "跳过返工（风险自负）"}
+              </span>
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button
+              onClick={handleRequestChanges}
+              variant="outline"
+              size="sm"
+              disabled={isLoading}
+              className={cn(
+                "border-red-500 text-red-600 hover:bg-red-50 hover:text-red-700",
+                "dark:hover:bg-red-950"
+              )}
+            >
+              <MessageSquareWarning size={14} />
+              <span className="font-semibold">
+                {isLoading && lastClicked === "request_changes"
+                  ? "提交中..."
+                  : "要求修改"}
+              </span>
+            </Button>
 
-        <Button
-          onClick={handleApprove}
-          size="sm"
-          disabled={isLoading}
-          className="bg-green-600 text-white hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700"
-        >
-          <CheckCircle size={14} />
-          <span className="font-semibold">
-            {isLoading && lastClicked === "approve" ? "提交中..." : "通过"}
-          </span>
-        </Button>
+            <Button
+              onClick={handleApprove}
+              size="sm"
+              disabled={isLoading}
+              className="bg-green-600 text-white hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700"
+            >
+              <CheckCircle size={14} />
+              <span className="font-semibold">
+                {isLoading && lastClicked === "approve" ? "提交中..." : "通过"}
+              </span>
+            </Button>
+          </>
+        )}
       </div>
 
-      {uncheckedItems.length > 0 && (
+      {uncheckedItems.length > 0 && !rework && (
         <p className="mt-3 text-xs text-orange-700 dark:text-orange-300">
           已取消 {uncheckedItems.map((i) => i.label).join("、")}，点击"通过"时会自动要求补充。
         </p>

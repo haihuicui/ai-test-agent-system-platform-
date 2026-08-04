@@ -511,11 +511,9 @@ class TestPhase4CoverageFallback:
             for m in result.get("messages", [])
         )
 
-    def test_phase4_auto_reject_still_triggers(self):
-        """Phase 4 低分报告：即使有覆盖映射，仍触发自动退回。
-        注意：需要 Phase 3 已完成评审，否则跨阶段跳步检测会优先拦截。"""
-        middleware = PhaseReviewMiddleware()
-        state = self._make_state(
+    def _make_low_score_state(self):
+        """构造 Phase 4 低分报告 state（Phase 3 已评审，避免跳步检测优先拦截）。"""
+        return self._make_state(
             """
 ## 📊 测试用例质量评审报告
 
@@ -525,8 +523,6 @@ class TestPhase4CoverageFallback:
 | FP-002 | 用户认证 | 注册 | P0 | ❌ | - |
 
 综合评分：60 分
-
-（评分低于 75 应该触发自动退回，不应被覆盖检查拦截）
 """,
             human_messages=[
                 HumanMessage(
@@ -541,15 +537,90 @@ class TestPhase4CoverageFallback:
                 ),
             ],
         )
-        result = middleware.after_model(state, None)
 
+    def test_phase4_low_score_triggers_rework_card(self, monkeypatch):
+        """Phase 4 低分报告：弹出返工确认卡片（interrupt 携带 rework 标记），
+        用户选择开始返工后注入返工反馈。"""
+        captured = {}
+
+        def fake_interrupt(request):
+            captured["request"] = request
+            return {"decision": "request_changes", "message": "", "checklist": {}}
+
+        monkeypatch.setattr(
+            "app.agents.testcase.phase_review_middleware.interrupt",
+            fake_interrupt,
+        )
+
+        middleware = PhaseReviewMiddleware()
+        result = middleware.after_model(self._make_low_score_state(), None)
+
+        # 验证 interrupt payload 携带 rework 标记与评分信息
+        action_request = captured["request"]["action_requests"][0]
+        assert action_request["name"] == "quality-review_rework"
+        assert action_request["args"]["rework"]["score"] == 60.0
+        assert action_request["args"]["rework"]["threshold"] == 75.0
+
+        # 用户确认返工 → 注入返工反馈
         assert result is not None
-        assert "messages" in result
         msg = result["messages"][0]
         assert isinstance(msg, HumanMessage)
-        # 应该触发的是自动退回，不是覆盖检查
-        assert "系统自动退回" in msg.content
+        assert "用户已确认开始返工" in msg.content
         assert "缺少功能覆盖对照信息" not in msg.content
+
+    def test_phase4_low_score_skip_rework(self, monkeypatch):
+        """Phase 4 低分报告：用户在返工确认卡片上选择跳过返工 → 推进到下一阶段。"""
+        monkeypatch.setattr(
+            "app.agents.testcase.phase_review_middleware.interrupt",
+            lambda request: {"decision": "skip", "message": "", "checklist": {}},
+        )
+
+        middleware = PhaseReviewMiddleware()
+        result = middleware.after_model(self._make_low_score_state(), None)
+
+        assert result is not None
+        msg = result["messages"][0]
+        assert isinstance(msg, HumanMessage)
+        assert "跳过返工" in msg.content
+        assert "风险自负" in msg.content
+
+
+class TestFormatSelectionDedup:
+    """输出格式选择面板的防重复触发测试。"""
+
+    def _make_state(self, ai_content: str, human_messages: list | None = None):
+        return {
+            "messages": [
+                *(human_messages or []),
+                AIMessage(content=ai_content),
+            ]
+        }
+
+    def test_format_selection_not_retriggered_after_decision(self):
+        """用户已选择过格式后，交付汇报消息标题（如「## 输出格式化（Excel）」）
+        再次命中正则时不再触发 interrupt。"""
+        middleware = PhaseReviewMiddleware()
+        state = self._make_state(
+            """
+## 输出格式化（Excel）
+
+导出文件：/PR-2/PR2_测试用例集.xlsx，共 89 条用例。
+""",
+            human_messages=[
+                HumanMessage(
+                    content="[阶段评审：output-format-selection] 用户反馈：用户选择输出格式：excel。请按该格式输出最终交付物。",
+                    additional_kwargs={
+                        "_review_round": {
+                            "phase": "output-format-selection",
+                            "round": 1,
+                            "decision": "approve",
+                        }
+                    },
+                ),
+            ],
+        )
+        result = middleware.after_model(state, None)
+        assert result is None
 
 
 class TestPhaseReportToolCallSeparation:

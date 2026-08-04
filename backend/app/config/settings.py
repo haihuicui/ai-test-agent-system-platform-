@@ -156,6 +156,11 @@ class Settings(BaseSettings):
     llm_model: str = "deepseek-v4-flash"
     deepseek_api_key: Optional[str] = None
 
+    # DeepSeek 调用韧性参数（其 API 503 失败率较高，长会话需更强重试）
+    llm_max_retries: int = 5  # SDK 指数退避重试次数（默认仅 2，不足以吸收 503 尖峰）
+    llm_timeout: float = 600.0  # 单次请求超时（秒），8K tokens 长报告生成需要余量
+    llm_max_tokens: int = 8192  # 输出上限；DeepSeek 默认 4096，长评审报告会被静默截断
+
     # 图片解析模型（OpenAI 兼容接口，用于 ChatOpenAI）
     image_parser_api_base: Optional[str] = None
     image_parser_api_key: Optional[str] = None
