@@ -22,7 +22,7 @@ from app.agents.tools.testcase.export_common import (
     extract_field,
 )
 from app.config.settings import settings
-from app.utils.testcase_validation import normalize_priority
+from app.utils.testcase_validation import normalize_priority, _validate_case
 
 logger = logging.getLogger(__name__)
 
@@ -636,26 +636,92 @@ async def _batch_create_test_cases_impl(
 @tool
 async def batch_create_test_cases_tool(
     project_identifier: str,
-    test_cases: list[dict[str, Any]],
+    test_cases: Optional[list[dict[str, Any]]] = None,
     folder_id: Optional[str] = None,
+    input_file: Optional[str | list[str]] = None,
 ) -> dict[str, Any]:
     """
     批量创建测试用例工具（通过 HTTP 接口调用）。
 
-    每个测试用例的参数与 create_test_case_tool 相同。
+    用例来源二选一：
+      - test_cases: 内联传入用例列表（模块级小批量创建时使用）
+      - input_file: 工作目录下的用例数据文件路径（.jsonl/.json），可传单个路径
+        或路径列表（推荐用于 Phase 4 评审通过后的统一入库）——服务端解析合并、
+        按 case_number 去重、逐条质量校验，无需把全部用例塞进对话。
 
     Args:
         project_identifier: 项目标识符，如 'PROJ-001'
-        folder_id: 文件夹 UUID（可选；为空时保存到项目根，对应前端“全部用例”）
         test_cases: 测试用例列表，每个元素是一个包含测试用例信息的字典
+        folder_id: 文件夹 UUID（可选；为空时保存到项目根，对应前端“全部用例”）
+        input_file: 用例数据文件路径或路径列表（与 test_cases 二选一，同时提供时优先）
 
     Returns:
         dict: 包含批量创建结果的字典
     """
     try:
+        resolved_cases = test_cases
+        if input_file is not None:
+            # 文件导入模式：服务端解析（JSONL/JSON/脏拼接容错 + 按编号去重），
+            # 避免模型把全部用例在对话里重新序列化一遍（token 截断风险）。
+            try:
+                resolved_cases = _load_test_cases_from_file(input_file, dedup=True)
+            except (FileNotFoundError, ValueError) as e:
+                return {
+                    "success": False,
+                    "error": str(e),
+                    "message": f"读取用例数据文件失败：{e}",
+                }
+            if not resolved_cases:
+                return {
+                    "success": False,
+                    "error": "用例数据文件中没有可导入的用例",
+                    "message": "批量创建失败：用例数据文件为空或无有效用例",
+                }
+
+            # 入库前逐条质量校验（与创建前门禁同一套 _validate_case 红线规则）。
+            # 内联 test_cases 路径由 ModuleSelfCheckMiddleware 在调用前拦截校验；
+            # input_file 路径在工具内兜底，保证两条路径都有质量门禁。
+            violations = []
+            for case in resolved_cases:
+                if not isinstance(case, dict):
+                    continue
+                errors = _validate_case(case)
+                if errors:
+                    violations.append(
+                        {
+                            "case_number": case.get("case_number") or case.get("case_id"),
+                            "name": case.get("name"),
+                            "messages": errors,
+                        }
+                    )
+            if violations:
+                return {
+                    "success": False,
+                    "error": "用例质量校验未通过，本次入库未执行",
+                    "data": {
+                        "total": len(resolved_cases),
+                        "violation_count": len(violations),
+                        "violations": violations[:20],
+                    },
+                    "message": (
+                        f"共解析 {len(resolved_cases)} 条用例，其中 {len(violations)} 条"
+                        "未通过质量红线校验（详见 violations）。请修正 JSONL 文件后重新调用。"
+                    ),
+                }
+
+        if not resolved_cases:
+            return {
+                "success": False,
+                "error": "测试用例列表为空",
+                "message": (
+                    "批量创建失败：请通过 test_cases 内联传入用例列表，"
+                    "或通过 input_file 提供用例数据文件"
+                ),
+            }
+
         return await _batch_create_test_cases_impl(
             project_identifier=project_identifier,
-            test_cases=test_cases,
+            test_cases=resolved_cases,
             folder_id=folder_id,
         )
     except Exception as e:

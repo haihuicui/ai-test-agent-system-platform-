@@ -500,7 +500,7 @@ FP-028（数据隔离规则）的 test_points：
 
 **规则二：必须在写入前查询现有最大编号**
 
-在调用 `batch_create_test_cases_tool` 或写入 JSONL 文件前：
+在写入 JSONL 文件（或 Phase 4 通过后统一入库调用 `batch_create_test_cases_tool`）前：
 ```
 1. 读取目标文件（如果文件已存在）或调用 preview_test_cases 查询已有用例
 2. 确定当前已占用的最大序号

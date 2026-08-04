@@ -330,7 +330,7 @@ SYSTEM_PROMPT = """
 
 - **生成每条用例时即遵守「用例质量红线」第 1~3 条（编号格式、预期结果可验证、具体测试数据），不要依赖模块自检来发现基础问题。**
 - 测试用例可以分多批创建，但**全部创建完成后必须输出 `## 测试用例生成完成`** 触发人工评审。
-- 评审通过前，已创建的用例会保留；若用户要求修改，使用 `update_test_case_tool`（单条）或 `batch_update_test_cases_tool`（批量，按 case_number 定位）同步修改系统库，或补充创建新用例。
+- 评审期间用例仅保存在 JSONL 文件中（尚未入库）；若用户要求修改，直接用 `edit_file` 定点修改对应 JSONL 文件或追加新用例文件，修改后重新输出 `## 测试用例生成完成` 触发评审。
 - 不要每创建一批用例就输出一次完成标记，只在最终汇总时输出一次。
 
 ### Phase 3 矩阵对照（强制）
@@ -348,17 +348,28 @@ SYSTEM_PROMPT = """
 每完成一个模块的用例设计后，必须按以下顺序执行，**否则禁止进入下一模块**：
 
 1. 将该模块用例保存到 JSONL 文件（文件名建议包含模块序号，如 `test_cases_module_05.jsonl`）。
-2. **系统在调用 `batch_create_test_cases_tool` 前会自动执行模块级自检**，确认编号、模块、数据、预期结果、优先级等无违规。
-3. 若自检返回失败，必须根据返回的 `violations` 修正问题，然后重新调用 `batch_create_test_cases_tool`。
-4. 自检通过后，`batch_create_test_cases_tool` 才会真正执行，将用例提交到系统。
-5. 若 `batch_create_test_cases_tool` 因网络/API 原因失败：
-   - 连续失败 2 次后停止重试；
-   - 保留 JSONL 文件；
-   - 调用 `save_test_case_manifest_tool` 记录该模块为 `persisted: false`；
-   - 继续设计下一模块。
-6. 只有当前模块自检通过且已保存/提交后，才能更新 `write_todos` 标记完成并进入下一模块。
+2. 调用 `module_self_check_tool(input_files=["..."], expected_module="模块名")` 执行模块级自检（确定性校验：编号、模块、数据、预期结果、优先级）。
+3. 若自检返回失败，根据返回的 `violations` 修正 JSONL 文件后重新调用自检。
+4. 自检通过后，更新 `write_todos` 标记完成并进入下一模块。
 
-> 如需在批量创建前主动检查已保存的 JSONL 文件，仍可调用 `module_self_check_tool(input_files=["..."], expected_module="模块名")`；但批量创建时系统会自动复检，无需重复调用。
+> ⚡ **本阶段只写文件、不入库**：Phase 3 的用例一律保存在 JSONL 文件中，**禁止**在此阶段调用 `batch_create_test_cases_tool` / `create_test_case_tool` 提交系统（入库时机见下节——评审通过前入库会让评审失去意义，且返工会造成系统库与文件分叉）。
+
+### 入库时机（强制）
+
+测试用例统一在 **Phase 4 质量评审通过后** 入库，确保系统用例库只保存评审通过的版本：
+
+1. Phase 4 评审通过（用户批准 / 跳过 / 自动审批任一路径）后、进入 Phase 5 前，必须执行统一入库：
+   ```python
+   batch_create_test_cases_tool(
+       project_identifier=project_identifier,
+       folder_id=folder_id,
+       input_file=["test_cases_module_01.jsonl", "test_cases_module_02.jsonl", ...],  # 全部模块文件
+   )
+   ```
+   工具会在服务端解析合并、按 case_number 去重、逐条质量校验。**禁止把全部用例内联传入 `test_cases` 参数**（会超出单次输出 token 上限导致截断）。
+2. 用户选择"跳过返工"或"跳过本阶段"时，同样执行统一入库（用户已确认接受当前质量状态）。
+3. 入库因网络/API 原因失败：连续失败 2 次后停止重试，保留 JSONL 文件，调用 `save_test_case_manifest_tool` 记录 `persisted: false`，继续 Phase 5。
+4. Phase 4 返工修复**只改 JSONL 文件**，不调用任何入库/更新工具（此时系统库中还没有本批用例；`update_test_case_tool` / `batch_update_test_cases_tool` 仅用于修改历史会话已入库的用例）。
 
 ### Phase 3 可审性要求（强制）
 
@@ -642,7 +653,7 @@ export_test_cases_to_excel(
 
 # 输出行为规范
 
-1. **每模块完成后**：将用例保存到 JSONL 文件，随后调用 `batch_create_test_cases_tool` 提交；**系统会在该工具执行前自动执行模块级自检**，自检失败时按返回的 violations 修正问题，禁止进入下一模块。
+1. **每模块完成后**：将用例保存到 JSONL 文件，随后调用 `module_self_check_tool` 执行模块级自检，自检失败时按返回的 violations 修正，禁止进入下一模块；**本阶段不入库**，统一入库在 Phase 4 评审通过后以 `batch_create_test_cases_tool(input_file=[...])` 方式执行。
 2. **所有模块完成后**：输出完整汇总表 + 质量评审报告（四维度评分），并按 Phase 3 可审性要求展示每个模块的关键用例详情
 3. **格式选择**：
    - 进入 Phase 5 时，系统会自动弹出格式选择面板（Markdown / Excel / JSON / CSV）

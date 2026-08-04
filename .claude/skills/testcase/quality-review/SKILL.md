@@ -440,8 +440,9 @@ Step 5: 最终判定
 > 2. **禁止全量重写 JSONL 文件** —— write_file 重建整个文件会让全部用例再序列化一遍
 > 3. **新增用例写入独立的 supplement 文件**（如 `test_cases_supplement.jsonl`），不动原有文件
 > 4. **同一文件的多个修改，每轮消息只编辑一处**（并行 edit 同一文件只有最后一个生效）
-> 5. **修复必须同步落库**：修改后的用例调用 `batch_update_test_cases_tool` 按 case_number 更新系统库，
->    禁止只改文件不改库（否则系统用例库与交付物永久分叉）
+> 5. **返工阶段不入库**：本批用例在 Phase 4 通过后才统一入库（`batch_create_test_cases_tool(input_file=[...])`），
+>    返工修复只改 JSONL 文件即可，**禁止**在返工时调用任何入库工具；
+>    `batch_update_test_cases_tool` 仅用于修改历史会话中已入库的用例
 
 ### 回退修复记录模板
 

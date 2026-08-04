@@ -171,10 +171,15 @@ def extract_field(case: dict[str, Any], *keys: str, default: Any = "") -> Any:
 
 
 def case_key(case: dict[str, Any]) -> Any:
-    """提取用例的去重标识：优先用例编号，其次标题/名称；都没有则返回 None（不去重）。"""
+    """提取用例的去重标识：优先用例编号，其次标题/名称；都没有则返回 None（不去重）。
+
+    注意：`case_number` 必须排在首位——本系统的用例编号约定就是 case_number
+    （模块自检、批量更新、系统提示词的"按用例编号去重"均以它为准），
+    此前缺失导致按编号去重静默失效（退化为按名称，改名即穿透）。
+    """
     return extract_field(
         case,
-        "id", "用例编号", "identifier", "case_id", "编号",
+        "case_number", "id", "用例编号", "identifier", "case_id", "编号",
         "title", "用例标题", "name", "标题", "用例名称",
         default=None,
     )

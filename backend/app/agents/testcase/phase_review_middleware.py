@@ -389,6 +389,14 @@ def _get_completed_phases(messages: list[Any]) -> set[str]:
 # Phase 3/4 合并，跳步检测不适用。
 _MIN_FP_FOR_PHASE3_REVIEW = 11
 
+# quality-review 通过/跳过后的统一入库指引（评审通过前禁止入库，
+# 确保系统用例库只保存评审通过的版本）。
+_SAVE_AFTER_REVIEW_HINT = (
+    " 进入 Phase 5 前，必须调用 batch_create_test_cases_tool"
+    "（project_identifier=..., folder_id=..., input_file=[全部模块 JSONL 文件]）"
+    "统一入库——工具服务端解析合并并按编号去重，禁止内联传入全部用例。"
+)
+
 
 # 阶段 → Phase 序号映射（用于审批通过/跳过后自动推进 write_todos 任务状态）
 _PHASE_TO_NUMBER: dict[str, int] = {
@@ -746,6 +754,8 @@ class PhaseReviewMiddleware(AgentMiddleware):
                             skip_feedback += f" {todo_note}"
                         if comment:
                             skip_feedback += f" 补充说明：{comment}"
+                        # 跳过返工后进入 Phase 5 前同样提示统一入库
+                        skip_feedback += _SAVE_AFTER_REVIEW_HINT
                         return {
                             "messages": [
                                 _build_review_human_message(
@@ -1023,6 +1033,9 @@ class PhaseReviewMiddleware(AgentMiddleware):
             skip_note = (
                 f" {todo_note}" if todo_update else ""
             )
+            # quality-review 跳过（用户接受当前质量状态）后同样提示统一入库
+            if phase == "quality-review":
+                skip_note += _SAVE_AFTER_REVIEW_HINT
             return {
                 "messages": [
                     _build_review_human_message(
@@ -1064,6 +1077,9 @@ class PhaseReviewMiddleware(AgentMiddleware):
                     " 进入 Phase 3 前，必须使用文件读取工具读取 feature_matrix.jsonl"
                     " 获取当前模块的功能点清单，确保用例设计基于结构化矩阵。"
                 )
+            # quality-review 通过后提示统一入库（评审通过前禁止入库）
+            if phase == "quality-review":
+                feedback += _SAVE_AFTER_REVIEW_HINT
         elif decision_type == "request_changes":
             checklist_feedback = _build_checklist_feedback(checklist, comment, phase_name)
             if checklist_feedback:
