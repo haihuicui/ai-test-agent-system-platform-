@@ -32,6 +32,10 @@ def _read(path: Path) -> str:
 
 
 def _extract_system_prompt() -> str:
+    """与 agent.py 运行时逻辑一致：优先读 prompts/base.md，缺失时回退到内嵌最小化提示词。"""
+    base_md = AGENT_PY.parent / "prompts" / "base.md"
+    if base_md.exists():
+        return _read(base_md)
     src = _read(AGENT_PY)
     m = re.search(r'SYSTEM_PROMPT = """(.*?)"""', src, re.DOTALL)
     assert m, "未在 agent.py 中找到 SYSTEM_PROMPT"
@@ -48,16 +52,16 @@ def test_system_prompt_asks_for_execution_after_generation():
     assert "执行邀约" in prompt, "缺少执行邀约步骤"
     assert "尚未执行" in prompt, "未明确告知用户尚未执行"
     assert "暂无 HTML 报告" in prompt or "暂无 HTML 报告和执行摘要" in prompt
-    assert "<EXECUTION_INVITATION>" in prompt, "未提供执行邀约标记示例"
+    assert '<EXECUTION_INVITATION>' in prompt, "未提供执行邀约标记示例"
     assert '"type":"execution_invitation"' in prompt, "执行邀约标记类型不正确"
-    assert "不要以开放文字反问用户" in prompt, "未禁止开放文字反问"
+    assert "不要在标记外重复询问用户选择" in prompt, "未禁止标记外重复反问"
 
 
 def test_system_prompt_uses_report_attachment_id_not_url():
-    """SYSTEM_PROMPT 中执行工具返回字段应为 report_attachment_id。"""
-    prompt = _extract_system_prompt()
-    assert "report_attachment_id" in prompt, "未提及 report_attachment_id"
-    assert "report_url" not in prompt, "仍使用已废弃的 report_url"
+    """执行工具返回字段应为 report_attachment_id（在 executor skill 中约定）。"""
+    skill = _read(EXECUTOR_SKILL)
+    assert "report_attachment_id" in skill, "未提及 report_attachment_id"
+    assert "report_url" not in skill, "仍使用已废弃的 report_url"
 
 
 def test_system_prompt_create_web_function_requires_business_module():

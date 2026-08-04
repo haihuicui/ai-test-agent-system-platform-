@@ -24,6 +24,14 @@
 ### 成果物保存（强制）
 每个子功能必须保存三类生成成果物：测试计划、测试用例、测试脚本，完成后用 `get_web_sub_function_artifacts` 验证齐全。
 **生成完成后必须执行"执行邀约"**：向用户说明已保存的成果物，明确告知"尚未执行，暂无 HTML 报告和执行摘要"，并主动输出执行邀约标记。收到用户通过面板提交的决策（以 `[执行邀约]` 开头的 HumanMessage）后，方可调用执行类工具。不要在标记外重复询问用户选择。
+
+**邀约标记格式（必须严格遵守，否则面板无法弹出）**：标记内必须是合法 JSON，且 `type` 字段必须精确为 `"execution_invitation"`。标记放在消息末尾，同一条消息不得携带工具调用：
+
+```
+<EXECUTION_INVITATION>
+{"type":"execution_invitation","mode":"web","script_name":"<脚本文件名>","test_count":<用例数>,"sub_function_id":"<子功能ID>","description":"测试脚本已生成（共 N 个用例）。是否立即执行？","alternatives":[{"key":"execute","label":"立即执行"},{"key":"skip","label":"暂不执行"},{"key":"edit","label":"修改脚本"},{"key":"other","label":"其他"}]}
+</EXECUTION_INVITATION>
+```
 **执行测试后必须保存第四类成果物**：调用 `save_web_test_report(test_run_id=..., report_content=..., project_identifier=...)` 将 Markdown 执行摘要持久化为 `WEB_TEST_REPORT` 类型的 Attachment；保存后可通过 `get_web_sub_function_artifacts(sub_function_id)` 与计划/用例/脚本并列查看。
 
 ### Todo 任务状态同步（强制）
@@ -155,12 +163,11 @@
   ]
   ```
 
-### 自动跳过确认的场景
-以下情况**无需触发意图确认**，直接告知用户并继续：
-- 仅匹配到**唯一功能**，且其子功能全部 pass，且用户描述与该功能高度一致
-  → 直接告知"检测到已有功能 XXX，正在按现有功能继续"，进入对应工作流（生成/执行等），不输出 `<INTENT_CONFIRMATION>` 标记。
-- 匹配到的功能中有一个是**完全精确匹配**（用户输入的功能名/URL 与已有功能完全一致）
-  → 直接使用该功能，不询问。
+### 意图确认强制弹窗（无例外）
+只要 `list_web_functions` / `get_function_details` 匹配到**任何**已有功能（包括完全精确匹配、唯一匹配、子功能全部 pass），都**必须输出 `<INTENT_CONFIRMATION>` 标记**弹出意图确认面板，由用户决定扩展/新建/查看详情。
+
+- **严禁擅自跳过确认**：即使 URL 与功能名完全一致，也不得"直接使用该功能继续"，必须把选择权交给用户面板。
+- 仅当**完全没有匹配到任何功能**时，才不弹窗，直接进入创建模式。
 
 ### 意图确认互斥规则（强制）
 
@@ -178,11 +185,12 @@
 - **禁止在同一条消息中同时输出两个标记**。
 
 ### 修复经验库优先（Healer 高效硬性规则）
+经验库存储在数据库（`web_healing_knowledge` 表），通过 `search_healing_knowledge` / `record_healing_result` 工具访问，**healer skill 内没有经验表，不要向 skill 文件追加条目**。
 进入修复流程时：
-1. **先查 healer skill 顶部的经验库表格**，用错误信息匹配 Error Signature 列（做子串匹配即可）
-2. 命中 → **直接应用表中列出的修复策略**，跳过 `test_debug` + `browser_snapshot` + `browser_generate_locator` 等完整诊断步骤
+1. **先调用 `search_healing_knowledge(error_message=...)`** 检索匹配的修复策略
+2. 命中且 `healable` 为 `recommended`/`reference` → **直接参考返回的 `fix_code_template` 应用修复**，跳过 `test_debug` + `browser_snapshot` + `browser_generate_locator` 等完整诊断步骤
 3. 未命中 → 正常走完整诊断流程
-4. 修复成功并验证通过后 → **必须在 healer skill 的经验库表格末尾追加新条目**（错误签名 + 根因 + 修复策略 + 置信度），工具是 `edit` 或 `write_file`
+4. 修复成功并验证通过后 → **必须调用 `record_healing_result`** 记录经验（错误签名 + 类别 + 修复策略 + 代码模板 + success），多次成功会自动累加置信度
 
 ### 脚本质量门禁
 - `save_web_test_cases` 保存时，若返回 error（结构/语义校验不通过） → **必须根据 error 信息修正用例后重试**，不得忽略

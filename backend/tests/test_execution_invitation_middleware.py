@@ -183,3 +183,54 @@ class TestWebExecutionInvitationMiddleware:
         human_msg = result["messages"][0]
         assert "用户选择立即执行测试" in str(human_msg.content)
         assert human_msg.additional_kwargs["_execution_invitation"]["decision"] == "execute"
+
+    def test_fallback_interrupt_when_marker_json_invalid(self, middleware):
+        """标记存在但 JSON 非法时，仍应弹面板（兜底 payload），不再静默丢弃。"""
+        ai_msg = AIMessage(
+            content="脚本已生成。\n<EXECUTION_INVITATION>是否立即执行？</EXECUTION_INVITATION>"
+        )
+
+        with patch(
+            "app.agents.web_mcp.execution_invitation_middleware.interrupt",
+            return_value={"decision": "execute"},
+        ) as mock_interrupt:
+            result = middleware.after_model({"messages": [ai_msg]}, runtime=None)
+
+        mock_interrupt.assert_called_once()
+        fallback = mock_interrupt.call_args[0][0]
+        assert fallback["type"] == "execution_invitation"
+        assert fallback["mode"] == "web"
+        assert fallback["description"] == "是否立即执行？"
+        assert [a["key"] for a in fallback["alternatives"]] == [
+            "execute", "skip", "edit", "other",
+        ]
+        assert result is not None
+        assert result["jump_to"] == "model"
+
+    def test_fallback_interrupt_when_type_mismatch(self, middleware):
+        """type 字段不匹配时同样走兜底弹面板。"""
+        payload = _build_payload(type="other_type")
+        ai_msg = _build_ai_message(payload)
+
+        with patch(
+            "app.agents.web_mcp.execution_invitation_middleware.interrupt",
+            return_value={"decision": "skip"},
+        ) as mock_interrupt:
+            result = middleware.after_model({"messages": [ai_msg]}, runtime=None)
+
+        mock_interrupt.assert_called_once()
+        fallback = mock_interrupt.call_args[0][0]
+        assert fallback["type"] == "execution_invitation"
+        assert result is not None
+        human_msg = result["messages"][0]
+        assert "用户选择暂不执行测试" in str(human_msg.content)
+
+    def test_no_fallback_interrupt_without_marker(self, middleware):
+        """完全没有标记时不应触发中断。"""
+        ai_msg = _build_ai_message(None)
+        with patch(
+            "app.agents.web_mcp.execution_invitation_middleware.interrupt"
+        ) as mock_interrupt:
+            result = middleware.after_model({"messages": [ai_msg]}, runtime=None)
+        mock_interrupt.assert_not_called()
+        assert result is None

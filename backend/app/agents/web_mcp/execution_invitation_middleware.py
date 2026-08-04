@@ -7,12 +7,15 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 from typing import Any
 
 from langchain.agents.middleware import AgentMiddleware, hook_config
 from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.types import interrupt
+
+logger = logging.getLogger(__name__)
 
 
 _EXECUTION_INVITATION_MARKER_RE = re.compile(
@@ -27,6 +30,26 @@ _DEFAULT_ALTERNATIVES = [
     {"key": "edit", "label": "修改脚本"},
     {"key": "other", "label": "其他"},
 ]
+
+
+def _build_fallback_payload(content: str) -> dict[str, Any]:
+    """标记存在但 JSON 非法时构造的兜底 payload，保证面板一定弹出。
+
+    尽力从标记正文中提取可读描述，其余字段使用默认值。
+    """
+    match = _EXECUTION_INVITATION_MARKER_RE.search(content)
+    inner = match.group(1).strip() if match else ""
+    # 截断过长的非法内容，避免把大段 JSON 残片直接塞进面板描述
+    description = inner if inner and len(inner) <= 200 else "测试脚本已生成。是否立即执行？"
+    return {
+        "type": "execution_invitation",
+        "mode": "web",
+        "script_name": "",
+        "test_count": 0,
+        "sub_function_id": "",
+        "description": description,
+        "alternatives": _DEFAULT_ALTERNATIVES,
+    }
 
 
 def _parse_execution_invitation(content: str) -> dict[str, Any] | None:
@@ -150,7 +173,17 @@ class WebExecutionInvitationMiddleware(AgentMiddleware):
         content = str(last_ai.content or "")
         payload = _parse_execution_invitation(content)
         if not payload:
-            return None
+            # 标记存在但 payload 非法（JSON 错误 / 缺 type 字段等）时不再静默丢弃：
+            # 记 warning 并用兜底 payload 触发中断，保证执行邀约面板一定弹出。
+            if _EXECUTION_INVITATION_MARKER_RE.search(content):
+                logger.warning(
+                    "[WebExecutionInvitation] 检测到 <EXECUTION_INVITATION> 标记但 "
+                    "payload 解析失败，使用兜底 payload 弹面板。原始内容前 300 字: %s",
+                    content[:300],
+                )
+                payload = _build_fallback_payload(content)
+            else:
+                return None
 
         # ── 全局去重：若历史中已有 [执行邀约] HumanMessage，说明执行邀约
         #     流程已触发过，后续 AI 消息再输出 <EXECUTION_INVITATION> 标记
