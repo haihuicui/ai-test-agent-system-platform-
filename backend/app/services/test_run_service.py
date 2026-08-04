@@ -110,6 +110,29 @@ def _spawn_tracked(coro, label: str) -> asyncio.Task:
     return task
 
 
+def _resolve_run_source(run_cfg: dict, test_run_map: dict[str, Any]) -> Optional[dict]:
+    """根据运行记录的 execution_config 解析触发来源。
+
+    - ``test_run_id``：测试运行（engine._run_job 注入），附带运行标识便于前端展示；
+    - ``execution_id``：AI 调试链路（_persist_structured_run 写入）；
+    - 否则视为 Web 测试页手动执行。
+    未传入 run_cfg（非 Web 脚本分支）时返回 None，前端不展示来源徽标。
+    """
+    if not run_cfg:
+        return None
+    tr_id = run_cfg.get("test_run_id")
+    if tr_id:
+        tr = test_run_map.get(tr_id)
+        return {
+            "type": "test_run",
+            "test_run_identifier": getattr(tr, "identifier", None) if tr else None,
+            "test_run_name": getattr(tr, "name", None) if tr else None,
+        }
+    if run_cfg.get("execution_id"):
+        return {"type": "agent", "test_run_identifier": None, "test_run_name": None}
+    return {"type": "manual", "test_run_identifier": None, "test_run_name": None}
+
+
 class TestRunService:
     """测试运行服务类"""
 
@@ -1956,13 +1979,48 @@ class TestRunService:
                 "history": history,
             }
 
+        # 来源标注（仅 Web 脚本）：execution_config.test_run_id → 测试运行触发；
+        # execution_id → AI 调试链路；否则 → Web 测试页手动执行。
+        # 测试运行链路在 engine._run_job 注入 test_run_id，AI 调试链路在
+        # _persist_structured_run 写入 execution_id。
+        run_cfgs: list[dict] = []
+        test_run_map: dict[str, Any] = {}
+        if script_type == ScriptType.WEB_TEST:
+            run_cfgs = [
+                (getattr(run, "execution_config", None) or {}) for run in runs
+            ]
+            tr_ids = {
+                cfg.get("test_run_id") for cfg in run_cfgs if cfg.get("test_run_id")
+            }
+            valid_tr_ids = []
+            for tid in tr_ids:
+                try:
+                    valid_tr_ids.append(UUID(tid))
+                except (ValueError, TypeError):
+                    continue
+            if valid_tr_ids:
+                tr_rows = (
+                    await self.session.execute(
+                        select(TestRun).where(TestRun.id.in_(valid_tr_ids))
+                    )
+                ).scalars().all()
+                test_run_map = {str(tr.id): tr for tr in tr_rows}
+
         history = []
-        for run in runs:
+        for idx, run in enumerate(runs):
             started_at = getattr(run, "started_at", None) or getattr(run, "created_at", None)
-            completed_at = getattr(run, "completed_at", None) or getattr(run, "updated_at", None)
+            # WebTestRun 无 completed_at 列，updated_at 仅在记录被更新过时才有值；
+            # 兜底到 started_at（即 created_at），避免前端完成时间显示 "-"。
+            completed_at = (
+                getattr(run, "completed_at", None)
+                or getattr(run, "updated_at", None)
+                or started_at
+            )
+            run_cfg = run_cfgs[idx] if idx < len(run_cfgs) else {}
             history.append({
                 "job_id": str(run.id),
-                "test_run_id": None,
+                "test_run_id": run_cfg.get("test_run_id"),
+                "source": _resolve_run_source(run_cfg, test_run_map),
                 "status": run.status,
                 "result_summary": {
                     "total": getattr(run, total_attr) or 0,

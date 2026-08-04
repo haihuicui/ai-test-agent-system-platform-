@@ -513,6 +513,9 @@ class ScriptExecutionEngine:
             # 注入 TestRun 级别的环境 ID（job 级 execution_config 优先级更高）
             if environment_id and "env_id" not in config:
                 config = {**config, "env_id": str(environment_id)}
+            # 注入来源标识：Web 执行链路会把 config 透传进 WebTestRun.execution_config，
+            # 脚本历史趋势接口据此区分「测试运行触发」与「AI 调试/手动执行」。
+            config = {**config, "test_run_id": str(test_run_id)}
 # pylint: disable  My80OmFIVnBZMlhsdEpUbXRiZm92b2s2VG5aU1ZRPT06Njc4ZDgzY2U=
 
             result = await executor.execute(

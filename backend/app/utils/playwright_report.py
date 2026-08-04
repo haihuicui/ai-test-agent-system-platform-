@@ -66,11 +66,16 @@ def parse_playwright_json(data: Dict[str, Any]) -> Dict[str, Any]:
             status = tests[0].get("status") if tests else None
             duration = sum(int(r.get("duration", 0) or 0) for r in results)
             error_msg = None
-            for r in results:
-                err = r.get("error") or {}
-                if err.get("message"):
-                    error_msg = err["message"]
-                    break
+            # 仅在用例最终失败（unexpected）时提取错误。flaky（重试后通过）的
+            # 用例在较早 result 里仍带首次失败的 error，若一并保留会让最终
+            # 通过的 WebTestRun/WebTestResult 残留误导性的 error_message。
+            # 取最后一次 result 的 error，代表最终失败状态。
+            if status == "unexpected":
+                for r in reversed(results):
+                    err = r.get("error") or {}
+                    if err.get("message"):
+                        error_msg = err["message"]
+                        break
             cases.append({
                 "title": f"{full} > {spec.get('title', '')}".strip(" >"),
                 "file": spec.get("file"),

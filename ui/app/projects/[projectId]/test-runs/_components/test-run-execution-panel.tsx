@@ -826,7 +826,10 @@ export function TestRunExecutionPanel({
                     </div>
                   </div>
                   <div className="rounded-lg border">
-                    <div className="border-b px-4 py-2 text-sm font-medium">最近执行记录</div>
+                    <div className="border-b px-4 py-2 text-sm font-medium">
+                      最近执行记录
+                      <span className="ml-2 text-xs font-normal text-muted-foreground">含本脚本所有触发方式，不限于当前测试运行</span>
+                    </div>
                     <div className="divide-y">
                       {(historyDialogData as any).history?.map((h: any) => (
                         <div key={h.job_id} className="flex items-center justify-between px-4 py-2 text-sm">
@@ -834,6 +837,15 @@ export function TestRunExecutionPanel({
                             <Badge variant={h.status === "completed" ? "default" : h.status === "failed" ? "destructive" : "secondary"} className="text-xs">
                               {h.status}
                             </Badge>
+                            {h.source && (
+                              <Badge variant="outline" className="text-xs">
+                                {h.source.type === "test_run"
+                                  ? (h.source.test_run_identifier || "测试运行")
+                                  : h.source.type === "agent"
+                                    ? "AI 调试"
+                                    : "手动执行"}
+                              </Badge>
+                            )}
                             <span className="text-muted-foreground">{h.duration_ms ? `${(h.duration_ms / 1000).toFixed(1)}s` : "-"}</span>
                           </div>
                           <span className="text-xs text-muted-foreground">{h.completed_at ? new Date(h.completed_at).toLocaleString() : "-"}</span>
