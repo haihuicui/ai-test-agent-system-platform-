@@ -8,8 +8,6 @@ import {
   MoreVertical,
   Pencil,
   Trash2,
-  ChevronLeft,
-  ChevronRight,
   GripVertical,
   Globe,
   FileText,
@@ -61,12 +59,6 @@ interface WebFunctionListProps {
   onViewWebFunction: (webFunction: WebFunction) => void;
   onDeleteWebFunction?: (webFunction: WebFunction) => void;
   folderName?: string;
-  pagination?: {
-    page: number;
-    pageSize: number;
-    total: number;
-    onPageChange: (page: number) => void;
-  };
 }
 // eslint-disable  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2UjB0WmVBPT06NzFmMzc4M2U=
 
@@ -81,7 +73,6 @@ export function WebFunctionList({
   onViewWebFunction,
   onDeleteWebFunction,
   folderName,
-  pagination,
 }: WebFunctionListProps) {
   const [activeId, setActiveId] = React.useState<string | null>(null);
   const [localWebFunctions, setLocalWebFunctions] = React.useState<WebFunction[]>(
@@ -388,40 +379,6 @@ export function WebFunctionList({
           </DndContext>
         )}
       </ScrollArea>
-
-      {/* 分页 */}
-      {pagination && pagination.total > pagination.pageSize && (
-        <div className="flex items-center justify-end border-t px-4 py-3 gap-2">
-          <div className="text-sm text-muted-foreground">
-            显示 {(pagination.page - 1) * pagination.pageSize + 1} -{" "}
-            {Math.min(pagination.page * pagination.pageSize, pagination.total)}{" "}
-            / {pagination.total} 条
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={pagination.page === 1}
-              onClick={() => pagination.onPageChange(pagination.page - 1)}
-            >
-              <ChevronLeft className="h-4 w-4" />
-              上一页
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={
-                pagination.page >=
-                Math.ceil(pagination.total / pagination.pageSize)
-              }
-              onClick={() => pagination.onPageChange(pagination.page + 1)}
-            >
-              下一页
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

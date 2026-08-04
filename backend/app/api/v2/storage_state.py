@@ -52,6 +52,8 @@ async def generate_storage_state(
         selectors=data.selectors,
         headless=data.headless,
         save_attachment=data.save_attachment,
+        login_mode=data.login_mode,
+        token_inject=data.token_inject,
     )
 
     background_tasks.add_task(
@@ -64,6 +66,8 @@ async def generate_storage_state(
         headless=data.headless,
         save_attachment=data.save_attachment,
         project_identifier=project.identifier,
+        login_mode=data.login_mode,
+        token_inject=data.token_inject,
     )
 
     await db.commit()

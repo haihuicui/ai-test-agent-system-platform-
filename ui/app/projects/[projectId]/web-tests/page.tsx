@@ -45,6 +45,13 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { AIChatSkeleton } from "@/components/langgraph/ai-chat-skeleton";
 import { ClientProvider } from "@/providers/ClientProvider";
 import { useDelayedUnmount } from "@/hooks/useDelayedUnmount";
@@ -144,6 +151,28 @@ const MoveFolderDialog = dynamic(
 type TestMode = "function";
 // eslint-disable  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2T0ZGMk5RPT06N2Y2NWVlMGM=
 
+function parseKeyValueText(text: string): Record<string, string> {
+  const result: Record<string, string> = {};
+  text.split("\n").forEach((line) => {
+    const idx = line.indexOf(":");
+    if (idx > 0) {
+      const key = line.slice(0, idx).trim();
+      const value = line.slice(idx + 1).trim();
+      if (key) result[key] = value;
+    }
+  });
+  return result;
+}
+
+function keyValueToText(obj: Record<string, unknown>): string {
+  return Object.entries(obj)
+    .map(([k, v]) => `${k}: ${String(v)}`)
+    .join("\n");
+}
+
+// 功能列表不分页：一次拉取全部（后端 page_size 上限 300），上下滚动查看
+const WEB_FUNCTIONS_PAGE_SIZE = 300;
+
 export default function WebTestsPage() {
   const params = useParams();
   const router = useRouter();
@@ -170,10 +199,6 @@ export default function WebTestsPage() {
   const [selectedWebFunction, setSelectedWebFunction] = React.useState<WebFunction | null>(null);
   const [artifactsRefreshTrigger, setArtifactsRefreshTrigger] = React.useState(0);
 
-  // 分页和筛选 - 功能列表
-  const [page, setPage] = React.useState(1);
-  const [pageSize, setPageSize] = React.useState(5);
-  const [total, setTotal] = React.useState(0);
   // 分页 - 子功能列表（独立分页状态）
   const [subPage, setSubPage] = React.useState(1);
   const [subPageSize, setSubPageSize] = React.useState(5);
@@ -216,8 +241,6 @@ export default function WebTestsPage() {
   const [storageStateDialogOpen, setStorageStateDialogOpen] = React.useState(false);
   const [generatingStorageState, setGeneratingStorageState] = React.useState(false);
   const [storageStateForm, setStorageStateForm] = React.useState<StorageStateGenerateRequest>({
-    password: "",
-    captcha: "",
     selectors: {
       login_url: "",
       pre_click_selector: "",
@@ -226,6 +249,17 @@ export default function WebTestsPage() {
       captcha_selector: "",
       submit_selector: "",
       success_selector: "",
+    },
+    login_mode: "form_login",
+    token_inject: {
+      token_url: "",
+      token_method: "POST",
+      token_body: {},
+      token_path: "$.data.token",
+      token_ttl_seconds: 604800,
+      inject_localstorage: { token: "{token}", userStatus: "login" },
+      inject_cookies: [{ name: "Authorization", value: "{token}" }],
+      target_domains: [],
     },
   });
   const [storageStateJobResult, setStorageStateJobResult] = React.useState<StorageStateJobInfo | null>(null);
@@ -270,8 +304,8 @@ export default function WebTestsPage() {
       }
 
       const params = {
-        p: page,
-        page_size: pageSize,
+        p: 1,
+        page_size: WEB_FUNCTIONS_PAGE_SIZE,
         search: searchQuery || undefined,
       };
 
@@ -287,25 +321,22 @@ export default function WebTestsPage() {
       setWebSubFunctions(subFunctionsItems);
       setSubTotal(subFunctions.total || 0);
 
-      let items, total;
+      let items;
       if ((response as any).data) {
         const data = (response as any).data;
         items = data.items || data.data || [];
-        total = data.total || 0;
       } else {
         items = (response as any).items || (response as any).data || [];
-        total = (response as any).total || 0;
       }
 
       setWebFunctions(items);
-      setTotal(total);
     } catch (error) {
       console.error("Failed to load web functions:", error);
       toast.error(t("webTests.loadWebFunctionsFailed"));
     } finally {
       setLoading(false);
     }
-  }, [projectId, selectedFolderId, page, pageSize, subPage, subPageSize, searchQuery, formatFilter, testMode, t]);
+  }, [projectId, selectedFolderId, subPage, subPageSize, searchQuery, formatFilter, testMode, t]);
 
   // 加载默认环境
   const loadDefaultEnvironment = React.useCallback(async () => {
@@ -367,7 +398,6 @@ export default function WebTestsPage() {
   const handleSelectFolder = (folder: FolderInfo | null) => {
     setSelectedFolderId(folder?.id || null);
     setSelectedFolderName(folder?.name);
-    setPage(1);
     setSubPage(1);  // 切换文件夹时重置子功能分页
     setSelectedIds(new Set());
     // 切换文件夹时清除子功能选择，避免显示错误的测试成果物
@@ -387,15 +417,17 @@ export default function WebTestsPage() {
     folderTreeRef.current?.refresh();
   };
 
-  // 打开登录态弹窗，优先从环境 auth_config.storage_state 预填充
+  // 打开登录态弹窗，优先从环境 auth_config.storage_state / token_inject 预填充
   const handleOpenStorageStateDialog = () => {
     const authConfig = (defaultEnv?.auth_config as any) || {};
     const stored = authConfig.storage_state || authConfig.form_login || {};
     const storedSelectors = stored.selectors || {};
+    const storedTokenInject = authConfig.token_inject || {};
     setStorageStateForm((prev) => ({
-      password: stored.password || "",
-      captcha: stored.captcha || "",
-      username: stored.username || "",
+      password: stored.password || storedTokenInject.token_body?.password || "",
+      captcha: stored.captcha || storedTokenInject.token_body?.captcha || "",
+      username: stored.username || storedTokenInject.token_body?.username || "",
+      login_mode: authConfig.token_inject ? "token_inject" : "form_login",
       selectors: {
         login_url: stored.login_url || prev.selectors?.login_url || "",
         pre_click_selector: storedSelectors.pre_click_selector || "",
@@ -404,6 +436,16 @@ export default function WebTestsPage() {
         captcha_selector: storedSelectors.captcha_selector || "",
         submit_selector: storedSelectors.submit_selector || "",
         success_selector: storedSelectors.success_selector || "",
+      },
+      token_inject: {
+        token_url: storedTokenInject.token_url || prev.token_inject?.token_url || "",
+        token_method: storedTokenInject.token_method || "POST",
+        token_body: storedTokenInject.token_body || {},
+        token_path: storedTokenInject.token_path || "$.data.token",
+        token_ttl_seconds: storedTokenInject.token_ttl_seconds || 604800,
+        inject_localstorage: storedTokenInject.inject_localstorage || { token: "{token}", userStatus: "login" },
+        inject_cookies: storedTokenInject.inject_cookies || [{ name: "Authorization", value: "{token}" }],
+        target_domains: storedTokenInject.target_domains || [],
       },
     }));
     setStorageStateJobResult(null);
@@ -445,34 +487,52 @@ export default function WebTestsPage() {
       toast.error("未找到默认环境，无法生成登录态");
       return;
     }
-    if (!storageStateForm.password) {
-      toast.error("密码不能为空");
-      return;
-    }
-    if (!storageStateForm.selectors?.login_url) {
+
+    const isTokenInject = storageStateForm.login_mode === "token_inject";
+
+    if (!isTokenInject && !storageStateForm.selectors?.login_url) {
       toast.error("登录页 URL 不能为空");
       return;
     }
+    if (isTokenInject) {
+      if (!storageStateForm.token_inject?.token_url) {
+        toast.error("Token 接口 URL 不能为空");
+        return;
+      }
+      if (!storageStateForm.token_inject?.target_domains?.length) {
+        toast.error("目标域名不能为空");
+        return;
+      }
+    }
+
     const hasCaptchaValue = Boolean(storageStateForm.captcha?.trim());
     const hasCaptchaSelector = Boolean(storageStateForm.selectors?.captcha_selector?.trim());
-    if (hasCaptchaValue !== hasCaptchaSelector) {
+    if (!isTokenInject && hasCaptchaValue !== hasCaptchaSelector) {
       toast.error("验证码和验证码选择器需同时填写或同时留空");
       return;
     }
 
-    // 先生成再保存：先保存表单配置（用户名、选择器等），确保生成失败也不会丢失
+    // 先生成再保存：先保存表单配置，确保生成失败也不会丢失
     try {
+      const authConfigUpdate: any = {
+        ...(defaultEnv?.auth_config || {}),
+      };
+      if (isTokenInject) {
+        authConfigUpdate.token_inject = {
+          ...storageStateForm.token_inject,
+        };
+      } else {
+        authConfigUpdate.storage_state = {
+          username: storageStateForm.username,
+          password: storageStateForm.password,
+          captcha: storageStateForm.captcha,
+          login_url: storageStateForm.selectors?.login_url,
+          selectors: storageStateForm.selectors,
+        };
+      }
+
       await updateEnvironment(projectId, defaultEnv.id, {
-        auth_config: {
-          ...(defaultEnv?.auth_config || {}),
-          storage_state: {
-            username: storageStateForm.username,
-            password: storageStateForm.password,
-            captcha: storageStateForm.captcha,
-            login_url: storageStateForm.selectors?.login_url,
-            selectors: storageStateForm.selectors,
-          },
-        },
+        auth_config: authConfigUpdate,
       });
       // 本地更新 defaultEnv，避免 loadDefaultEnvironment 触发 useEffect 导致
       // loadStorageStateStatus 被调用而不必要地刷新"最近生成时间"
@@ -480,16 +540,7 @@ export default function WebTestsPage() {
         prev
           ? {
               ...prev,
-              auth_config: {
-                ...(prev.auth_config || {}),
-                storage_state: {
-                  username: storageStateForm.username,
-                  password: storageStateForm.password,
-                  captcha: storageStateForm.captcha,
-                  login_url: storageStateForm.selectors?.login_url,
-                  selectors: storageStateForm.selectors,
-                },
-              },
+              auth_config: authConfigUpdate,
             }
           : prev
       );
@@ -902,7 +953,7 @@ export default function WebTestsPage() {
 
             {/* 模式内容区域 */}
             <div className="flex-1 overflow-hidden relative flex flex-col">
-              {/* Web函数列表 - 约束高度，确保分页条始终可见 */}
+              {/* Web函数列表 - 约束高度，超出后上下滚动查看 */}
               <div className="flex flex-col min-h-0 overflow-hidden border-b" style={{ flex: "0 0 auto", maxHeight: "45%" }}>
                 <WebFunctionList
                   webFunctions={webFunctions}
@@ -922,12 +973,6 @@ export default function WebTestsPage() {
                     setSubFunctionDrawerOpen(true);
                   }}
                   folderName={selectedFolderName}
-                  pagination={{
-                    page,
-                    pageSize,
-                    total,
-                    onPageChange: setPage,
-                  }}
                 />
               </div>
 
@@ -1291,141 +1336,318 @@ export default function WebTestsPage() {
             </DialogHeader>
             <form onSubmit={handleSubmitStorageState} className="flex flex-col flex-1 min-h-0 overflow-hidden">
               <div className="space-y-4 py-4 px-1 overflow-y-auto">
+                {/* 登录方式切换 */}
                 <div className="space-y-2">
-                  <Label htmlFor="ss-username">用户名</Label>
-                  <Input
-                    id="ss-username"
-                    value={storageStateForm.username || ""}
-                    onChange={(e) =>
-                      setStorageStateForm({ ...storageStateForm, username: e.target.value })
-                    }
-                    placeholder="输入登录账号"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="ss-password">密码</Label>
-                  <Input
-                    id="ss-password"
-                    value={storageStateForm.password}
-                    onChange={(e) =>
-                      setStorageStateForm({ ...storageStateForm, password: e.target.value })
-                    }
-                    placeholder="输入登录密码"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="ss-captcha">验证码</Label>
-                  <Input
-                    id="ss-captcha"
-                    value={storageStateForm.captcha || ""}
-                    onChange={(e) =>
-                      setStorageStateForm({ ...storageStateForm, captcha: e.target.value })
-                    }
-                    placeholder="输入当前验证码（如页面无需验证码请留空）"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="ss-login-url">登录页 URL</Label>
-                  <Input
-                    id="ss-login-url"
-                    value={storageStateForm.selectors?.login_url || ""}
-                    onChange={(e) =>
-                      setStorageStateForm({
-                        ...storageStateForm,
-                        selectors: { ...storageStateForm.selectors, login_url: e.target.value },
-                      })
-                    }
-                    placeholder="https://example.com/login"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="ss-pre-click">模式切换选择器 <span className="text-muted-foreground">(可选)</span></Label>
-                  <Input
-                    id="ss-pre-click"
-                    value={storageStateForm.selectors?.pre_click_selector || ""}
-                    onChange={(e) =>
-                      setStorageStateForm({
-                        ...storageStateForm,
-                        selectors: { ...storageStateForm.selectors, pre_click_selector: e.target.value },
-                      })
-                    }
-                    placeholder='如登录页默认短信登录，需先点此按钮切换为密码登录，例: label:has-text("密码登录")'
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="ss-username-selector">用户名选择器</Label>
-                    <Input
-                      id="ss-username-selector"
-                      value={storageStateForm.selectors?.username_selector || ""}
-                      onChange={(e) =>
-                        setStorageStateForm({
-                          ...storageStateForm,
-                          selectors: { ...storageStateForm.selectors, username_selector: e.target.value },
-                        })
+                  <Label>登录方式</Label>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant={storageStateForm.login_mode === "form_login" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() =>
+                        setStorageStateForm({ ...storageStateForm, login_mode: "form_login" })
                       }
-                      placeholder="input[data-test='username']"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="ss-password-selector">密码选择器</Label>
-                    <Input
-                      id="ss-password-selector"
-                      value={storageStateForm.selectors?.password_selector || ""}
-                      onChange={(e) =>
-                        setStorageStateForm({
-                          ...storageStateForm,
-                          selectors: { ...storageStateForm.selectors, password_selector: e.target.value },
-                        })
+                    >
+                      表单登录
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={storageStateForm.login_mode === "token_inject" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() =>
+                        setStorageStateForm({ ...storageStateForm, login_mode: "token_inject" })
                       }
-                      placeholder="input[data-test='password']"
-                    />
+                    >
+                      Token 注入
+                    </Button>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="ss-captcha-selector">验证码选择器</Label>
-                    <Input
-                      id="ss-captcha-selector"
-                      value={storageStateForm.selectors?.captcha_selector || ""}
-                      onChange={(e) =>
-                        setStorageStateForm({
-                          ...storageStateForm,
-                          selectors: { ...storageStateForm.selectors, captcha_selector: e.target.value },
-                        })
-                      }
-                      placeholder="input[data-test='captcha']（无需验证码请留空）"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="ss-submit-selector">提交按钮选择器</Label>
-                    <Input
-                      id="ss-submit-selector"
-                      value={storageStateForm.selectors?.submit_selector || ""}
-                      onChange={(e) =>
-                        setStorageStateForm({
-                          ...storageStateForm,
-                          selectors: { ...storageStateForm.selectors, submit_selector: e.target.value },
-                        })
-                      }
-                      placeholder="input[data-test='login-button']"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="ss-success-selector">成功标识选择器</Label>
-                    <Input
-                      id="ss-success-selector"
-                      value={storageStateForm.selectors?.success_selector || ""}
-                      onChange={(e) =>
-                        setStorageStateForm({
-                          ...storageStateForm,
-                          selectors: { ...storageStateForm.selectors, success_selector: e.target.value },
-                        })
-                      }
-                      placeholder="[data-test='inventory-container']"
-                    />
-                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {storageStateForm.login_mode === "form_login"
+                      ? "通过 UI 表单填写用户名密码生成登录态"
+                      : "通过调用 token 接口直接注入浏览器生成登录态，支持跨子域"}
+                  </p>
                 </div>
+
+                {storageStateForm.login_mode === "form_login" ? (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="ss-username">用户名</Label>
+                      <Input
+                        id="ss-username"
+                        value={storageStateForm.username || ""}
+                        onChange={(e) =>
+                          setStorageStateForm({ ...storageStateForm, username: e.target.value })
+                        }
+                        placeholder="输入登录账号"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="ss-password">密码</Label>
+                      <Input
+                        id="ss-password"
+                        value={storageStateForm.password}
+                        onChange={(e) =>
+                          setStorageStateForm({ ...storageStateForm, password: e.target.value })
+                        }
+                        placeholder="输入登录密码"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="ss-captcha">验证码</Label>
+                      <Input
+                        id="ss-captcha"
+                        value={storageStateForm.captcha || ""}
+                        onChange={(e) =>
+                          setStorageStateForm({ ...storageStateForm, captcha: e.target.value })
+                        }
+                        placeholder="输入当前验证码（如页面无需验证码请留空）"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="ss-login-url">登录页 URL</Label>
+                      <Input
+                        id="ss-login-url"
+                        value={storageStateForm.selectors?.login_url || ""}
+                        onChange={(e) =>
+                          setStorageStateForm({
+                            ...storageStateForm,
+                            selectors: { ...storageStateForm.selectors, login_url: e.target.value },
+                          })
+                        }
+                        placeholder="https://example.com/login"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="ss-pre-click">模式切换选择器 <span className="text-muted-foreground">(可选)</span></Label>
+                      <Input
+                        id="ss-pre-click"
+                        value={storageStateForm.selectors?.pre_click_selector || ""}
+                        onChange={(e) =>
+                          setStorageStateForm({
+                            ...storageStateForm,
+                            selectors: { ...storageStateForm.selectors, pre_click_selector: e.target.value },
+                          })
+                        }
+                        placeholder='如登录页默认短信登录，需先点此按钮切换为密码登录，例: label:has-text("密码登录")'
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="ss-username-selector">用户名选择器</Label>
+                        <Input
+                          id="ss-username-selector"
+                          value={storageStateForm.selectors?.username_selector || ""}
+                          onChange={(e) =>
+                            setStorageStateForm({
+                              ...storageStateForm,
+                              selectors: { ...storageStateForm.selectors, username_selector: e.target.value },
+                            })
+                          }
+                          placeholder="input[data-test='username']"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="ss-password-selector">密码选择器</Label>
+                        <Input
+                          id="ss-password-selector"
+                          value={storageStateForm.selectors?.password_selector || ""}
+                          onChange={(e) =>
+                            setStorageStateForm({
+                              ...storageStateForm,
+                              selectors: { ...storageStateForm.selectors, password_selector: e.target.value },
+                            })
+                          }
+                          placeholder="input[data-test='password']"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="ss-captcha-selector">验证码选择器</Label>
+                        <Input
+                          id="ss-captcha-selector"
+                          value={storageStateForm.selectors?.captcha_selector || ""}
+                          onChange={(e) =>
+                            setStorageStateForm({
+                              ...storageStateForm,
+                              selectors: { ...storageStateForm.selectors, captcha_selector: e.target.value },
+                            })
+                          }
+                          placeholder="input[data-test='captcha']（无需验证码请留空）"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="ss-submit-selector">提交按钮选择器</Label>
+                        <Input
+                          id="ss-submit-selector"
+                          value={storageStateForm.selectors?.submit_selector || ""}
+                          onChange={(e) =>
+                            setStorageStateForm({
+                              ...storageStateForm,
+                              selectors: { ...storageStateForm.selectors, submit_selector: e.target.value },
+                            })
+                          }
+                          placeholder="input[data-test='login-button']"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="ss-success-selector">成功标识选择器</Label>
+                        <Input
+                          id="ss-success-selector"
+                          value={storageStateForm.selectors?.success_selector || ""}
+                          onChange={(e) =>
+                            setStorageStateForm({
+                              ...storageStateForm,
+                              selectors: { ...storageStateForm.selectors, success_selector: e.target.value },
+                            })
+                          }
+                          placeholder="[data-test='inventory-container']"
+                        />
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="ss-token-url">Token 接口 URL</Label>
+                      <Input
+                        id="ss-token-url"
+                        value={storageStateForm.token_inject?.token_url || ""}
+                        onChange={(e) =>
+                          setStorageStateForm({
+                            ...storageStateForm,
+                            token_inject: {
+                              ...storageStateForm.token_inject,
+                              token_url: e.target.value,
+                            },
+                          })
+                        }
+                        placeholder="https://example.com/api/auth/token"
+                        required
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="ss-token-method">请求方法</Label>
+                        <Select
+                          value={storageStateForm.token_inject?.token_method || "POST"}
+                          onValueChange={(value: "GET" | "POST") =>
+                            setStorageStateForm({
+                              ...storageStateForm,
+                              token_inject: {
+                                ...storageStateForm.token_inject,
+                                token_method: value,
+                              },
+                            })
+                          }
+                        >
+                          <SelectTrigger id="ss-token-method">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="POST">POST</SelectItem>
+                            <SelectItem value="GET">GET</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="ss-token-ttl">缓存 TTL（秒）</Label>
+                        <Input
+                          id="ss-token-ttl"
+                          type="number"
+                          min={0}
+                          step={1}
+                          value={storageStateForm.token_inject?.token_ttl_seconds || 604800}
+                          onChange={(e) =>
+                            setStorageStateForm({
+                              ...storageStateForm,
+                              token_inject: {
+                                ...storageStateForm.token_inject,
+                                token_ttl_seconds: parseInt(e.target.value, 10) || 604800,
+                              },
+                            })
+                          }
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="ss-token-path">Token 提取路径</Label>
+                      <Input
+                        id="ss-token-path"
+                        value={storageStateForm.token_inject?.token_path || "$.data.token"}
+                        onChange={(e) =>
+                          setStorageStateForm({
+                            ...storageStateForm,
+                            token_inject: {
+                              ...storageStateForm.token_inject,
+                              token_path: e.target.value,
+                            },
+                          })
+                        }
+                        placeholder="$.data.token"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="ss-token-headers">Token 接口请求头（key: value，每行一个）</Label>
+                      <Textarea
+                        id="ss-token-headers"
+                        placeholder={"Content-Type: application/json"}
+                        value={keyValueToText(storageStateForm.token_inject?.token_headers || {})}
+                        onChange={(e) =>
+                          setStorageStateForm({
+                            ...storageStateForm,
+                            token_inject: {
+                              ...storageStateForm.token_inject,
+                              token_headers: parseKeyValueText(e.target.value),
+                            },
+                          })
+                        }
+                        rows={2}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="ss-token-body">Token 接口请求体（JSON）</Label>
+                      <Textarea
+                        id="ss-token-body"
+                        placeholder={'{"username": "root", "password": "...", "captcha": "..."}'}
+                        value={JSON.stringify(storageStateForm.token_inject?.token_body || {}, null, 2)}
+                        onChange={(e) => {
+                          try {
+                            const parsed = JSON.parse(e.target.value);
+                            setStorageStateForm({
+                              ...storageStateForm,
+                              token_inject: {
+                                ...storageStateForm.token_inject,
+                                token_body: parsed,
+                              },
+                            });
+                          } catch {
+                            // 允许临时非法 JSON
+                          }
+                        }}
+                        rows={3}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="ss-target-domains">目标域名（每行一个）</Label>
+                      <Textarea
+                        id="ss-target-domains"
+                        placeholder="xcloud-sit-15000.chromxhealth.com\nxcloud-admin-sit-15000.chromxhealth.com"
+                        value={(storageStateForm.token_inject?.target_domains || []).join("\n")}
+                        onChange={(e) =>
+                          setStorageStateForm({
+                            ...storageStateForm,
+                            token_inject: {
+                              ...storageStateForm.token_inject,
+                              target_domains: e.target.value.split("\n").map((s) => s.trim()).filter(Boolean),
+                            },
+                          })
+                        }
+                        rows={3}
+                      />
+                    </div>
+                  </>
+                )}
               </div>
 
               {storageStateJobResult?.status === "failed" && (

@@ -206,8 +206,13 @@ class Settings(BaseSettings):
     web_mcp_storage_state: Optional[str] = None
 
     # 登录态自动续期：生成成功后按 expires_at - buffer 调度一次重新生成。
+    # buffer 默认 6 小时，避免 token 实际有效期短于 cookie expires 时过早失效。
     web_mcp_storage_state_auto_renew_enabled: bool = True
-    web_mcp_storage_state_auto_renew_buffer_minutes: int = 30
+    web_mcp_storage_state_auto_renew_buffer_minutes: int = 360
+
+    # 登录态运行时探针：生成后访问指定 API，401/403 判定失效并自动重试。
+    web_mcp_storage_state_probe_enabled: bool = True
+    web_mcp_storage_state_probe_path: str = "/api/user/info"
 
     # Web 测试执行预算（超时/并发/重试，统一在此调整）。
     # 层级关系：单用例超时(web_exec_test_timeout_ms) < 整脚本执行超时(web_exec_timeout_seconds)。

@@ -44,7 +44,7 @@ class StorageStateGenerateRequest(BaseModel):
     """触发生成 storageState 的请求"""
 
     username: Optional[str] = Field(default=None, description="登录用户名；不传则从环境配置读取")
-    password: str = Field(..., description="登录密码，不会被持久化")
+    password: Optional[str] = Field(default=None, description="登录密码；form_login 模式必填，token_inject 模式从 token_body 读取")
     captcha: Optional[str] = Field(default=None, description="验证码值，不会被持久化")
     headless: bool = Field(default=True, description="是否使用无头浏览器")
     selectors: Optional[LoginSelectors] = Field(
@@ -52,6 +52,11 @@ class StorageStateGenerateRequest(BaseModel):
         description="登录配置；不传则从 ProjectEnvironment.auth_config.form_login 读取",
     )
     save_attachment: bool = Field(default=True, description="是否归档到 MinIO")
+    login_mode: str = Field(default="form_login", description="登录模式：form_login / token_inject")
+    token_inject: Optional[dict] = Field(
+        default=None,
+        description="token 注入配置；login_mode=token_inject 时必填",
+    )
 
 
 class StorageStateJobInfo(BaseModel):

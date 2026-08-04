@@ -206,30 +206,7 @@ class TestRunSchedulerService:
                 return
 
             auth_config = env.auth_config or {}
-            form_login = auth_config.get("form_login")
-            if not form_login:
-                print(f"[Scheduler] 环境缺少 form_login 配置，跳过续期: env={env_id}")
-                return
-
-            username = form_login.get("username")
-            login_url = form_login.get("login_url")
-            selectors_dict = form_login.get("selectors", {})
-            if not username or not login_url:
-                print(
-                    f"[Scheduler] 环境 form_login 配置不完整，跳过续期: env={env_id}"
-                )
-                return
-
-            selectors = LoginSelectors(
-                pre_click_selector=selectors_dict.get("pre_click_selector") or None,
-                login_url=login_url,
-                username_selector=selectors_dict.get("username_selector", ""),
-                password_selector=selectors_dict.get("password_selector", ""),
-                captcha_selector=selectors_dict.get("captcha_selector") or None,
-                submit_selector=selectors_dict.get("submit_selector", ""),
-                success_selector=selectors_dict.get("success_selector", ""),
-            )
-            captcha = form_login.get("captcha")
+            token_inject = auth_config.get("token_inject")
 
             project_repo = ProjectRepository(session)
             project = await project_repo.get_by_id(env.project_id)
@@ -239,26 +216,79 @@ class TestRunSchedulerService:
 
             service = StorageStateService(session)
             try:
-                job, *_ = await service.create_job(
-                    project_identifier=project.identifier,
-                    env_id=env.id,
-                    username=username,
-                    password=env.auth_secret,
-                    captcha=captcha,
-                    selectors=selectors,
-                    headless=True,
-                    save_attachment=True,
-                )
-                await service.execute_generation(
-                    job_id=job.id,
-                    username=username,
-                    password=env.auth_secret,
-                    captcha=captcha,
-                    selectors=selectors,
-                    headless=True,
-                    save_attachment=True,
-                    project_identifier=project.identifier,
-                )
+                if token_inject:
+                    # token 注入模式续期
+                    job, *_ = await service.create_job(
+                        project_identifier=project.identifier,
+                        env_id=env.id,
+                        username=token_inject.get("token_body", {}).get("username", ""),
+                        password=env.auth_secret,
+                        captcha=token_inject.get("token_body", {}).get("captcha"),
+                        selectors=None,
+                        headless=True,
+                        save_attachment=True,
+                        login_mode="token_inject",
+                        token_inject=token_inject,
+                    )
+                    await service.execute_generation(
+                        job_id=job.id,
+                        username=token_inject.get("token_body", {}).get("username", ""),
+                        password=env.auth_secret,
+                        captcha=token_inject.get("token_body", {}).get("captcha"),
+                        selectors=None,
+                        headless=True,
+                        save_attachment=True,
+                        project_identifier=project.identifier,
+                        login_mode="token_inject",
+                        token_inject=token_inject,
+                    )
+                else:
+                    # form_login 模式续期
+                    form_login = auth_config.get("form_login")
+                    if not form_login:
+                        print(f"[Scheduler] 环境缺少 form_login 配置，跳过续期: env={env_id}")
+                        return
+
+                    username = form_login.get("username")
+                    login_url = form_login.get("login_url")
+                    selectors_dict = form_login.get("selectors", {})
+                    if not username or not login_url:
+                        print(
+                            f"[Scheduler] 环境 form_login 配置不完整，跳过续期: env={env_id}"
+                        )
+                        return
+
+                    selectors = LoginSelectors(
+                        pre_click_selector=selectors_dict.get("pre_click_selector") or None,
+                        login_url=login_url,
+                        username_selector=selectors_dict.get("username_selector", ""),
+                        password_selector=selectors_dict.get("password_selector", ""),
+                        captcha_selector=selectors_dict.get("captcha_selector") or None,
+                        submit_selector=selectors_dict.get("submit_selector", ""),
+                        success_selector=selectors_dict.get("success_selector", ""),
+                    )
+                    captcha = form_login.get("captcha")
+
+                    job, *_ = await service.create_job(
+                        project_identifier=project.identifier,
+                        env_id=env.id,
+                        username=username,
+                        password=env.auth_secret,
+                        captcha=captcha,
+                        selectors=selectors,
+                        headless=True,
+                        save_attachment=True,
+                    )
+                    await service.execute_generation(
+                        job_id=job.id,
+                        username=username,
+                        password=env.auth_secret,
+                        captcha=captcha,
+                        selectors=selectors,
+                        headless=True,
+                        save_attachment=True,
+                        project_identifier=project.identifier,
+                    )
                 print(
                     f"[Scheduler] storageState 续期完成: env={env_id} job={job.id}"
                 )

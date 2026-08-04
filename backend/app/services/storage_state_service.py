@@ -62,18 +62,20 @@ class StorageStateService:
         selectors: Optional[LoginSelectors],
         headless: bool,
         save_attachment: bool,
+        login_mode: str = "form_login",
+        token_inject: Optional[dict] = None,
     ) -> tuple[StorageStateJob, str, Optional[str], LoginSelectors, Project, Optional[ProjectEnvironment]]:
         """创建生成任务并合并配置。
 
         返回: (job, effective_username, effective_captcha, effective_selectors, project, env)
         """
-        if not password:
+        if login_mode == "form_login" and not password:
             raise BadRequestException("密码不能为空")
 
         project = await self._resolve_project(project_identifier)
         env = await self._resolve_environment(project.id, env_id)
         effective_username, effective_captcha, effective_selectors = self._merge_config(
-            env, username, captcha, selectors
+            env, username, captcha, selectors, login_mode=login_mode
         )
 
         # 先创建 job 以获取 job.id，再用 job.id 生成隔离输出路径
@@ -91,13 +93,14 @@ class StorageStateService:
         )
 
         logger.info(
-            "[StorageState] 已创建任务 job=%s project=%s env=%s output=%s headless=%s save_attachment=%s",
+            "[StorageState] 已创建任务 job=%s project=%s env=%s output=%s headless=%s save_attachment=%s login_mode=%s",
             job.id,
             project.identifier,
             env.id if env else None,
             job.output_path,
             headless,
             save_attachment,
+            login_mode,
         )
 
         return job, effective_username, effective_captcha, effective_selectors, project, env
@@ -112,6 +115,8 @@ class StorageStateService:
         headless: bool,
         save_attachment: bool,
         project_identifier: str,
+        login_mode: str = "form_login",
+        token_inject: Optional[dict] = None,
     ) -> None:
         """执行生成（可在后台任务中调用）。"""
         async with async_session_factory() as session:
@@ -126,6 +131,8 @@ class StorageStateService:
                     headless=headless,
                     save_attachment=save_attachment,
                     project_identifier=project_identifier,
+                    login_mode=login_mode,
+                    token_inject=token_inject,
                 )
             except Exception as e:
                 logger.exception(
@@ -211,6 +218,8 @@ class StorageStateService:
         selectors: Optional[LoginSelectors],
         headless: bool,
         save_attachment: bool,
+        login_mode: str = "form_login",
+        token_inject: Optional[dict] = None,
     ) -> StorageStateJobInfo:
         """创建并同步等待任务完成（供 CLI 使用）。"""
         job, effective_username, effective_captcha, effective_selectors, project, _ = await self.create_job(
@@ -222,6 +231,8 @@ class StorageStateService:
             selectors=selectors,
             headless=headless,
             save_attachment=save_attachment,
+            login_mode=login_mode,
+            token_inject=token_inject,
         )
         await self._execute_generation(
             job_id=job.id,
@@ -232,6 +243,8 @@ class StorageStateService:
             headless=headless,
             save_attachment=save_attachment,
             project_identifier=project.identifier,
+            login_mode=login_mode,
+            token_inject=token_inject,
         )
         # 避免 commit 后对象过期触发同步懒加载
         await self.session.refresh(job)
@@ -271,13 +284,30 @@ class StorageStateService:
         username: Optional[str],
         captcha: Optional[str],
         selectors: Optional[LoginSelectors],
+        login_mode: str = "form_login",
     ) -> tuple[str, Optional[str], LoginSelectors]:
         """合并请求参数与环境配置中的登录态信息。
 
         支持两个来源：
         - auth_type == "form_login" 时读取 auth_config.form_login；
         - 其他 auth_type 时读取 auth_config.storage_state（不改动主认证类型）。
+        token_inject 模式下 selectors 可为空，返回默认 LoginSelectors。
         """
+        if login_mode == "token_inject":
+            # token 注入模式不需要 selectors，返回默认值即可
+            effective_username = username
+            effective_captcha = captcha
+            if env:
+                auth_config = env.auth_config or {}
+                token_cfg = auth_config.get("token_inject", {})
+                token_body = token_cfg.get("token_body", {})
+                if not effective_username:
+                    effective_username = token_body.get("username")
+                if not effective_captcha:
+                    effective_captcha = token_body.get("captcha")
+            # username/captcha 均可从 token_body 读取，不再强制要求单独提供
+            return effective_username, effective_captcha, LoginSelectors(login_url="")
+
         effective_username = username
         effective_captcha = captcha
         effective_selectors = selectors
@@ -350,7 +380,7 @@ class StorageStateService:
                 "用户名不能为空，请在请求或环境配置 auth_config.form_login.username 或 auth_config.storage_state.username 中提供"
             )
 
-        if effective_selectors is None or not effective_selectors.login_url:
+        if login_mode == "form_login" and (effective_selectors is None or not effective_selectors.login_url):
             raise BadRequestException(
                 "登录 URL 不能为空，请在请求 selectors 或环境配置 auth_config.form_login / auth_config.storage_state 中提供"
             )
@@ -412,6 +442,8 @@ class StorageStateService:
         headless: bool,
         save_attachment: bool,
         project_identifier: str,
+        login_mode: str = "form_login",
+        token_inject: Optional[dict] = None,
     ) -> None:
         job = await self.session.get(StorageStateJob, job_id)
         if not job:
@@ -430,66 +462,78 @@ class StorageStateService:
                 project = await self.project_repo.get_by_id(job.project_id)
                 env = await self.env_repo.get_by_id(job.environment_id) if job.environment_id else None
 
-                if not selectors.submit_selector or not selectors.submit_selector.strip():
-                    raise BadRequestException("提交按钮选择器 SUBMIT_SELECTOR 不能为空")
-                if not selectors.success_selector or not selectors.success_selector.strip():
-                    raise BadRequestException("成功页面元素选择器 SUCCESS_SELECTOR 不能为空")
-
                 output_path = Path(job.output_path)
                 await run_sync(output_path.parent.mkdir, parents=True, exist_ok=True)
 
-                web_mcp_root = Path(settings.web_mcp_root).resolve()
-                tmp_dir = web_mcp_root / ".storage-state-jobs" / str(job_id)
-                screenshot_path = tmp_dir / "failure-screenshot.png"
-                await run_sync(tmp_dir.mkdir, parents=True, exist_ok=True)
-
-                config_path, _ = await self._write_setup_project(
-                    tmp_dir, output_path, headless
-                )
-
-                env_vars = os.environ.copy()
-                env_vars.update({
-                    "LOGIN_URL": selectors.login_url,
-                    "LOGIN_USERNAME": username,
-                    "LOGIN_PASSWORD": password,
-                    "CAPTCHA": captcha or "",
-                    "CAPTCHA_SELECTOR": selectors.captcha_selector or "",
-                    "PRE_CLICK_SELECTOR": selectors.pre_click_selector or "",
-                    "USERNAME_SELECTOR": selectors.username_selector,
-                    "PASSWORD_SELECTOR": selectors.password_selector,
-                    "SUBMIT_SELECTOR": selectors.submit_selector,
-                    "SUCCESS_SELECTOR": selectors.success_selector,
-                    "STORAGE_STATE_PATH": str(output_path),
-                    "FAILURE_SCREENSHOT_PATH": str(screenshot_path),
-                    "PLAYWRIGHT_HEADLESS": "true" if headless else "false",
-                })
-
-                npx = "npx.cmd" if os.name == "nt" else "npx"
-                logger.info(
-                    "[StorageState] 开始执行 Playwright 登录脚本: job=%s url=%s",
-                    job_id,
-                    selectors.login_url,
-                )
-
-                cmd = [
-                    npx,
-                    "playwright",
-                    "test",
-                    "--config",
-                    str(config_path),
-                    "--project=setup",
-                ]
-                stdout, stderr, returncode = await self._run_playwright_subprocess(
-                    cmd=cmd,
-                    cwd=str(web_mcp_root),
-                    env=env_vars,
-                    timeout=settings.web_exec_timeout_seconds,
-                )
-
-                if returncode != 0:
-                    raise RuntimeError(
-                        f"Playwright 登录脚本执行失败（返回码 {returncode}）:\n{stderr}\n{stdout}"
+                stdout = ""
+                stderr = ""
+                if login_mode == "token_inject":
+                    if not token_inject:
+                        raise BadRequestException("token_inject 模式必须提供 token_inject 配置")
+                    await self._generate_by_token_inject(
+                        job_id=job_id,
+                        token_inject=token_inject,
+                        output_path=output_path,
+                        headless=headless,
                     )
+                else:
+                    if not selectors.submit_selector or not selectors.submit_selector.strip():
+                        raise BadRequestException("提交按钮选择器 SUBMIT_SELECTOR 不能为空")
+                    if not selectors.success_selector or not selectors.success_selector.strip():
+                        raise BadRequestException("成功页面元素选择器 SUCCESS_SELECTOR 不能为空")
+
+                    web_mcp_root = Path(settings.web_mcp_root).resolve()
+                    tmp_dir = web_mcp_root / ".storage-state-jobs" / str(job_id)
+                    screenshot_path = tmp_dir / "failure-screenshot.png"
+                    await run_sync(tmp_dir.mkdir, parents=True, exist_ok=True)
+
+                    config_path, _ = await self._write_setup_project(
+                        tmp_dir, output_path, headless
+                    )
+
+                    env_vars = os.environ.copy()
+                    env_vars.update({
+                        "LOGIN_URL": selectors.login_url,
+                        "LOGIN_USERNAME": username,
+                        "LOGIN_PASSWORD": password,
+                        "CAPTCHA": captcha or "",
+                        "CAPTCHA_SELECTOR": selectors.captcha_selector or "",
+                        "PRE_CLICK_SELECTOR": selectors.pre_click_selector or "",
+                        "USERNAME_SELECTOR": selectors.username_selector,
+                        "PASSWORD_SELECTOR": selectors.password_selector,
+                        "SUBMIT_SELECTOR": selectors.submit_selector,
+                        "SUCCESS_SELECTOR": selectors.success_selector,
+                        "STORAGE_STATE_PATH": str(output_path),
+                        "FAILURE_SCREENSHOT_PATH": str(screenshot_path),
+                        "PLAYWRIGHT_HEADLESS": "true" if headless else "false",
+                    })
+
+                    npx = "npx.cmd" if os.name == "nt" else "npx"
+                    logger.info(
+                        "[StorageState] 开始执行 Playwright 登录脚本: job=%s url=%s",
+                        job_id,
+                        selectors.login_url,
+                    )
+
+                    cmd = [
+                        npx,
+                        "playwright",
+                        "test",
+                        "--config",
+                        str(config_path),
+                        "--project=setup",
+                    ]
+                    stdout, stderr, returncode = await self._run_playwright_subprocess(
+                        cmd=cmd,
+                        cwd=str(web_mcp_root),
+                        env=env_vars,
+                        timeout=settings.web_exec_timeout_seconds,
+                    )
+
+                    if returncode != 0:
+                        raise RuntimeError(
+                            f"Playwright 登录脚本执行失败（返回码 {returncode}）:\n{stderr}\n{stdout}"
+                        )
 
                 if not await run_sync(output_path.exists):
                     raise RuntimeError(f"storageState 文件未生成: {output_path}")
@@ -506,7 +550,53 @@ class StorageStateService:
                     validation.reason,
                 )
 
+                # 运行时探针：用生成的 storageState 访问需登录 API，401/403 判定失效并尝试重新生成
+                probe_ok = True
+                probe_reason = ""
+                if settings.web_mcp_storage_state_probe_enabled and env is not None:
+                    probe_ok, probe_reason = await self._probe_storage_state(
+                        output_path, env, token_inject if login_mode == "token_inject" else None
+                    )
+                    if not probe_ok:
+                        logger.warning(
+                            "[StorageState] 运行时探针判定失效 job=%s env=%s reason=%s",
+                            job_id,
+                            env.id,
+                            probe_reason,
+                        )
+                        # 如果当前是 token 注入模式且配置了 token_inject，立即重新生成一次
+                        if login_mode == "token_inject" and token_inject:
+                            logger.info(
+                                "[StorageState] 探针失效，立即重新生成 token 注入登录态 job=%s",
+                                job_id,
+                            )
+                            await self._generate_by_token_inject(
+                                job_id=job_id,
+                                token_inject=token_inject,
+                                output_path=output_path,
+                                headless=headless,
+                            )
+                            # 重新校验
+                            validation = validate_storage_state(output_path)
+                            job.is_valid = validation.is_valid
+                            job.expires_at = validation.earliest_expiry
+                            job.validation_reason = (
+                                f"{validation.reason}（探针失效后重新生成）"
+                            )
+                            probe_ok, probe_reason = await self._probe_storage_state(
+                                output_path, env, token_inject
+                            )
+                            if not probe_ok:
+                                raise RuntimeError(
+                                    f"storageState 运行时探针二次判定失效: {probe_reason}"
+                                )
+                        else:
+                            raise RuntimeError(
+                                f"storageState 运行时探针判定失效: {probe_reason}"
+                            )
+
                 # 激活：更新 playwright.config.js 注入 storageState
+                web_mcp_root = Path(settings.web_mcp_root).resolve()
                 await ensure_playwright_mcp_project(
                     str(web_mcp_root),
                     headless=headless,
@@ -517,48 +607,64 @@ class StorageStateService:
                 # 与 username/selectors 一起写入 auth_config.form_login，供后续自动续期使用。
                 if env is not None:
                     auth_config = env.auth_config or {}
-                    form_login_selectors = {
-                        "pre_click_selector": selectors.pre_click_selector,
-                        "username_selector": selectors.username_selector,
-                        "password_selector": selectors.password_selector,
-                        "captcha_selector": selectors.captcha_selector,
-                        "submit_selector": selectors.submit_selector,
-                        "success_selector": selectors.success_selector,
-                    }
-                    # 过滤掉 None 值，保持配置简洁
-                    form_login_selectors = {
-                        k: v for k, v in form_login_selectors.items() if v
-                    }
-                    form_login = {
-                        "username": username,
-                        "login_url": selectors.login_url,
-                        "selectors": form_login_selectors,
-                    }
-                    if captcha:
-                        form_login["captcha"] = captcha
-
-                    # 向后兼容：若之前仅有 auth_config.storage_state，先同步到 form_login
-                    storage_cfg = auth_config.get("storage_state")
-                    if storage_cfg and "form_login" not in auth_config:
-                        auth_config["form_login"] = storage_cfg
-
-                    existing_form_login = auth_config.get("form_login", {})
-                    existing_form_login.update(form_login)
-                    auth_config["form_login"] = existing_form_login
-
-                    # 测试环境：密码作为普通字段明文保存
-                    env.auth_secret = password
-                    env.auth_config = auth_config
-
-                    if env.auth_type == AuthType.NONE.value:
-                        env.auth_type = AuthType.FORM_LOGIN.value
+                    if login_mode == "token_inject":
+                        # token 注入模式：保存 token_inject 配置，password 从 token_body 提取写入 auth_secret
+                        auth_config["token_inject"] = token_inject
+                        token_body = (token_inject or {}).get("token_body", {})
+                        env.auth_secret = token_body.get("password") or password or ""
+                        env.auth_config = auth_config
+                        if env.auth_type == AuthType.NONE.value:
+                            env.auth_type = AuthType.FORM_LOGIN.value
+                            logger.info(
+                                "[StorageState] 环境 %s auth_type 自动切换为 form_login",
+                                env.id,
+                            )
                         logger.info(
-                            "[StorageState] 环境 %s auth_type 自动切换为 form_login",
-                            env.id,
+                            "[StorageState] 环境 %s token 注入配置已更新", env.id
                         )
-                    logger.info(
-                        "[StorageState] 环境 %s 登录凭据已更新", env.id
-                    )
+                    else:
+                        form_login_selectors = {
+                            "pre_click_selector": selectors.pre_click_selector,
+                            "username_selector": selectors.username_selector,
+                            "password_selector": selectors.password_selector,
+                            "captcha_selector": selectors.captcha_selector,
+                            "submit_selector": selectors.submit_selector,
+                            "success_selector": selectors.success_selector,
+                        }
+                        # 过滤掉 None 值，保持配置简洁
+                        form_login_selectors = {
+                            k: v for k, v in form_login_selectors.items() if v
+                        }
+                        form_login = {
+                            "username": username,
+                            "login_url": selectors.login_url,
+                            "selectors": form_login_selectors,
+                        }
+                        if captcha:
+                            form_login["captcha"] = captcha
+
+                        # 向后兼容：若之前仅有 auth_config.storage_state，先同步到 form_login
+                        storage_cfg = auth_config.get("storage_state")
+                        if storage_cfg and "form_login" not in auth_config:
+                            auth_config["form_login"] = storage_cfg
+
+                        existing_form_login = auth_config.get("form_login", {})
+                        existing_form_login.update(form_login)
+                        auth_config["form_login"] = existing_form_login
+
+                        # 测试环境：密码作为普通字段明文保存
+                        env.auth_secret = password
+                        env.auth_config = auth_config
+
+                        if env.auth_type == AuthType.NONE.value:
+                            env.auth_type = AuthType.FORM_LOGIN.value
+                            logger.info(
+                                "[StorageState] 环境 %s auth_type 自动切换为 form_login",
+                                env.id,
+                            )
+                        logger.info(
+                            "[StorageState] 环境 %s 登录凭据已更新", env.id
+                        )
 
                 attachment_id: Optional[UUID] = None
                 if save_attachment and project:
@@ -793,9 +899,12 @@ test('login and save storage state', async ({ page }) => {
       await page.waitForTimeout(500);
     }
 
+    await page.locator(process.env.USERNAME_SELECTOR).waitFor({ state: 'visible', timeout: 15000 });
     await page.locator(process.env.USERNAME_SELECTOR).fill(username);
+    await page.locator(process.env.PASSWORD_SELECTOR).waitFor({ state: 'visible', timeout: 15000 });
     await page.locator(process.env.PASSWORD_SELECTOR).fill(password);
     if (captcha && captchaSelector) {
+      await page.locator(captchaSelector).waitFor({ state: 'visible', timeout: 10000 });
       await page.locator(captchaSelector).fill(captcha);
     }
 
@@ -826,6 +935,235 @@ test('login and save storage state', async ({ page }) => {
             return config_path, spec_path
 
         return await run_sync(_write)
+
+    async def _generate_by_token_inject(
+        self,
+        job_id: UUID,
+        token_inject: dict,
+        output_path: Path,
+        headless: bool,
+    ) -> None:
+        """通过 API 获取 token 并注入浏览器生成 storageState。"""
+        import httpx
+        from jsonpath_ng import parse as jsonpath_parse
+
+        token_url = token_inject.get("token_url")
+        if not token_url:
+            raise BadRequestException("token_inject 配置缺少 token_url")
+        token_method = (token_inject.get("token_method") or "POST").upper()
+        token_body = token_inject.get("token_body") or {}
+        token_path = token_inject.get("token_path") or "$.data.token"
+        inject_localstorage = token_inject.get("inject_localstorage") or {
+            "token": "{token}",
+            "userStatus": "login",
+        }
+        inject_cookies = token_inject.get("inject_cookies") or [
+            {"name": "Authorization", "value": "{token}"}
+        ]
+        target_domains = token_inject.get("target_domains") or []
+        if not target_domains:
+            raise BadRequestException("token_inject 配置缺少 target_domains")
+
+        # 1. 调用 token 接口获取 token
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                if token_method == "GET":
+                    resp = await client.get(token_url, params=token_body)
+                else:
+                    resp = await client.request(
+                        token_method,
+                        token_url,
+                        json=token_body if isinstance(token_body, dict) else None,
+                        content=token_body if isinstance(token_body, str) else None,
+                    )
+                resp.raise_for_status()
+                data = resp.json()
+        except Exception as e:
+            raise RuntimeError(f"获取 token 失败: {e}") from e
+
+        # 2. 提取 token
+        try:
+            if token_path.startswith("$"):
+                jsonpath_expr = jsonpath_parse(token_path)
+                matches = jsonpath_expr.find(data)
+                if not matches:
+                    raise RuntimeError(f"JSONPath '{token_path}' 未匹配到任何值")
+                token = matches[0].value
+            else:
+                current = data
+                for part in token_path.split("."):
+                    current = current[part]
+                token = current
+            if not isinstance(token, str) or not token:
+                raise RuntimeError(f"提取到的 token 无效: {token!r}")
+        except Exception as e:
+            raise RuntimeError(f"提取 token 失败: {e}") from e
+
+        logger.info("[StorageState] token 获取成功 job=%s token=%s...", job_id, token[:20])
+
+        # 3. 用 Playwright 注入每个目标域
+        web_mcp_root = Path(settings.web_mcp_root).resolve()
+        tmp_dir = web_mcp_root / ".storage-state-jobs" / str(job_id)
+        await run_sync(tmp_dir.mkdir, parents=True, exist_ok=True)
+
+        spec_path = tmp_dir / "token-inject.spec.ts"
+        config_path = tmp_dir / "playwright.config.js"
+
+        # 生成注入脚本
+        localstorage_js = "\n".join(
+            f"    localStorage.setItem({json.dumps(k)}, {json.dumps(v.replace('{token}', token))});"
+            for k, v in inject_localstorage.items()
+        )
+        cookies_json = json.dumps([
+            {
+                "name": c.get("name", "Authorization"),
+                "value": c.get("value", "{token}").replace("{token}", token),
+                "domain": domain,
+                "path": c.get("path", "/"),
+                "expires": int(datetime.now(timezone.utc).timestamp()) + token_inject.get("token_ttl_seconds", 604800),
+            }
+            for domain in target_domains
+            for c in inject_cookies
+        ])
+
+        config_content = f"""module.exports = {{
+  testDir: './',
+  timeout: 120000,
+  retries: 0,
+  workers: 1,
+  use: {{
+    headless: {'true' if headless else 'false'},
+    viewport: {{ width: 1280, height: 720 }},
+    trace: 'on',
+    screenshot: 'on',
+  }},
+  projects: [
+    {{ name: 'token-inject', use: {{ browserName: 'chromium' }} }}
+  ],
+}};
+"""
+        await run_sync(config_path.write_text, config_content, encoding="utf-8")
+
+        spec_content = f"""import {{ test }} from '@playwright/test';
+
+const token = {json.dumps(token)};
+const targetDomains = {json.dumps(target_domains)};
+const cookies = {cookies_json};
+
+test('token inject and save storage state', async ({{ context, page }}) => {{
+  // 注入 cookies
+  await context.addCookies(cookies);
+
+  for (const domain of targetDomains) {{
+    const url = `https://${{domain}}`;
+    await page.goto(url);
+    await page.waitForLoadState('networkidle');
+
+    // 注入 localStorage
+    await page.evaluate(() => {{
+{localstorage_js}
+    }});
+
+    // 刷新使 localStorage 生效
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(2000);
+  }}
+
+  // 保存 storageState
+  await context.storageState({{ path: {json.dumps(str(output_path))} }});
+}});
+"""
+        await run_sync(spec_path.write_text, spec_content, encoding="utf-8")
+
+        # 4. 执行 Playwright 脚本
+        npx = "npx.cmd" if os.name == "nt" else "npx"
+        cmd = [
+            npx,
+            "playwright",
+            "test",
+            "--config",
+            str(config_path),
+            "--project=token-inject",
+        ]
+        stdout, stderr, returncode = await self._run_playwright_subprocess(
+            cmd=cmd,
+            cwd=str(web_mcp_root),
+            env=os.environ.copy(),
+            timeout=settings.web_exec_timeout_seconds,
+        )
+        if returncode != 0:
+            raise RuntimeError(
+                f"Playwright token 注入脚本执行失败（返回码 {returncode}）:\n{stderr}\n{stdout}"
+            )
+
+        logger.info("[StorageState] token 注入完成 job=%s", job_id)
+
+    async def _probe_storage_state(
+        self,
+        output_path: Path,
+        env: ProjectEnvironment,
+        token_inject: Optional[dict] = None,
+    ) -> tuple[bool, str]:
+        """运行时探针：用生成的 storageState 访问需登录 API，判定是否失效。
+
+        返回 (是否有效, 原因说明)。
+        """
+        import json as json_module
+
+        try:
+            # 读取 storageState 提取 Authorization cookie 或 localStorage token
+            ss_data = json_module.loads(await run_sync(output_path.read_text, encoding="utf-8"))
+            token: Optional[str] = None
+
+            # 优先从 localStorage 取 token
+            for origin_entry in ss_data.get("origins", []):
+                for item in origin_entry.get("localStorage", []):
+                    if item.get("name") == "token":
+                        token = item.get("value")
+                        break
+                if token:
+                    break
+
+            # 其次从 cookies 取 Authorization
+            if not token:
+                for cookie in ss_data.get("cookies", []):
+                    if cookie.get("name") == "Authorization":
+                        token = cookie.get("value")
+                        break
+
+            if not token:
+                return False, "storageState 中未找到 token/Authorization"
+
+            # 确定探针目标 URL
+            probe_path = settings.web_mcp_storage_state_probe_path
+            if token_inject and token_inject.get("target_domains"):
+                # token 注入模式：优先用第一个目标域
+                domain = token_inject["target_domains"][0]
+                probe_url = f"https://{domain}{probe_path}"
+            else:
+                # form_login 模式：用环境 base_url
+                base_url = (env.base_url or "").rstrip("/")
+                if not base_url:
+                    return False, "环境 base_url 为空，无法执行运行时探针"
+                probe_url = f"{base_url}{probe_path}"
+
+            # 发起探针请求
+            import httpx
+            async with httpx.AsyncClient(timeout=15.0, follow_redirects=False) as client:
+                resp = await client.get(
+                    probe_url,
+                    headers={"Authorization": f"Bearer {token}"},
+                )
+                if resp.status_code in (401, 403):
+                    return False, f"探针返回 {resp.status_code}: {resp.text[:200]}"
+                if resp.status_code >= 500:
+                    return False, f"探针返回服务端错误 {resp.status_code}"
+                # 2xx/3xx/404 都视为通过（404 可能只是接口不存在，但 token 本身有效）
+                return True, f"探针通过: {probe_url} status={resp.status_code}"
+        except Exception as e:
+            logger.warning("[StorageState] 运行时探针异常: %s", e)
+            return False, f"探针异常: {type(e).__name__}: {e}"
 
     def to_info(self, job: StorageStateJob) -> StorageStateJobInfo:
         return StorageStateJobInfo(

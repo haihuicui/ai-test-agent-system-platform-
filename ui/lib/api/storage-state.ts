@@ -11,13 +11,27 @@ export interface LoginSelectors {
   success_selector?: string;
 }
 
+export interface TokenInjectConfig {
+  token_url?: string;
+  token_method?: string;
+  token_body?: Record<string, any>;
+  token_path?: string;
+  token_ttl_seconds?: number;
+  token_headers?: Record<string, string>;
+  inject_localstorage?: Record<string, string>;
+  inject_cookies?: Array<{ name: string; value: string; path?: string }>;
+  target_domains?: string[];
+}
+
 export interface StorageStateGenerateRequest {
   username?: string;
-  password: string;
+  password?: string;
   captcha?: string;
   selectors: LoginSelectors;
   headless?: boolean;
   save_attachment?: boolean;
+  login_mode?: "form_login" | "token_inject";
+  token_inject?: TokenInjectConfig;
 }
 
 export interface StorageStateJobInfo {
