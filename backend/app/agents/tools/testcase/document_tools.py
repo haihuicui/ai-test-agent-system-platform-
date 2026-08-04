@@ -5,21 +5,144 @@
 """
 
 import asyncio
+import hashlib
 import logging
 import os
+import re
 import threading
-from typing import Optional
+import urllib.parse
+from pathlib import Path
+from typing import Any, Optional
 
 import httpx
 from langchain_core.tools import tool
 
 from app.agents.tools.testcase.pdf_processor import PDFProcessor
+from app.config.settings import settings
 from app.utils.sync_executor import run_sync
 # type: ignore  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2WTJ4c05BPT06M2RjZTI1Zjk=
 
 logger = logging.getLogger(__name__)
 
 _pdf_processor = PDFProcessor(enable_cache=True)
+
+# ── 大文档落盘：解析结果超过阈值时不内联返回 ──
+# 中文 1 token ≈ 1~1.5 字符，30K 字符 ≈ 2 万+ 真实 token；接口文档类 PDF 提取
+# 文本普遍 10 万+ 字符，内联返回会在几步之内耗尽 128K 上下文窗口并导致 run
+# 被 API 拒绝而中断。超过阈值时全文写入 workspace，只回传「统计 + 目录 +
+# 预览 + 分段读取指引」指针。
+DOC_OFFLOAD_THRESHOLD_CHARS = int(os.environ.get("DOC_OFFLOAD_THRESHOLD_CHARS", "30000"))
+_PARSED_DOCS_DIR = "parsed_docs"
+_PREVIEW_HEAD_LINES = 40
+_PREVIEW_MAX_LINE_CHARS = 300
+_TOC_MAX_ENTRIES = 60
+
+
+def _sanitize_doc_name(url: str) -> str:
+    """从 URL 提取安全的文件名片段（保留中文，去掉路径与查询串）。"""
+    try:
+        path = urllib.parse.unquote(urllib.parse.urlparse(url).path)
+        stem = Path(path).stem
+    except Exception:  # noqa: BLE001
+        stem = ""
+    safe = re.sub(r"[^\w一-鿿.-]+", "_", stem).strip("._")
+    return safe[:50] or "document"
+
+
+def _build_toc(text: str) -> list[str]:
+    """提取 markdown 标题作为目录，带行号方便 read_file(offset=...) 直接跳转。"""
+    toc: list[str] = []
+    for lineno, line in enumerate(text.splitlines(), 1):
+        stripped = line.strip()
+        if stripped.startswith("#"):
+            toc.append(f"L{lineno}: {stripped[:120]}")
+            if len(toc) >= _TOC_MAX_ENTRIES:
+                break
+    return toc
+
+
+def _offload_full_text(text: str, url: str, document_type: str) -> dict[str, Any]:
+    """把大文档全文写入 workspace，返回「指针 + 目录 + 预览」的工具结果。
+
+    同一文档（文件名 + 内容 hash）重复解析时覆盖同一文件，不会在
+    large_tool_results 里堆积多份重复卸载（历史事故：同一接口文档一天被
+    重复逐出 5+ 次）。
+    """
+    workspace_root = Path(settings.testcase_workspace_root).resolve()
+    digest = hashlib.md5(text.encode("utf-8")).hexdigest()[:8]
+    filename = f"{_sanitize_doc_name(url)}_{digest}.md"
+    abs_path = workspace_root / _PARSED_DOCS_DIR / filename
+    abs_path.parent.mkdir(parents=True, exist_ok=True)
+    abs_path.write_text(text, encoding="utf-8")
+
+    virtual_path = f"/{_PARSED_DOCS_DIR}/{filename}"
+    lines = text.splitlines()
+    total_lines = len(lines)
+    head = "\n".join(line[:_PREVIEW_MAX_LINE_CHARS] for line in lines[:_PREVIEW_HEAD_LINES])
+    toc = _build_toc(text)
+    toc_block = (
+        "\n".join(toc)
+        if toc
+        else "（未检测到 markdown 标题，请用 grep 按关键词（如接口名、\"请求参数\"、\"错误码\"）定位章节）"
+    )
+
+    pointer = f"""文档解析成功（共 {total_lines} 行 / {len(text)} 字符）。内容较大，全文已保存到工作区文件：
+{virtual_path}
+
+【阅读指引 — 必须遵守】
+1. 不要一次性读取全文（会超出上下文窗口，导致会话中断）；按下方目录定位章节后分段阅读
+2. 分段读取示例：read_file(file_path="{virtual_path}", offset=0, limit=800)
+3. 关键词定位：用 grep 工具搜索接口名 / "请求参数" / "错误码" 等字面关键词
+4. 分析时结合目录规划要覆盖的章节，遗漏章节会导致功能矩阵不完整
+
+【文档目录】（L<行号>: 标题；read_file 的 offset 传 行号-1 即可跳转到该章节）
+{toc_block}
+
+【开头预览（前 {_PREVIEW_HEAD_LINES} 行）】
+{head}
+...（后续内容请按上述指引分段读取）"""
+
+    return {
+        "success": True,
+        "content": pointer,
+        "document_type": document_type,
+        "full_text_path": virtual_path,
+        "total_chars": len(text),
+        "total_lines": total_lines,
+        "offloaded": True,
+    }
+
+
+def _inline_or_offload(text: str, url: str, document_type: str, size_bytes: int) -> dict[str, Any]:
+    """小文档内联返回（保持原行为），大文档落盘返回指针；落盘失败降级为截断内联。"""
+    if len(text) <= DOC_OFFLOAD_THRESHOLD_CHARS:
+        return {
+            "success": True,
+            "content": text,
+            "document_type": document_type,
+            "size_bytes": size_bytes,
+        }
+    try:
+        result = _offload_full_text(text, url, document_type)
+        result["size_bytes"] = size_bytes
+        logger.info(
+            "文档提取文本 %d 字符超过阈值 %d，已落盘 %s",
+            len(text), DOC_OFFLOAD_THRESHOLD_CHARS, result["full_text_path"],
+        )
+        return result
+    except Exception as e:  # noqa: BLE001
+        logger.warning("大文档落盘失败，降级为截断内联返回: %s", e)
+        return {
+            "success": True,
+            "content": (
+                text[:DOC_OFFLOAD_THRESHOLD_CHARS]
+                + f"\n\n[文档共 {len(text)} 字符，落盘失败（{e}），此处仅返回前 "
+                f"{DOC_OFFLOAD_THRESHOLD_CHARS} 字符，后续内容缺失]"
+            ),
+            "document_type": document_type,
+            "size_bytes": size_bytes,
+            "truncated": True,
+        }
 
 
 @tool
@@ -35,6 +158,11 @@ async def parse_document_from_url(
     - 图片: 返回图片信息，需要配合视觉模型使用
     - TXT: 纯文本解析
 
+    大文档说明：解析结果超过阈值时不会内联返回全文，全文会自动保存到工作区
+    文件（返回值的 full_text_path 字段），content 为「统计 + 目录 + 预览 +
+    分段读取指引」。此时必须按指引用 read_file 分段阅读或用 grep 定位章节，
+    禁止尝试一次性读入全文（会导致上下文溢出、会话中断）。
+
     Args:
         url: 文档的 URL (通常是 MinIO 预签名 URL)
         document_type: 文档 MIME 类型 (可选，用于优化解析策略)
@@ -42,8 +170,9 @@ async def parse_document_from_url(
     Returns:
         dict: 包含解析结果的字典
             - success: bool, 是否成功
-            - content: str, 解析的文本内容
+            - content: str, 解析的文本内容（大文档时为指针+预览）
             - document_type: str, 文档类型
+            - full_text_path: str, 大文档落盘后的工作区路径（仅大文档返回）
             - error: str, 错误信息 (如果失败)
     """
     try:
@@ -77,12 +206,7 @@ async def parse_document_from_url(
             text_content = await run_sync(
                 _pdf_processor.extract_text, content_data, filename="document.pdf"
             )
-            return {
-                "success": True,
-                "content": text_content,
-                "document_type": "pdf",
-                "size_bytes": len(content_data),
-            }
+            return _inline_or_offload(text_content, url, "pdf", len(content_data))
 
         elif detected_type.startswith("image/") or any(
             url.lower().endswith(ext) for ext in [".jpg", ".jpeg", ".png", ".gif", ".webp"]
@@ -101,12 +225,7 @@ async def parse_document_from_url(
             except UnicodeDecodeError:
                 text = content_data.decode('gbk', errors='ignore')
 
-            return {
-                "success": True,
-                "content": text,
-                "document_type": "text",
-                "size_bytes": len(content_data),
-            }
+            return _inline_or_offload(text, url, "text", len(content_data))
 # fmt: off  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2WTJ4c05BPT06M2RjZTI1Zjk=
 
         else:
