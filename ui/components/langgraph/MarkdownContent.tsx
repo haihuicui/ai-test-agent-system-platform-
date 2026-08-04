@@ -53,11 +53,17 @@ function CodeBlock({
     Promise.all([
       import("react-syntax-highlighter"),
       import("react-syntax-highlighter/dist/esm/styles/prism"),
-    ]).then(([highlighterModule, styleModule]) => {
-      if (disposed) return;
-      setSyntaxHighlighterComponent(() => highlighterModule.Prism);
-      setSyntaxStyle(styleModule.oneDark);
-    });
+    ])
+      .then(([highlighterModule, styleModule]) => {
+        if (disposed) return;
+        setSyntaxHighlighterComponent(() => highlighterModule.Prism);
+        setSyntaxStyle(styleModule.oneDark);
+      })
+      .catch((err) => {
+        // ChunkLoadError 等加载失败时静默降级为纯文本 <pre> 渲染，
+        // 避免未处理的 Promise rejection 触发 Next.js 错误遮罩
+        console.warn("[CodeBlock] 语法高亮 chunk 加载失败，已降级为纯文本渲染:", err);
+      });
 
     return () => {
       disposed = true;
