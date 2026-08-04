@@ -32,6 +32,7 @@ from app.agents.tools.testcase.excel_tools import (
 from app.agents.tools.testcase.module_check_tools import (
     module_self_check_tool,
     save_test_case_manifest_tool,
+    save_test_cases_file,
 )
 
 from app.agents.tools.testcase.feature_matrix_tools import (
@@ -52,6 +53,7 @@ TESTCASE_TOOLS = [
     batch_update_test_cases_tool,
     preview_test_cases,
     module_self_check_tool,
+    save_test_cases_file,
     save_test_case_manifest_tool,
     save_feature_matrix_tool,
     compute_coverage_report,
@@ -104,6 +106,7 @@ __all__ = [
     "preview_test_cases",
     # 模块自检与 manifest
     "module_self_check_tool",
+    "save_test_cases_file",
     "save_test_case_manifest_tool",
     # 功能矩阵
     "save_feature_matrix_tool",

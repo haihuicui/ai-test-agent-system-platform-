@@ -12,6 +12,7 @@ from app.agents.tools.testcase import module_check_tools, excel_tools
 from app.agents.tools.testcase.module_check_tools import (
     module_self_check_tool,
     save_test_case_manifest_tool,
+    save_test_cases_file,
 )
 
 
@@ -141,7 +142,13 @@ class TestModuleSelfCheckTool:
         assert "占位" in messages
         assert "不可客观判定" in messages
 
-    def test_duplicate_across_other_files(self, workspace_root: Path):
+    def test_duplicate_across_other_files_is_not_error(self, workspace_root: Path):
+        """跨会话/跨文件的编号重复不再视为错误。
+
+        工作区保留所有历史会话的用例文件，新会话与历史文件编号重复是
+        预期行为（统一入库时按 case_number 去重兜底），全工作区扫描只会
+        制造误报并诱发编号迁移螺旋。
+        """
         existing = [_valid_case("TC-PROJ-MOD-001")]
         existing_path = workspace_root / "existing.jsonl"
         _write_jsonl(existing_path, existing)
@@ -158,9 +165,28 @@ class TestModuleSelfCheckTool:
             },
         )
 
+        assert not any(
+            "与已保存的其他模块用例重复" in " ".join(v["messages"])
+            for v in result["violations"]
+        )
+
+    def test_duplicate_within_batch_is_error(self, workspace_root: Path):
+        """当前批次内部的编号重复仍然是硬错误。"""
+        cases = [_valid_case("TC-PROJ-MOD-001"), _valid_case("TC-PROJ-MOD-001")]
+        file_path = workspace_root / "dup.jsonl"
+        _write_jsonl(file_path, cases)
+
+        result = _run_tool(
+            module_self_check_tool,
+            {
+                "input_files": [str(file_path.name)],
+                "expected_module": "示例模块",
+            },
+        )
+
         assert result["passed"] is False
         assert any(
-            "与已保存的其他模块用例重复" in " ".join(v["messages"])
+            "在当前模块内重复" in " ".join(v["messages"])
             for v in result["violations"]
         )
 
@@ -288,3 +314,89 @@ class TestSaveTestCaseManifestTool:
 
         assert result["success"] is True
         assert (workspace_root / "sub" / "manifest.json").is_file()
+
+
+class TestSaveTestCasesFile:
+    """save_test_cases_file：覆盖写 + 解析校验 + JSONL 规范化。"""
+
+    def test_write_new_file(self, workspace_root: Path):
+        cases = [_valid_case("TC-PROJ-MOD-001"), _valid_case("TC-PROJ-MOD-002")]
+        content = "\n".join(json.dumps(c, ensure_ascii=False) for c in cases)
+
+        result = _run_tool(
+            save_test_cases_file,
+            {"file_path": "test_cases_module_01.jsonl", "content": content},
+        )
+
+        assert result["success"] is True
+        assert result["cases_count"] == 2
+        written = (workspace_root / "test_cases_module_01.jsonl").read_text(encoding="utf-8")
+        assert len(written.strip().splitlines()) == 2
+        # 每行都是合法 JSON（规范化效果）
+        for line in written.strip().splitlines():
+            json.loads(line)
+
+    def test_overwrite_existing_file(self, workspace_root: Path):
+        """历史遗留同名文件直接覆盖（通用 write_file 不可覆盖的替代）。"""
+        old_path = workspace_root / "module_01.jsonl"
+        _write_jsonl(old_path, [_valid_case("TC-PROJ-MOD-001")])
+
+        new_cases = [_valid_case("TC-PROJ-MOD-101"), _valid_case("TC-PROJ-MOD-102")]
+        content = "\n".join(json.dumps(c, ensure_ascii=False) for c in new_cases)
+        result = _run_tool(
+            save_test_cases_file,
+            {"file_path": "module_01.jsonl", "content": content},
+        )
+
+        assert result["success"] is True
+        assert "覆盖" in result["message"]
+        written = old_path.read_text(encoding="utf-8")
+        assert "TC-PROJ-MOD-101" in written
+        assert "TC-PROJ-MOD-001" not in written
+
+    def test_invalid_json_rejected(self, workspace_root: Path):
+        result = _run_tool(
+            save_test_cases_file,
+            {"file_path": "bad.jsonl", "content": "{这不是合法JSON"},
+        )
+
+        assert result["success"] is False
+        assert not (workspace_root / "bad.jsonl").exists()
+
+    def test_quality_violations_reported_but_written(self, workspace_root: Path):
+        """红线快检不阻塞写入，只返回 violations 供后续自检参考。"""
+        case = _valid_case("TC-PROJ-MOD-001")
+        case["test_data"] = {}  # 空测试数据 → 红线违规
+        content = json.dumps(case, ensure_ascii=False)
+
+        result = _run_tool(
+            save_test_cases_file,
+            {"file_path": "warn.jsonl", "content": content},
+        )
+
+        assert result["success"] is True
+        assert len(result["violations"]) == 1
+        assert (workspace_root / "warn.jsonl").is_file()
+
+    def test_json_array_content_normalized_to_jsonl(self, workspace_root: Path):
+        """兼容 JSON 数组输入，落盘统一为每行一个对象。"""
+        cases = [_valid_case("TC-PROJ-MOD-001"), _valid_case("TC-PROJ-MOD-002")]
+        content = json.dumps(cases, ensure_ascii=False)
+
+        result = _run_tool(
+            save_test_cases_file,
+            {"file_path": "arr.jsonl", "content": content},
+        )
+
+        assert result["success"] is True
+        written = (workspace_root / "arr.jsonl").read_text(encoding="utf-8")
+        assert len(written.strip().splitlines()) == 2
+
+    def test_path_escape_rejected(self, workspace_root: Path):
+        result = _run_tool(
+            save_test_cases_file,
+            {"file_path": "../evil.jsonl", "content": json.dumps(_valid_case())},
+        )
+
+        assert result["success"] is False
+        assert "越权" in (result["message"] + result.get("error", ""))

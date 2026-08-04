@@ -364,6 +364,128 @@ def _perform_module_self_check(
     }
 
 
+def _resolve_case_file_path(file_path: str) -> Path:
+    """将用例文件路径解析到 workspace_root 下，禁止越权。"""
+    raw = Path(file_path)
+
+    if raw.anchor:
+        try:
+            if raw.is_absolute() and raw.resolve().is_relative_to(_WORKSPACE_ROOT):
+                return raw.resolve()
+        except (ValueError, OSError):
+            pass
+        anchor_len = len(Path(raw.anchor).parts)
+        rel = Path(*raw.parts[anchor_len:]) if len(raw.parts) > anchor_len else Path()
+    else:
+        rel = raw
+
+    if not rel.parts:
+        raise ValueError(f"用例文件路径无效：{file_path}")
+
+    resolved = (_WORKSPACE_ROOT / rel).resolve()
+    if not resolved.is_relative_to(_WORKSPACE_ROOT):
+        raise ValueError(
+            f"用例文件路径越权：{file_path} 解析后超出工作目录 {_WORKSPACE_ROOT}"
+        )
+    return resolved
+
+
+@tool
+async def save_test_cases_file(file_path: str, content: str) -> dict[str, Any]:
+    """
+    保存用例 JSONL 文件（覆盖写入 + 解析校验 + 格式规范化）。
+
+    用于 Phase 3 保存或整体重写模块用例文件。与通用 write_file 的区别：
+    - **允许覆盖已存在文件**：历史会话遗留的同名文件直接替换，
+      无需逐行 edit（也避免了同一文件多次并行 edit 的写入竞争）
+    - 写入前解析全部用例（容错 JSONL/JSON 数组/脏拼接），解析失败拒绝写入
+    - 写入时规范化为标准 JSONL（每行一个 JSON 对象），消除脏格式
+    - 逐条执行质量红线快检并返回 violations（不阻塞写入，供自检参考）
+
+    Args:
+        file_path: 用例文件路径（工作目录下的相对/虚拟路径，如
+            "/PR-2/test_cases_module_01.jsonl"）
+        content: 用例内容（JSONL，每行一条用例；也兼容 JSON 数组）
+
+    Returns:
+        {"success": bool, "file_path": "...", "cases_count": int,
+         "violations": [...], "message": "..."}
+    """
+    try:
+        resolved = _resolve_case_file_path(file_path)
+    except ValueError as e:
+        return {"success": False, "error": str(e), "message": str(e)}
+
+    text = (content or "").strip()
+    if not text:
+        return {
+            "success": False,
+            "error": "内容为空",
+            "message": "保存失败：content 为空，未写入任何内容",
+        }
+
+    # 解析校验（复用容错解析器）；解析失败拒绝写入，防止截断/脏数据落盘
+    try:
+        cases = _parse_json_objects(text, file_path)
+    except ValueError as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "message": f"保存失败：用例内容不是合法 JSONL/JSON：{e}",
+        }
+
+    invalid = [i for i, c in enumerate(cases) if not isinstance(c, dict)]
+    if invalid:
+        return {
+            "success": False,
+            "error": f"存在非对象元素（下标 {invalid[:5]}）",
+            "message": "保存失败：每条用例必须是 JSON 对象",
+        }
+
+    # 规范化为标准 JSONL（每行一个对象）
+    normalized = "\n".join(
+        json.dumps(c, ensure_ascii=False) for c in cases
+    )
+    overwritten = resolved.exists()
+    try:
+        resolved.parent.mkdir(parents=True, exist_ok=True)
+        resolved.write_text(normalized + "\n", encoding="utf-8")
+    except OSError as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "message": f"保存失败：写入文件出错：{e}",
+        }
+
+    # 质量红线快检（不阻塞写入；正式门禁由 module_self_check_tool 执行）
+    violations = []
+    for case in cases:
+        errors = _validate_case(case)
+        if errors:
+            violations.append(
+                {
+                    "case_number": case.get("case_number") or case.get("case_id"),
+                    "name": case.get("name"),
+                    "messages": errors,
+                }
+            )
+
+    message = (
+        f"已保存 {len(cases)} 条用例到 {file_path}"
+        + ("（覆盖了已存在的同名文件）" if overwritten else "")
+    )
+    if violations:
+        message += f"；{len(violations)} 条用例未通过质量红线快检（见 violations）"
+
+    return {
+        "success": True,
+        "file_path": str(resolved),
+        "cases_count": len(cases),
+        "violations": violations[:20],
+        "message": message,
+    }
+
+
 @tool
 async def module_self_check_tool(
     input_files: list[str],
@@ -375,6 +497,10 @@ async def module_self_check_tool(
 
     在 Phase 3 每完成一个模块后调用，确认低级质量问题（编号、模块、数据、
     预期结果、原子性、优先级）已被拦截，通过后再进入下一模块。
+
+    编号唯一性只校验**当前批次内部**；与历史会话遗留文件或系统库中已有
+    编号重复不是错误（统一入库时按 case_number 去重），无需为规避重复
+    而发明特殊编号段或更换编号格式。
 
     Args:
         input_files: 该模块的用例数据文件路径（.jsonl/.json），可传多个。
@@ -421,6 +547,11 @@ async def module_self_check_tool(
         expected_module=expected_module,
         current_file_paths=current_file_paths,
         min_p0_count=min_p0_count,
+        # 不做全工作区跨文件查重：工作区保留所有历史会话的用例文件，
+        # 新会话编号与历史文件重复是预期行为（统一入库时按 case_number
+        # 去重兜底），扫描只会制造"编号冲突"误报并诱发编号迁移螺旋。
+        # 编号唯一性仍校验当前批次内部（见 _perform_module_self_check 第 3 节）。
+        check_cross_file_duplicates=False,
     )
 
 
