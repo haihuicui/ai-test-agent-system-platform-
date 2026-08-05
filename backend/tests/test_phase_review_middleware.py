@@ -9,14 +9,18 @@ import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.types import Overwrite
 
+from langchain.agents.middleware.types import ToolCallRequest
+
 from app.agents.testcase.phase_review_middleware import (
     PhaseReviewMiddleware,
+    _advance_phase_todos,
     _compute_review_round,
     _detect_phase,
     _detect_phase3_coverage_gap,
     _detect_uncovered_p0,
     _extract_quality_score,
     _get_completed_phases,
+    _guard_todo_status_regression,
     _has_case_preview,
     _has_coverage_mapping,
     _has_empty_suggestion_table,
@@ -90,6 +94,113 @@ class TestDetectPhase:
     )
     def test_phase3_non_heading_not_detected(self, content):
         assert _detect_phase(content) != self.PHASE
+
+    @pytest.mark.parametrize(
+        ("content", "expected"),
+        [
+            ("✅ 需求解析报告", "requirement-analysis"),
+            ("📋 功能测试矩阵", "requirement-analysis"),
+            ("功能测试矩阵", "requirement-analysis"),
+            ("✅ 测试策略报告", "test-strategy"),
+            ("测试策略报告", "test-strategy"),
+            ("📊 测试用例质量评审报告", "quality-review"),
+            ("## 📊 测试用例质量评审报告", "quality-review"),
+            ("✅ 输出格式化", "output-format-selection"),
+            ("🎉 交付物格式选择", "output-format-selection"),
+        ],
+    )
+    def test_other_phases_heading_variants(self, content, expected):
+        """所有阶段均应识别 emoji/装饰符/裸标题行（与 Phase 3 同款兜底）。"""
+        assert _detect_phase(content) == expected
+
+    @pytest.mark.parametrize(
+        "content",
+        [
+            "- 测试策略报告：见下文",
+            "输出格式化：请选择 Markdown 或 Excel",
+            "请先阅读 功能测试矩阵 再设计用例",
+        ],
+    )
+    def test_other_phases_non_heading_not_detected(self, content):
+        assert _detect_phase(content) is None
+
+
+class TestAdvancePhaseTodos:
+    def test_approve_completes_current_and_advances_next(self):
+        state = {"todos": [
+            {"content": "Phase 1: 需求分析", "status": "completed"},
+            {"content": "Phase 2: 测试策略", "status": "in_progress"},
+            {"content": "Phase 3: 用例设计", "status": "pending"},
+        ]}
+        todos = _advance_phase_todos(state, "test-strategy")["todos"]
+        assert [t["status"] for t in todos] == ["completed", "completed", "in_progress"]
+
+    def test_approve_heals_earlier_incomplete_phases(self):
+        """回归：Phase 3 评审卡片未弹出时，Phase 4 通过应一并完成 Phase 3。"""
+        state = {"todos": [
+            {"content": "Phase 1: 需求分析", "status": "completed"},
+            {"content": "Phase 2: 测试策略", "status": "completed"},
+            {"content": "Phase 3: 用例设计 - 已覆盖 FP-001~FP-008", "status": "in_progress"},
+            {"content": "Phase 4: 质量评审", "status": "in_progress"},
+            {"content": "Phase 5: 输出格式化", "status": "pending"},
+        ]}
+        todos = _advance_phase_todos(state, "quality-review")["todos"]
+        assert [t["status"] for t in todos] == [
+            "completed", "completed", "completed", "completed", "in_progress",
+        ]
+
+    def test_no_matching_todos_returns_empty(self):
+        state = {"todos": [{"content": "整理交付物", "status": "pending"}]}
+        assert _advance_phase_todos(state, "quality-review") == {}
+
+    def test_unknown_phase_returns_empty(self):
+        state = {"todos": [{"content": "Phase 1: 需求分析", "status": "in_progress"}]}
+        assert _advance_phase_todos(state, "output-format-selection") == {}
+
+
+def _make_tool_request(tool_name: str, args: dict, state: dict) -> ToolCallRequest:
+    return ToolCallRequest(
+        tool_call={"id": "call_1", "name": tool_name, "args": args},
+        tool=None,
+        state=state,
+        runtime=None,
+    )
+
+
+class TestTodoStatusRegressionGuard:
+    def test_completed_phase_status_preserved(self):
+        """回归：评审通过后模型整表重写 todos，已完成阶段不得回退为 in_progress。"""
+        state = {"todos": [
+            {"content": "Phase 3: 用例设计", "status": "completed"},
+            {"content": "Phase 4: 质量评审", "status": "completed"},
+            {"content": "Phase 5: 输出格式化", "status": "in_progress"},
+        ]}
+        request = _make_tool_request("write_todos", {"todos": [
+            {"content": "Phase 3: 用例设计 - 已覆盖 FP-001~FP-008", "status": "in_progress"},
+            {"content": "Phase 4: 质量评审 - 综合评分 94 分，用户已通过", "status": "in_progress"},
+            {"content": "Phase 5: 输出格式化", "status": "in_progress"},
+        ]}, state)
+        todos = _guard_todo_status_regression(request).tool_call["args"]["todos"]
+        assert todos[0]["status"] == "completed"
+        assert todos[1]["status"] == "completed"
+        assert todos[2]["status"] == "in_progress"  # 未完成阶段不受影响
+
+    def test_non_phase_todos_untouched(self):
+        state = {"todos": [{"content": "Phase 1: 需求分析", "status": "completed"}]}
+        request = _make_tool_request(
+            "write_todos", {"todos": [{"content": "整理交付物", "status": "pending"}]}, state
+        )
+        assert _guard_todo_status_regression(request) is request  # 无回退时原样放行
+
+    def test_other_tools_untouched(self):
+        request = _make_tool_request("read_file", {"file_path": "a.jsonl"}, {"todos": []})
+        assert _guard_todo_status_regression(request) is request
+
+    def test_original_request_not_mutated(self):
+        state = {"todos": [{"content": "Phase 4: 质量评审", "status": "completed"}]}
+        args = {"todos": [{"content": "Phase 4: 质量评审", "status": "in_progress"}]}
+        _guard_todo_status_regression(_make_tool_request("write_todos", args, state))
+        assert args["todos"][0]["status"] == "in_progress"  # 入参不被原地修改
 
 
 class TestComputeReviewRound:

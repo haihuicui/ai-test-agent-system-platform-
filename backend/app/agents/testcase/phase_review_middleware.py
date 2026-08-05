@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import re
 from datetime import datetime, timezone
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from langchain.agents.middleware import AgentMiddleware, hook_config
 from langchain.agents.middleware.human_in_the_loop import (
@@ -18,6 +18,24 @@ from langchain.agents.middleware.human_in_the_loop import (
 )
 from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.types import Overwrite, interrupt
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+
+    from langgraph.types import Command
+
+    from langchain.agents.middleware.types import ToolCallRequest
+    from langchain_core.messages import ToolMessage
+
+
+def _decorated_heading_pattern(*titles: str) -> str:
+    """构造 emoji/装饰符标题行 pattern（模型未严格输出 ## 标题时的兜底）。
+
+    行首允许最多两段装饰符号簇——同时覆盖 "✅ 标题"（纯 emoji）和
+    "## 📊 标题"（Markdown+emoji 组合）；标题须独占一行，正文行内提及
+    （如 «- 测试用例生成完成：共26条»）不会误触发。
+    """
+    return rf"(?m)^\s*(?:[^\w\s]{{1,6}}\s*){{0,2}}(?:{'|'.join(titles)})\s*$"
 
 
 _PHASE_PATTERNS: dict[str, list[str]] = {
@@ -30,26 +48,27 @@ _PHASE_PATTERNS: dict[str, list[str]] = {
         r"📊\s*需求解析报告",
         r"📊\s*需求解析摘要",
         r"📋\s*功能测试矩阵",
+        _decorated_heading_pattern("需求解析报告", "需求解析摘要", "功能测试矩阵"),
     ],
     "test-strategy": [
         r"##\s*测试策略报告",
+        _decorated_heading_pattern("测试策略报告"),
     ],
     "test-case-generation": [
         r"##\s*测试用例生成完成",
         r"##\s*用例生成汇总",
         r"##\s*测试用例汇总",
-        # Emoji/装饰符标题兜底（模型未严格输出 ## 标题时，如 "✅ 测试用例生成完成"）：
-        # 行首允许 0-4 个非文字符号（含 #），完成标记须独占一行——
-        # emoji/裸标题只有独立成行才命中，正文行内提及（如 «- 测试用例生成完成：共26条»）不误触发。
-        r"(?m)^\s*[^\w\s]{0,4}\s*(?:测试用例生成完成|用例生成汇总|测试用例汇总)\s*$",
+        _decorated_heading_pattern("测试用例生成完成", "用例生成汇总", "测试用例汇总"),
     ],
     "quality-review": [
         r"##\s*📊\s*测试用例质量评审报告",
         r"##\s*测试用例质量评审报告",
+        _decorated_heading_pattern("测试用例质量评审报告"),
     ],
     "output-format-selection": [
         r"##\s*输出格式化",
         r"##\s*交付物格式选择",
+        _decorated_heading_pattern("输出格式化", "交付物格式选择"),
     ],
 }
 
@@ -458,10 +477,14 @@ _PHASE_TO_NUMBER: dict[str, int] = {
 
 
 def _advance_phase_todos(state: dict[str, Any], phase: str) -> dict[str, Any]:
-    """将当前 Phase 的 todo 标记 completed、下一阶段（pending）置为 in_progress。
+    """将当前及之前所有 Phase 的 todo 标记 completed、下一阶段（pending）置为 in_progress。
 
     通过 content 中的 "Phase N" / "phase-N" 标记匹配 todo 项；匹配不到时返回
     空 dict（不创建、不删除任何任务），避免破坏模型自定义的任务列表。
+
+    前置 Phase 一并置为 completed：阶段标题未被识别导致评审卡片未弹出、
+    或跨阶段跳步时，后续阶段通过即隐含前置阶段已结束，避免早期 Phase
+    的 todo 永远停在 in_progress。
     """
     number = _PHASE_TO_NUMBER.get(phase)
     todos = state.get("todos")
@@ -479,7 +502,7 @@ def _advance_phase_todos(state: dict[str, Any], phase: str) -> dict[str, Any]:
     for todo in new_todos:
         if not isinstance(todo, dict):
             continue
-        if _matches(todo, number) and todo.get("status") != "completed":
+        if any(_matches(todo, k) for k in range(1, number + 1)) and todo.get("status") != "completed":
             todo["status"] = "completed"
             changed = True
         elif _matches(todo, number + 1) and todo.get("status") == "pending":
@@ -505,6 +528,64 @@ def _todo_advance_note(state: dict[str, Any], phase: str) -> tuple[dict[str, Any
         "请先调用 write_todos 更新任务状态"
         "（当前阶段→completed，下一阶段→in_progress）后再继续。"
     )
+
+
+def _guard_todo_status_regression(request: ToolCallRequest) -> ToolCallRequest:
+    """合并 write_todos 写入，防止模型把中间件已推进的阶段状态回退。
+
+    阶段评审通过时 after_model 已把对应 Phase todo 置为 completed；模型随后
+    若凭旧记忆整表重写 todos（旧状态仍是 in_progress，仅追加了内容标注），
+    已完成阶段会被「打回进行中」。这里在工具执行前把已完成 Phase 的
+    completed 状态合并进本次写入——按 phase-N 标记识别同一阶段任务
+    （内容可能被模型改写，不能按 content 精确匹配），其余 todo 原样放行。
+    """
+    tool_call = request.tool_call
+    if tool_call.get("name") != "write_todos":
+        return request
+
+    state_todos = (request.state or {}).get("todos") or []
+    completed_phases = {
+        n
+        for n in range(1, 6)
+        if any(
+            isinstance(t, dict)
+            and t.get("status") == "completed"
+            and re.search(rf"phase\s*[-_]?\s*{n}\b", str(t.get("content", "")), re.IGNORECASE)
+            for t in state_todos
+        )
+    }
+    if not completed_phases:
+        return request
+
+    args = tool_call.get("args") or {}
+    new_todos = args.get("todos")
+    if not isinstance(new_todos, list):
+        return request
+
+    merged: list[Any] = []
+    changed = False
+    for todo in new_todos:
+        if isinstance(todo, dict) and todo.get("status") not in (None, "completed"):
+            content = str(todo.get("content", ""))
+            hit = next(
+                (
+                    n
+                    for n in completed_phases
+                    if re.search(rf"phase\s*[-_]?\s*{n}\b", content, re.IGNORECASE)
+                ),
+                None,
+            )
+            if hit is not None:
+                merged.append({**todo, "status": "completed"})
+                changed = True
+                continue
+        merged.append(todo)
+
+    if not changed:
+        return request
+    new_args = dict(args)
+    new_args["todos"] = merged
+    return request.override(tool_call={**tool_call, "args": new_args})
 
 
 def _build_review_human_message(
@@ -1192,3 +1273,18 @@ class PhaseReviewMiddleware(AgentMiddleware):
     ) -> dict[str, Any] | None:
         """异步版本的 after_model（本中间件逻辑为同步计算，直接复用）。"""
         return self.after_model(state, runtime)
+
+    def wrap_tool_call(
+        self,
+        request: ToolCallRequest,
+        handler: Callable[[ToolCallRequest], ToolMessage | Command[Any]],
+    ) -> ToolMessage | Command[Any]:
+        """工具调用拦截：合并 write_todos 的阶段状态回退。"""
+        return handler(_guard_todo_status_regression(request))
+
+    async def awrap_tool_call(
+        self,
+        request: ToolCallRequest,
+        handler: Callable[[ToolCallRequest], Awaitable[ToolMessage | Command[Any]]],
+    ) -> ToolMessage | Command[Any]:
+        return handler(_guard_todo_status_regression(request))
