@@ -67,11 +67,17 @@ class TestCaseRepository(BaseRepository[TestCase]):
         # 用于 Agent 返工修复场景——Agent 只持有自己生成的 case_number，
         # 不知道系统分配的 identifier。仅在上述两种精确匹配都失败时触发，
         # 不影响既有调用方行为。
+        # 注意：case_number 无唯一约束，早期"纯新建"入库可能产生多条同编号
+        # 历史记录。scalar_one_or_none 在多行命中时会抛 MultipleResultsFound
+        # （表现为 HTTP 500），这里取最新创建的一行（latest-wins）——
+        # upsert 替换始终落在最新的副本上，保证该编号可写。
         result = await self.session.execute(
             select(TestCase)
             .options(selectinload(TestCase.steps))
             .options(selectinload(TestCase.tags))
             .where(TestCase.case_number == identifier)
+            .order_by(TestCase.created_at.desc())
+            .limit(1)
         )
         return result.scalar_one_or_none()
     
