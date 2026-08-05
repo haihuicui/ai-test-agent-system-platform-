@@ -1099,9 +1099,14 @@ async def add_step_extractor(
             # 强制刷新，避免 expire_on_commit=False 导致 identity map 返回旧对象
             await session.refresh(step, ["extractors"])
 
-            # ---- 提交后验证：确认数据库中的内容是否与预期一致 ----
+            # ---- 提交后验证：确认本次写入的条目确实存在于数据库 ----
+            # 并发写者可能已追加其他条目（合法，行锁只保证不丢失），
+            # 因此验证"包含目标条目且内容一致"，而非整表深度相等
             persisted_extractors = step.extractors or []
-            actually_persisted = _deep_equal(persisted_extractors, extractors)
+            actually_persisted = any(
+                e.get("name") == name and _deep_equal(e, extractor)
+                for e in persisted_extractors
+            )
 
             response_data = {
                 "success": actually_persisted,
@@ -1238,9 +1243,14 @@ async def add_step_assertion(
             # 强制刷新，避免 expire_on_commit=False 导致 identity map 返回旧对象
             await session.refresh(step, ["assertions"])
 
-            # ---- 提交后验证：确认数据库中的内容是否与预期一致 ----
+            # ---- 提交后验证：确认本次写入的条目确实存在于数据库 ----
+            # 并发写者可能已追加其他条目（合法，行锁只保证不丢失），
+            # 因此验证"包含目标条目且内容一致"，而非整表深度相等
             persisted_assertions = step.assertions or []
-            actually_persisted = _deep_equal(persisted_assertions, assertions)
+            actually_persisted = any(
+                (a.get("type"), a.get("path")) == dedup_key and _deep_equal(a, assertion)
+                for a in persisted_assertions
+            )
 
             response_data: dict = {
                 "success": actually_persisted,
@@ -1359,9 +1369,14 @@ async def add_step_variable_export(
             # 强制刷新，避免 expire_on_commit=False 导致 identity map 返回旧对象
             await session.refresh(step, ["variable_exports"])
 
-            # 提交后验证
+            # 提交后验证：确认本次写入的条目确实存在于数据库
+            # 并发写者可能已追加其他条目（合法，行锁只保证不丢失），
+            # 因此验证"包含目标条目且内容一致"，而非整表深度相等
             persisted_exports = step.variable_exports or []
-            actually_persisted = _deep_equal(persisted_exports, variable_exports)
+            actually_persisted = any(
+                e.get("name") == name and _deep_equal(e, export)
+                for e in persisted_exports
+            )
 
             response_data = {
                 "success": actually_persisted,
