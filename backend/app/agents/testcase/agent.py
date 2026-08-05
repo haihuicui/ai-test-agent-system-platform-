@@ -6,8 +6,10 @@
 """
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, AsyncIterator, Callable
+import re
 
 from deepagents import create_deep_agent as create_agent
 from deepagents.backends import FilesystemBackend, LocalShellBackend, CompositeBackend
@@ -181,6 +183,65 @@ class TestCaseGeneratorContext:
 # ============================================================================
 # fmt: off  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2U1ZkTlZnPT06OTM3YzViOWQ=
 
+# ── PDF 附件解析提示：常量与辅助函数 ──
+
+_PDF_PARSE_TOOL_NAME = "parse_document_from_url"
+# 阶段评审反馈是系统注入的 human 消息（非用户新意图），追溯附件消息时跳过
+_PHASE_REVIEW_FEEDBACK_PREFIX = "[阶段评审："
+# MinIO 预签名 URL 缺省有效期（秒），与后端签发逻辑一致
+_PRESIGNED_URL_DEFAULT_TTL = 86400
+
+
+def _pdf_url_expired(url: str) -> bool:
+    """根据预签名 URL 的 X-Amz-Date / X-Amz-Expires 判断是否已过期。"""
+    date_match = re.search(r"X-Amz-Date=(\d{8}T\d{6})Z", url)
+    if not date_match:
+        return False
+    try:
+        signed_at = datetime.strptime(date_match.group(1), "%Y%m%dT%H%M%S").replace(tzinfo=timezone.utc)
+    except ValueError:
+        return False
+    expires_match = re.search(r"X-Amz-Expires=(\d+)", url)
+    ttl = int(expires_match.group(1)) if expires_match else _PRESIGNED_URL_DEFAULT_TTL
+    return datetime.now(timezone.utc) > signed_at + timedelta(seconds=ttl)
+
+
+def _find_unconsumed_pdf_attachment(messages: list) -> tuple[int, list[dict]] | None:
+    """倒序定位「最近一条真实用户消息」中尚未被解析的 PDF 附件。
+
+    返回 ``(消息索引, PDF 附件列表)``；以下情况返回 None：
+    - 最近的真实用户消息不带 PDF 附件（用户已开启新意图，停止追注）
+    - 该消息之后已存在 ``parse_document_from_url`` 的 ToolMessage（已消费）
+    """
+    target_idx: int | None = None
+    for i in range(len(messages) - 1, -1, -1):
+        msg = messages[i]
+        if getattr(msg, "type", None) != "human":
+            continue
+        content = getattr(msg, "content", "")
+        if isinstance(content, str) and content.startswith(_PHASE_REVIEW_FEEDBACK_PREFIX):
+            continue
+        target_idx = i
+        break
+
+    if target_idx is None:
+        return None
+
+    attachments = getattr(messages[target_idx], "additional_kwargs", {}).get("attachments", []) or []
+    pdf_atts = [
+        att for att in attachments
+        if isinstance(att, dict) and att.get("mimeType") == "application/pdf" and att.get("url")
+    ]
+    if not pdf_atts:
+        return None
+
+    for msg in messages[target_idx + 1:]:
+        if getattr(msg, "type", None) == "tool" and getattr(msg, "name", None) == _PDF_PARSE_TOOL_NAME:
+            return None
+
+    return target_idx, pdf_atts
+
+
 class ContextInjectionMiddleware(AgentMiddleware):
     """上下文注入中间件 - 将运行时参数注入到系统提示词"""
 
@@ -250,29 +311,48 @@ create_test_case_tool(
             system_message=append_to_system_message(request.system_message, context_info)
         )
 
-        # 检测用户消息中的 PDF 附件，追加解析提示（同样走副本，不碰原消息）
-        last_msg = request.messages[-1] if request.messages else None
-        if last_msg and getattr(last_msg, "type", None) == "human":
-            attachments = getattr(last_msg, "additional_kwargs", {}).get("attachments", []) or []
+        # PDF 附件解析提示：持续注入直到被消费。
+        # 提示只拼接在请求副本上、不写 state——若仅首轮注入而模型当轮未调用
+        # 解析工具，URL 会从后续轮次的上下文中永久消失（实测会退化为在虚拟
+        # 文件系统里盲目找文件，最终拿 RAG 历史数据冒充新需求）。因此每轮
+        # 模型调用都追溯最近一条真实用户消息，只要其 PDF 附件尚未被
+        # parse_document_from_url 消费，就持续注入提醒。
+        pdf_target = _find_unconsumed_pdf_attachment(request.messages or [])
+        if pdf_target is not None:
+            target_idx, pdf_atts = pdf_target
+            target_msg = request.messages[target_idx]
+            is_first_round = target_idx == len(request.messages) - 1
             pdf_prompts = []
-            for att in attachments:
-                if isinstance(att, dict) and att.get("mimeType") == "application/pdf" and att.get("url"):
-                    filename = (att.get("metadata") or {}).get("filename", "document.pdf")
+            for att in pdf_atts:
+                filename = (att.get("metadata") or {}).get("filename", "document.pdf")
+                if _pdf_url_expired(att["url"]):
+                    pdf_prompts.append(
+                        f"\n\n[系统提示] 用户此前上传的 PDF 文件 `{filename}` 的下载链接已过期，"
+                        "无法解析。请告知用户重新上传该文件；在拿到原文前，不要基于历史知识编造需求内容。"
+                    )
+                elif is_first_round:
                     pdf_prompts.append(
                         f"\n\n[系统提示] 用户上传了 PDF 文件 `{filename}`，"
                         f"URL: {att['url']}。请调用 parse_document_from_url("
                         f"url='{att['url']}', document_type='application/pdf') 解析该文件获取上下文。"
                     )
+                else:
+                    pdf_prompts.append(
+                        f"\n\n[系统提示] 用户上传的 PDF 文件 `{filename}` 尚未解析，"
+                        f"URL: {att['url']}。请立即调用 parse_document_from_url("
+                        f"url='{att['url']}', document_type='application/pdf') 解析该文件；"
+                        "PDF 原文是唯一权威的需求来源，拿到原文前不要基于历史知识或推测展开分析。"
+                    )
             if pdf_prompts:
                 pdf_prompt = "".join(pdf_prompts)
-                if isinstance(last_msg.content, list):
-                    new_content = last_msg.content + [{"type": "text", "text": pdf_prompt}]
+                if isinstance(target_msg.content, list):
+                    new_content = target_msg.content + [{"type": "text", "text": pdf_prompt}]
                 else:
-                    new_content = last_msg.content + pdf_prompt
-                updated_msg = last_msg.model_copy(update={"content": new_content})
-                request = request.override(
-                    messages=[*request.messages[:-1], updated_msg]
-                )
+                    new_content = target_msg.content + pdf_prompt
+                updated_msg = target_msg.model_copy(update={"content": new_content})
+                new_messages = list(request.messages)
+                new_messages[target_idx] = updated_msg
+                request = request.override(messages=new_messages)
 
         return await handler(request)
 
@@ -589,6 +669,8 @@ SYSTEM_PROMPT = """
 ```python
 parse_document_from_url(url="...", document_type="application/pdf")
 ```
+
+**PDF 附件优先（强制）**：当用户消息携带 PDF 附件提示（`[系统提示] 用户上传了 PDF 文件 …`）时，**第一个工具调用必须包含 `parse_document_from_url`** 解析该文件；解析完成前不要执行 write_todos / read_file / rag_query_data 等其他工具。PDF 原文是唯一权威的需求来源，RAG 检索结果仅作补充参考，不得用历史知识替代原文。
 
 **大文档处理（重要）**：解析结果较大时，工具不会直接返回全文，而是把全文保存到工作区文件并返回「统计 + 目录 + 预览 + 文件路径（`full_text_path`）」。此时：
 - **禁止尝试一次性读入全文**——大文档全文进入上下文会导致会话中断
