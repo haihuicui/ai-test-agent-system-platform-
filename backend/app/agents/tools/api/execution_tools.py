@@ -1381,12 +1381,15 @@ async def _create_test_results(
     for item in parsed_items:
         status = status_map.get(item["status"], TestResultStatus.FAILED)
         title = item["title"]
-        endpoint, method = APITestExecutor._parse_endpoint_from_test_name(title)
+        # 完整 titlePath（describe › spec）：describe 标题常含 METHOD /path，
+        # 是 endpoint 解析与 trace 匹配的更精确依据
+        title_path = item.get("title_path") or title
+        endpoint, method = APITestExecutor._parse_endpoint_from_test_name(title_path)
 
         # 匹配当前用例的 trace 条目并构建请求/响应摘要
-        matched_traces = APITestExecutor._match_trace_entries(title, trace_entries)
+        matched_traces = APITestExecutor._match_trace_entries(title_path, trace_entries)
         request_data, response_data, assertion_results, duration_ms = APITestExecutor._build_trace_summary(
-            matched_traces, status, stdout=stdout,
+            matched_traces, status, json_errors=item.get("error_messages"),
         )
 
         # trace 未命中时回退到简单推断

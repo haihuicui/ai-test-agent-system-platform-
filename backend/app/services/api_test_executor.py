@@ -8,6 +8,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import subprocess
 import tempfile
 import shutil
@@ -1081,8 +1082,9 @@ class APITestExecutor:
                 elif item["status"] == "skipped":
                     pw_status = TestResultStatus.SKIPPED
 
-                # 匹配当前用例的 trace 条目
-                matched_traces = self._match_trace_entries(item["title"], trace_entries)
+                # 匹配当前用例的 trace 条目（优先完整 titlePath，多策略向后兼容）
+                trace_match_key = item.get("title_path") or item["title"]
+                matched_traces = self._match_trace_entries(trace_match_key, trace_entries)
                 logger.info("[APITestExecutor] test=%s matched_traces=%d", item["title"], len(matched_traces))
 
                 actual_status = await self._save_test_result(
@@ -1093,6 +1095,7 @@ class APITestExecutor:
                     trace_entries=matched_traces,
                     result_repo=result_repo,
                     json_errors=item.get("error_messages") or [],
+                    title_path=item.get("title_path"),
                 )
 
                 # 使用断言修正后的最终状态进行统计
@@ -1206,17 +1209,23 @@ class APITestExecutor:
             "flaky": "passed",
         }
 
-        def _iter_specs(suite: dict):
+        def _iter_specs(suite: dict, ancestors: tuple = ()):
             # test.describe 分组会产生嵌套 suites，必须递归遍历，
-            # 否则分组内的用例会全部丢失（顶层 specs 为空）
+            # 否则分组内的用例会全部丢失（顶层 specs 为空）。
+            # ancestors 携带 suite 标题链，用于拼接 Playwright titlePath
+            # （describe 标题常含 METHOD /path，是 endpoint 解析的唯一来源）。
+            # 顶层 suite 标题是 spec 文件名（xxx.spec.ts），不拼进路径。
+            suite_title = (suite.get("title") or "").strip()
+            is_file_title = bool(re.search(r"\.(spec|test)\.(ts|js|mjs|py)$", suite_title))
+            path = ancestors + ((suite_title,) if suite_title and not is_file_title else ())
             for spec in suite.get("specs") or []:
-                yield spec
+                yield spec, path
             for sub_suite in suite.get("suites") or []:
-                yield from _iter_specs(sub_suite)
+                yield from _iter_specs(sub_suite, path)
 
         suites = report.get("suites") or []
         for suite in suites:
-            for spec in _iter_specs(suite):
+            for spec, suite_path in _iter_specs(suite):
                 title = spec.get("title", "").strip()
                 tests = spec.get("tests") or []
                 if not tests:
@@ -1257,6 +1266,8 @@ class APITestExecutor:
                 results.append({
                     "status": status,
                     "title": title,
+                    # 完整 titlePath（describe › spec），供 endpoint 解析与 trace 匹配
+                    "title_path": " › ".join((*suite_path, title)) if suite_path else title,
                     "error_messages": error_messages,
                 })
 
@@ -1304,6 +1315,7 @@ class APITestExecutor:
         *,
         result_repo: Optional[APITestResultRepository] = None,
         json_errors: Optional[List[str]] = None,
+        title_path: Optional[str] = None,
     ):
         """
         保存单个测试结果
@@ -1311,15 +1323,17 @@ class APITestExecutor:
         Args:
             run_id: 测试运行 ID
             api_test: API 测试
-            test_name: 测试名称
+            test_name: 测试名称（叶子标题，用作 scenario_name）
             status: 测试状态
             trace_entries: 匹配到的真实请求/响应 trace 条目
             result_repo: 可选的结果仓储（后台任务使用新 session）
             json_errors: Playwright JSON reporter 提取的错误消息列表
+            title_path: 完整 titlePath（describe › spec），describe 标题常含
+                METHOD /path，优先用于 endpoint/method 解析；缺省回退 test_name
         """
         try:
-            # 提取端点和 HTTP 方法（从测试名称中解析）
-            endpoint, method = self._parse_endpoint_from_test_name(test_name)
+            # 提取端点和 HTTP 方法（优先从完整 titlePath 中解析）
+            endpoint, method = self._parse_endpoint_from_test_name(title_path or test_name)
 
             # 从 trace 中聚合真实请求/响应/断言
             request_data, response_data, assertion_results, duration_ms = self._build_trace_summary(
