@@ -502,11 +502,16 @@ async def _batch_create_test_cases_impl(
     project_identifier: str,
     test_cases: list[dict[str, Any]],
     folder_id: Optional[str] = None,
+    upsert: bool = False,
 ) -> dict[str, Any]:
     """批量创建测试用例（并发实现，复用连接池）。
 
     通过 asyncio.gather + Semaphore 控制并发上限，每条用例间复用同一个
     AsyncClient 连接池，避免逐条串行创建 + 每条的 TCP 握手开销。
+
+    upsert=True 时按 case_number 先尝试 PATCH 替换（存在即整体替换内容字段，
+    404 则转为新建）——用于"重新生成即替换旧版"场景。替换只覆盖内容字段，
+    不传 status，保留原有用例的工作流状态与 ID（执行记录引用自动跟随最新版）。
     """
     if not project_identifier:
         return {
@@ -525,7 +530,7 @@ async def _batch_create_test_cases_impl(
     semaphore = asyncio.Semaphore(_BATCH_MAX_CONCURRENCY)
 
     async def _create_one(index: int, test_case_data: dict[str, Any]) -> dict[str, Any]:
-        """创建单条用例（带并发控制 + 统一错误兜底）。"""
+        """创建（或 upsert 替换）单条用例（带并发控制 + 统一错误兜底）。"""
         async with semaphore:
             try:
                 name = test_case_data.get("name")
@@ -533,9 +538,69 @@ async def _batch_create_test_cases_impl(
                     return {
                         "index": index,
                         "success": False,
+                        "action": None,
                         "name": None,
                         "error": "测试用例名称不能为空",
                     }
+
+                case_number = _resolve_field(
+                    test_case_data, "case_number", "id", "用例编号", "identifier", "case_id", "编号"
+                )
+
+                # upsert：先按 case_number 尝试 PATCH 替换；404 说明不存在，转入新建
+                if upsert and case_number:
+                    try:
+                        update_result = await _update_test_case_impl(
+                            project_identifier=project_identifier,
+                            test_case_identifier=case_number,
+                            name=name,
+                            description=_resolve_field(
+                                test_case_data,
+                                "description", "desc", "描述", "remarks", "备注", "remark",
+                            ),
+                            preconditions=_resolve_field(
+                                test_case_data, "preconditions", "precondition", "前置条件"
+                            ),
+                            priority=test_case_data.get("priority", "medium"),
+                            case_type=_resolve_field(
+                                test_case_data,
+                                "case_type", "type", "用例类型", "测试类型", "类型",
+                            ) or "functional",
+                            folder_id=folder_id,
+                            test_case_steps=_normalize_steps(
+                                _resolve_field(test_case_data, "test_case_steps", "steps", "测试步骤")
+                            ),
+                            feature=test_case_data.get("feature"),
+                            scenario=test_case_data.get("scenario"),
+                            background=test_case_data.get("background"),
+                            module=_resolve_field(test_case_data, "module", "所属模块"),
+                            test_data=_resolve_field(test_case_data, "test_data", "测试数据"),
+                        )
+                        if update_result.get("success"):
+                            return {
+                                "index": index,
+                                "success": True,
+                                "action": "updated",
+                                "identifier": case_number,
+                                "name": name,
+                            }
+                        return {
+                            "index": index,
+                            "success": False,
+                            "action": None,
+                            "name": name,
+                            "error": update_result.get("error") or update_result.get("message"),
+                        }
+                    except Exception as e:
+                        if "HTTP 404" not in str(e):
+                            return {
+                                "index": index,
+                                "success": False,
+                                "action": None,
+                                "name": name,
+                                "error": str(e),
+                            }
+                        # 404 → 系统库中不存在，转入下方新建
 
                 result = await _create_test_case_impl(
                     project_identifier=project_identifier,
@@ -568,15 +633,14 @@ async def _batch_create_test_cases_impl(
                     background=test_case_data.get("background"),
                     module=_resolve_field(test_case_data, "module", "所属模块"),
                     test_data=_resolve_field(test_case_data, "test_data", "测试数据"),
-                    case_number=_resolve_field(
-                        test_case_data, "case_number", "id", "用例编号", "identifier", "case_id", "编号"
-                    ),
+                    case_number=case_number,
                 )
 
                 case_data = result.get("data") or {}
                 return {
                     "index": index,
                     "success": result.get("success", False),
+                    "action": "created" if result.get("success") else None,
                     "identifier": case_data.get("identifier") or case_data.get("case_number"),
                     "name": name,
                     "error": result.get("error"),
@@ -586,6 +650,7 @@ async def _batch_create_test_cases_impl(
                 return {
                     "index": index,
                     "success": False,
+                    "action": None,
                     "name": test_case_data.get("name"),
                     "error": str(e),
                 }
@@ -597,6 +662,8 @@ async def _batch_create_test_cases_impl(
 
     succeeded = sum(1 for r in results if r.get("success"))
     failed = len(results) - succeeded
+    created_count = sum(1 for r in results if r.get("action") == "created")
+    updated_count = sum(1 for r in results if r.get("action") == "updated")
 
     # 上下文精简：全部成功时仅返回摘要统计，失败时才逐条展开详情。
     # 避免 100+ 条用例的逐条成功信息撑爆对话上下文。
@@ -605,20 +672,29 @@ async def _batch_create_test_cases_impl(
             r.get("identifier") or ""
             for r in sorted(results, key=lambda r: r["index"])
         ]
+        if upsert:
+            summary_message = (
+                f"批量入库完成：替换 {updated_count} 条，新建 {created_count} 条"
+                f"（共 {succeeded} 条）。"
+            )
+        else:
+            summary_message = (
+                f"批量创建完成：全部 {succeeded} 条用例提交成功。"
+                f"编号范围：{case_numbers[0]} ~ {case_numbers[-1]}"
+                if case_numbers else
+                f"批量创建完成：全部 {succeeded} 条用例提交成功。"
+            )
         return {
             "success": True,
             "data": {
                 "total": len(test_cases),
                 "succeeded": succeeded,
                 "failed": 0,
+                "created": created_count,
+                "updated": updated_count,
                 "case_numbers": case_numbers,
             },
-            "message": (
-                f"批量创建完成：全部 {succeeded} 条用例提交成功。"
-                f"编号范围：{case_numbers[0]} ~ {case_numbers[-1]}"
-                if case_numbers else
-                f"批量创建完成：全部 {succeeded} 条用例提交成功。"
-            ),
+            "message": summary_message,
         }
 
     return {
@@ -627,9 +703,14 @@ async def _batch_create_test_cases_impl(
             "total": len(test_cases),
             "succeeded": succeeded,
             "failed": failed,
+            "created": created_count,
+            "updated": updated_count,
             "results": sorted(results, key=lambda r: r["index"]),
         },
-        "message": f"批量创建完成：成功 {succeeded} 个，失败 {failed} 个"
+        "message": (
+            f"批量{'入库' if upsert else '创建'}完成：成功 {succeeded} 个"
+            f"（新建 {created_count} / 替换 {updated_count}），失败 {failed} 个"
+        ),
     }
 
 
@@ -639,6 +720,7 @@ async def batch_create_test_cases_tool(
     test_cases: Optional[list[dict[str, Any]]] = None,
     folder_id: Optional[str] = None,
     input_file: Optional[str | list[str]] = None,
+    upsert: bool = False,
 ) -> dict[str, Any]:
     """
     批量创建测试用例工具（通过 HTTP 接口调用）。
@@ -649,14 +731,20 @@ async def batch_create_test_cases_tool(
         或路径列表（推荐用于 Phase 4 评审通过后的统一入库）——服务端解析合并、
         按 case_number 去重、逐条质量校验，无需把全部用例塞进对话。
 
+    upsert=True 时按 case_number 执行"存在即整体替换，不存在则新建"：
+    替换通过 PATCH 在原用例上进行（用例 ID 不变，测试执行记录的引用自动
+    跟随最新内容），且只覆盖内容字段、不改动 status 工作流状态。
+    统一入库场景应固定使用 upsert=true，避免重新生成时产生同编号重复用例。
+
     Args:
         project_identifier: 项目标识符，如 'PROJ-001'
         test_cases: 测试用例列表，每个元素是一个包含测试用例信息的字典
         folder_id: 文件夹 UUID（可选；为空时保存到项目根，对应前端“全部用例”）
         input_file: 用例数据文件路径或路径列表（与 test_cases 二选一，同时提供时优先）
+        upsert: 是否按 case_number 替换已存在的同编号用例（默认 False 纯新建）
 
     Returns:
-        dict: 包含批量创建结果的字典
+        dict: 包含批量创建结果的字典（含 created/updated 分类计数）
     """
     try:
         resolved_cases = test_cases
@@ -723,6 +811,7 @@ async def batch_create_test_cases_tool(
             project_identifier=project_identifier,
             test_cases=resolved_cases,
             folder_id=folder_id,
+            upsert=upsert,
         )
     except Exception as e:
         return {

@@ -58,7 +58,7 @@ class TestBatchCreateInputFile:
 
         captured: dict = {}
 
-        async def fake_impl(project_identifier, test_cases, folder_id=None):
+        async def fake_impl(project_identifier, test_cases, folder_id=None, upsert=False):
             captured["cases"] = test_cases
             captured["folder_id"] = folder_id
             return {
@@ -91,7 +91,7 @@ class TestBatchCreateInputFile:
 
         called = False
 
-        async def fake_impl(project_identifier, test_cases, folder_id=None):
+        async def fake_impl(project_identifier, test_cases, folder_id=None, upsert=False):
             nonlocal called
             called = True
             return {"success": True}
@@ -130,3 +130,124 @@ class TestBatchCreateInputFile:
         )
         assert result["success"] is False
         assert "input_file" in result["message"]
+
+
+class TestBatchCreateUpsert:
+    """upsert=true：同编号整体替换（PATCH-first，404 转新建，保留 status）。"""
+
+    async def test_existing_case_replaced_via_patch(self, monkeypatch):
+        """同编号已存在 → PATCH 替换，不调用创建，且不传 status。"""
+        update_kwargs: dict = {}
+
+        async def fake_update(**kwargs):
+            update_kwargs.update(kwargs)
+            return {"success": True, "data": {"identifier": "TC-PROJ-LOGIN-001"}}
+
+        create_called = False
+
+        async def fake_create(**kwargs):
+            nonlocal create_called
+            create_called = True
+            return {"success": True, "data": {}}
+
+        monkeypatch.setattr(testcase_tools, "_update_test_case_impl", fake_update)
+        monkeypatch.setattr(testcase_tools, "_create_test_case_impl", fake_create)
+
+        result = await batch_create_test_cases_tool.ainvoke(
+            {
+                "project_identifier": "PROJ-001",
+                "test_cases": [_valid_case(1)],
+                "upsert": True,
+            }
+        )
+
+        assert result["success"] is True
+        assert create_called is False
+        # PATCH 按 case_number 定位
+        assert update_kwargs["test_case_identifier"] == "TC-PROJ-LOGIN-001"
+        # 不传 status，保留原用例工作流状态
+        assert "status" not in update_kwargs or update_kwargs.get("status") is None
+        assert result["data"]["updated"] == 1
+        assert result["data"]["created"] == 0
+        assert "替换 1 条" in result["message"]
+
+    async def test_missing_case_falls_back_to_create(self, monkeypatch):
+        """PATCH 404（系统库不存在）→ 转为新建。"""
+
+        async def fake_update(**kwargs):
+            raise Exception("HTTP 404: 测试用例不存在")
+
+        create_kwargs: dict = {}
+
+        async def fake_create(**kwargs):
+            create_kwargs.update(kwargs)
+            return {"success": True, "data": {"identifier": "TC-PROJ-LOGIN-001"}}
+
+        monkeypatch.setattr(testcase_tools, "_update_test_case_impl", fake_update)
+        monkeypatch.setattr(testcase_tools, "_create_test_case_impl", fake_create)
+
+        result = await batch_create_test_cases_tool.ainvoke(
+            {
+                "project_identifier": "PROJ-001",
+                "test_cases": [_valid_case(1)],
+                "upsert": True,
+            }
+        )
+
+        assert result["success"] is True
+        assert result["data"]["created"] == 1
+        assert result["data"]["updated"] == 0
+        # 新建时保留 case_number
+        assert create_kwargs["case_number"] == "TC-PROJ-LOGIN-001"
+
+    async def test_non_404_error_does_not_create(self, monkeypatch):
+        """PATCH 出现非 404 错误（如 500）→ 记为失败，禁止降级为新建。"""
+
+        async def fake_update(**kwargs):
+            raise Exception("HTTP 500: 服务内部错误")
+
+        create_called = False
+
+        async def fake_create(**kwargs):
+            nonlocal create_called
+            create_called = True
+            return {"success": True, "data": {}}
+
+        monkeypatch.setattr(testcase_tools, "_update_test_case_impl", fake_update)
+        monkeypatch.setattr(testcase_tools, "_create_test_case_impl", fake_create)
+
+        result = await batch_create_test_cases_tool.ainvoke(
+            {
+                "project_identifier": "PROJ-001",
+                "test_cases": [_valid_case(1)],
+                "upsert": True,
+            }
+        )
+
+        assert create_called is False
+        assert result["data"]["failed"] == 1
+
+    async def test_upsert_false_keeps_pure_create(self, monkeypatch):
+        """upsert=false（默认）→ 纯新建，不尝试 PATCH。"""
+        update_called = False
+
+        async def fake_update(**kwargs):
+            nonlocal update_called
+            update_called = True
+            return {"success": True}
+
+        async def fake_create(**kwargs):
+            return {"success": True, "data": {"identifier": "TC-PROJ-LOGIN-001"}}
+
+        monkeypatch.setattr(testcase_tools, "_update_test_case_impl", fake_update)
+        monkeypatch.setattr(testcase_tools, "_create_test_case_impl", fake_create)
+
+        result = await batch_create_test_cases_tool.ainvoke(
+            {
+                "project_identifier": "PROJ-001",
+                "test_cases": [_valid_case(1)],
+            }
+        )
+
+        assert update_called is False
+        assert result["success"] is True

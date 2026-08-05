@@ -455,9 +455,11 @@ SYSTEM_PROMPT = """
        project_identifier=project_identifier,
        folder_id=folder_id,
        input_file=["test_cases_module_01.jsonl", "test_cases_module_02.jsonl", ...],  # 全部模块文件
+       upsert=True,  # 固定开启：同编号用例按最新通过评审的内容整体替换
    )
    ```
    工具会在服务端解析合并、按 case_number 去重、逐条质量校验。**禁止把全部用例内联传入 `test_cases` 参数**（会超出单次输出 token 上限导致截断）。
+   `upsert=True` 的语义：同编号用例已存在时通过 PATCH 整体替换内容（用例 ID 不变，测试执行记录引用自动跟随最新版；status 工作流状态保持不变），不存在时新建——确保系统库永远只有最新一版，不产生同编号重复。
 2. 用户选择"跳过返工"或"跳过本阶段"时，同样执行统一入库（用户已确认接受当前质量状态）。
 3. 入库因网络/API 原因失败：连续失败 2 次后停止重试，保留 JSONL 文件，调用 `save_test_case_manifest_tool` 记录 `persisted: false`，继续 Phase 5。
 4. Phase 4 返工修复**只改 JSONL 文件**，不调用任何入库/更新工具（此时系统库中还没有本批用例；`update_test_case_tool` / `batch_update_test_cases_tool` 仅用于修改历史会话已入库的用例）。

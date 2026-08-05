@@ -393,8 +393,9 @@ _MIN_FP_FOR_PHASE3_REVIEW = 11
 # 确保系统用例库只保存评审通过的版本）。
 _SAVE_AFTER_REVIEW_HINT = (
     " 进入 Phase 5 前，必须调用 batch_create_test_cases_tool"
-    "（project_identifier=..., folder_id=..., input_file=[全部模块 JSONL 文件]）"
-    "统一入库——工具服务端解析合并并按编号去重，禁止内联传入全部用例。"
+    "（project_identifier=..., folder_id=..., input_file=[全部模块 JSONL 文件],"
+    " upsert=true）统一入库——工具服务端解析合并并按编号去重，"
+    "同编号用例按最新内容整体替换，禁止内联传入全部用例。"
 )
 
 
