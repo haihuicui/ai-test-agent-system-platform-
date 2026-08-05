@@ -130,9 +130,16 @@ await tools.add_data_mapping({
 // 步骤 3 可直接在 request_override 中使用 {{siteId}}，无需 add_data_mapping
 ```
 
-### 5. 添加数据提取器
+### 5. 添加数据提取器与变量导出（随断言一次性落库）
 
-从响应中提取数据供后续步骤使用：
+**⚠️ 落库方式（强制）：** 每个步骤的提取器（extractors）、变量导出（variable_exports）必须与断言一起，通过**一次** `update_scenario_step` 调用完整写入（示例见第 6 节）。禁止在生成阶段对同一步骤连续调用多个 `add_step_extractor` / `add_step_variable_export` / `add_step_assertion`——同一条回复中的多个工具调用会被并行执行，逐个 add 的「读-改-写」存在相互覆盖丢失的风险（后端行锁仅为兜底）；且一次调用即可完成，减少往返。
+
+- 提取器格式：`{"name": "token", "path": "$.data.token", "type": "jsonpath"}`
+- 变量导出格式：`{"name": "siteName", "source": "request", "path": "$.body.name", "type": "jsonpath"}`（`source` 取 `request` / `response`；用于把 `{{$timestamp}}` 等动态值导出，供后续步骤以 `{{siteName}}` 引用）
+
+`add_step_extractor` / `add_step_variable_export` 仅保留给执行验证后的单个条目小修，不是生成阶段的默认写法。
+
+从响应中提取数据供后续步骤使用（等价单条写法，仅修复时用）：
 
 ```javascript
 await tools.add_step_extractor({
@@ -158,7 +165,28 @@ await tools.add_step_extractor({
 
 对核心业务字段（如 token、orderId、userId、支付状态等）必须追加 `ne null` / `ne ""` 断言，确保后续步骤拿到的数据有效；对业务状态字段（如 orderStatus、paymentStatus）必须追加 `eq` 断言验证流程正确流转。
 
-为每个步骤添加断言，验证响应是否符合预期：
+**⚠️ 落库方式（强制）：** 在 `add_scenario_step` 之后，用**一次** `update_scenario_step` 调用同时写入该步骤的完整 `assertions` + `extractors` + `variable_exports`：
+
+```javascript
+await tools.update_scenario_step({
+  step_id: "{step1_id}",
+  assertions: [
+    {"type": "status", "expected": 200, "operator": "eq"},                          // 1. HTTP 状态码
+    {"type": "jsonpath", "path": "$.code", "expected": "2000", "operator": "eq"},   // 2. 业务成功码
+    {"type": "jsonpath", "path": "$.data.token", "expected": null, "operator": "ne"} // 3. 核心字段非空
+  ],
+  extractors: [
+    {"name": "token", "path": "$.data.token", "type": "jsonpath"}
+  ],
+  variable_exports: [
+    {"name": "siteName", "source": "request", "path": "$.body.name", "type": "jsonpath"}
+  ]
+})
+```
+
+一次性写入可保证整份列表原子落库，避免逐个 add 在并行执行下相互覆盖（status / $.code 断言丢失的历史 bug 即源于此）。`add_step_assertion` 仅用于执行验证后的单条小修。
+
+以下为各类断言的单条写法（仅修复阶段参考）：
 
 ```javascript
 // 验证 HTTP 状态码
@@ -677,7 +705,7 @@ const result = await tools.execute_scenario({
 
 ## 生成前自检（必须）
 
-每完成一个步骤的配置，在继续下一步之前，必须先对照以下检查表自检；若发现违规，立即用 `update_scenario_step` / `add_step_assertion` / `add_step_extractor` / `add_data_mapping` 修复，不要留到执行阶段。
+每完成一个步骤的配置，在继续下一步之前，必须先对照以下检查表自检；若发现违规，立即用 `update_scenario_step`（断言/提取器/变量导出优先整体重写）或 `add_data_mapping` 修复，不要留到执行阶段。
 
 ### 检查表 A：请求体与参数
 - [ ] 是否已调用 `get_endpoint_details` 读取当前步骤接口的 `request_body` / `parameters` / `responses`？
@@ -813,7 +841,7 @@ if (result.data.status !== "completed" || result.data.failed_steps > 0) {
 
 | 失败模式 | 第 4 次起的替代策略 |
 |----------|---------------------|
-| `add_step_assertion` 返回 success 但 `get_scenario_details` 显示断言未持久化 | 1. 使用 `update_scenario_step` 一次性设置完整的 `assertions` 列表（包含 status + jsonpath）。2. 若仍无效，报告后端 JSONB 持久化 bug，设 `skip_assertion_gate=true` 尝试执行。 |
+| `add_step_assertion` 返回 success 但 `get_scenario_details` 显示断言未持久化 | 1. 使用 `update_scenario_step` 一次性设置完整的 `assertions` 列表（包含 status + jsonpath，可同时补挂 `extractors` / `variable_exports`）。2. 若仍无效，报告后端 JSONB 持久化 bug，设 `skip_assertion_gate=true` 尝试执行。（生成阶段本应已用 `update_scenario_step` 一次性写入，此规则用于历史场景兜底。） |
 | `execute_scenario` 被质量门禁拦截（缺少 jsonpath 断言） | 检查是否后端持久化 bug 导致无法保存断言。如果是，用 `skip_assertion_gate=true` 绕过门禁执行。不要反复调用 `add_step_assertion` 重试。 |
 | 所有步骤的 `step_order` 相同 | 使用 `update_scenario_step` 逐个修正为 1, 2, 3...。不要重建场景。 |
 | `add_scenario_step` 报错 | 检查 `scenario_id` 是否有效（场景是否被覆盖删除了），检查 `endpoint_id` 是否正确。 |

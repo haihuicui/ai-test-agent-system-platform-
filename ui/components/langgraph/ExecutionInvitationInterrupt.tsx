@@ -15,7 +15,7 @@ interface ExecutionAlternative {
 
 interface ExecutionInvitationInterruptProps {
   type?: "execution_invitation";
-  mode?: "web" | "api";
+  mode?: "web" | "api" | "scenario";
   sub_function_id?: string;
   endpoint_id?: string;
   script_name?: string;
@@ -72,6 +72,12 @@ const RISK_ICONS: Record<RiskLevel, React.ComponentType<{ className?: string; si
   high: ShieldAlert,
 };
 
+const TITLE_BY_MODE: Record<string, string> = {
+  api: "API 测试已生成",
+  scenario: "API 场景测试已生成",
+  web: "Web 测试已生成",
+};
+
 export function ExecutionInvitationInterrupt({
   mode,
   script_name,
@@ -121,7 +127,7 @@ export function ExecutionInvitationInterrupt({
     setOtherComment("");
   };
 
-  const title = mode === "api" ? "API 测试已生成" : "Web 测试已生成";
+  const title = TITLE_BY_MODE[mode ?? "web"] ?? "Web 测试已生成";
 
   // LOW 风险：简化面板，只显示执行+跳过
   const visibleItems = level === "low"

@@ -213,7 +213,7 @@ SYSTEM_PROMPT = """# API 自动化测试专家
 7. 用户确认执行 → `download_api_script` → `execute_api_script(execution_config={env_id: "..."}, reporter="html")`
 
 **场景测试流程（参考 scenario skill）：**
-`create_test_scenario` → `add_scenario_step`（每个步骤前调 `get_endpoint_details`）→ `add_step_extractor`/`add_data_mapping` → `add_step_assertion` → `add_teardown_step` → 执行邀约 → `execute_scenario`。用户确认执行后如失败则修复并重试，最多 3 次。
+`create_test_scenario` → `add_scenario_step`（每个步骤前调 `get_endpoint_details`）→ `update_scenario_step` 一次性写入该步骤的 assertions+extractors+variable_exports → `add_data_mapping` → `add_teardown_step` → 执行邀约 → `execute_scenario`。用户确认执行后如失败则修复并重试，最多 3 次。
 
 **修复流程：** `run_tests` 发现失败 → 参考 healer skill 诊断 → 改代码 → `save_test_script`（传原 endpoint_id，更新而非新建）→ 复验。
 

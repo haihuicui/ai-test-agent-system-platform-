@@ -789,10 +789,11 @@ async def update_scenario_step(
     """
     async with async_session_factory() as session:
         try:
-            # 1. 查询步骤
+            # 1. 查询步骤（加行锁：与 add_step_assertion/extractor/variable_export
+            #    互斥，避免对 assertions/extractors/variable_exports 的并发覆盖）
             step_stmt = select(ScenarioStep).where(
                 ScenarioStep.id == UUID(step_id)
-            )
+            ).with_for_update()
             step_result = await session.execute(step_stmt)
             step = step_result.scalar_one_or_none()
 
@@ -1050,10 +1051,11 @@ async def add_step_extractor(
     """
     async with async_session_factory() as session:
         try:
-            # 1. 查询步骤
+            # 1. 查询步骤（加行锁：并发工具调用会串行化，
+            #    后到的调用读到前者已提交的 extractors，避免 Lost Update）
             step_stmt = select(ScenarioStep).where(
                 ScenarioStep.id == UUID(step_id)
-            )
+            ).with_for_update()
             step_result = await session.execute(step_stmt)
             step = step_result.scalar_one_or_none()
 
@@ -1174,10 +1176,11 @@ async def add_step_assertion(
     """
     async with async_session_factory() as session:
         try:
-            # 1. 查询步骤
+            # 1. 查询步骤（加行锁：并发工具调用会串行化，
+            #    后到的调用读到前者已提交的 assertions，避免 Lost Update）
             step_stmt = select(ScenarioStep).where(
                 ScenarioStep.id == UUID(step_id)
-            )
+            ).with_for_update()
             step_result = await session.execute(step_stmt)
             step = step_result.scalar_one_or_none()
 
@@ -1222,8 +1225,8 @@ async def add_step_assertion(
                 assertions.append(assertion)
                 action = "添加"
 
-            # 使用原子 UPDATE 而非 ORM change-tracking，避免 JSONB 变异追踪问题
-            # 以及并发场景下潜在的丢失更新（Lost Update）
+            # 原子 UPDATE 写回完整列表（上方 SELECT ... FOR UPDATE 行锁保证
+            # 读-改-写串行化，并发调用不会基于过期快照互相覆盖）
             from sqlalchemy import update as sa_update
             await session.execute(
                 sa_update(ScenarioStep)
@@ -1303,10 +1306,11 @@ async def add_step_variable_export(
     """
     async with async_session_factory() as session:
         try:
-            # 1. 查询步骤
+            # 1. 查询步骤（加行锁：并发工具调用会串行化，
+            #    后到的调用读到前者已提交的 variable_exports，避免 Lost Update）
             step_stmt = select(ScenarioStep).where(
                 ScenarioStep.id == UUID(step_id)
-            )
+            ).with_for_update()
             step_result = await session.execute(step_stmt)
             step = step_result.scalar_one_or_none()
 
