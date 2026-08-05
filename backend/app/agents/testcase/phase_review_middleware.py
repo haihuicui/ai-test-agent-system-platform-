@@ -248,6 +248,51 @@ def _detect_uncovered_p0(content: str) -> list[str]:
     return uncovered_p0
 
 
+def _has_empty_suggestion_table(content: str) -> bool:
+    """检测 Phase 4 报告「补充建议 - 建议新增的测试用例」是否只有空表头。
+
+    匹配「建议类型 … 优先级」表头 + 分隔行后 0 条数据行的空骨架——
+    模型照抄报告模板但无从填充时的典型失败形态。
+    空表紧随其后（3 行内）有「无新增/暂无/无需补充」类声明的，视为合法空态，放行。
+
+    Returns:
+        True = 检测到空表头且无合法空态声明，需要拦截退回。
+    """
+    lines = content.splitlines()
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if not stripped.startswith("|"):
+            continue
+        if "建议类型" not in stripped or "优先级" not in stripped:
+            continue
+
+        # 表头下一行必须是分隔行（|---|...），否则只是正文提及，跳过
+        if i + 1 >= len(lines):
+            return True
+        sep = lines[i + 1].strip()
+        if not (sep.startswith("|") and re.fullmatch(r"[|\s:\-]+", sep)):
+            continue
+
+        # 分隔行之后连续的 | 开头行为数据行（排除全空单元格行）
+        data_rows = 0
+        j = i + 2
+        while j < len(lines) and lines[j].strip().startswith("|"):
+            cells = [c.strip() for c in lines[j].strip().split("|") if c.strip()]
+            if cells:
+                data_rows += 1
+            j += 1
+        if data_rows > 0:
+            return False
+
+        # 空表：表后 3 行内声明了"无建议"的放行，否则判定为空骨架
+        tail = "\n".join(lines[j : j + 3])
+        if re.search(r"无(?:新增|需|建议)|暂无|不补充", tail):
+            continue
+        return True
+
+    return False
+
+
 # interrupt payload 预览上限：报告全文会原样进入 checkpoint，
 # 长报告（Phase 3/4 可达数十 KB）会持续膨胀历史体积，拖慢前端「加载历史对话」。
 # 这里只保留头尾摘要，完整内容始终可从对话历史消息中获取。
@@ -673,6 +718,39 @@ class PhaseReviewMiddleware(AgentMiddleware):
                         ),
                         decision_type="request_changes",
                         comment="报告缺少覆盖对照信息",
+                        checklist={item["key"]: False for item in _REVIEW_CHECKLIST},
+                    )
+                ],
+                "jump_to": "model",
+            }
+
+        # Phase 4 补充建议空表拦截：「建议新增的测试用例」只输出表头、
+        # 无任何数据行时，退回要求按确定性来源填充或显式声明"无"。
+        # 与 _has_coverage_mapping 同理 —— 照抄模板骨架是提示词层无法
+        # 完全杜绝的失败模式，由代码做确定性兜底。
+        if phase == "quality-review" and _has_empty_suggestion_table(content):
+            current_round = _compute_review_round(messages, phase)
+            return {
+                "messages": [
+                    _build_review_human_message(
+                        phase=phase,
+                        round=current_round,
+                        feedback=(
+                            "当前 Phase 4 质量评审报告的「补充建议 - 建议新增的测试用例」"
+                            "只有表头、没有任何数据行，属于无效输出。\n\n"
+                            "请按以下确定性来源逐条填充（每行必须引用具体 FP-ID 或用例编号）：\n"
+                            "1. `compute_coverage_report` 返回的未覆盖/疑似覆盖功能点 → "
+                            "每个 ❌ 功能点对应 1 行新增用例建议\n"
+                            "2. 对抗性评审结果文件（adversarial_review_m*.md）中"
+                            "涉及'缺少用例'的 🔴/🟡 发现\n"
+                            "3. 交叉验证缺口（异常覆盖维度不足、风险-密度不匹配等）\n\n"
+                            "若以上来源确实均无内容可填，将表格写为一行 "
+                            "`| 无 | 本次评审未发现需要新增的用例方向 | - |`，"
+                            "或删除整个「补充建议」小节——禁止保留只有表头的空表。\n"
+                            "完成后重新输出 `## 📊 测试用例质量评审报告`。"
+                        ),
+                        decision_type="request_changes",
+                        comment="补充建议为空表头",
                         checklist={item["key"]: False for item in _REVIEW_CHECKLIST},
                     )
                 ],
