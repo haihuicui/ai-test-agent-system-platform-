@@ -5,6 +5,7 @@ PDF 文档处理器，支持文本提取和缓存
 import tempfile
 import os
 import re
+import inspect
 import logging
 import hashlib
 import time
@@ -223,18 +224,22 @@ def extract_pdf_text(pdf_data: bytes, filename: str = "unknown.pdf", cache: Opti
                         model=image_llm, max_workers=max_workers
                     )
 
-                    loader = PyMuPDF4LLMLoader(
-                        temp_file_path,
-                        mode="single",
-                        extract_images=True,
-                        images_parser=image_parser,
-                        table_strategy="lines",
-                        # 多模态必须用经典 rag 解析路径：layout 模式下图片框依赖
-                        # 内建 OCR（系统 Tesseract 缺中文包只产乱码）才能暴露给
-                        # images_parser；rag 路径原生输出图片引用供视觉解析，
-                        # 无 OCR 乱码，且 table_strategy 在此路径才真正生效
-                        use_layout=False,
-                    )
+                    # 版本兼容：use_layout 仅新版 loader（langchain-pymupdf4llm>=1.x）
+                    # 支持；旧版会把未知 kwargs 透传给 to_markdown 并抛 TypeError。
+                    # 生产 root venv 为 0.5.0/0.1.9（无 layout 模式，天然 rag 路径），
+                    # 本地 backend venv 为 1.28.0（layout 模式图片框依赖内建 OCR
+                    # 才暴露给 images_parser，必须显式关 layout）。按签名探测。
+                    loader_kwargs: dict = {
+                        "mode": "single",
+                        "extract_images": True,
+                        "images_parser": image_parser,
+                        "table_strategy": "lines",
+                    }
+                    if "use_layout" in inspect.signature(
+                        PyMuPDF4LLMLoader.__init__
+                    ).parameters:
+                        loader_kwargs["use_layout"] = False
+                    loader = PyMuPDF4LLMLoader(temp_file_path, **loader_kwargs)
                     logger.info("启用多模态图片解析（并发线程 %d）", max_workers)
                 except ImportError as e:
                     logger.warning(f"多模态依赖未安装，使用基础模式: {e}")
