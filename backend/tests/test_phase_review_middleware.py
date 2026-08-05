@@ -489,162 +489,6 @@ class TestPhase4CoverageFallback:
         )
 
 
-class TestEmptySuggestionTable:
-    """测试 _has_empty_suggestion_table 空表头检测。"""
-
-    def test_empty_table_skeleton_detected(self):
-        """表头 + 分隔行 + 0 数据行 → 检出（用户上报的失败形态）"""
-        content = """
-## 📊 测试用例质量评审报告
-
-### 补充建议
-
-#### 建议新增的测试用例
-| 建议类型 | 描述 | 优先级 |
-|---------|------|--------|
-
-#### 测试风险提示
-- ⚠️ 无
-"""
-        assert _has_empty_suggestion_table(content) is True
-
-    def test_table_with_data_rows_passes(self):
-        """表头后有数据行 → 通过"""
-        content = """
-### 补充建议
-
-#### 建议新增的测试用例
-| 建议类型 | 描述 | 优先级 |
-|---------|------|--------|
-| 覆盖补全 | FP-012 部分退款未覆盖，建议补充混合支付场景 | P0 |
-| 安全测试 | TC-AUTH-003 缺少 SQL 注入变体 | P1 |
-"""
-        assert _has_empty_suggestion_table(content) is False
-
-    def test_table_with_wu_row_passes(self):
-        """数据行写「无」→ 通过（合法空态写法）"""
-        content = """
-### 补充建议
-
-#### 建议新增的测试用例
-| 建议类型 | 描述 | 优先级 |
-|---------|------|--------|
-| 无 | 本次评审未发现需要新增的用例方向 | - |
-"""
-        assert _has_empty_suggestion_table(content) is False
-
-    def test_empty_table_with_trailing_wu_note_passes(self):
-        """空表但紧随其后声明"无新增建议"→ 放行"""
-        content = """
-### 补充建议
-
-#### 建议新增的测试用例
-| 建议类型 | 描述 | 优先级 |
-|---------|------|--------|
-
-（本次评审无新增建议）
-"""
-        assert _has_empty_suggestion_table(content) is False
-
-    def test_no_suggestion_table_passes(self):
-        """报告删除了整个补充建议小节 → 通过（合法空态写法之一）"""
-        content = """
-## 📊 测试用例质量评审报告
-
-综合评分：90 分
-
-### 覆盖度分析
-已读取 feature_matrix.jsonl。
-"""
-        assert _has_empty_suggestion_table(content) is False
-
-    def test_prose_mention_not_table_passes(self):
-        """正文提及"建议类型/优先级"但不是表格结构 → 不误判"""
-        content = """
-### 补充建议
-
-| 建议类型 | 描述 | 优先级 | 说明：以下为文字描述而非表格——
-建议类型包括安全测试与边界测试，优先级按 P0-P3 分配，本次均无新增。
-"""
-        assert _has_empty_suggestion_table(content) is False
-
-    def test_all_empty_cells_row_not_counted(self):
-        """全空单元格行（| | | |）不算数据行 → 仍检出空表"""
-        content = """
-#### 建议新增的测试用例
-| 建议类型 | 描述 | 优先级 |
-|---------|------|--------|
-| | | |
-"""
-        assert _has_empty_suggestion_table(content) is True
-
-
-class TestPhase4EmptySuggestionGate:
-    """测试 Phase 4 补充建议空表头的兜底拦截。"""
-
-    def _make_state(self, ai_content: str, human_messages: list | None = None):
-        return {
-            "messages": [
-                *(human_messages or []),
-                AIMessage(content=ai_content),
-            ]
-        }
-
-    def test_empty_suggestion_table_returns_request_changes(self):
-        """空表头 → 拦截并给出填充指引"""
-        middleware = PhaseReviewMiddleware()
-        state = self._make_state("""
-## 📊 测试用例质量评审报告
-
-已读取 feature_matrix.jsonl，共 15 个功能点，全部已覆盖。
-
-综合评分：92 分
-
-### 补充建议
-
-#### 建议新增的测试用例
-| 建议类型 | 描述 | 优先级 |
-|---------|------|--------|
-""")
-        result = middleware.after_model(state, None)
-
-        assert result is not None
-        assert result.get("jump_to") == "model"
-        msg = result["messages"][0]
-        assert isinstance(msg, HumanMessage)
-        assert "只有表头" in msg.content
-        assert "compute_coverage_report" in msg.content
-
-    def test_filled_suggestion_table_passes_gate(self, monkeypatch):
-        """有数据行 → 不被空表门禁拦截，进入正常 interrupt"""
-        monkeypatch.setattr(
-            "app.agents.testcase.phase_review_middleware.interrupt",
-            lambda request: {"decision": "approve", "message": "", "checklist": {}},
-        )
-
-        middleware = PhaseReviewMiddleware()
-        state = self._make_state("""
-## 📊 测试用例质量评审报告
-
-已读取 feature_matrix.jsonl，共 15 个功能点，14 个已覆盖。
-
-综合评分：88 分
-
-### 补充建议
-
-#### 建议新增的测试用例
-| 建议类型 | 描述 | 优先级 |
-|---------|------|--------|
-| 覆盖补全 | FP-012 部分退款未覆盖，建议补充混合支付场景 | P0 |
-""")
-        result = middleware.after_model(state, None)
-
-        assert result is not None
-        assert not any(
-            isinstance(m, HumanMessage) and "只有表头" in m.content
-            for m in result.get("messages", [])
-        )
-
     def test_non_quality_review_phase_ignored(self, monkeypatch):
         """非 Phase 4 报告不应触发覆盖对照检查"""
         monkeypatch.setattr(
@@ -1485,3 +1329,155 @@ class TestPhase4UncoveredP0Gate:
         assert isinstance(msg, HumanMessage)
         assert "报告已确认" in msg.content
         assert "系统自动通过" in msg.content
+
+
+class TestEmptySuggestionTable:
+    """测试 _has_empty_suggestion_table 空表头检测。"""
+
+    def test_empty_table_skeleton_detected(self):
+        """表头 + 分隔行 + 0 数据行 → 检出（用户上报的失败形态）"""
+        content = """
+## 📊 测试用例质量评审报告
+
+### 补充建议
+
+#### 建议新增的测试用例
+| 建议类型 | 描述 | 优先级 |
+|---------|------|--------|
+
+#### 测试风险提示
+- ⚠️ 无
+"""
+        assert _has_empty_suggestion_table(content) is True
+
+    def test_table_with_data_rows_passes(self):
+        """表头后有数据行 → 通过"""
+        content = """
+### 补充建议
+
+#### 建议新增的测试用例
+| 建议类型 | 描述 | 优先级 |
+|---------|------|--------|
+| 覆盖补全 | FP-012 部分退款未覆盖，建议补充混合支付场景 | P0 |
+| 安全测试 | TC-AUTH-003 缺少 SQL 注入变体 | P1 |
+"""
+        assert _has_empty_suggestion_table(content) is False
+
+    def test_table_with_wu_row_passes(self):
+        """数据行写「无」→ 通过（合法空态写法）"""
+        content = """
+### 补充建议
+
+#### 建议新增的测试用例
+| 建议类型 | 描述 | 优先级 |
+|---------|------|--------|
+| 无 | 本次评审未发现需要新增的用例方向 | - |
+"""
+        assert _has_empty_suggestion_table(content) is False
+
+    def test_empty_table_with_trailing_wu_note_passes(self):
+        """空表但紧随其后声明"无新增建议"→ 放行"""
+        content = """
+### 补充建议
+
+#### 建议新增的测试用例
+| 建议类型 | 描述 | 优先级 |
+|---------|------|--------|
+
+（本次评审无新增建议）
+"""
+        assert _has_empty_suggestion_table(content) is False
+
+    def test_no_suggestion_table_passes(self):
+        """报告删除了整个补充建议小节 → 通过（合法空态写法之一）"""
+        content = """
+## 📊 测试用例质量评审报告
+
+综合评分：90 分
+
+### 覆盖度分析
+已读取 feature_matrix.jsonl。
+"""
+        assert _has_empty_suggestion_table(content) is False
+
+    def test_prose_mention_not_table_passes(self):
+        """正文提及"建议类型/优先级"但不是表格结构 → 不误判"""
+        content = """
+### 补充建议
+
+| 建议类型 | 描述 | 优先级 | 说明：以下为文字描述而非表格——
+建议类型包括安全测试与边界测试，优先级按 P0-P3 分配，本次均无新增。
+"""
+        assert _has_empty_suggestion_table(content) is False
+
+    def test_all_empty_cells_row_not_counted(self):
+        """全空单元格行（| | | |）不算数据行 → 仍检出空表"""
+        content = """
+#### 建议新增的测试用例
+| 建议类型 | 描述 | 优先级 |
+|---------|------|--------|
+| | | |
+"""
+        assert _has_empty_suggestion_table(content) is True
+
+
+class TestPhase4EmptySuggestionGate:
+    """测试 Phase 4 补充建议空表头的兜底拦截。"""
+
+    def _make_state(self, ai_content: str):
+        return {"messages": [AIMessage(content=ai_content)]}
+
+    def test_empty_suggestion_table_returns_request_changes(self):
+        """空表头 → 拦截并给出填充指引"""
+        middleware = PhaseReviewMiddleware()
+        state = self._make_state("""
+## 📊 测试用例质量评审报告
+
+已读取 feature_matrix.jsonl，共 15 个功能点，全部已覆盖。
+
+综合评分：92 分
+
+### 补充建议
+
+#### 建议新增的测试用例
+| 建议类型 | 描述 | 优先级 |
+|---------|------|--------|
+""")
+        result = middleware.after_model(state, None)
+
+        assert result is not None
+        assert result.get("jump_to") == "model"
+        msg = result["messages"][0]
+        assert isinstance(msg, HumanMessage)
+        assert "只有表头" in msg.content
+        assert "compute_coverage_report" in msg.content
+
+    def test_filled_suggestion_table_passes_gate(self, monkeypatch):
+        """有数据行 → 不被空表门禁拦截，进入正常 interrupt"""
+        monkeypatch.setattr(
+            "app.agents.testcase.phase_review_middleware.interrupt",
+            lambda request: {"decision": "approve", "message": "", "checklist": {}},
+        )
+
+        middleware = PhaseReviewMiddleware()
+        state = self._make_state("""
+## 📊 测试用例质量评审报告
+
+已读取 feature_matrix.jsonl，共 15 个功能点，14 个已覆盖。
+
+综合评分：88 分
+
+### 补充建议
+
+#### 建议新增的测试用例
+| 建议类型 | 描述 | 优先级 |
+|---------|------|--------|
+| 覆盖补全 | FP-012 部分退款未覆盖，建议补充混合支付场景 | P0 |
+""")
+        result = middleware.after_model(state, None)
+
+        assert result is not None
+        assert not any(
+            isinstance(m, HumanMessage) and "只有表头" in m.content
+            for m in result.get("messages", [])
+        )
