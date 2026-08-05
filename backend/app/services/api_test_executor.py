@@ -375,11 +375,11 @@ function wrapContext(context: APIRequestContext, testName: string, testTitle: st
 let currentTestName = '';
 let currentTestTitle = '';
 
-function parseUrlParams(url: string): Record<string, string> | undefined {\n  try {\n    const parsed = new URL(url, 'http://localhost');\n    const params: Record<string, string> = {};\n    parsed.searchParams.forEach((value, key) => {\n      params[key] = value;\n    });\n    return Object.keys(params).length > 0 ? params : undefined;\n  } catch {\n    return undefined;\n  }\n}\n\nconst originalFetch = globalThis.fetch;
-console.log('[api-trace-helper] global fetch patch installed, API_TRACE_OUTPUT_FILE=', process.env.API_TRACE_OUTPUT_FILE);
+function parseUrlParams(url: string): Record<string, string> | undefined {\n  try {\n    const parsed = new URL(url, 'http://localhost');\n    const params: Record<string, string> = {};\n    parsed.searchParams.forEach((value, key) => {\n      params[key] = value;\n    });\n    return Object.keys(params).length > 0 ? params : undefined;\n  } catch {\n    return undefined;\n  }\n}\n\n// 诊断日志必须走 console.error（stderr）：JSON reporter 写 stdout，\n// console.log 会污染 JSON 输出导致后端解析失败\nconst originalFetch = globalThis.fetch;
+console.error('[api-trace-helper] global fetch patch installed, API_TRACE_OUTPUT_FILE=', process.env.API_TRACE_OUTPUT_FILE);
 globalThis.fetch = async function fetch(input: RequestInfo | URL, init?: RequestInit) {
   const traceFile = process.env.API_TRACE_OUTPUT_FILE;
-  console.log('[api-trace-helper] fetch intercepted, currentTestName=', currentTestName, 'url=', typeof input === 'string' ? input : (input as any).url);
+  console.error('[api-trace-helper] fetch intercepted, currentTestName=', currentTestName, 'url=', typeof input === 'string' ? input : (input as any).url);
   if (!traceFile || !currentTestName) {
     return originalFetch(input, init);
   }
@@ -461,7 +461,7 @@ test.beforeEach(async ({}, testInfo) => {
   currentTestName = testInfo.titlePath.join(' › ');
   currentTestTitle = testInfo.title;
   currentTestTraces = [];
-  console.log('[api-trace-helper] beforeEach set currentTestName=', currentTestName);
+  console.error('[api-trace-helper] beforeEach set currentTestName=', currentTestName);
 });
 
 test.afterEach(() => {
@@ -1180,8 +1180,15 @@ class APITestExecutor:
         """
         results: List[Dict[str, str]] = []
 
+        # stdout 可能混入脚本/helper 的 console.log（JSON reporter 与业务日志
+        # 共用 stdout，重定向到文件时会全部混在一起），先截取首个 '{' 起的
+        # JSON 片段再解析，避免整体解析失败导致所有用例结果丢失。
+        json_start = stdout.find("{") if stdout else -1
+        if json_start < 0:
+            logger.warning("[APITestExecutor] JSON reporter 输出为空或缺少 JSON 起始符，回退到空结果")
+            return results
         try:
-            report = json.loads(stdout)
+            report = json.loads(stdout[json_start:])
         except (json.JSONDecodeError, TypeError):
             logger.warning("[APITestExecutor] JSON reporter 输出解析失败，回退到空结果")
             return results
@@ -1192,11 +1199,24 @@ class APITestExecutor:
             "timedOut": "failed",
             "interrupted": "failed",
             "skipped": "skipped",
+            # Playwright 新版 JSON reporter 的 test.status 是聚合判定：
+            # expected=符合预期(通过) / unexpected=不符合预期(失败) / flaky=重试后通过
+            "expected": "passed",
+            "unexpected": "failed",
+            "flaky": "passed",
         }
+
+        def _iter_specs(suite: dict):
+            # test.describe 分组会产生嵌套 suites，必须递归遍历，
+            # 否则分组内的用例会全部丢失（顶层 specs 为空）
+            for spec in suite.get("specs") or []:
+                yield spec
+            for sub_suite in suite.get("suites") or []:
+                yield from _iter_specs(sub_suite)
 
         suites = report.get("suites") or []
         for suite in suites:
-            for spec in suite.get("specs") or []:
+            for spec in _iter_specs(suite):
                 title = spec.get("title", "").strip()
                 tests = spec.get("tests") or []
                 if not tests:
@@ -1205,14 +1225,33 @@ class APITestExecutor:
                 # 取最后一个 test 条目（重试场景下代表最终结果）
                 test = tests[-1]
                 raw_status = test.get("status", "failed")
-                status = status_map.get(raw_status, "failed")
 
-                # 从 JSON 结构中直接提取错误消息，替代旧的对 stdout
-                # 做正则解析的方案（_parse_error_assertions_from_stdout）
+                # 状态判定优先级：
+                # 1. results[-1].status —— 新版 reporter 的真实执行状态
+                #    （passed/failed/timedOut/interrupted/skipped），最精确
+                # 2. test.status —— 聚合判定（expected/unexpected/flaky 或旧版
+                #    passed/failed），skipped 场景下 results 可能为空数组
+                # 3. spec.ok —— spec 级布尔兜底
+                test_runs = test.get("results") or []
+                last_run = test_runs[-1] if test_runs else {}
+                run_status = (last_run.get("status") or "").strip()
+                if run_status in status_map:
+                    status = status_map[run_status]
+                elif raw_status in status_map:
+                    status = status_map[raw_status]
+                else:
+                    status = "passed" if spec.get("ok") is True else "failed"
+
+                # 错误消息：新版在 results[-1].error（单对象）/ errors（数组），
+                # 旧版在 test.errors，全部收集并去重
                 error_messages: List[str] = []
-                for err in test.get("errors") or []:
+                run_error = last_run.get("error") or {}
+                run_msg = (run_error.get("message") or "").strip()
+                if run_msg:
+                    error_messages.append(run_msg)
+                for err in (last_run.get("errors") or []) + (test.get("errors") or []):
                     msg = (err.get("message") or "").strip()
-                    if msg:
+                    if msg and msg not in error_messages:
                         error_messages.append(msg)
 
                 results.append({

@@ -975,15 +975,35 @@ async def _preflight_check(base_url: Optional[str]) -> Dict[str, Any]:
 
 def _parse_test_summary(stdout: str) -> Dict[str, int]:
     """
-    从 Playwright list reporter 输出解析测试统计
+    解析测试统计：优先读 Playwright JSON reporter 的 stats
+    （expected/unexpected/flaky/skipped），回退到 list reporter 文本正则。
 
     Args:
-        stdout: 测试标准输出
+        stdout: 测试标准输出（可能混入脚本/helper 的 console.log）
 
     Returns:
         {"total": int, "passed": int, "failed": int, "skipped": int}
     """
     result = {"total": 0, "passed": 0, "failed": 0, "skipped": 0}
+
+    # JSON reporter：stdout 可能混入脚本日志，截取首个 '{' 起的 JSON 片段
+    json_start = stdout.find("{") if stdout else -1
+    if json_start >= 0:
+        try:
+            report = json.loads(stdout[json_start:])
+            stats = report.get("stats") or {}
+            if stats:
+                passed = int(stats.get("expected", 0) or 0) + int(stats.get("flaky", 0) or 0)
+                failed = int(stats.get("unexpected", 0) or 0)
+                skipped = int(stats.get("skipped", 0) or 0)
+                return {
+                    "total": passed + failed + skipped,
+                    "passed": passed,
+                    "failed": failed,
+                    "skipped": skipped,
+                }
+        except (json.JSONDecodeError, TypeError, ValueError):
+            pass  # 非 JSON 输出，走文本正则回退
 
     passed_match = re.search(r"(\d+)\s+passed", stdout)
     if passed_match:

@@ -263,11 +263,15 @@ function parseUrlParams(url: string): Record<string, string> | undefined {
   }
 }
 
+// 注意：本文件内所有诊断日志必须走 console.error（stderr）。
+// Playwright JSON reporter 将结构化结果写入 stdout，console.log 会污染
+// JSON 输出，导致后端解析失败、用例结果全部丢失。
+
 const originalFetch = globalThis.fetch;
-console.log('[api-trace-helper] global fetch patch installed, API_TRACE_OUTPUT_FILE=', process.env.API_TRACE_OUTPUT_FILE);
+console.error('[api-trace-helper] global fetch patch installed, API_TRACE_OUTPUT_FILE=', process.env.API_TRACE_OUTPUT_FILE);
 globalThis.fetch = async function fetch(input: RequestInfo | URL, init?: RequestInit) {
   const traceFile = process.env.API_TRACE_OUTPUT_FILE;
-  console.log('[api-trace-helper] fetch intercepted, currentTestName=', currentTestName, 'url=', typeof input === 'string' ? input : (input as any).url);
+  console.error('[api-trace-helper] fetch intercepted, currentTestName=', currentTestName, 'url=', typeof input === 'string' ? input : (input as any).url);
   if (!traceFile || !currentTestName) {
     return originalFetch(input, init);
   }
@@ -349,7 +353,7 @@ test.beforeEach(async ({}, testInfo) => {
   currentTestName = testInfo.titlePath.join(' › ');
   currentTestTitle = testInfo.title;
   currentTestTraces = [];
-  console.log('[api-trace-helper] beforeEach set currentTestName=', currentTestName);
+  console.error('[api-trace-helper] beforeEach set currentTestName=', currentTestName);
 });
 
 test.afterEach(() => {
