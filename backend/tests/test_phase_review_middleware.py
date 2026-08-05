@@ -12,6 +12,7 @@ from langgraph.types import Overwrite
 from app.agents.testcase.phase_review_middleware import (
     PhaseReviewMiddleware,
     _compute_review_round,
+    _detect_phase,
     _detect_phase3_coverage_gap,
     _detect_uncovered_p0,
     _extract_quality_score,
@@ -60,6 +61,35 @@ class TestExtractQualityScore:
     )
     def test_no_valid_score(self, content):
         assert _extract_quality_score(content) is None
+
+
+class TestDetectPhase:
+    PHASE = "test-case-generation"
+
+    @pytest.mark.parametrize(
+        "content",
+        [
+            "## 测试用例生成完成",
+            "✅ 测试用例生成完成",            # 回归：emoji 标题曾导致评审卡片不弹出
+            "🎉 测试用例生成完成",
+            "📋 用例生成汇总",
+            "测试用例生成完成",                # 裸标题行
+            "前文\n\n✅ 测试用例生成完成\n\n一、汇总表",  # 标题位于消息中段
+        ],
+    )
+    def test_phase3_heading_variants(self, content):
+        assert _detect_phase(content) == self.PHASE
+
+    @pytest.mark.parametrize(
+        "content",
+        [
+            "输出完成标记 测试用例生成完成 后等待评审",  # 行内提及，非独立标题行
+            "- 测试用例生成完成：共 26 条",                # 列表项且标题后带内容
+            "全部模块已设计完成，共 26 条用例",            # 无标题
+        ],
+    )
+    def test_phase3_non_heading_not_detected(self, content):
+        assert _detect_phase(content) != self.PHASE
 
 
 class TestComputeReviewRound:
