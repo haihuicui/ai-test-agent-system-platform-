@@ -50,6 +50,22 @@ def _get_business_code_env_value() -> str:
     return json.dumps(list(API_BUSINESS_SUCCESS_CODES))
 
 
+_ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*[a-zA-Z]")
+
+
+def _strip_ansi_codes(text: str) -> str:
+    """
+    剥离 ANSI 终端转义序列。
+
+    Playwright 的 expect 错误消息为终端渲染保留颜色码（\\x1b[31m 红 /
+    \\x1b[32m 绿 / \\x1b[22m 亮度重置等），JSON reporter 原样输出。
+    直接存库会在前端显示为 [31m [22m 残渣，必须在解析层统一剥离。
+    """
+    if not text:
+        return text
+    return _ANSI_ESCAPE_RE.sub("", text)
+
+
 # Playwright trace helper 文件名（放在 api_workspace_root 目录，与测试脚本目录 tests/ 同级）
 TRACE_HELPER_FILE = "api-trace-helper.ts"
 
@@ -1252,14 +1268,15 @@ class APITestExecutor:
                     status = "passed" if spec.get("ok") is True else "failed"
 
                 # 错误消息：新版在 results[-1].error（单对象）/ errors（数组），
-                # 旧版在 test.errors，全部收集并去重
+                # 旧版在 test.errors，全部收集并去重；
+                # expect 错误消息含 ANSI 颜色码，统一剥离避免前端显示残渣
                 error_messages: List[str] = []
                 run_error = last_run.get("error") or {}
-                run_msg = (run_error.get("message") or "").strip()
+                run_msg = _strip_ansi_codes((run_error.get("message") or "").strip())
                 if run_msg:
                     error_messages.append(run_msg)
                 for err in (last_run.get("errors") or []) + (test.get("errors") or []):
-                    msg = (err.get("message") or "").strip()
+                    msg = _strip_ansi_codes((err.get("message") or "").strip())
                     if msg and msg not in error_messages:
                         error_messages.append(msg)
 
