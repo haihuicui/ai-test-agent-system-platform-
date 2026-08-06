@@ -203,6 +203,51 @@ class TestTodoStatusRegressionGuard:
         assert args["todos"][0]["status"] == "in_progress"  # 入参不被原地修改
 
 
+class TestAsyncWrapToolCall:
+    """回归：awrap_tool_call 必须 await async handler。
+
+    8ecec4c 引入的 async 版复制 sync 版时漏了 await，handler() 返回的
+    coroutine 对象被当工具结果沿链上抛，触发 deepagents FilesystemMiddleware
+    _aintercept_large_tool_result 的 AssertionError，导致所有工具调用崩溃。
+    """
+
+    def test_awrap_tool_call_awaits_handler(self):
+        import asyncio
+
+        from langchain_core.messages import ToolMessage
+
+        middleware = PhaseReviewMiddleware()
+        request = _make_tool_request("read_file", {"file_path": "a.jsonl"}, {"todos": []})
+        expected = ToolMessage(content="ok", tool_call_id="call_1", name="read_file")
+
+        async def handler(req):
+            return expected
+
+        result = asyncio.run(middleware.awrap_tool_call(request, handler))
+        assert not asyncio.iscoroutine(result), "awrap_tool_call 必须 await handler"
+        assert result is expected
+
+    def test_awrap_tool_call_passes_guarded_request(self):
+        """async 路径同样应用阶段状态回退守卫。"""
+        import asyncio
+
+        from langchain_core.messages import ToolMessage
+
+        middleware = PhaseReviewMiddleware()
+        state = {"todos": [{"content": "Phase 4: 质量评审", "status": "completed"}]}
+        request = _make_tool_request("write_todos", {"todos": [
+            {"content": "Phase 4: 质量评审", "status": "in_progress"},
+        ]}, state)
+        seen = {}
+
+        async def handler(req):
+            seen["todos"] = req.tool_call["args"]["todos"]
+            return ToolMessage(content="ok", tool_call_id="call_1", name="write_todos")
+
+        asyncio.run(middleware.awrap_tool_call(request, handler))
+        assert seen["todos"][0]["status"] == "completed"
+
+
 class TestComputeReviewRound:
     PHASE = "quality-review"
 

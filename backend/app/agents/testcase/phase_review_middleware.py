@@ -1287,4 +1287,7 @@ class PhaseReviewMiddleware(AgentMiddleware):
         request: ToolCallRequest,
         handler: Callable[[ToolCallRequest], Awaitable[ToolMessage | Command[Any]]],
     ) -> ToolMessage | Command[Any]:
-        return handler(_guard_todo_status_regression(request))
+        # 必须 await：handler 是 async 可调用，漏 await 会把 coroutine 对象
+        # 当工具结果沿链上抛，触发 deepagents FilesystemMiddleware
+        # _aintercept_large_tool_result 的 AssertionError（整条工具链崩溃）。
+        return await handler(_guard_todo_status_regression(request))
