@@ -342,7 +342,13 @@ export function ScheduleRulesPanel({ projectId }: ScheduleRulesPanelProps) {
         open={createOpen}
         onOpenChange={setCreateOpen}
         onSuccess={() => {
-          setPage(1);
+          // setPage(1) 仅在当前不在第 1 页时触发 loadList（经 useEffect）；
+          // 已在第 1 页时状态不变、effect 不重新执行，需手动刷新列表
+          if (page === 1) {
+            loadList();
+          } else {
+            setPage(1);
+          }
         }}
       />
     </>
