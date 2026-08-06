@@ -395,10 +395,14 @@ def _strip_image_blocks(message: Any) -> Any:
 
 @wrap_model_call
 async def dynamic_model_selection(request: ModelRequest, handler) -> ModelResponse:
-    """
-    根据对话消息中是否含有图片，动态切换底层模型：
-      - 最近窗口内含有图片 -> image_model（多模态视觉模型）
-      - 纯文本 / 图片已越过窗口 -> text_model（成本更低、速度更快）
+    """图片消息的模型兜底切换（降级路径，非主路径）。
+
+    正常情况下，图片已被 ImageTranscribeMiddleware 预转录为文本，
+    全程走 text_model（RAG / skill / 评审均由 deepseek 承担）。
+    本中间件仅在图片块残留时兜底——即转录失败或降级的消息：
+
+      - 最近窗口内含有残留图片块 -> image_model（多模态视觉模型）
+      - 图片已越过窗口 -> 请求副本替换为文本占位，走 text_model
 
     越过窗口的旧图片块会在请求副本中替换为文本占位，避免 text_model
     收到不支持的图片 block；state 中的原始消息不受影响。
