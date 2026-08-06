@@ -23,6 +23,8 @@ export interface ImageBlock {
   data: string;
   metadata?: {
     name?: string;
+    /** 内容指纹（computeFileFingerprint），用于查重 */
+    fingerprint?: string;
   };
 }
 
@@ -34,6 +36,8 @@ export interface FileBlock {
   url: string;
   metadata?: {
     filename?: string;
+    /** 内容指纹（computeFileFingerprint），用于查重 */
+    fingerprint?: string;
   };
 }
 
@@ -72,6 +76,39 @@ export async function fileToImageBlock(file: File): Promise<ImageBlock> {
     data,
     metadata: { name: file.name },
   };
+}
+
+/**
+ * cyrb53 散列（53 位），无需 secure context（crypto.subtle 在
+ * 非 HTTPS/localhost 环境下不可用），用于附件内容指纹。
+ */
+function cyrb53(bytes: Uint8Array, seed = 0): number {
+  let h1 = 0xdeadbeef ^ seed;
+  let h2 = 0x41c6ce57 ^ seed;
+  for (let i = 0; i < bytes.length; i++) {
+    const ch = bytes[i];
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (h2 >>> 0) * 4294967296 + (h1 >>> 0);
+}
+
+/**
+ * 计算文件内容指纹：size + 头 64KB / 尾 64KB 抽样散列。
+ * 同名不同内容（多张剪贴板截图都叫 image.png）应判为不同文件；
+ * 同内容应判为重复。抽样而非全量，避免大文件的读取开销。
+ */
+export async function computeFileFingerprint(file: File): Promise<string> {
+  const SAMPLE = 64 * 1024;
+  const head = new Uint8Array(await file.slice(0, SAMPLE).arrayBuffer());
+  const tail =
+    file.size > SAMPLE
+      ? new Uint8Array(await file.slice(-SAMPLE).arrayBuffer())
+      : new Uint8Array(0);
+  const hash = cyrb53(head, file.size) ^ cyrb53(tail, 0x9e3779b9);
+  return `${file.size}:${(hash >>> 0).toString(36)}`;
 }
 
 /** 类型守卫：是否为 ImageBlock */

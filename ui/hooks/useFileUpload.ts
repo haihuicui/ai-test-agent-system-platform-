@@ -6,6 +6,7 @@ import { uploadDocument } from "@/lib/api/documents";
 import {
   SUPPORTED_FILE_TYPES,
   SUPPORTED_IMAGE_TYPES,
+  computeFileFingerprint,
   fileToImageBlock,
   type ChatAttachmentBlock,
   type FileBlock,
@@ -15,6 +16,23 @@ import {
 
 interface UseFileUploadOptions {
   initialBlocks?: ChatAttachmentBlock[];
+}
+
+/** 取 block 的展示名（图片用 name，文件用 filename） */
+function blockDisplayName(b: ChatAttachmentBlock): string | undefined {
+  return b.type === "image" ? b.metadata?.name : b.metadata?.filename;
+}
+
+/** 与现有 block 重名时自动加序号：image.png -> image-2.png -> image-3.png */
+function nextAvailableName(name: string, blocks: ChatAttachmentBlock[]): string {
+  const existing = new Set(blocks.map(blockDisplayName).filter(Boolean));
+  if (!existing.has(name)) return name;
+  const dot = name.lastIndexOf(".");
+  const stem = dot > 0 ? name.slice(0, dot) : name;
+  const ext = dot > 0 ? name.slice(dot) : "";
+  let i = 2;
+  while (existing.has(`${stem}-${i}${ext}`)) i++;
+  return `${stem}-${i}${ext}`;
 }
 
 export function useFileUpload({
@@ -28,29 +46,6 @@ export function useFileUpload({
   const [dragOver, setDragOver] = useState(false);
   const dragCounter = useRef(0);
 
-  const isDuplicate = (
-    file: File,
-    blocks: ChatAttachmentBlock[]
-  ): boolean => {
-    if (file.type === "application/pdf") {
-      return blocks.some(
-        (b) =>
-          b.type === "file" &&
-          b.mimeType === "application/pdf" &&
-          b.metadata?.filename === file.name
-      );
-    }
-    if (SUPPORTED_IMAGE_TYPES.includes(file.type)) {
-      return blocks.some(
-        (b) =>
-          b.type === "image" &&
-          b.metadata?.name === file.name &&
-          b.mimeType === file.type
-      );
-    }
-    return false;
-  };
-
   const processFiles = async (files: File[]): Promise<ChatAttachmentBlock[]> => {
     const validFiles = files.filter((file) =>
       SUPPORTED_FILE_TYPES.includes(file.type)
@@ -63,37 +58,48 @@ export function useFileUpload({
       toast.error("仅支持上传 JPEG、PNG、GIF、WebP 图片或 PDF 文件");
     }
 
-    const uniqueFiles = validFiles.filter(
-      (file) => !isDuplicate(file, contentBlocks)
-    );
-    const duplicateFiles = validFiles.filter((file) =>
-      isDuplicate(file, contentBlocks)
-    );
-
-    if (duplicateFiles.length > 0) {
-      toast.error(
-        `重复文件: ${duplicateFiles.map((f) => f.name).join(", ")}`
-      );
-    }
-
     const newBlocks: ChatAttachmentBlock[] = [];
+    const duplicateNames: string[] = [];
+    // 本批次指纹集合：同一批粘贴/选择多张相同图片时也要去重
+    const batchFingerprints = new Set<string>();
 
-    for (const file of uniqueFiles) {
+    for (const file of validFiles) {
+      // 按内容指纹查重（不按文件名）：剪贴板截图默认都叫 image.png，
+      // 同名不同内容必须放行；同内容才判重复。
+      const fingerprint = await computeFileFingerprint(file);
+      const isDuplicate =
+        batchFingerprints.has(fingerprint) ||
+        contentBlocks.some((b) => b.metadata?.fingerprint === fingerprint);
+      if (isDuplicate) {
+        duplicateNames.push(file.name);
+        continue;
+      }
+      batchFingerprints.add(fingerprint);
+
       try {
+        const displayName = nextAvailableName(file.name, [
+          ...contentBlocks,
+          ...newBlocks,
+        ]);
         if (SUPPORTED_IMAGE_TYPES.includes(file.type)) {
-          const block: ImageBlock = await fileToImageBlock(file);
+          const block: ImageBlock = await fileToImageBlock(
+            new File([file], displayName, { type: file.type })
+          );
+          block.metadata = { ...block.metadata, fingerprint };
           newBlocks.push(block);
         } else if (file.type === "application/pdf") {
-          const result = await uploadDocument(file);
+          const result = await uploadDocument(
+            new File([file], displayName, { type: file.type })
+          );
           if (!result.success) {
-            toast.error(`PDF 上传失败: ${result.data?.file_name || file.name}`);
+            toast.error(`PDF 上传失败: ${result.data?.file_name || displayName}`);
             continue;
           }
           const block: FileBlock = {
             type: "file",
             mimeType: "application/pdf",
             url: result.data.url,
-            metadata: { filename: result.data.file_name },
+            metadata: { filename: result.data.file_name, fingerprint },
           };
           newBlocks.push(block);
         }
@@ -101,6 +107,10 @@ export function useFileUpload({
         const message = error instanceof Error ? error.message : String(error);
         toast.error(`文件处理失败: ${message}`);
       }
+    }
+
+    if (duplicateNames.length > 0) {
+      toast.error(`重复文件: ${duplicateNames.join(", ")}`);
     }
 
     return newBlocks;
