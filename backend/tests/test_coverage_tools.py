@@ -160,6 +160,61 @@ class TestComputeCoverageReportTool:
         assert result["success"] is False
         assert "无结构化矩阵" in result["message"]
 
+    def test_stale_matrix_detected_when_modules_disjoint(self, tmp_workspace):
+        """矩阵与用例模块零交集且零覆盖 → 疑似其他需求的遗留矩阵，给出降级指引。
+
+        回归：同一 project_identifier 下不同需求共享 feature_matrix.jsonl，
+        上一需求的遗留矩阵会让本需求的评审报告贴入一份无关的 0% 对照表。
+        """
+        proj_dir = tmp_workspace / "PROJ-1"
+        self._write_jsonl(
+            proj_dir / "feature_matrix.jsonl",
+            [_feature("FP-001", module="地点管理", feature="列表字段展示")],
+        )
+        self._write_jsonl(
+            proj_dir / "cases.jsonl",
+            [_case(module="装扮弹窗", name="合并弹窗-0.5s内多件合并展示")],
+        )
+
+        result = _call(compute_coverage_report, project_identifier="PROJ-1")
+
+        assert result["success"] is True
+        assert result["covered"] == 0
+        assert result["stale_matrix_suspected"] is True
+        assert "历史遗留矩阵" in result["message"]
+        assert "无结构化矩阵" in result["message"]
+        assert any("历史遗留矩阵" in w for w in result["warnings"])
+
+    def test_stale_matrix_not_flagged_when_modules_overlap(self, tmp_workspace):
+        """模块有交集时的零覆盖是真实缺口，不误报遗留矩阵。"""
+        proj_dir = tmp_workspace / "PROJ-1"
+        self._write_jsonl(
+            proj_dir / "feature_matrix.jsonl",
+            [_feature("FP-001", module="用户认证", feature="图形验证码校验")],
+        )
+        # 同模块但内容与功能点不相关 → 真实未覆盖
+        self._write_jsonl(
+            proj_dir / "cases.jsonl",
+            [
+                {
+                    "name": "订单导出-大数据量分批下载",
+                    "case_number": "TC-PROJ-ORDER-001",
+                    "module": "用户认证",
+                    "priority": "P1",
+                    "test_data": {"size": 10000},
+                    "test_case_steps": [
+                        {"step": "点击导出按钮", "result": "生成下载任务"}
+                    ],
+                }
+            ],
+        )
+
+        result = _call(compute_coverage_report, project_identifier="PROJ-1")
+
+        assert result["covered"] == 0
+        assert result["stale_matrix_suspected"] is False
+        assert "覆盖对照完成" in result["message"]
+
     def test_explicit_case_files_param(self, tmp_workspace):
         proj_dir = tmp_workspace / "PROJ-1"
         self._write_jsonl(proj_dir / "feature_matrix.jsonl", [_feature()])

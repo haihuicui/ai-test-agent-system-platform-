@@ -254,6 +254,7 @@ async def compute_coverage_report(
           "covered": int,
           "uncovered": int,
           "uncovered_p0": ["FP-001", ...],
+          "stale_matrix_suspected": bool,  # 零覆盖+模块零交集时 True（疑似其他需求的遗留矩阵）
           "rows": [逐功能点对照行],
           "markdown_table": "可直接粘贴进报告的对照表",
           "case_files_used": [...],
@@ -292,6 +293,33 @@ async def compute_coverage_report(
     total = len(rows)
     uncovered_p0 = [r["id"] for r in rows if not r["covered"] and r["priority"] == "P0"]
 
+    # 陈旧矩阵检测：零覆盖 + 矩阵模块与用例模块零交集，几乎可以断定
+    # feature_matrix.jsonl 是同一项目下其他需求的历史遗留文件（矩阵按
+    # project_identifier 隔离，同项目不同需求/会话会共享同一文件）。
+    # 此时对照表对本需求没有意义，明确告知模型走「无结构化矩阵」降级路径，
+    # 而不是把一份无关的对照表贴进评审报告充数。
+    matrix_modules = {
+        str(fp.get("module") or "").strip() for fp in matrix["features"]
+    } - {""}
+    case_modules = {str(c.get("module") or "").strip() for c in cases} - {""}
+    stale_matrix_suspected = (
+        covered == 0
+        and bool(matrix_modules)
+        and bool(case_modules)
+        and matrix_modules.isdisjoint(case_modules)
+    )
+    if stale_matrix_suspected:
+        stale_note = (
+            f"⚠️ 疑似历史遗留矩阵：{total} 个功能点零覆盖，且矩阵模块"
+            f"（{'、'.join(sorted(matrix_modules)[:6])}）与用例模块"
+            f"（{'、'.join(sorted(case_modules)[:6])}）无任何交集，"
+            "该 feature_matrix.jsonl 很可能属于同项目下的其他需求。"
+            "请勿将下方对照表作为本需求的覆盖度依据；应在评审报告中标注 "
+            "'[无结构化矩阵] 覆盖度基于需求原文逐点核对'，并按需求原文"
+            "输出确定性的覆盖核对说明，同时建议回退 Phase 1 重新生成功能矩阵。"
+        )
+        warnings.append(stale_note)
+
     return {
         "success": True,
         "matrix_file": matrix["file"],
@@ -302,15 +330,20 @@ async def compute_coverage_report(
         "coverage_rate": round(covered / total * 100, 1) if total else 0.0,
         "uncovered_features": [r["id"] for r in rows if not r["covered"]],
         "uncovered_p0": uncovered_p0,
+        "stale_matrix_suspected": stale_matrix_suspected,
         "rows": rows,
         "markdown_table": _build_markdown_table(rows),
         "case_files_used": sources,
         "warnings": warnings,
         "message": (
-            f"覆盖对照完成：{total} 个功能点中 {covered} 个已覆盖"
-            f"（{round(covered / total * 100, 1) if total else 0}%），"
-            f"未覆盖 P0：{len(uncovered_p0)} 个。"
-            "请将 markdown_table 粘贴到质量评审报告的「覆盖度分析」章节，"
-            "🟡 疑似覆盖项需人工确认，❌ 未覆盖项（尤其 P0）需补充用例或在报告中说明。"
+            stale_note
+            if stale_matrix_suspected
+            else (
+                f"覆盖对照完成：{total} 个功能点中 {covered} 个已覆盖"
+                f"（{round(covered / total * 100, 1) if total else 0}%），"
+                f"未覆盖 P0：{len(uncovered_p0)} 个。"
+                "请将 markdown_table 粘贴到质量评审报告的「覆盖度分析」章节，"
+                "🟡 疑似覆盖项需人工确认，❌ 未覆盖项（尤其 P0）需补充用例或在报告中说明。"
+            )
         ),
     }

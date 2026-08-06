@@ -1022,6 +1022,37 @@ class TestExtractQualityScoreTableFormat:
     def test_table_out_of_range_returns_none(self, content):
         assert _extract_quality_score(content) is None
 
+    def test_rework_comparison_table_uses_latest_conclusion(self):
+        """返工重评报告（含 v1/v2 对比表）：取文末最终结论，不取对比表中的 v1 旧分。
+
+        回归：`| 综合评分 | 100 | 72 | 92 | +20 |` 旧逻辑取首个数字列（v1 旧分
+        72），导致返工达标（92 分）的报告被误判为低于红线，错误触发第 2 轮返工。
+        """
+        content = (
+            "综合评分\n\n"
+            "| 维度 | 满分 | v1 得分 | v2 得分 | 变化 |\n"
+            "|------|------|--------|--------|------|\n"
+            "| 完整性（功能覆盖） | 30 | 21 | 26 | +5 |\n"
+            "| 准确性（需求对齐） | 25 | 20 | 23 | +3 |\n"
+            "| 基础分合计 | 100 | 78 | 92 | +14 |\n"
+            "| 交叉验证减分 | - | -6 | 0 | +6 |\n"
+            "| 综合评分 | 100 | 72 | 92 | +20 |\n\n"
+            "综合评分：92 分（≥ 75 分，返工通过 ✅；< 100 分，需人工评审确认）\n\n"
+            "……（问题修复核对与覆盖度分析略）……\n\n"
+            "综合评分：92 分 —— 返工通过（≥75）。请确认是否通过本阶段评审。"
+        )
+        assert _extract_quality_score(content) == 92.0
+
+    def test_comparison_table_without_conclusion_takes_rightmost_cell(self):
+        """对比表缺文末结论行时的兜底：取该行最右侧得分列（v2），
+        跳过满分列（100 在左）与变化列（+/- 前缀）。"""
+        content = (
+            "| 维度 | 满分 | v1 得分 | v2 得分 | 变化 |\n"
+            "|------|------|--------|--------|------|\n"
+            "| 综合评分 | 100 | 72 | 92 | +20 |"
+        )
+        assert _extract_quality_score(content) == 92.0
+
 
 class TestDetectPhase3CoverageGap:
     """验证 Phase 3 覆盖率缺口检测。"""

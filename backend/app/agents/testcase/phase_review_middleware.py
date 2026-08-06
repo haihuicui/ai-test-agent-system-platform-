@@ -361,11 +361,11 @@ def _build_checklist_feedback(
     return f"{phase_name}需要改进。" + " ".join(parts)
 
 
-_QUALITY_SCORE_PATTERNS: list[re.Pattern[str]] = [
-    # Markdown 表格加粗格式：| **综合评分** | — | **[58.1]** | [58.1%] |
-    re.compile(r"\*\*综合评分\*\*\s*\|[^|]*\|\s*\*{0,2}\[?(\d+(?:\.\d+)?)\]?\*{0,2}"),
-    # Markdown 表格无加粗格式：| 综合评分 | — | 58.1 | 58.1% |
-    re.compile(r"综合评分\s*\|[^|]*\|\s*\[?(\d+(?:\.\d+)?)\]?"),
+# 「综合评分」表格行单元格中的纯数值：允许 **、[]、% 装饰；
+# 带 +/- 前缀的是变化列（如 +20），不参与得分提取。
+_SCORE_CELL_RE = re.compile(r"^\*{0,2}\[?(\d+(?:\.\d+)?)\]?%?\*{0,2}$")
+
+_PROSE_SCORE_PATTERNS: list[re.Pattern[str]] = [
     # 综合评分：85 分 / 综合评分: 85
     re.compile(r"综合评分[：:]\s*(\d+(?:\.\d+)?)\s*分?"),
     # 评分：85 分
@@ -380,18 +380,57 @@ _AUTO_REJECT_SCORE = 75.0
 _MAX_AUTO_REJECT_ROUNDS = 2
 
 
+def _extract_table_row_score(content: str) -> tuple[int, float] | None:
+    """从「综合评分」表格行提取得分，返回 (文档位置, 分数)；无表格行返回 None。
+
+    取该行**最右侧**的数值单元格：首版报告模板为
+    `| 综合评分 | — | 58.1 | 58.1% |`，返工重评报告的对比表为
+    `| 综合评分 | 满分 | v1得分 | v2得分 | 变化 |`——两种版式的最新得分
+    都在最右侧得分列（满分 100 在左侧、变化列带 +/- 前缀，均被跳过）。
+    文档中出现多行「综合评分」表格行时取最后一行（结论在后）。
+    """
+    last: tuple[int, float] | None = None
+    pos = 0
+    for line in content.splitlines(keepends=True):
+        line_start = pos
+        pos += len(line)
+        if "综合评分" not in line or "|" not in line:
+            continue
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        values: list[float] = []
+        for cell in cells:
+            if cell.startswith(("+", "-")):
+                continue
+            cell_match = _SCORE_CELL_RE.match(cell)
+            if cell_match:
+                values.append(float(cell_match.group(1)))
+        if values:
+            last = (line_start, values[-1])
+    return last
+
+
 def _extract_quality_score(content: str) -> float | None:
-    """从阶段报告中提取质量综合评分（0-100）。"""
-    for pattern in _QUALITY_SCORE_PATTERNS:
-        match = pattern.search(content)
-        if match:
+    """从阶段报告中提取质量综合评分（0-100）。
+
+    取文档中**最后一次**出现的评分，而非首次：返工重评报告常含 v1/v2
+    历史对比表，而报告的最终结论总是落在文末（如「综合评分：92 分 ——
+    返工通过」）。首轮评审报告通常只有一处评分，取末次与取首次等价。
+    """
+    candidates: list[tuple[int, float]] = []
+    row_score = _extract_table_row_score(content)
+    if row_score and 0 <= row_score[1] <= 100:
+        candidates.append(row_score)
+    for pattern in _PROSE_SCORE_PATTERNS:
+        for match in pattern.finditer(content):
             try:
                 score = float(match.group(1))
-                if 0 <= score <= 100:
-                    return score
             except (ValueError, TypeError):
                 continue
-    return None
+            if 0 <= score <= 100:
+                candidates.append((match.start(), score))
+    if not candidates:
+        return None
+    return max(candidates, key=lambda c: c[0])[1]
 
 
 def _get_auto_approve_threshold(runtime: Any, messages: list[Any]) -> float:
@@ -464,6 +503,22 @@ _SAVE_AFTER_REVIEW_HINT = (
     "（project_identifier=..., folder_id=..., input_file=[全部模块 JSONL 文件],"
     " upsert=true）统一入库——工具服务端解析合并并按编号去重，"
     "同编号用例按最新内容整体替换，禁止内联传入全部用例。"
+)
+
+# 低分返工的增量修复约束（对齐 quality-review SKILL 的增量修复铁律）。
+# 模型返工时容易图省事全量重写所有模块文件（数十条用例重新序列化，token 爆炸），
+# 这里随返工确认反馈确定性地下发约束，不依赖模型记得 SKILL 规则。
+_REWORK_CONSTRAINTS_HINT = (
+    "\n\n返工约束（增量修复，必须遵守）：\n"
+    "1. 按问题清单中的用例编号用 edit_file 定点修改对应行，"
+    "禁止全量重写整个 JSONL 文件；\n"
+    "2. 新增用例写入独立的 supplement 文件（如 test_cases_supplement.jsonl），"
+    "不动原有模块文件；\n"
+    "3. 同一文件的多个修改分多轮消息逐处编辑（并行编辑同一文件只有最后一个生效）；\n"
+    "4. 返工阶段禁止调用任何入库工具，Phase 4 通过后统一入库；\n"
+    "5. 重新评审为增量式：只复核本轮修改涉及的用例与功能点，跳过隔离 Agent。\n"
+    "重评报告要求：评分表若包含历史版本对比列（v1/v2 得分），"
+    "必须在报告末尾单独一行输出最终结论「综合评分：N 分」，系统以文末结论行为准。"
 )
 
 
@@ -940,6 +995,7 @@ class PhaseReviewMiddleware(AgentMiddleware):
                         f"{auto_comment} 用户已确认开始返工。请根据质量评审报告中指出的问题"
                         "补充、修改测试用例，完成后重新输出质量评审报告。"
                     )
+                    rework_feedback += _REWORK_CONSTRAINTS_HINT
                     if comment:
                         rework_feedback += f"\n\n用户补充意见：{comment}"
                     return {
