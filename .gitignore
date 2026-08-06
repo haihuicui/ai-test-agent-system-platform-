@@ -71,3 +71,8 @@ fastapi_debug.log
 # Debug artifacts (tool call validation, RAG query dumps)
 rag_query_result.json
 tool_call_validation_dumps/
+agent-result.txt
+agent-articles-result.txt
+
+# Demo videos (large binaries, keep out of the repo)
+*.mp4
