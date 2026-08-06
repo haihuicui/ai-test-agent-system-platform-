@@ -739,8 +739,10 @@ async def _execute_script_internal(
                     "command": cmd if is_windows else ' '.join(cmd),
                 }
 
-            stdout = stdout_bytes.decode('utf-8', errors='replace')
-            stderr = stderr_bytes.decode('utf-8', errors='replace')
+            # stdout 重定向到文件（非 PIPE）时，communicate() 的 stdout 返回 None，
+            # 需判空，否则 None.decode 抛 AttributeError 被外层误报为"启动测试子进程失败"
+            stdout = stdout_bytes.decode('utf-8', errors='replace') if stdout_bytes else ""
+            stderr = stderr_bytes.decode('utf-8', errors='replace') if stderr_bytes else ""
             return_code = proc.returncode
 
             # 使用 JSON reporter 时，stdout 被重定向到文件（避免 console.log 污染）；
