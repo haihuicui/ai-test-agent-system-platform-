@@ -27,6 +27,7 @@ from app.agents.testcase.rag_middleware import RAGMiddleware, RagAwareSkillsMidd
 from app.agents.testcase.state_compaction_middleware import StaleToolResultOffloadMiddleware
 from app.agents.testcase.intent_router_middleware import IntentRouterMiddleware
 from app.agents.testcase.subagent_result_guard_middleware import SubagentResultGuardMiddleware
+from app.agents.testcase.truncation_retry_middleware import TruncationRetryMiddleware
 from app.agents.testcase.image_transcribe_middleware import ImageTranscribeMiddleware
 from app.agents.testcase.tool_call_validation_middleware import (
     ToolCallAdjacencyMiddleware,
@@ -901,6 +902,11 @@ async def make_agent(model: Any | None = None) -> AsyncIterator[Pregel]:
     # task 会回传空 ToolMessage，这里替换为可操作的诊断指引
     subagent_result_guard_middleware = SubagentResultGuardMiddleware()
 
+    # 主 Agent 空截断兜底：推理模型 max_tokens 被 reasoning 耗尽时会返回
+    # finish_reason=length 的空消息，react 循环误判为完成、run 静默结束。
+    # 置于列表首位（最外层），重试时完整重走后续注入/修复链。
+    truncation_retry_middleware = TruncationRetryMiddleware()
+
     # 加载所有工具（包括本地工具和 RAG MCP 工具）
     all_tools = await get_all_tools()
 
@@ -915,6 +921,7 @@ async def make_agent(model: Any | None = None) -> AsyncIterator[Pregel]:
         tools=all_tools,
         system_prompt=SYSTEM_PROMPT,
         middleware=[
+            truncation_retry_middleware,
             image_transcribe_middleware,
             skills_middleware,
             intent_router_middleware,
