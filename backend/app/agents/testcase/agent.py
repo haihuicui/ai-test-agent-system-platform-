@@ -27,6 +27,7 @@ from app.agents.testcase.rag_middleware import RAGMiddleware, RagAwareSkillsMidd
 from app.agents.testcase.state_compaction_middleware import StaleToolResultOffloadMiddleware
 from app.agents.testcase.intent_router_middleware import IntentRouterMiddleware
 from app.agents.testcase.subagent_result_guard_middleware import SubagentResultGuardMiddleware
+from app.agents.testcase.image_transcribe_middleware import ImageTranscribeMiddleware
 from app.agents.testcase.tool_call_validation_middleware import (
     ToolCallAdjacencyMiddleware,
     patch_model_for_tool_call_adjacency,
@@ -876,6 +877,8 @@ async def make_agent(model: Any | None = None) -> AsyncIterator[Pregel]:
                不传时使用默认的 text_model。
     """
     context_middleware = ContextInjectionMiddleware()
+    # 图片需求预转录：VLM 只负责把图片转录为文字，决策全程 text_model
+    image_transcribe_middleware = ImageTranscribeMiddleware()
     # 意图感知路由：简单任务（导出、评审等）跳过无关 Phase
     intent_router_middleware = IntentRouterMiddleware()
     rag_middleware = RAGMiddleware()
@@ -908,6 +911,7 @@ async def make_agent(model: Any | None = None) -> AsyncIterator[Pregel]:
         tools=all_tools,
         system_prompt=SYSTEM_PROMPT,
         middleware=[
+            image_transcribe_middleware,
             skills_middleware,
             intent_router_middleware,
             context_middleware,
