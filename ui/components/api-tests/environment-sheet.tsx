@@ -280,6 +280,12 @@ export function EnvironmentSheet({
       return;
     }
 
+    // 补全协议前缀：用户常直接填 host/path，后端 HttpUrl 校验要求 http(s) scheme
+    let baseUrl = form.base_url.trim();
+    if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(baseUrl)) {
+      baseUrl = `https://${baseUrl}`;
+    }
+
     const authConfig = buildAuthConfig(form);
 
     setSaving(true);
@@ -287,7 +293,7 @@ export function EnvironmentSheet({
       if (editingEnv) {
         const payload: EnvironmentUpdate = {
           name: form.name,
-          base_url: form.base_url,
+          base_url: baseUrl,
           auth_type: form.auth_type,
           auth_secret: form.auth_secret || undefined,
           auth_config: authConfig,
@@ -299,7 +305,7 @@ export function EnvironmentSheet({
       } else {
         const payload: EnvironmentCreate = {
           name: form.name,
-          base_url: form.base_url,
+          base_url: baseUrl,
           auth_type: form.auth_type,
           auth_secret: form.auth_secret || undefined,
           auth_config: authConfig,
@@ -313,7 +319,16 @@ export function EnvironmentSheet({
       resetForm();
       await loadEnvironments();
     } catch (err: any) {
-      toast.error(err?.data?.message || t("environments.saveFailed"));
+      // 422 时后端会在 details 里给出字段级原因，拼进 toast 避免只显示笼统文案
+      const details = err?.data?.details;
+      const detailMsg =
+        Array.isArray(details) && details.length > 0
+          ? details
+              .map((d: any) => `${String(d.field).replace(/^body\./, "")}: ${d.message}`)
+              .join("；")
+          : "";
+      const baseMsg = err?.data?.message || t("environments.saveFailed");
+      toast.error(detailMsg ? `${baseMsg}：${detailMsg}` : baseMsg);
       console.error(err);
     } finally {
       setSaving(false);
