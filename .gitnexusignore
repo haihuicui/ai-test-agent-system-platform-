@@ -1,0 +1,12 @@
+# GitNexus 索引排除（gitignore 语法）
+# 目的：砍掉非核心内容，缩小图体积（原 38.7MB/3.6万节点），加快分析与页面加载
+
+# SPA 构建产物（压缩 chunk，纯垃圾节点）
+ui/public/gitnexus-web/
+
+# vendored gitnexus 源码（非本项目维护代码）
+gitnexus-web/
+gitnexus-shared/
+
+# vendored LightRAG 副本（609 个文件，非本项目维护）
+LightRAG/
