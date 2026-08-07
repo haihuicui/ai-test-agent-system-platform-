@@ -303,6 +303,8 @@ services:
       - "${HTTP_PORT:-80}:80" # 平台唯一对外端口
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      # gitnexus 图缓存持久化（否则每次重建 nginx 都要重新暖约 3 分钟缓存）
+      - gitnexus-nginx-cache:/var/cache/nginx/gitnexus
     depends_on:
       ui:
         condition: service_started
@@ -384,6 +386,7 @@ volumes:
   lightrag-prompts:
   backend-workspace: # 首挂自动复制镜像内预烘内容（node_modules）；之后镜像更新不同步，见 README-deploy.md 升级章节
   gitnexus-data:                           # GitNexus 分析索引（LadybugDB）
+  gitnexus-nginx-cache:                    # nginx 侧 /api/graph 响应缓存
 
 networks:
   internal:
