@@ -280,6 +280,9 @@ services:
       dockerfile: deploy/gitnexus.Dockerfile
     image: ai-test-agent-gitnexus:${APP_IMAGE_TAG:-latest}
     restart: unless-stopped
+    environment:
+      # 6 核小机高负载时默认 5 个 parse worker 启动易超时崩溃，降到 3 个
+      GITNEXUS_WORKER_POOL_SIZE: "3"
     volumes:
       # 先挂命名卷，确保子目录挂载点可写；父目录 repo 去掉 :ro，
       # 否则只读挂载无法创建 /repo/.gitnexus 子卷挂载点。

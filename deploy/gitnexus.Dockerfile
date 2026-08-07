@@ -12,6 +12,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends git \
 
 RUN npm install -g gitnexus@latest
 
+# 冷启动时 worker 加载 tree-sitter 原生绑定慢，5s ready 握手超时（硬编码）会
+# 误杀 worker 槽位导致 analyze 中止；放宽到 30s。升级 gitnexus 后若 sed 未命中
+# 需重新核对 dist 路径与常量名。
+RUN sed -i 's/WORKER_READY_TIMEOUT_MS = 5_000/WORKER_READY_TIMEOUT_MS = 30_000/' \
+        /usr/local/lib/node_modules/gitnexus/dist/core/ingestion/workers/worker-pool.js \
+    && grep -q 'WORKER_READY_TIMEOUT_MS = 30_000' \
+        /usr/local/lib/node_modules/gitnexus/dist/core/ingestion/workers/worker-pool.js
+
 WORKDIR /repo
 EXPOSE 4747
 
