@@ -225,6 +225,9 @@ services:
     image: *app-image
     restart: unless-stopped
     env_file: [.env]
+    environment:
+      # 单事件循环进程，启用按循环分桶的连接池（消除 NullPool 每请求建连的 ~1s 开销）
+      DB_POOL: queue
     volumes:
       - backend-workspace:/app/backend/workspace
     shm_size: 1g
