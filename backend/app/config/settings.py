@@ -210,6 +210,10 @@ class Settings(BaseSettings):
     web_mcp_skills_root: str = ".claude/skills"
     # Web MCP 是否使用无头浏览器（false=有头，true=无头）
     web_mcp_headless: bool = False
+    # 常驻 Playwright MCP server 的 Streamable HTTP 地址（如 http://web-mcp-server:8931/mcp）。
+    # 配置后 web_agent 优先连接常驻 server，省掉每会话 stdio 冷启动（实测 ~12s）；
+    # 留空、server 不可达、或项目启用登录态(storageState) 时自动回退 per-run stdio 启动。
+    web_mcp_server_url: Optional[str] = None
     # 全局登录态文件（Playwright storageState JSON）路径，相对项目根或绝对路径。
     # 配置后 ensure_playwright_mcp_project 生成的 playwright.config 会自动注入 storageState，
     # 使所有测试复用已登录会话，避免每条用例都走 UI 登录。默认 None（不启用）。

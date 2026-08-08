@@ -212,6 +212,8 @@ services:
         condition: service_healthy
       minio-init:
         condition: service_completed_successfully
+      web-mcp-server:
+        condition: service_started # 软依赖：agent 侧有 TCP 探测 + stdio 回退，无需等 healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:2026/ok || exit 1"]
       interval: 10s
@@ -219,6 +221,25 @@ services:
       retries: 30
       start_period: 180s # 首启: 59 个存储迁移 + 4 个 graph 加载
     command: ["/app/deploy/docker/entrypoint-langgraph.sh"]
+    networks: [internal]
+
+  web-mcp-server: # 常驻 Playwright MCP（HTTP /mcp + SSE /sse），消除 web_agent 每会话 stdio 冷启动（实测 ~12s）
+    image: *app-image
+    restart: unless-stopped
+    env_file: [.env]
+    environment:
+      WEB_MCP_PORT: ${WEB_MCP_PORT:-8931}
+    volumes:
+      - backend-workspace:/app/backend/workspace # 与 langgraph/backend 共享 web_mcp 工作区（node_modules/tests）
+    shm_size: 1g # chromium /dev/shm，默认 64MB 会使渲染进程崩溃
+    healthcheck:
+      # /mcp 任意 HTTP 响应即视为存活（Host 校验拦截也返回响应）；连接被拒绝才判失败
+      test: ["CMD-SHELL", "curl -s -o /dev/null -m 3 http://localhost:$${WEB_MCP_PORT:-8931}/mcp || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+    command: ["/app/deploy/docker/entrypoint-web-mcp-server.sh"]
     networks: [internal]
 
   backend:

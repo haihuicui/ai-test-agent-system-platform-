@@ -17,6 +17,8 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import AsyncIterator, Callable
+from urllib.parse import urlparse
+import asyncio
 import logging
 
 from deepagents import create_deep_agent as create_agent
@@ -148,6 +150,56 @@ else:
 请按需读取 Skill 获取详细操作指南。
 """
 
+# =============================================================================
+# 常驻 MCP server 连接辅助
+# =============================================================================
+
+async def _probe_tcp(url: str, timeout: float = 3.0) -> bool:
+    """TCP 探测常驻 MCP server 是否可达，避免连接失败拖到 run 中途才暴露。"""
+    try:
+        parsed = urlparse(url)
+        port = parsed.port or (443 if parsed.scheme == "https" else 80)
+        reader, writer = await asyncio.wait_for(
+            asyncio.open_connection(parsed.hostname, port), timeout=timeout
+        )
+        writer.close()
+        await writer.wait_closed()
+        return True
+    except Exception:
+        return False
+
+
+def _build_mcp_client(stdio_command: str, stdio_args: list[str]) -> MultiServerMCPClient:
+    """按配置选择 MCP 传输方式并构建客户端。
+
+    优先级：常驻 server（streamable_http，WEB_MCP_SERVER_URL 可达时）> per-run stdio。
+    调用方需保证：解析到 storageState 的 run 不走常驻 server（登录态隔离）。
+    """
+    shared_url = (settings.web_mcp_server_url or "").strip()
+    if shared_url:
+        parsed = urlparse(shared_url)
+        # Playwright MCP 有 Host 头校验（仅允许 localhost:<port>），跨容器访问需覆写
+        port = parsed.port or (443 if parsed.scheme == "https" else 80)
+        return MultiServerMCPClient(
+            {
+                "web_mcp": {
+                    "transport": "streamable_http",
+                    "url": shared_url,
+                    "headers": {"Host": f"localhost:{port}"},
+                }
+            }
+        )
+    return MultiServerMCPClient(
+        {
+            "web_mcp": {
+                "transport": "stdio",
+                "command": stdio_command,
+                "args": stdio_args,
+            }
+        }
+    )
+
+
 @asynccontextmanager
 async def make_agent(config: RunnableConfig | None = None) -> AsyncIterator[Pregel]:
     """
@@ -243,19 +295,30 @@ async def make_agent(config: RunnableConfig | None = None) -> AsyncIterator[Preg
         use_global_storage_state_fallback=use_global_fallback,
     )
 
-    # 创建 MCP 客户端连接到 Playwright 服务器
-    mcp_command, mcp_args = await get_playwright_mcp_command_args(
-        settings.web_mcp_root, headless=settings.web_mcp_headless
-    )
-    client = MultiServerMCPClient(
-        {
-            "web_mcp": {
-                "transport": "stdio",
-                "command": mcp_command,
-                "args": mcp_args,
-            }
-        }
-    )
+    # 创建 MCP 客户端：优先连接常驻 server（streamable HTTP），否则 per-run stdio 启动。
+    # 常驻 server 按无登录态配置启动，解析到 storageState 的 run 必须走 stdio 隔离，
+    # 避免登录态跨项目/跨会话串扰。
+    shared_url = (settings.web_mcp_server_url or "").strip()
+    use_shared = bool(shared_url) and not storage_state
+    if use_shared and not await _probe_tcp(shared_url):
+        logger.warning(
+            "[WebMCPAgent] 常驻 MCP server 不可达 (%s)，回退 per-run stdio 启动。",
+            shared_url,
+        )
+        use_shared = False
+
+    if use_shared:
+        logger.info("[WebMCPAgent] 使用常驻 MCP server: %s", shared_url)
+        client = _build_mcp_client("", [])
+    else:
+        if shared_url and storage_state:
+            logger.info(
+                "[WebMCPAgent] 已解析 storageState，使用 stdio 隔离启动（不走常驻 server）。"
+            )
+        mcp_command, mcp_args = await get_playwright_mcp_command_args(
+            settings.web_mcp_root, headless=settings.web_mcp_headless
+        )
+        client = _build_mcp_client(mcp_command, mcp_args)
 
     # 使用 async with 保持 session 存活
     async with client.session("web_mcp") as session:

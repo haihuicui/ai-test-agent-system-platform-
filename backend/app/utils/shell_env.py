@@ -88,6 +88,42 @@ def build_shell_env(
 # 避免并发请求同时触发 npm install 导致 node_modules 损坏。
 _playwright_mcp_init_lock = asyncio.Lock()
 
+# 已安装 Chromium 二进制的 glob 模式（相对 Playwright browsers 目录），
+# 覆盖 Linux（chrome-linux / chrome-linux64）、headless shell、macOS、Windows 布局。
+_CHROMIUM_BINARY_GLOBS = (
+    "chromium-*/chrome-linux/chrome",
+    "chromium-*/chrome-linux64/chrome",
+    "chromium_headless_shell-*/chrome-linux/headless_shell",
+    "chromium_headless_shell-*/chrome-linux64/headless_shell",
+    "chromium-*/chrome-mac*/Chromium.app/Contents/MacOS/Chromium",
+    "chromium-*/chrome-win/chrome.exe",
+)
+
+
+def playwright_chromium_installed() -> bool:
+    """快速检测 Playwright Chromium 二进制是否已安装。
+
+    直接按已知目录布局 glob 可执行文件，避免每次 ensure 都 spawn 一次
+    ``npm exec playwright install chromium``（即使已安装也要 ~6s 的
+    node/npm 启动开销）。
+
+    可通过环境变量 ``WEB_MCP_FORCE_BROWSER_INSTALL=1`` 强制回到旧行为
+    （始终执行 install 检查）。
+    """
+    if os.environ.get("WEB_MCP_FORCE_BROWSER_INSTALL", "").lower() in ("1", "true", "yes"):
+        return False
+    base = os.environ.get("PLAYWRIGHT_BROWSERS_PATH") or str(
+        Path.home() / ".cache" / "ms-playwright"
+    )
+    base_path = Path(base)
+    try:
+        for pattern in _CHROMIUM_BINARY_GLOBS:
+            if any(base_path.glob(pattern)):
+                return True
+    except OSError:
+        return False
+    return False
+
 
 def resolve_effective_headless(headless: bool) -> bool:
     """根据运行环境修正 headless 取值。
@@ -234,29 +270,33 @@ async def ensure_playwright_mcp_project(
                 # 开发环境建议手动执行 npm install。
 
         ## 兜底安装浏览器二进制。构建期可能只在 api workspace 预装 Chromium；
-        ## 且 Docker volume 中的 node_modules 与浏览器缓存可能不同步，因此每次
-        ## ensure 都检查一次，已安装时 Playwright 会快速跳过。
-        try:
-            browser_proc = await asyncio.create_subprocess_exec(
-                npm,
-                "exec",
-                "--",
-                "playwright",
-                "install",
-                "chromium",
-                cwd=str(root),
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-            browser_stdout, browser_stderr = await browser_proc.communicate()
-            if browser_proc.returncode != 0:
-                raise RuntimeError(
-                    f"Failed to install Playwright browsers in {root}:"
-                    f"\n{browser_stderr.decode('utf-8', errors='replace')}"
-                    f"\n{browser_stdout.decode('utf-8', errors='replace')}"
+        ## 且 Docker volume 中的 node_modules 与浏览器缓存可能不同步。
+        ## 已安装时直接按二进制布局跳过（~6s 的 npm exec 开销），仅在缺失
+        ## 或 WEB_MCP_FORCE_BROWSER_INSTALL=1 时才执行 install 检查。
+        if playwright_chromium_installed():
+            pass
+        else:
+            try:
+                browser_proc = await asyncio.create_subprocess_exec(
+                    npm,
+                    "exec",
+                    "--",
+                    "playwright",
+                    "install",
+                    "chromium",
+                    cwd=str(root),
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
                 )
-        except (NotImplementedError, OSError) as e:
-            print(f"[Web MCP] 跳过 playwright install (当前环境不支持子进程): {e}")
+                browser_stdout, browser_stderr = await browser_proc.communicate()
+                if browser_proc.returncode != 0:
+                    raise RuntimeError(
+                        f"Failed to install Playwright browsers in {root}:"
+                        f"\n{browser_stderr.decode('utf-8', errors='replace')}"
+                        f"\n{browser_stdout.decode('utf-8', errors='replace')}"
+                    )
+            except (NotImplementedError, OSError) as e:
+                print(f"[Web MCP] 跳过 playwright install (当前环境不支持子进程): {e}")
 
 
 async def get_playwright_mcp_command_args(root_dir: str, headless: bool = False) -> tuple[str, list[str]]:
