@@ -855,7 +855,8 @@ class TestPhase3MatrixPathHint:
         result = middleware.after_model(self._strategy_state(), runtime)
 
         msg = result["messages"][0]
-        assert "PR-1/feature_matrix.jsonl" in msg.content
+        assert "/PR-1/feature_matrix.jsonl" in msg.content
+        assert "虚拟文件系统" in msg.content
         assert "glob" in msg.content
 
     def test_hint_without_project_identifier(self, monkeypatch):

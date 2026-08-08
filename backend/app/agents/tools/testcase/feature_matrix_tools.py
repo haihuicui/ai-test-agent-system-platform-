@@ -478,15 +478,29 @@ async def save_feature_matrix_tool(
             resolved, len(features), len(modules),
         )
 
+        # Agent 虚拟文件系统路径（read_file/glob 可见）。模型常把本结果里的
+        # 宿主机绝对路径 file 直接拿去 read_file，虚拟 FS 下必然 not found——
+        # 显式给出 read_path 并注明用途，避免 Phase 3/4 读矩阵时路径错误。
+        try:
+            read_path = "/" + resolved.relative_to(_WORKSPACE_ROOT).as_posix()
+        except ValueError:
+            read_path = "/" + resolved.name
+
         return {
             "success": True,
             "file": str(resolved),
+            "read_path": read_path,
             "count": len(normalized_features),
             "modules": modules,
             "priority_distribution": priority_dist,
             "saved_at": datetime.now(timezone.utc).isoformat(),
             "summary": summary,
             "warnings": normalization_warnings or [],
+            "note": (
+                f"后续 Phase 3/4 用 read_file 读取本矩阵时必须使用 read_path"
+                f"（{read_path}，Agent 虚拟文件系统路径）；file 是宿主机绝对路径，"
+                "仅供日志排查，read_file 无法按该路径访问。"
+            ),
         }
 
     except Exception as e:

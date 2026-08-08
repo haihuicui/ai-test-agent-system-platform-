@@ -322,6 +322,21 @@ class TestSaveFeatureMatrixTool:
         # 未提供 project_identifier 时不应污染 order-system 目录
         assert not (temp_workspace / "feature_matrix.jsonl").exists()
 
+    def test_save_result_includes_virtual_read_path(self, temp_workspace):
+        """保存结果必须携带 Agent 虚拟 FS 的 read_path，禁止模型拿宿主机绝对路径去 read_file"""
+        result = _call(save_feature_matrix_tool,
+            features=[{**VALID_FEATURE}],
+            project_identifier="PR-1")
+        assert result["success"] is True
+        assert result["read_path"] == "/PR-1/feature_matrix.jsonl"
+        assert "read_path" in result["note"]
+        # 未传 project_identifier 时 read_path 指向根目录下的文件
+        result2 = _call(save_feature_matrix_tool,
+            features=[{**VALID_FEATURE}],
+            output_file="plain_matrix.jsonl")
+        assert result2["success"] is True
+        assert result2["read_path"] == "/plain_matrix.jsonl"
+
     def test_explicit_subdirectory_not_isolated(self, temp_workspace):
         """显式指定 output_file 子目录时，尊重原路径，不追加 project_identifier"""
         result = _call(save_feature_matrix_tool,
