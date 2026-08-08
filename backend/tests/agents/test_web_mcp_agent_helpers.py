@@ -51,6 +51,19 @@ class TestParseMcpToolWhitelist:
         assert excluded.isdisjoint(CORE_MCP_TOOLS)
 
 
+class TestBuildWebAgentModel:
+    def test_thinking_disabled_by_default(self, monkeypatch):
+        monkeypatch.setattr(agent_module.settings, "web_agent_disable_thinking", True)
+        m = agent_module.build_web_agent_model()
+        assert m.extra_body == {"thinking": {"type": "disabled"}}
+        # 独立于共享单例，不影响其他 agent 的推理能力
+        assert m is not agent_module.model
+
+    def test_thinking_enabled_returns_shared_singleton(self, monkeypatch):
+        monkeypatch.setattr(agent_module.settings, "web_agent_disable_thinking", False)
+        assert agent_module.build_web_agent_model() is agent_module.model
+
+
 class TestResolveProjectLoginStateCache:
     @pytest.fixture(autouse=True)
     def _clear_cache(self):

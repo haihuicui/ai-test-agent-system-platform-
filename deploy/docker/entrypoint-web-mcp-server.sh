@@ -29,6 +29,10 @@ fi
 
 # 专用配置：与 shell_env.py 生成的 playwright.config.js 同构，但固定无 storageState。
 # 每次启动重写，防止旧残留。
+# 注意：trace/video/screenshot 关闭——交互式浏览会话的录制产物（每次会话
+# video.webm ~1.5MB + trace.zip ~1.9MB + ffmpeg 常驻编码 CPU）没有消费方：
+# 正式报告来自 execute_web_script 的独立 playwright test 运行（走 stdio 配置，
+# 仍保持 'on'）。关闭后显著降低浏览期间的 CPU 占用。
 cat > playwright.config.mcp-shared.js <<'EOF'
 module.exports = {
   testDir: './tests',
@@ -38,9 +42,9 @@ module.exports = {
   use: {
     headless: true,
     viewport: { width: 1280, height: 720 },
-    trace: 'on',
-    video: 'on',
-    screenshot: 'on',
+    trace: 'off',
+    video: 'off',
+    screenshot: 'off',
     launchOptions: {
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
       handleSIGINT: true,
@@ -78,6 +82,8 @@ echo "[web-mcp-server] starting Playwright MCP on 0.0.0.0:${PORT} (HTTP /mcp, SS
         kill "$pid" 2>/dev/null || true
       fi
     done
+    # 同步清理 24h 前的 MCP 会话产物目录（仅 seed-*，正式 test run 的产物不动）
+    find "$ROOT/test-results" -mindepth 1 -maxdepth 1 -name 'seed-*' -mtime +1 -exec rm -rf {} + 2>/dev/null || true
   done
 ) &
 

@@ -239,6 +239,29 @@ def parse_mcp_tool_whitelist(raw: str | None) -> frozenset[str] | None:
     return frozenset(x.strip() for x in raw.split(",") if x.strip())
 
 
+def build_web_agent_model():
+    """构建 web_agent 专用模型。
+
+    默认关闭 DeepSeek thinking（WEB_AGENT_DISABLE_THINKING=true）：逐步浏览器决策
+    无需深度推理，实测复杂单步 13s→3s。thinking 是请求级参数（extra_body），
+    因此不能复用共享 text_model 单例，需独立实例；开关关闭时直接返回共享单例。
+    """
+    if not settings.web_agent_disable_thinking:
+        return model
+    from langchain_deepseek import ChatDeepSeek
+
+    fast_model = ChatDeepSeek(
+        model=settings.llm_model,
+        temperature=0.3,
+        max_retries=settings.llm_max_retries,
+        timeout=settings.llm_timeout,
+        max_tokens=settings.llm_max_tokens,
+        extra_body={"thinking": {"type": "disabled"}},
+    )
+    fast_model.profile = ModelProfile(max_input_tokens=128000)
+    return fast_model
+
+
 # =============================================================================
 # 项目登录态解析缓存：make_agent 每 run 查 project/env 两张表，langgraph 侧
 # 是 NullPool，每条会话还要付一次 PG SCRAM 建连（~0.5-1s）。60s TTL 足够
@@ -435,7 +458,7 @@ async def make_agent(config: RunnableConfig | None = None) -> AsyncIterator[Preg
 
         # 创建智能体
         web_agent = create_agent(
-            model=model,
+            model=build_web_agent_model(),
             tools=all_tools,
             system_prompt=SYSTEM_PROMPT,
             middleware=[

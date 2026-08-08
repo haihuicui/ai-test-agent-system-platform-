@@ -219,6 +219,11 @@ class Settings(BaseSettings):
     # ~60% 工具 schema token，显著降低 DeepSeek prefill 耗时。
     # 设为 "full"/"all"/"*" 恢复全量；逗号列表 = 自定义子集。
     web_mcp_tool_whitelist: str = ""
+    # web_agent 逐步决策默认关闭 DeepSeek 推理（thinking）：浏览器点击类决策不需要
+    # 深度思考，实测复杂单步 13s→3s（省掉 1000+ 隐藏 reasoning token 的生成时间），
+    # 且消除"reasoning 阶段无任何可见 token 输出"的前端空窗。设 false 恢复推理。
+    # 仅影响 web_agent；其他 agent（用例生成等）仍用共享模型的完整推理。
+    web_agent_disable_thinking: bool = True
     # 全局登录态文件（Playwright storageState JSON）路径，相对项目根或绝对路径。
     # 配置后 ensure_playwright_mcp_project 生成的 playwright.config 会自动注入 storageState，
     # 使所有测试复用已登录会话，避免每条用例都走 UI 登录。默认 None（不启用）。
