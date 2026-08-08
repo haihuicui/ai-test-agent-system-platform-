@@ -13,6 +13,7 @@ from sqlalchemy import func as sa_func, select
 from app.models.folder import Folder
 from app.models.folder_type import FolderType
 from app.models.api_endpoint import APIEndpoint
+from app.models.test_case import TestCase
 from app.repositories.folder_repo import FolderRepository
 from app.repositories.project_repo import ProjectRepository
 from app.schemas.folder import FolderCreate, FolderUpdate, FolderMove, FolderInfo, FolderLinks, APIEndpointSummary
@@ -40,35 +41,115 @@ class FolderService:
             raise NotFoundException(resource_type="项目", resource_id=identifier)
         return project
 
-    async def _folder_to_info(self, folder: Folder, project_identifier: str) -> FolderInfo:
+    async def _folders_to_infos(
+        self,
+        folders: list[Folder],
+        project_identifier: str,
+        project_id: UUID,
+    ) -> list[FolderInfo]:
         """
-        将文件夹模型转换为响应模型
+        批量将文件夹模型转换为响应模型（消除 N+1）。
 
-        参考 BrowserStack API 响应格式:
-        https://www.browserstack.com/docs/test-management/api-reference/folders
-
-        显示格式: 直接用例数(总用例数)
+        原实现每个文件夹 5-6 次查询（详情/子文件夹数/直接用例/递归 CTE 总用例/
+        递归 CTE 端点数/端点列表），N 个文件夹约 6N 次查询。
+        本实现：项目树骨架 + 分组统计，恒定 4-7 次查询，子树合计在内存完成。
         """
-        data = await self.repo.get_with_counts(folder.id)
+        if not folders:
+            return []
 
-        # 如果是 API 测试文件夹，查询关联的 API 端点
-        api_endpoints = []
-        print(f"[FolderService] 处理文件夹: {folder.name}, type: {folder.folder_type}")
+        # Q1: 项目全量文件夹树骨架（id, parent_id），用于直接子数与子树聚合
+        skel_result = await self.session.execute(
+            select(Folder.id, Folder.parent_id).where(Folder.project_id == project_id)
+        )
+        children: dict[UUID, list[UUID]] = {}
+        all_ids: list[UUID] = []
+        for row in skel_result.all():
+            all_ids.append(row[0])
+            if row[1] is not None:
+                children.setdefault(row[1], []).append(row[0])
 
-        if folder.folder_type == FolderType.API_TEST:
-            endpoint_stmt = select(APIEndpoint).where(
-                APIEndpoint.folder_id == folder.id
-            ).order_by(APIEndpoint.sort_order, APIEndpoint.display_name)
+        # Q2/Q3: 各文件夹直接用例数 / 直接端点数（GROUP BY 一次查出）
+        direct_cases: dict[UUID, int] = {}
+        direct_eps: dict[UUID, int] = {}
+        if all_ids:
+            case_rows = await self.session.execute(
+                select(TestCase.folder_id, sa_func.count(TestCase.id))
+                .where(TestCase.folder_id.in_(all_ids))
+                .group_by(TestCase.folder_id)
+            )
+            direct_cases = {row[0]: int(row[1]) for row in case_rows.all()}
 
-            endpoint_result = await self.session.execute(endpoint_stmt)
-            endpoints = endpoint_result.scalars().all()
+            ep_rows = await self.session.execute(
+                select(APIEndpoint.folder_id, sa_func.count(APIEndpoint.id))
+                .where(APIEndpoint.folder_id.in_(all_ids))
+                .group_by(APIEndpoint.folder_id)
+            )
+            direct_eps = {row[0]: int(row[1]) for row in ep_rows.all()}
 
-            print(f"[FolderService] 文件夹 {folder.name} 找到 {len(endpoints)} 个端点")
+        def subtree_total(folder_id: UUID, direct: dict[UUID, int]) -> int:
+            """子树合计（迭代 DFS，带环路保护）"""
+            total = 0
+            seen: set[UUID] = set()
+            stack = [folder_id]
+            while stack:
+                cur = stack.pop()
+                if cur in seen:
+                    continue
+                seen.add(cur)
+                total += direct.get(cur, 0)
+                stack.extend(children.get(cur, ()))
+            return total
 
-            # 直接使用数据库中存储的统计数据
-            for ep in endpoints:
-                print(f"[FolderService] 端点: {ep.display_name}, total_test_cases: {ep.total_test_cases}, total_test_runs: {ep.total_test_runs}")
+        # Q4: 本页 API_TEST 文件夹的端点列表（一次查出后按 folder_id 分组）
+        api_folder_ids = [f.id for f in folders if f.folder_type == FolderType.API_TEST]
+        eps_by_folder: dict[UUID, list] = {}
+        if api_folder_ids:
+            ep_result = await self.session.execute(
+                select(APIEndpoint)
+                .where(APIEndpoint.folder_id.in_(api_folder_ids))
+                .order_by(APIEndpoint.folder_id, APIEndpoint.sort_order, APIEndpoint.display_name)
+            )
+            for ep in ep_result.scalars().all():
+                eps_by_folder.setdefault(ep.folder_id, []).append(ep)
 
+        # Q5/Q6: 本页 WEB_TEST 文件夹的功能列表 + 子功能数/用例数分组统计
+        web_folder_ids = [f.id for f in folders if f.folder_type == FolderType.WEB_TEST]
+        funcs_by_folder: dict[UUID, list] = {}
+        sub_func_counts: dict[str, int] = {}
+        test_case_sums: dict[str, int] = {}
+        if web_folder_ids:
+            from app.models.web_function import WebFunction, WebSubFunction
+
+            func_result = await self.session.execute(
+                select(WebFunction)
+                .where(WebFunction.folder_id.in_(web_folder_ids))
+                .order_by(WebFunction.folder_id, WebFunction.sort_order, WebFunction.display_name)
+            )
+            all_func_ids = []
+            for wf in func_result.scalars().all():
+                funcs_by_folder.setdefault(wf.folder_id, []).append(wf)
+                all_func_ids.append(wf.id)
+
+            if all_func_ids:
+                sub_func_count_result = await self.session.execute(
+                    select(WebSubFunction.function_id, sa_func.count(WebSubFunction.id))
+                    .where(WebSubFunction.function_id.in_(all_func_ids))
+                    .group_by(WebSubFunction.function_id)
+                )
+                sub_func_counts = {str(row[0]): row[1] for row in sub_func_count_result.all()}
+
+                test_case_sum_result = await self.session.execute(
+                    select(WebSubFunction.function_id, sa_func.sum(WebSubFunction.total_test_cases))
+                    .where(WebSubFunction.function_id.in_(all_func_ids))
+                    .group_by(WebSubFunction.function_id)
+                )
+                test_case_sums = {
+                    str(row[0]): int(row[1]) if row[1] is not None else 0
+                    for row in test_case_sum_result.all()
+                }
+
+        infos: list[FolderInfo] = []
+        for folder in folders:
             api_endpoints = [
                 APIEndpointSummary(
                     id=ep.id,
@@ -77,85 +158,56 @@ class FolderService:
                     path=ep.path,
                     tag_group=ep.tag_group,
                     total_test_cases=ep.total_test_cases or 0,
-                    total_test_runs=ep.total_test_runs or 0
+                    total_test_runs=ep.total_test_runs or 0,
                 )
-                for ep in endpoints
+                for ep in eps_by_folder.get(folder.id, [])
             ]
 
-        # 如果是 WEB 测试文件夹，查询关联的 Web 功能
-        web_functions = []
-        total_sub_functions = 0  # 累计子功能数
-        if folder.folder_type == FolderType.WEB_TEST:
-            from app.models.web_function import WebFunction, WebSubFunction
-            func_stmt = select(WebFunction).where(
-                WebFunction.folder_id == folder.id
-            ).order_by(WebFunction.sort_order, WebFunction.display_name)
-            func_result = await self.session.execute(func_stmt)
-            functions = func_result.scalars().all()
+            web_functions: list[dict] = []
+            total_sub_functions = 0
+            if folder.folder_type == FolderType.WEB_TEST:
+                for wf in funcs_by_folder.get(folder.id, []):
+                    wf_sub_count = sub_func_counts.get(str(wf.id), 0)
+                    wf_tc_sum = test_case_sums.get(str(wf.id), 0)
+                    total_sub_functions += wf_sub_count
+                    web_functions.append({
+                        "id": str(wf.id),
+                        "identifier": wf.identifier,
+                        "display_name": wf.display_name,
+                        "name": wf.name,
+                        "description": wf.description,
+                        "base_url": wf.base_url,
+                        "business_module": wf.business_module,
+                        "folder_id": str(wf.folder_id) if wf.folder_id else None,
+                        "total_sub_functions": wf_sub_count,
+                        "total_test_cases": wf_tc_sum,
+                    })
 
-            print(f"[FolderService] 文件夹 {folder.name} 找到 {len(functions)} 个 Web 功能")
+            infos.append(FolderInfo(
+                id=folder.id,
+                name=folder.name,
+                description=folder.description,
+                folder_type=folder.folder_type,
+                parent_id=folder.parent_id,
+                direct_cases_count=direct_cases.get(folder.id, 0),
+                cases_count=subtree_total(folder.id, direct_cases),
+                sub_folders_count=len(children.get(folder.id, [])),
+                endpoints_count=subtree_total(folder.id, direct_eps),
+                links=FolderLinks(
+                    sub_folders=f"{settings.api_prefix}/projects/{project_identifier}/folders/{folder.id}/sub-folders",
+                ),
+                api_endpoints=api_endpoints,
+                web_functions=web_functions if web_functions else None,
+                total_sub_functions=total_sub_functions if folder.folder_type == FolderType.WEB_TEST else None,
+            ))
 
-            # 实时计算每个功能的子功能数及测试用例数，避免缓存字段不准导致展示为 0
-            function_ids = [wf.id for wf in functions]
-            sub_func_counts: dict[str, int] = {}
-            test_case_sums: dict[str, int] = {}
-            if function_ids:
-                sub_func_count_stmt = (
-                    select(WebSubFunction.function_id, sa_func.count(WebSubFunction.id))
-                    .where(WebSubFunction.function_id.in_(function_ids))
-                    .group_by(WebSubFunction.function_id)
-                )
-                sub_func_count_result = await self.session.execute(sub_func_count_stmt)
-                sub_func_counts = {
-                    str(row[0]): row[1] for row in sub_func_count_result.all()
-                }
+        return infos
 
-                test_case_sum_stmt = (
-                    select(WebSubFunction.function_id, sa_func.sum(WebSubFunction.total_test_cases))
-                    .where(WebSubFunction.function_id.in_(function_ids))
-                    .group_by(WebSubFunction.function_id)
-                )
-                test_case_sum_result = await self.session.execute(test_case_sum_stmt)
-                test_case_sums = {
-                    str(row[0]): int(row[1]) if row[1] is not None else 0 for row in test_case_sum_result.all()
-                }
-
-            # 构造 Web 功能简要信息
-            for wf in functions:
-                wf_sub_count = sub_func_counts.get(str(wf.id), 0)
-                wf_tc_sum = test_case_sums.get(str(wf.id), 0)
-                total_sub_functions += wf_sub_count
-                web_functions.append({
-                    "id": str(wf.id),
-                    "identifier": wf.identifier,
-                    "display_name": wf.display_name,
-                    "name": wf.name,
-                    "description": wf.description,
-                    "base_url": wf.base_url,
-                    "business_module": wf.business_module,
-                    "folder_id": str(wf.folder_id) if wf.folder_id else None,
-                    "total_sub_functions": wf_sub_count,
-                    "total_test_cases": wf_tc_sum,
-                })
-# fmt: off  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2VUhsalNRPT06MzE2YzI4Yzk=
-
-        return FolderInfo(
-            id=folder.id,
-            name=folder.name,
-            description=folder.description,
-            folder_type=folder.folder_type,
-            parent_id=folder.parent_id,
-            direct_cases_count=data["direct_cases_count"] if data else 0,
-            cases_count=data["cases_count"] if data else 0,
-            sub_folders_count=data["sub_folders_count"] if data else 0,
-            endpoints_count=data["endpoints_count"] if data else 0,
-            links=FolderLinks(
-                sub_folders=f"{settings.api_prefix}/projects/{project_identifier}/folders/{folder.id}/sub-folders",
-            ),
-            api_endpoints=api_endpoints,
-            web_functions=web_functions if web_functions else None,
-            total_sub_functions=total_sub_functions if folder.folder_type == FolderType.WEB_TEST else None,
-        )
+    async def _folder_to_info(self, folder: Folder, project_identifier: str) -> FolderInfo:
+        """单文件夹转换（走批量实现，消除 N+1；保留签名兼容所有调用点）"""
+        project = await self._get_project_by_identifier(project_identifier)
+        infos = await self._folders_to_infos([folder], project_identifier, project.id)
+        return infos[0]
     
     async def get_folders(
         self,
