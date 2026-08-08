@@ -22,7 +22,7 @@ from app.agents.tools.testcase.export_common import (
     extract_field,
 )
 from app.config.settings import settings
-from app.utils.testcase_validation import normalize_priority, _validate_case
+from app.utils.testcase_validation import normalize_case_type, normalize_priority, _validate_case
 
 logger = logging.getLogger(__name__)
 
@@ -172,12 +172,16 @@ async def _create_test_case_impl(
             "message": "创建测试用例失败：project_identifier 为空",
         }
 
+    normalized_case_type, case_type_changed = normalize_case_type(case_type)
+    if case_type_changed:
+        logger.info("创建用例 case_type 自动修正：'%s' → '%s'", case_type, normalized_case_type)
+
     request_data: dict[str, Any] = {
         "name": name,
         "template": template,
         "priority": normalize_priority(priority),
         "status": status,
-        "case_type": case_type,
+        "case_type": normalized_case_type,
         "automation_status": automation_status,
     }
 
@@ -269,7 +273,7 @@ async def create_test_case_tool(
         preconditions: 前置条件（可选，支持 HTML）
         priority: 优先级，可选值：critical, high, medium, low（默认 medium）
         status: 状态，默认 new
-        case_type: 测试类型，默认 functional
+        case_type: 测试类型，默认 functional。合法枚举：functional/security/performance/compatibility/regression/smoke_sanity/acceptance/accessibility/destructive/usability/other（接口测试用 functional；interface/接口 等写法会被自动映射为 functional）
         owner: 负责人邮箱（可选）
         tags: 标签列表（可选）
         issues: 关联的 Jira issues（可选）
@@ -361,7 +365,10 @@ async def _update_test_case_impl(
     if status is not None:
         request_data["status"] = status
     if case_type is not None:
-        request_data["case_type"] = case_type
+        normalized_type, type_changed = normalize_case_type(case_type)
+        if type_changed:
+            logger.info("更新用例 case_type 自动修正：'%s' → '%s'", case_type, normalized_type)
+        request_data["case_type"] = normalized_type
     if folder_id is not None:
         request_data["folder_id"] = folder_id
     if owner is not None:
@@ -450,7 +457,7 @@ async def update_test_case_tool(
         preconditions: 前置条件
         priority: 优先级（critical, high, medium, low）
         status: 状态
-        case_type: 测试类型
+        case_type: 测试类型。合法枚举：functional/security/performance/compatibility/regression/smoke_sanity/acceptance/accessibility/destructive/usability/other（接口测试用 functional）
         folder_id: 所属文件夹 UUID（用于移动测试用例）
         owner: 负责人邮箱
         tags: 标签列表
@@ -547,6 +554,19 @@ async def _batch_create_test_cases_impl(
                     test_case_data, "case_number", "id", "用例编号", "identifier", "case_id", "编号"
                 )
 
+                # case_type 归一化：LLM 常输出 interface/接口 等非枚举值，
+                # 在此统一映射为合法枚举（如 interface→functional），避免
+                # 后端枚举校验导致整条用例入库失败；修正记录进结果 warnings。
+                raw_case_type = _resolve_field(
+                    test_case_data,
+                    "case_type", "type", "用例类型", "测试类型", "类型",
+                ) or "functional"
+                norm_case_type, case_type_changed = normalize_case_type(raw_case_type)
+                case_type_note = (
+                    f"case_type '{raw_case_type}' → '{norm_case_type}'"
+                    if case_type_changed else None
+                )
+
                 # upsert：先按 case_number 尝试 PATCH 替换；404 说明不存在，转入新建
                 if upsert and case_number:
                     try:
@@ -562,10 +582,7 @@ async def _batch_create_test_cases_impl(
                                 test_case_data, "preconditions", "precondition", "前置条件"
                             ),
                             priority=test_case_data.get("priority", "medium"),
-                            case_type=_resolve_field(
-                                test_case_data,
-                                "case_type", "type", "用例类型", "测试类型", "类型",
-                            ) or "functional",
+                            case_type=norm_case_type,
                             folder_id=folder_id,
                             test_case_steps=_normalize_steps(
                                 _resolve_field(test_case_data, "test_case_steps", "steps", "测试步骤")
@@ -577,13 +594,16 @@ async def _batch_create_test_cases_impl(
                             test_data=_resolve_field(test_case_data, "test_data", "测试数据"),
                         )
                         if update_result.get("success"):
-                            return {
+                            updated: dict[str, Any] = {
                                 "index": index,
                                 "success": True,
                                 "action": "updated",
                                 "identifier": case_number,
                                 "name": name,
                             }
+                            if case_type_note:
+                                updated["case_type_normalized"] = case_type_note
+                            return updated
                         return {
                             "index": index,
                             "success": False,
@@ -615,10 +635,7 @@ async def _batch_create_test_cases_impl(
                     ),
                     priority=test_case_data.get("priority", "medium"),
                     status=test_case_data.get("status", "new"),
-                    case_type=_resolve_field(
-                        test_case_data,
-                        "case_type", "type", "用例类型", "测试类型", "类型",
-                    ) or "functional",
+                    case_type=norm_case_type,
                     owner=test_case_data.get("owner"),
                     tags=test_case_data.get("tags"),
                     issues=test_case_data.get("issues"),
@@ -637,7 +654,7 @@ async def _batch_create_test_cases_impl(
                 )
 
                 case_data = result.get("data") or {}
-                return {
+                created: dict[str, Any] = {
                     "index": index,
                     "success": result.get("success", False),
                     "action": "created" if result.get("success") else None,
@@ -645,6 +662,9 @@ async def _batch_create_test_cases_impl(
                     "name": name,
                     "error": result.get("error"),
                 }
+                if case_type_note and result.get("success"):
+                    created["case_type_normalized"] = case_type_note
+                return created
 
             except Exception as e:
                 return {
@@ -665,6 +685,18 @@ async def _batch_create_test_cases_impl(
     created_count = sum(1 for r in results if r.get("action") == "created")
     updated_count = sum(1 for r in results if r.get("action") == "updated")
 
+    # case_type 自动修正汇总（如 interface→functional），让模型感知归一化发生
+    case_type_notes = [
+        f"{r.get('identifier') or r.get('name')}: {r['case_type_normalized']}"
+        for r in results
+        if r.get("case_type_normalized")
+    ]
+    notes_suffix = (
+        f"；{len(case_type_notes)} 条用例 case_type 已自动映射为合法枚举"
+        f"（{'、'.join(case_type_notes[:10])}{' 等' if len(case_type_notes) > 10 else ''}）"
+        if case_type_notes else ""
+    )
+
     # 上下文精简：全部成功时仅返回摘要统计，失败时才逐条展开详情。
     # 避免 100+ 条用例的逐条成功信息撑爆对话上下文。
     if failed == 0:
@@ -675,7 +707,7 @@ async def _batch_create_test_cases_impl(
         if upsert:
             summary_message = (
                 f"批量入库完成：替换 {updated_count} 条，新建 {created_count} 条"
-                f"（共 {succeeded} 条）。"
+                f"（共 {succeeded} 条）。{notes_suffix}"
             )
         else:
             summary_message = (
@@ -684,6 +716,7 @@ async def _batch_create_test_cases_impl(
                 if case_numbers else
                 f"批量创建完成：全部 {succeeded} 条用例提交成功。"
             )
+            summary_message += notes_suffix
         return {
             "success": True,
             "data": {
@@ -693,6 +726,7 @@ async def _batch_create_test_cases_impl(
                 "created": created_count,
                 "updated": updated_count,
                 "case_numbers": case_numbers,
+                "case_type_normalized": case_type_notes,
             },
             "message": summary_message,
         }
@@ -706,10 +740,11 @@ async def _batch_create_test_cases_impl(
             "created": created_count,
             "updated": updated_count,
             "results": sorted(results, key=lambda r: r["index"]),
+            "case_type_normalized": case_type_notes,
         },
         "message": (
             f"批量{'入库' if upsert else '创建'}完成：成功 {succeeded} 个"
-            f"（新建 {created_count} / 替换 {updated_count}），失败 {failed} 个"
+            f"（新建 {created_count} / 替换 {updated_count}），失败 {failed} 个{notes_suffix}"
         ),
     }
 

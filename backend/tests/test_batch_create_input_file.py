@@ -251,3 +251,106 @@ class TestBatchCreateUpsert:
 
         assert update_called is False
         assert result["success"] is True
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# case_type 枚举归一化
+# ═════════════════════════════════════════════════════════════════════════════
+
+from app.utils.testcase_validation import normalize_case_type  # noqa: E402
+
+
+class TestNormalizeCaseType:
+    """normalize_case_type 单元测试：合法值原样、同义词映射、未知值回退。"""
+
+    def test_valid_values_unchanged(self):
+        for v in ["functional", "security", "performance", "compatibility",
+                  "regression", "smoke_sanity", "acceptance", "accessibility",
+                  "destructive", "usability", "other"]:
+            assert normalize_case_type(v) == (v, False)
+
+    def test_case_and_whitespace_insensitive(self):
+        assert normalize_case_type(" Functional ") == ("functional", False)
+        assert normalize_case_type("SECURITY") == ("security", False)
+
+    def test_interface_maps_to_functional(self):
+        """生产事故值：interface 无独立枚举，映射 functional"""
+        assert normalize_case_type("interface") == ("functional", True)
+        assert normalize_case_type("接口") == ("functional", True)
+        assert normalize_case_type("接口测试") == ("functional", True)
+        assert normalize_case_type("api") == ("functional", True)
+
+    def test_chinese_synonyms(self):
+        assert normalize_case_type("安全") == ("security", True)
+        assert normalize_case_type("性能测试") == ("performance", True)
+        assert normalize_case_type("兼容性") == ("compatibility", True)
+        assert normalize_case_type("回归") == ("regression", True)
+
+    def test_unknown_falls_back_to_functional(self):
+        assert normalize_case_type("exploratory") == ("functional", True)
+
+    def test_non_string_returns_functional_unchanged(self):
+        assert normalize_case_type(None) == ("functional", False)
+        assert normalize_case_type("") == ("functional", False)
+
+
+class TestBatchCaseTypeNormalization:
+    """批量入库路径：非法 case_type 自动映射为合法枚举，并在结果中可见。"""
+
+    @pytest.mark.asyncio
+    async def test_interface_case_type_normalized_on_create(self, monkeypatch):
+        create_kwargs: dict = {}
+
+        async def fake_create(**kwargs):
+            create_kwargs.update(kwargs)
+            return {"success": True, "data": {"identifier": "TC-PROJ-LOGIN-001"}}
+
+        monkeypatch.setattr(testcase_tools, "_create_test_case_impl", fake_create)
+
+        case = {**_valid_case(1), "case_type": "interface"}
+        result = await batch_create_test_cases_tool.ainvoke(
+            {"project_identifier": "PROJ-001", "test_cases": [case]}
+        )
+
+        assert result["success"] is True
+        # 实际发给后端的必须是合法枚举
+        assert create_kwargs["case_type"] == "functional"
+        # 修正记录对模型可见
+        notes = result["data"]["case_type_normalized"]
+        assert len(notes) == 1
+        assert "interface" in notes[0] and "functional" in notes[0]
+        assert "自动映射" in result["message"]
+
+    @pytest.mark.asyncio
+    async def test_valid_case_type_no_notes(self, monkeypatch):
+        async def fake_create(**kwargs):
+            return {"success": True, "data": {"identifier": "TC-PROJ-LOGIN-001"}}
+
+        monkeypatch.setattr(testcase_tools, "_create_test_case_impl", fake_create)
+
+        result = await batch_create_test_cases_tool.ainvoke(
+            {"project_identifier": "PROJ-001", "test_cases": [_valid_case(1)]}
+        )
+
+        assert result["success"] is True
+        assert result["data"]["case_type_normalized"] == []
+        assert "自动映射" not in result["message"]
+
+    @pytest.mark.asyncio
+    async def test_upsert_path_normalizes_case_type(self, monkeypatch):
+        update_kwargs: dict = {}
+
+        async def fake_update(**kwargs):
+            update_kwargs.update(kwargs)
+            return {"success": True, "data": {"identifier": "TC-PROJ-LOGIN-001"}}
+
+        monkeypatch.setattr(testcase_tools, "_update_test_case_impl", fake_update)
+
+        case = {**_valid_case(1), "case_type": "接口"}
+        result = await batch_create_test_cases_tool.ainvoke(
+            {"project_identifier": "PROJ-001", "test_cases": [case], "upsert": True}
+        )
+
+        assert result["success"] is True
+        assert update_kwargs["case_type"] == "functional"
+        assert len(result["data"]["case_type_normalized"]) == 1

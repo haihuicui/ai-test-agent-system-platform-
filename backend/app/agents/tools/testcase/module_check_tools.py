@@ -20,7 +20,7 @@ from app.agents.tools.testcase.excel_tools import (
     _resolve_input_path,
 )
 from app.config.settings import settings
-from app.utils.testcase_validation import _validate_case
+from app.utils.testcase_validation import _validate_case, normalize_case_type
 
 logger = logging.getLogger(__name__)
 
@@ -335,7 +335,31 @@ def _perform_module_self_check(
                 }
             )
 
-    # 6. Happy Path 偏斜检测（仅 warning，不阻断）
+    # 6. case_type 枚举校验（仅 warning，不阻断）
+    # LLM 常输出 interface/接口/UI 等非 TestCaseType 枚举值；入库层虽已做
+    # 自动映射兜底，但在模块自检阶段提示可促使模型把源文件修正为合法枚举。
+    for case in cases:
+        raw_type = case.get("case_type")
+        if not isinstance(raw_type, str) or not raw_type.strip():
+            continue
+        normalized_type, type_changed = normalize_case_type(raw_type)
+        if type_changed:
+            violations.append(
+                {
+                    "case_number": case.get("case_number") or case.get("case_id"),
+                    "case_name": case.get("name"),
+                    "level": "warning",
+                    "messages": [
+                        f"case_type '{raw_type}' 非合法枚举，入库时将自动映射为 "
+                        f"'{normalized_type}'（合法值：functional/security/performance/"
+                        "compatibility/regression/smoke_sanity/acceptance/accessibility/"
+                        "destructive/usability/other；接口测试请用 functional），"
+                        "建议直接在文件中修正"
+                    ],
+                }
+            )
+
+    # 7. Happy Path 偏斜检测（仅 warning，不阻断）
     # 当一批用例的预期结果全是"xxx成功"/"正常xxx"时，提示可能缺少边界/异常覆盖
     happy_path_violation = _check_happy_path_skew(cases)
     if happy_path_violation is not None:

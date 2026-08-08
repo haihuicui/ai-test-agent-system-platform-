@@ -85,6 +85,33 @@ class TestModuleSelfCheckTool:
         assert result["passed"] is False
         assert "不存在" in result["summary"]
 
+    def test_invalid_case_type_warns_but_passes(self, workspace_root: Path):
+        """case_type 使用 interface 等非枚举值 → warning 提示自动映射，不阻断自检"""
+        cases = [
+            {**_valid_case("TC-PROJ-MOD-001"), "case_type": "interface"},
+            {**_valid_case("TC-PROJ-MOD-002"), "priority": "high", "case_type": "functional"},
+        ]
+        file_path = workspace_root / "test_cases_module.jsonl"
+        _write_jsonl(file_path, cases)
+
+        result = _run_tool(
+            module_self_check_tool,
+            {
+                "input_files": [str(file_path.name)],
+                "expected_module": "示例模块",
+                "min_p0_count": 1,
+            },
+        )
+
+        assert result["passed"] is True
+        type_warnings = [
+            v for v in result["violations"]
+            if v["level"] == "warning" and any("case_type" in m for m in v["messages"])
+        ]
+        assert len(type_warnings) == 1
+        assert "interface" in type_warnings[0]["messages"][0]
+        assert "functional" in type_warnings[0]["messages"][0]
+
     def test_duplicate_case_number_in_same_file(self, workspace_root: Path):
         cases = [
             _valid_case("TC-PROJ-MOD-001"),

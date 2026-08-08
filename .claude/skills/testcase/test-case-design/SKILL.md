@@ -496,6 +496,12 @@ FP-028（数据隔离规则）的 test_points：
 **同一会话内追加用例**：向本模块当前 JSONL 文件追加时，从该文件现有最大序号 +1 继续；
 整体重写模块文件用 `save_test_cases_file`（覆盖写，历史同名文件直接替换）。
 
+### case_type 枚举（强制）
+
+`case_type` 只能使用以下合法值：`functional` / `security` / `performance` / `compatibility` / `regression` / `smoke_sanity` / `acceptance` / `accessibility` / `destructive` / `usability` / `other`。
+**接口测试用例统一用 `functional`**（后端枚举无 interface 类型）；异常/边界/数据/规则/权限/状态类用例同样归入 `functional`。
+禁止自造值（如 `interface`、`接口`、`UI`）——入库层虽会自动映射为 functional，但源文件应直接写合法值，避免入库结果与文件不一致。
+
 **自检失败后的修复流程**：
 1. 按返回的 violations 定位具体问题用例与字段
 2. 定点修复（少量改动用 edit_file；整体重写用 `save_test_cases_file` 一次完成）

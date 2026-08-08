@@ -56,6 +56,87 @@ def normalize_priority(priority: Any) -> str:
     key = priority.strip().lower()
     return _PRIORITY_NORMALIZE.get(key, key)
 
+
+# 后端 TestCaseType 合法枚举（与 app/schemas/enums.py 一致）
+_VALID_CASE_TYPES = {
+    "acceptance", "accessibility", "compatibility", "destructive",
+    "functional", "other", "performance", "regression", "security",
+    "smoke_sanity", "usability",
+}
+
+# case_type 常见输出 → 合法枚举映射。
+# LLM 在中文上下文常输出 "interface"/"接口"/"UI" 等非枚举值（TestCaseType 沿用
+# BrowserStack 枚举，无 interface 独立类型），入库前归一化避免批量入库失败。
+# 接口/UI/异常/边界等细分测试类型在枚举中均归入 functional。
+_CASE_TYPE_SYNONYMS: dict[str, str] = {
+    "interface": "functional",
+    "api": "functional",
+    "接口": "functional",
+    "接口测试": "functional",
+    "ui": "functional",
+    "界面": "functional",
+    "界面测试": "functional",
+    "功能": "functional",
+    "功能测试": "functional",
+    "functional_test": "functional",
+    "异常": "functional",
+    "边界": "functional",
+    "数据": "functional",
+    "规则": "functional",
+    "权限": "functional",
+    "状态": "functional",
+    "集成": "functional",
+    "集成测试": "functional",
+    "端到端": "functional",
+    "e2e": "functional",
+    "单元": "functional",
+    "单元测试": "functional",
+    "安全": "security",
+    "安全测试": "security",
+    "性能": "performance",
+    "性能测试": "performance",
+    "兼容": "compatibility",
+    "兼容性": "compatibility",
+    "兼容测试": "compatibility",
+    "兼容性测试": "compatibility",
+    "回归": "regression",
+    "回归测试": "regression",
+    "冒烟": "smoke_sanity",
+    "冒烟测试": "smoke_sanity",
+    "smoke": "smoke_sanity",
+    "sanity": "smoke_sanity",
+    "验收": "acceptance",
+    "验收测试": "acceptance",
+    "uat": "acceptance",
+    "可访问性": "accessibility",
+    "可访问性测试": "accessibility",
+    "破坏性": "destructive",
+    "破坏性测试": "destructive",
+    "可用性": "usability",
+    "可用性测试": "usability",
+    "其他": "other",
+}
+
+
+def normalize_case_type(case_type: Any) -> tuple[str, bool]:
+    """将 case_type 归一化为后端 TestCaseType 合法枚举值。
+
+    Returns:
+        (归一化后的值, 是否发生了修正)。合法值原样返回（changed=False）；
+        同义词映射或未知值回退 functional 时 changed=True。
+        未知值回退 functional 而非报错：批量入库场景下整批失败的代价
+        远大于个别用例类型归类保守（接口/UI 等本就属于功能测试范畴）。
+    """
+    if not isinstance(case_type, str) or not case_type.strip():
+        return "functional", False
+    key = case_type.strip().lower()
+    if key in _VALID_CASE_TYPES:
+        return key, False
+    canonical = _CASE_TYPE_SYNONYMS.get(key)
+    if canonical is None:
+        canonical = "functional"
+    return canonical, True
+
 # 用于剥离预期结果首尾的引号与标点，再做模糊词精确匹配
 _STRIP_CHARS = " \t\n\"'“”‘’，,。.!！?？:：;；~～。"
 
