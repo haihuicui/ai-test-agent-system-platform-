@@ -58,6 +58,49 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+
+// 工具调用的中文友好名：长任务（如 Web 自动化跑一次主流程要几分钟）期间
+// 在"思考中"指示器上展示当前正在执行的工具，让用户感知到进展而不是干等。
+const TOOL_FRIENDLY_NAMES: Record<string, string> = {
+  planner_setup_page: "初始化浏览器环境",
+  browser_navigate: "打开页面",
+  browser_navigate_back: "返回上一页",
+  browser_reload: "刷新页面",
+  browser_click: "点击元素",
+  browser_type: "输入文本",
+  browser_fill_form: "填写表单",
+  browser_press_key: "按键操作",
+  browser_select_option: "选择下拉选项",
+  browser_check: "勾选复选框",
+  browser_uncheck: "取消勾选",
+  browser_hover: "悬停元素",
+  browser_snapshot: "分析页面结构",
+  browser_wait_for: "等待页面加载",
+  browser_evaluate: "执行页面脚本",
+  browser_take_screenshot: "截图",
+  browser_tabs: "管理标签页",
+  browser_close: "关闭页面",
+  browser_generate_locator: "生成元素定位器",
+  browser_network_requests: "检查网络请求",
+  browser_console_messages: "读取控制台日志",
+  browser_handle_dialog: "处理弹窗",
+  browser_file_upload: "上传文件",
+  browser_run_code_unsafe: "执行自定义脚本",
+  generator_write_test: "生成测试脚本",
+  generator_setup_page: "准备测试页面",
+  generator_read_log: "读取执行日志",
+  test_run: "执行测试",
+  test_list: "查询测试列表",
+  test_debug: "调试测试",
+};
+
+function friendlyToolName(name: string): string {
+  if (TOOL_FRIENDLY_NAMES[name]) return TOOL_FRIENDLY_NAMES[name];
+  if (name.startsWith("browser_")) return `浏览器操作（${name}）`;
+  if (name.startsWith("save_")) return "保存产物";
+  if (name.startsWith("execute_")) return "执行测试脚本";
+  return name;
+}
 import { useLanguage } from "@/providers/LanguageProvider";
 import { extractCreatedTestCaseIds } from "@/lib/langgraph/utils";
 import {
@@ -833,6 +876,14 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
   // 用户的鼠标滚轮抢夺滚动权；当上层因连接重试等原因频繁重渲染时，effect 被反复
   // 触发，平滑动画持续重启，表现为"完全滚不动"。故移除，交给库统一管理。
 
+  // 当前正在执行的工具调用（取最后一条消息里 status=pending 的 tool call）。
+  // 用于"思考中"指示器展示实时进展：agent 循环里最新的工具调用总是在最后的
+  // AI 消息上，工具执行期间该消息就是列表末尾。
+  const lastProcessed = processedMessages[processedMessages.length - 1];
+  const pendingToolCall = lastProcessed?.toolCalls?.find(
+    (t: ToolCall) => t.status === "pending"
+  );
+
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       <div
@@ -947,10 +998,11 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
                   </div>
                 </div>
               )}
-              {/* AI 正在思考/调用工具但尚未输出内容时显示轻量指示器，改善长延迟下的用户感知。 */}
+              {/* AI 正在思考/调用工具但尚未输出内容时显示轻量指示器，改善长延迟下的用户感知。
+                  有 pending 工具调用时展示工具名（浏览器操作可能单次数十秒），让用户看到实时进展。 */}
               {isLoading &&
                 !interrupt &&
-                processedMessages[processedMessages.length - 1]?.message.type !== "ai" && (
+                (lastProcessed?.message.type !== "ai" || pendingToolCall) && (
                   <div className="flex items-start gap-3 py-4">
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
                       <Loader2 className="h-4 w-4 animate-spin text-primary" />
@@ -961,7 +1013,11 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
                         <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground/60" />
                         <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground/60 [animation-delay:0.15s]" />
                         <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground/60 [animation-delay:0.3s]" />
-                        <span className="ml-1">思考中...</span>
+                        <span className="ml-1">
+                          {pendingToolCall
+                            ? `正在执行：${friendlyToolName(pendingToolCall.name)}`
+                            : "思考中..."}
+                        </span>
                       </div>
                     </div>
                   </div>

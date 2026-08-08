@@ -200,6 +200,119 @@ def _build_mcp_client(stdio_command: str, stdio_args: list[str]) -> MultiServerM
     )
 
 
+# =============================================================================
+# MCP 工具裁剪：86 个工具全量随每次模型调用发送，prefill 代价大。
+# 核心集 = prompts/skills 实际引用到的工具 + 主流程（导航/点击/输入/快照/等待/
+# 表单/断言/执行）所需工具。
+# =============================================================================
+
+CORE_MCP_TOOLS: frozenset[str] = frozenset({
+    # 浏览器生命周期 / 导航
+    "browser_navigate", "browser_navigate_back", "browser_reload",
+    "browser_close", "browser_tabs",
+    # 页面交互
+    "browser_click", "browser_type", "browser_fill_form",
+    "browser_press_key", "browser_press_sequentially",
+    "browser_select_option", "browser_check", "browser_uncheck", "browser_hover",
+    # 页面读取 / 等待 / 断言
+    "browser_snapshot", "browser_wait_for", "browser_evaluate",
+    "browser_take_screenshot", "browser_generate_locator",
+    # 诊断
+    "browser_network_requests", "browser_console_messages",
+    "browser_handle_dialog", "browser_file_upload",
+    # 逃生舱（复杂操作兜底）
+    "browser_run_code_unsafe",
+    # 测试编排（planner_save_plan / planner_submit_plan 已被下方 excluded 集合排除）
+    "planner_setup_page",
+    "generator_setup_page", "generator_write_test", "generator_read_log",
+    "test_run", "test_list", "test_debug",
+})
+
+
+def parse_mcp_tool_whitelist(raw: str | None) -> frozenset[str] | None:
+    """解析 WEB_MCP_TOOL_WHITELIST。返回 None 表示不过滤（全量）。"""
+    raw = (raw or "").strip()
+    if not raw:
+        return CORE_MCP_TOOLS
+    if raw.lower() in ("full", "all", "*"):
+        return None
+    return frozenset(x.strip() for x in raw.split(",") if x.strip())
+
+
+# =============================================================================
+# 项目登录态解析缓存：make_agent 每 run 查 project/env 两张表，langgraph 侧
+# 是 NullPool，每条会话还要付一次 PG SCRAM 建连（~0.5-1s）。60s TTL 足够
+# 新鲜（storageState 续期后路径变化最多滞后 60s）。
+# =============================================================================
+
+_LOGIN_STATE_CACHE_TTL_SECONDS = 60.0
+_login_state_cache: dict[str, tuple[float, bool, "str | None"]] = {}
+
+
+async def _resolve_project_login_state(
+    project_identifier: str,
+) -> tuple[bool, "str | None"]:
+    """解析项目登录态，返回 (has_login_config, storage_state 路径)。
+
+    成功结果按 project_identifier 缓存 60s；异常不缓存（下次重试）。
+    保持原内联实现的日志与语义不变。
+    """
+    now = asyncio.get_running_loop().time()
+    cached = _login_state_cache.get(project_identifier)
+    if cached and now - cached[0] < _LOGIN_STATE_CACHE_TTL_SECONDS:
+        return cached[1], cached[2]
+
+    has_login_config = False
+    storage_state: str | None = None
+    env = None
+    try:
+        async with async_session_factory() as session:
+            project = await ProjectRepository(session).get_by_identifier(
+                project_identifier
+            )
+            if project is not None:
+                env = await EnvironmentRepository(
+                    session
+                ).get_default_by_project(project.id)
+                if env is not None:
+                    if env.auth_type == AuthType.FORM_LOGIN.value:
+                        has_login_config = True
+                    else:
+                        auth_config = env.auth_config or {}
+                        has_login_config = bool(
+                            auth_config.get("form_login")
+                            or auth_config.get("storage_state")
+                        )
+                if has_login_config:
+                    storage_state = await resolve_project_storage_state_path(
+                        project_identifier, env.id if env else None
+                    )
+                    if storage_state:
+                        logger.info(
+                            "[WebMCPAgent] 使用项目级 storageState: %s",
+                            storage_state,
+                        )
+                    else:
+                        logger.warning(
+                            "[WebMCPAgent] 项目 %s 已配置 Web 登录但无有效项目级 "
+                            "storageState，不使用全局 fallback，将依赖脚本自身登录逻辑。",
+                            project_identifier,
+                        )
+                elif project is not None:
+                    logger.info(
+                        "[WebMCPAgent] 项目 %s 未配置 Web 登录，不使用 storageState。",
+                        project_identifier,
+                    )
+    except Exception as exc:
+        logger.warning(
+            "[WebMCPAgent] 解析项目默认环境登录态失败: %s", exc
+        )
+        return False, None
+
+    _login_state_cache[project_identifier] = (now, has_login_config, storage_state)
+    return has_login_config, storage_state
+
+
 @asynccontextmanager
 async def make_agent(config: RunnableConfig | None = None) -> AsyncIterator[Pregel]:
     """
@@ -224,53 +337,20 @@ async def make_agent(config: RunnableConfig | None = None) -> AsyncIterator[Preg
 
     # 解析项目级 storageState。项目已配置登录态时强制走项目/环境级，避免回退到全局过期的文件；
     # 未配置登录态时不使用 storageState；仅在 project_identifier 为空或解析异常时才允许全局 fallback。
+    # TCP 探测与 DB 查询并行，省 ~1s 串行等待。
+    shared_url = (settings.web_mcp_server_url or "").strip()
+    probe_task: asyncio.Task[bool] | None = (
+        asyncio.create_task(_probe_tcp(shared_url)) if shared_url else None
+    )
+
     storage_state: str | None = None
     use_global_fallback = False
     has_login_config = False
 
     if project_identifier:
-        try:
-            async with async_session_factory() as session:
-                project = await ProjectRepository(session).get_by_identifier(
-                    project_identifier
-                )
-                if project is not None:
-                    env = await EnvironmentRepository(
-                        session
-                    ).get_default_by_project(project.id)
-                    if env is not None:
-                        if env.auth_type == AuthType.FORM_LOGIN.value:
-                            has_login_config = True
-                        else:
-                            auth_config = env.auth_config or {}
-                            has_login_config = bool(
-                                auth_config.get("form_login")
-                                or auth_config.get("storage_state")
-                            )
-                    if has_login_config:
-                        storage_state = await resolve_project_storage_state_path(
-                            project_identifier, env.id if env else None
-                        )
-                        if storage_state:
-                            logger.info(
-                                "[WebMCPAgent] 使用项目级 storageState: %s",
-                                storage_state,
-                            )
-                        else:
-                            logger.warning(
-                                "[WebMCPAgent] 项目 %s 已配置 Web 登录但无有效项目级 "
-                                "storageState，不使用全局 fallback，将依赖脚本自身登录逻辑。",
-                                project_identifier,
-                            )
-                    else:
-                        logger.info(
-                            "[WebMCPAgent] 项目 %s 未配置 Web 登录，不使用 storageState。",
-                            project_identifier,
-                        )
-        except Exception as exc:
-            logger.warning(
-                "[WebMCPAgent] 解析项目默认环境登录态失败: %s", exc
-            )
+        has_login_config, storage_state = await _resolve_project_login_state(
+            project_identifier
+        )
 
     # 仅在未解析到项目/未配置登录态时，才允许回退到全局配置，且必须校验有效。
     if not storage_state and not has_login_config:
@@ -297,10 +377,10 @@ async def make_agent(config: RunnableConfig | None = None) -> AsyncIterator[Preg
 
     # 创建 MCP 客户端：优先连接常驻 server（streamable HTTP），否则 per-run stdio 启动。
     # 常驻 server 按无登录态配置启动，解析到 storageState 的 run 必须走 stdio 隔离，
-    # 避免登录态跨项目/跨会话串扰。
-    shared_url = (settings.web_mcp_server_url or "").strip()
+    # 避免登录态跨项目/跨会话串扰。探测任务在上方已与 DB 查询并行启动。
     use_shared = bool(shared_url) and not storage_state
-    if use_shared and not await _probe_tcp(shared_url):
+    probe_ok = await probe_task if probe_task is not None else False
+    if use_shared and not probe_ok:
         logger.warning(
             "[WebMCPAgent] 常驻 MCP server 不可达 (%s)，回退 per-run stdio 启动。",
             shared_url,
@@ -327,7 +407,21 @@ async def make_agent(config: RunnableConfig | None = None) -> AsyncIterator[Preg
         # planner 工具，避免 LLM 误把 plan_content 传给 MCP 的 planner_save_plan /
         # planner_submit_plan 导致 suites 缺失而抛 ToolException。
         excluded_mcp_tools = {"planner_save_plan", "planner_submit_plan"}
-        mcp_tools = [t for t in await load_mcp_tools(session) if t.name not in excluded_mcp_tools]
+        # 工具白名单裁剪（默认核心集 ~32 个，WEB_MCP_TOOL_WHITELIST=full 恢复全量）：
+        # 工具 schema 随每次模型调用发送，86 → 32 约省 60% prefill token。
+        whitelist = parse_mcp_tool_whitelist(settings.web_mcp_tool_whitelist)
+        loaded_tools = await load_mcp_tools(session)
+        mcp_tools = [
+            t for t in loaded_tools
+            if t.name not in excluded_mcp_tools
+            and (whitelist is None or t.name in whitelist)
+        ]
+        logger.info(
+            "[WebMCPAgent] MCP 工具 %d -> %d 个（%s）",
+            len(loaded_tools),
+            len(mcp_tools),
+            "全量" if whitelist is None else "白名单裁剪",
+        )
         all_tools = mcp_tools + get_local_tools()
 # type: ignore  My80OmFIVnBZMlhsdEpUbXRiZm92b2s2TkdSNlVRPT06ZGFhYmJjYWY=
 

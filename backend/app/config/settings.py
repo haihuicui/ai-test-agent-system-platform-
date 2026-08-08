@@ -214,6 +214,11 @@ class Settings(BaseSettings):
     # 配置后 web_agent 优先连接常驻 server，省掉每会话 stdio 冷启动（实测 ~12s）；
     # 留空、server 不可达、或项目启用登录态(storageState) 时自动回退 per-run stdio 启动。
     web_mcp_server_url: Optional[str] = None
+    # Web MCP 工具白名单（逗号分隔工具名）。默认空 = 使用内置核心集（~32 个，
+    # 覆盖 prompts/skills 实际引用 + 主流程所需），比全量 86 个每次模型调用少
+    # ~60% 工具 schema token，显著降低 DeepSeek prefill 耗时。
+    # 设为 "full"/"all"/"*" 恢复全量；逗号列表 = 自定义子集。
+    web_mcp_tool_whitelist: str = ""
     # 全局登录态文件（Playwright storageState JSON）路径，相对项目根或绝对路径。
     # 配置后 ensure_playwright_mcp_project 生成的 playwright.config 会自动注入 storageState，
     # 使所有测试复用已登录会话，避免每条用例都走 UI 登录。默认 None（不启用）。
