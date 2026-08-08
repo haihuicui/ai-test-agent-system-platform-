@@ -108,6 +108,12 @@ class TestValidateFeaturePoint:
         errors = _validate_feature_point(fp, 0)
         assert not any("test_type" in e for e in errors)
 
+    def test_test_type_rule_permission_state_valid(self):
+        """规则/权限/状态 是功能测试常见细分维度，应为合法取值"""
+        fp = {**VALID_FEATURE, "test_type": ["功能", "规则", "权限", "状态"]}
+        errors = _validate_feature_point(fp, 0)
+        assert not any("test_type" in e for e in errors)
+
     def test_invalid_id_format(self):
         fp = {**VALID_FEATURE, "id": "USER-001"}
         errors = _validate_feature_point(fp, 0)
@@ -169,6 +175,33 @@ class TestNormalizeTestTypes:
     def test_non_string_value_converted(self):
         normalized, _ = _normalize_test_types([123, None], 0)
         assert normalized == ["123", "None"]
+
+    def test_combined_value_split(self):
+        """LLM 高频输出 "功能+规则" 形式的组合值，应拆分为独立取值"""
+        normalized, warnings = _normalize_test_types(["功能+规则"], 0)
+        assert normalized == ["功能", "规则"]
+        assert any("组合值拆分" in w for w in warnings)
+
+    def test_combined_value_various_separators(self):
+        normalized, _ = _normalize_test_types(
+            ["功能+权限", "功能/状态", "功能、边界"], 0
+        )
+        assert normalized == ["功能", "权限", "状态", "边界"]
+
+    def test_combined_value_with_synonyms(self):
+        """组合值拆分后各部分仍应做同义词映射"""
+        normalized, _ = _normalize_test_types(["功能测试+权限校验"], 0)
+        assert normalized == ["功能", "权限"]
+
+    def test_split_dedupes_values(self):
+        normalized, _ = _normalize_test_types(["功能+边界", "功能"], 0)
+        assert normalized == ["功能", "边界"]
+
+    def test_rule_permission_state_synonyms(self):
+        normalized, _ = _normalize_test_types(
+            ["规则校验", "权限测试", "状态流转"], 0
+        )
+        assert normalized == ["规则", "权限", "状态"]
 
 
 # ═════════════════════════════════════════════════════════════════════════════

@@ -44,9 +44,12 @@ _VALID_RISK_LEVELS = {
 }
 
 # 合法测试类型枚举
+# 规则/权限/状态 是功能测试的常见细分维度（业务规则校验、权限边界、状态流转），
+# LLM 在功能矩阵中高频使用，列为合法值避免校验反复失败。
 _VALID_TEST_TYPES = {
     "功能", "安全", "性能", "兼容", "接口", "UI", "数据",
     "异常", "边界", "单元", "集成", "端到端", "回归",
+    "规则", "权限", "状态",
 }
 
 # test_type 常见同义词 → 标准值映射
@@ -82,13 +85,25 @@ _TEST_TYPE_SYNONYMS: dict[str, str] = {
     "e2e": "端到端",
     "E2E": "端到端",
     "回归测试": "回归",
+    "规则测试": "规则",
+    "业务规则": "规则",
+    "规则校验": "规则",
+    "权限测试": "权限",
+    "权限校验": "权限",
+    "状态测试": "状态",
+    "状态流转": "状态",
+    "状态机": "状态",
 }
+
+# test_type 组合值分隔符：LLM 常输出 "功能+规则" / "功能/权限" 形式的组合值，
+# 归一化时先拆分为独立取值再做同义词映射。
+_TEST_TYPE_SEPARATORS = re.compile(r"[+＋/／、,，]")
 
 
 def _normalize_test_types(
     test_types: list[Any], index: int
 ) -> tuple[list[str], list[str]]:
-    """将 test_type 中的常见同义词映射到标准值。
+    """将 test_type 中的组合值拆分、常见同义词映射到标准值。
 
     返回 (标准化后的列表, 自动修正警告列表)。无法识别的值保持原样，
     由后续 _validate_feature_point 统一报错，避免脏数据落盘。
@@ -100,12 +115,22 @@ def _normalize_test_types(
             normalized.append(str(t))
             continue
         t_stripped = t.strip()
-        canonical = _TEST_TYPE_SYNONYMS.get(t_stripped, t_stripped)
-        normalized.append(canonical)
-        if canonical != t_stripped:
+        # 拆分 "功能+规则" 形式的组合值（LLM 高频输出），无分隔符时保持单值
+        parts = [
+            p.strip() for p in _TEST_TYPE_SEPARATORS.split(t_stripped) if p.strip()
+        ]
+        if len(parts) > 1:
             warnings.append(
-                f"第 {index + 1} 条 test_type 自动修正：'{t_stripped}' → '{canonical}'"
+                f"第 {index + 1} 条 test_type 组合值拆分：'{t_stripped}' → {parts}"
             )
+        for part in parts or [t_stripped]:
+            canonical = _TEST_TYPE_SYNONYMS.get(part, part)
+            if canonical != part:
+                warnings.append(
+                    f"第 {index + 1} 条 test_type 自动修正：'{part}' → '{canonical}'"
+                )
+            if canonical not in normalized:
+                normalized.append(canonical)
     return normalized, warnings
 
 
@@ -345,7 +370,9 @@ async def save_feature_matrix_tool(
             - test_points: 测试要点列表 ["验证码有效期5min", ...]
             - priority: 优先级 (P0/P1/P2/P3)
             - risk_level: 风险等级 (高/中/低)
-            - test_type: 测试类型列表 (如 ["功能", "安全"])
+            - test_type: 测试类型列表，只能从以下取值中选择（可多选）：
+              功能/安全/性能/兼容/接口/UI/数据/异常/边界/单元/集成/端到端/回归/规则/权限/状态。
+              每个取值单独作为列表元素（如 ["功能", "边界"]），不要用 "功能+规则" 这类组合写法。
             - source: 来源标注 (可选, 如 "需求原文 §2.1")
         output_file: 输出文件路径 (默认 feature_matrix.jsonl)。
             若传入 project_identifier 且本参数仅为文件名，文件会自动隔离到
