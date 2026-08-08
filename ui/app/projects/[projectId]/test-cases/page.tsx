@@ -52,6 +52,7 @@ import type {
   TestCaseState,
 } from "@/lib/api/types";
 import { AIChatSkeleton } from "@/components/langgraph/ai-chat-skeleton";
+import { AIChatDock } from "@/components/langgraph/AIChatDock";
 // NOTE  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2WWprd2VBPT06ODAxNDMxNTY=
 
 // 重型对话框与 AI 聊天面板代码分割
@@ -547,8 +548,8 @@ export default function TestCasesPage() {
             />
           </div>
 
-          {/* 测试用例列表 */}
-          <div className="flex-1">
+          {/* 测试用例列表（min-w-0 允许被 AI 面板挤压收窄） */}
+          <div className="flex-1 min-w-0">
             <TestCaseList
               projectId={projectId}
               testCases={testCases}
@@ -604,15 +605,9 @@ export default function TestCasesPage() {
           </div>
         </div>
 
-        {/* 右侧悬浮 AI 聊天面板 */}
+        {/* 右侧 AI 聊天面板（挤压式并排，左缘可拖拽调宽） */}
         {assistant && (
-          <div
-            key={aiChatKey}
-            className={cn(
-              "absolute right-0 top-0 z-50 h-full w-[1200px] bg-background transition-transform duration-300 ease-in-out",
-              aiChatOpen ? "translate-x-0 border-l shadow-2xl" : "translate-x-full"
-            )}
-          >
+          <AIChatDock key={aiChatKey} open={aiChatOpen} storageKey="test-cases">
             {renderAIChat && (
               <ClientProvider
                 deploymentUrl={process.env.NEXT_PUBLIC_LANGGRAPH_API_URL || "http://127.0.0.1:2025"}
@@ -637,7 +632,7 @@ export default function TestCasesPage() {
                 />
               </ClientProvider>
             )}
-          </div>
+          </AIChatDock>
         )}
       </div>
 

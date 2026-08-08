@@ -43,6 +43,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { AIChatSkeleton } from "@/components/langgraph/ai-chat-skeleton";
+import { AIChatDock } from "@/components/langgraph/AIChatDock";
 import { ClientProvider } from "@/providers/ClientProvider";
 import { useDelayedUnmount } from "@/hooks/useDelayedUnmount";
 import { Assistant } from "@langchain/langgraph-sdk";
@@ -502,7 +503,7 @@ ${selectedDevice ? `**Device UDID**: ${selectedDevice.udid}` : ""}
           </div>
 
           {/* 中间主区域 */}
-          <div className="flex-1 flex flex-col min-h-0 bg-background">
+          <div className="flex-1 min-w-0 flex flex-col min-h-0 bg-background">
             {/* 工具栏 */}
             <div className="flex items-center justify-between border-b px-4 py-3 bg-muted/20">
               <div className="flex items-center gap-2">
@@ -702,14 +703,9 @@ ${selectedDevice ? `**Device UDID**: ${selectedDevice.udid}` : ""}
             </div>
           </div>
 
-          {/* 右侧悬浮 AI 聊天面板 */}
+          {/* 右侧 AI 聊天面板（挤压式并排，左缘可拖拽调宽） */}
           {assistant && (
-            <div
-              className={cn(
-                "absolute right-0 top-0 z-50 h-full w-[1200px] bg-background transition-transform duration-300 ease-in-out",
-                aiChatOpen ? "translate-x-0 border-l shadow-2xl" : "translate-x-full"
-              )}
-            >
+            <AIChatDock open={aiChatOpen} storageKey="android-tests">
               {renderAIChat && (
                 <ClientProvider
                   deploymentUrl={process.env.NEXT_PUBLIC_LANGGRAPH_API_URL || "http://127.0.0.1:2025"}
@@ -737,7 +733,7 @@ ${selectedDevice ? `**Device UDID**: ${selectedDevice.udid}` : ""}
                   />
                 </ClientProvider>
               )}
-            </div>
+            </AIChatDock>
           )}
 
           {/* 右侧悬浮详情侧边栏 */}

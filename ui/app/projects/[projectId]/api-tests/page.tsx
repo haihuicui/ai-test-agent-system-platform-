@@ -27,6 +27,7 @@ import type { APIFolderTreeRef } from "@/components/api-tests/folder-tree";
 import { ScenarioListPanel } from "@/components/scenario-tests/scenario-list-panel";
 import { EnvironmentSelector } from "@/components/api-tests/environment-selector";
 import { AIChatSkeleton } from "@/components/langgraph/ai-chat-skeleton";
+import { AIChatDock } from "@/components/langgraph/AIChatDock";
 import { useProjectEnvironment } from "@/providers/ProjectEnvironmentProvider";
 import { useDelayedUnmount } from "@/hooks/useDelayedUnmount";
 import { Assistant } from "@langchain/langgraph-sdk";
@@ -631,7 +632,7 @@ export default function APITestsPage() {
           </div>
 
           {/* 中间主区域 */}
-          <div className="flex-1 flex flex-col min-h-0 bg-background">
+          <div className="flex-1 min-w-0 flex flex-col min-h-0 bg-background">
             {/* 工具栏 */}
             <div className="flex items-center justify-between border-b px-4 py-3 bg-muted/20">
               <div className="flex items-center gap-2">
@@ -856,15 +857,9 @@ export default function APITestsPage() {
             </div>
           </div>
 
-          {/* 右侧悬浮 AI 聊天面板 */}
+          {/* 右侧 AI 聊天面板（挤压式并排，左缘可拖拽调宽） */}
           {assistant && (
-            <div
-              key={aiChatKey}
-              className={cn(
-                "absolute right-0 top-0 z-50 h-full w-[1200px] bg-background transition-transform duration-300 ease-in-out",
-                aiChatOpen ? "translate-x-0 border-l shadow-2xl" : "translate-x-full"
-              )}
-            >
+            <AIChatDock key={aiChatKey} open={aiChatOpen} storageKey="api-tests">
               {renderAIChat && (
                 <ClientProvider
                   deploymentUrl={process.env.NEXT_PUBLIC_LANGGRAPH_API_URL || "http://127.0.0.1:2025"}
@@ -898,7 +893,7 @@ export default function APITestsPage() {
                   />
                 </ClientProvider>
               )}
-            </div>
+            </AIChatDock>
           )}
 
           {/* 右侧悬浮详情侧边栏 */}
