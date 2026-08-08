@@ -140,6 +140,39 @@ class TestComputeCoverageReportTool:
         # 矩阵文件本身不应被当作用例文件扫描
         assert all("feature_matrix" not in f for f in result["case_files_used"])
 
+    def test_auto_scan_scoped_to_project_dir(self, tmp_workspace):
+        """自动扫描必须限定在项目目录内，不得计入其他项目/根目录的历史用例"""
+        proj_dir = tmp_workspace / "PROJ-1"
+        self._write_jsonl(proj_dir / "feature_matrix.jsonl", [_feature()])
+        self._write_jsonl(proj_dir / "test_cases_module_01.jsonl", [_case()])
+        # 历史遗留：根目录和另一项目目录下的用例文件
+        self._write_jsonl(tmp_workspace / "test_cases_login.jsonl", [_case()])
+        self._write_jsonl(tmp_workspace / "PROJ-OLD" / "test_cases_old.jsonl", [_case()])
+
+        result = _call(compute_coverage_report, project_identifier="PROJ-1")
+
+        assert result["success"] is True
+        assert result["total_cases"] == 1
+        assert all("PROJ-1" in f and "PROJ-OLD" not in f for f in result["case_files_used"])
+        # 自动扫描模式必须给出遗留风险提示与文件清单
+        assert any("自动扫描模式" in w and "历史会话" in w for w in result["warnings"])
+
+    def test_explicit_case_files_no_auto_scan_warning(self, tmp_workspace):
+        """显式传 case_files 时不应出现自动扫描提示"""
+        proj_dir = tmp_workspace / "PROJ-1"
+        self._write_jsonl(proj_dir / "feature_matrix.jsonl", [_feature()])
+        case_file = proj_dir / "test_cases_module_01.jsonl"
+        self._write_jsonl(case_file, [_case()])
+
+        result = _call(
+            compute_coverage_report,
+            project_identifier="PROJ-1",
+            case_files=[str(case_file)],
+        )
+
+        assert result["success"] is True
+        assert not any("自动扫描模式" in w for w in result["warnings"])
+
     def test_uncovered_p0_listed(self, tmp_workspace):
         proj_dir = tmp_workspace / "PROJ-1"
         self._write_jsonl(proj_dir / "feature_matrix.jsonl", [_feature()])

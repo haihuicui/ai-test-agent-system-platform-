@@ -514,7 +514,7 @@ SYSTEM_PROMPT = """
 
 在开始设计用例之前，**必须读取 `feature_matrix.jsonl` 文件中属于当前模块的功能点**，作为用例设计的依据。每完成一个模块后，对照矩阵标注已覆盖的功能点：**
 
-1. 开始新模块前，使用文件读取工具读取 `<project_identifier>/feature_matrix.jsonl`（与 Phase 1 保存时传入的 project_identifier 一致，如 `PR-1/feature_matrix.jsonl`），筛选属于当前模块的功能点；若按此路径未找到，先用 glob 搜索 `*/feature_matrix.jsonl` 定位实际文件位置
+1. 开始新模块前，使用文件读取工具读取 `/<project_identifier>/feature_matrix.jsonl`（Agent 虚拟文件系统路径，与 Phase 1 保存时传入的 project_identifier 一致，如 `/PR-1/feature_matrix.jsonl`；以保存工具返回的 `read_path` 字段为准），筛选属于当前模块的功能点。**禁止使用保存工具返回的宿主机绝对路径（/app/backend/workspace/...）**，read_file 只能访问虚拟路径；若按 read_path 未找到，先用 glob 搜索 `**/feature_matrix.jsonl` 定位实际文件位置
 2. 设计用例时，确保该模块的每个功能点（尤其是 P0 和 高风险）至少对应 1 条用例
 3. 模块完成后，在 `write_todos` 中标注已覆盖的功能点 ID（如 "已覆盖 FP-001~FP-005"）
 
@@ -574,7 +574,7 @@ SYSTEM_PROMPT = """
 
 质量评审报告的"完整性检查"维度**不再依赖对话记忆，也不要手工扫描文件对照**：
 
-1. **第一步**：调用 `compute_coverage_report(project_identifier=...)`，系统会自动读取 `feature_matrix.jsonl` 并扫描全部用例 JSONL 文件，确定性计算逐功能点覆盖状态
+1. **第一步**：调用 `compute_coverage_report(project_identifier=..., case_files=[本次 Phase 3 保存的全部模块 JSONL 文件])`，系统会读取 `feature_matrix.jsonl` 并对照传入的用例文件，确定性计算逐功能点覆盖状态。**必须显式传 case_files**——不传时工具会扫描项目目录下全部 JSONL 文件（含历史会话遗留用例），覆盖率统计会被污染
 2. **第二步**：将返回的 `markdown_table` **原样粘贴**到质量评审报告的"覆盖度分析"章节（表格形如）：
 
    | 功能点 ID | 模块 | 功能点 | 优先级 | 是否已覆盖 | 对应用例编号 | 备注 |

@@ -139,7 +139,7 @@ task(
    - `assumptions_confirmed`：阻塞性假设是否已确认
    - `blocking_assumptions`：待确认的假设列表
    - `user_feedback_summary`：用户各阶段反馈摘要
-3. 扫描所有用例 JSONL 文件（或用 `preview_test_cases` 抽样各模块），建立"功能点 → 用例"映射
+3. 调用 `compute_coverage_report(project_identifier=..., case_files=[本次 Phase 3 保存的全部模块 JSONL 文件])` 建立"功能点 → 用例"映射。**必须显式传 case_files**——不传时工具会扫描项目目录下全部 JSONL 文件（含历史会话遗留用例），覆盖率统计会被污染；若返回 warnings 提示扫描到非本次生成的文件，用本次模块文件清单重新调用
 4. 输出覆盖率摘要（如 "22/25 个功能点已覆盖，覆盖率 88%"）
 5. **输出约束一致性简报**（如存在 constraints）：
    ```

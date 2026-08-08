@@ -29,7 +29,10 @@ from app.agents.tools.testcase.excel_tools import (
     _parse_json_objects,
     _resolve_input_path,
 )
-from app.agents.tools.testcase.feature_matrix_tools import load_feature_matrix
+from app.agents.tools.testcase.feature_matrix_tools import (
+    _sanitize_project_identifier,
+    load_feature_matrix,
+)
 from app.config.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -95,7 +98,10 @@ def _case_number_of(case: dict[str, Any]) -> str:
     return str(case.get("case_number") or case.get("case_id") or case.get("name") or "?")
 
 
-def _load_cases(case_files: list[str] | None) -> tuple[list[dict[str, Any]], list[str], list[str]]:
+def _load_cases(
+    case_files: list[str] | None,
+    project_identifier: str = "",
+) -> tuple[list[dict[str, Any]], list[str], list[str]]:
     """加载用例数据。
 
     Returns:
@@ -113,9 +119,20 @@ def _load_cases(case_files: list[str] | None) -> tuple[list[dict[str, Any]], lis
             except Exception as e:
                 warnings.append(f"用例文件路径无效：{f}（{e}）")
     else:
+        # 自动扫描：传入 project_identifier 时限定在项目隔离目录内，
+        # 避免把其他项目的用例计入本项目覆盖率。注意同项目目录仍可能
+        # 残留历史会话的用例文件，调用方应尽量显式传 case_files。
+        scan_root = _WORKSPACE_ROOT
+        if project_identifier.strip():
+            try:
+                proj_dir = _WORKSPACE_ROOT / _sanitize_project_identifier(project_identifier)
+                if proj_dir.is_dir():
+                    scan_root = proj_dir
+            except ValueError:
+                pass
         paths = [
             p
-            for p in _WORKSPACE_ROOT.rglob("*.jsonl")
+            for p in scan_root.rglob("*.jsonl")
             if not _EXCLUDED_DIR_NAMES.intersection(p.parts)
             and p.name != "feature_matrix.jsonl"
         ]
@@ -242,8 +259,9 @@ async def compute_coverage_report(
     Args:
         project_identifier: 项目标识符（与 save_feature_matrix_tool 传入的一致），
             用于定位项目隔离目录下的功能矩阵文件。
-        case_files: 用例 JSONL 文件清单。不传时自动扫描工作区内全部用例文件
-            （排除功能矩阵与系统目录）。
+        case_files: 用例 JSONL 文件清单。**建议显式传入本次 Phase 3 保存的模块文件
+            清单**；不传时自动扫描项目目录下全部用例文件（排除功能矩阵与系统目录），
+            可能混入历史会话遗留的用例文件，导致覆盖率统计被污染。
         matrix_file: 功能矩阵文件名，默认 feature_matrix.jsonl。
 
     Returns:
@@ -276,7 +294,18 @@ async def compute_coverage_report(
             ),
         }
 
-    cases, sources, warnings = _load_cases(case_files)
+    cases, sources, warnings = _load_cases(case_files, project_identifier)
+    if not case_files and sources:
+        # 自动扫描模式：明确告知扫描了哪些文件，提醒历史会话遗留文件风险，
+        # 引导模型发现污染后用 case_files 显式重算（而不是将错就错贴报告）。
+        names = [Path(s).name for s in sources]
+        shown = "、".join(names[:15]) + (" 等" if len(names) > 15 else "")
+        warnings.append(
+            f"⚠️ 本次为自动扫描模式：共读取 {len(sources)} 个用例文件、{len(cases)} 条用例"
+            f"（{shown}）。项目目录可能残留历史会话的用例文件，"
+            "若清单中含非本次 Phase 3 生成的文件，覆盖率统计已被污染——"
+            "请通过 case_files 显式传入本次生成的模块文件清单后重新调用本工具。"
+        )
     if not cases:
         return {
             "success": False,
