@@ -61,4 +61,24 @@ module.exports = {
 EOF
 
 echo "[web-mcp-server] starting Playwright MCP on 0.0.0.0:${PORT} (HTTP /mcp, SSE /sse)"
+
+# 孤儿会话收割：client 异常断开（超时/用户取消/容器重启）时 session 的 DELETE
+# 不会送达，server 侧的"暂停中" test worker 和 chromium 会永久残留（每个 ~300MB）。
+# stdio 模式 server 随 run 结束被杀所以无此问题，常驻模式必须定期清理。
+# 阈值 45 分钟：正常 run 为分钟级，不会误杀活跃会话。
+(
+  while true; do
+    sleep 600
+    now=$(date +%s)
+    for pid in $(pgrep -f 'chrome-headless-shell.*--user-data-dir=/tmp/playwright' || true; pgrep -f 'workerProcessEntry' || true); do
+      start=$(stat -c %Y "/proc/$pid" 2>/dev/null || echo "$now")
+      age=$(( now - start ))
+      if [ "$age" -gt 2700 ]; then
+        echo "[web-mcp-server] reaping orphaned process pid=$pid age=${age}s"
+        kill "$pid" 2>/dev/null || true
+      fi
+    done
+  done
+) &
+
 exec npx playwright run-test-mcp-server -c playwright.config.mcp-shared.js --headless --host 0.0.0.0 --port "$PORT"
