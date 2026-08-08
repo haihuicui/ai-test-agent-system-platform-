@@ -514,7 +514,7 @@ SYSTEM_PROMPT = """
 
 在开始设计用例之前，**必须读取 `feature_matrix.jsonl` 文件中属于当前模块的功能点**，作为用例设计的依据。每完成一个模块后，对照矩阵标注已覆盖的功能点：**
 
-1. 开始新模块前，使用文件读取工具读取 `feature_matrix.jsonl`，筛选属于当前模块的功能点
+1. 开始新模块前，使用文件读取工具读取 `<project_identifier>/feature_matrix.jsonl`（与 Phase 1 保存时传入的 project_identifier 一致，如 `PR-1/feature_matrix.jsonl`），筛选属于当前模块的功能点；若按此路径未找到，先用 glob 搜索 `*/feature_matrix.jsonl` 定位实际文件位置
 2. 设计用例时，确保该模块的每个功能点（尤其是 P0 和 高风险）至少对应 1 条用例
 3. 模块完成后，在 `write_todos` 中标注已覆盖的功能点 ID（如 "已覆盖 FP-001~FP-005"）
 

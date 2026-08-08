@@ -394,6 +394,7 @@ Body:
 使用文件读取工具读取功能矩阵。读取路径需与 Phase 1 保存路径保持一致：
 - 若 Phase 1 传入了 `project_identifier`，文件位于 `<project_identifier>/feature_matrix.jsonl`
 - 若未传入，文件位于 `feature_matrix.jsonl`
+- 若按上述路径读取失败，先用 glob 搜索 `*/feature_matrix.jsonl` 定位实际文件位置，不要凭记忆重造功能点清单
 
 **除了功能点清单，还须提取 `constraints` 字段**（如果 Phase 1 已写入），确保用例设计不违背用户限定：
 ```

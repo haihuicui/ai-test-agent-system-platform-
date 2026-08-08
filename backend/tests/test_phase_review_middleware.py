@@ -6,6 +6,7 @@ _compute_review_round（基于历史消息中的评审元数据计算当前轮�
 from __future__ import annotations
 
 import pytest
+from types import SimpleNamespace
 from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.types import Overwrite
 
@@ -828,6 +829,44 @@ class TestStaleResumeRejection:
         msg = result["messages"][0]
         assert isinstance(msg, HumanMessage)
         assert "报告已确认" in msg.content
+
+
+class TestPhase3MatrixPathHint:
+    """test-strategy 通过后注入的功能矩阵读取提示。
+
+    回归场景：Phase 1 用 project_identifier 隔离保存矩阵（PR-1/feature_matrix.jsonl），
+    旧提示只写裸文件名导致 Phase 3 读取"路径未找到"。提示必须带项目目录前缀，
+    并附 glob 兜底指引。
+    """
+
+    def _approve(self, monkeypatch):
+        monkeypatch.setattr(
+            "app.agents.testcase.phase_review_middleware.interrupt",
+            lambda request: {"decision": "approve", "message": "", "checklist": {}},
+        )
+
+    def _strategy_state(self):
+        return {"messages": [AIMessage(content="## 测试策略报告\n\n策略内容...")]}
+
+    def test_hint_includes_project_prefix(self, monkeypatch):
+        self._approve(monkeypatch)
+        middleware = PhaseReviewMiddleware()
+        runtime = SimpleNamespace(context=SimpleNamespace(project_identifier="PR-1"))
+        result = middleware.after_model(self._strategy_state(), runtime)
+
+        msg = result["messages"][0]
+        assert "PR-1/feature_matrix.jsonl" in msg.content
+        assert "glob" in msg.content
+
+    def test_hint_without_project_identifier(self, monkeypatch):
+        """无 project_identifier 时回退裸文件名，不崩溃。"""
+        self._approve(monkeypatch)
+        middleware = PhaseReviewMiddleware()
+        result = middleware.after_model(self._strategy_state(), None)
+
+        msg = result["messages"][0]
+        assert "feature_matrix.jsonl" in msg.content
+        assert "glob" in msg.content
 
 
 class TestFormatSelectionDedup:

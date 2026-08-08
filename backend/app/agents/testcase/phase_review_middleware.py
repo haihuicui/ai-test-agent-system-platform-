@@ -1293,9 +1293,15 @@ class PhaseReviewMiddleware(AgentMiddleware):
 
             # test-strategy 阶段通过后提示读取功能矩阵（避免 AI 跳过矩阵直接设计用例）
             if phase == "test-strategy":
+                ctx = getattr(runtime, "context", None) if runtime else None
+                pid = (getattr(ctx, "project_identifier", "") or "").strip() if ctx else ""
+                matrix_path = f"{pid}/feature_matrix.jsonl" if pid else "feature_matrix.jsonl"
                 feedback += (
-                    " 进入 Phase 3 前，必须使用文件读取工具读取 feature_matrix.jsonl"
+                    f" 进入 Phase 3 前，必须使用文件读取工具读取 {matrix_path}"
                     " 获取当前模块的功能点清单，确保用例设计基于结构化矩阵。"
+                    "（Phase 1 保存时传入了 project_identifier，文件隔离在"
+                    f" {pid or '<project_identifier>'}/ 目录下；若按此路径未找到，"
+                    "先用 glob 搜索 */feature_matrix.jsonl 定位实际文件位置。）"
                 )
             # quality-review 通过后提示统一入库（评审通过前禁止入库）
             if phase == "quality-review":
