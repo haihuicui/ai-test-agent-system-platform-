@@ -198,6 +198,9 @@ services:
     environment:
       # Agent 容器内部调用 backend API 的地址，避免写死 localhost 导致跨容器连不上
       BACKEND_API_URL: http://backend:8001
+      # 按事件循环分桶的连接池：本地工具/登录态查询直连 PG 时省每次 ~0.5-1s 的 SCRAM 建连。
+      # 分桶设计本身为多事件循环安全（pitfall #10），如出现 "Future attached to a different loop" 删本行回退。
+      DB_POOL: queue
       # 从分量派生 DSN 覆盖 env_file，防双写漂移
       POSTGRES_URI: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-ai_test_platform_db}
     volumes:
