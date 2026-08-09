@@ -389,7 +389,7 @@ export const translations = {
     // AI アシスタント
     apiTestAssistant: "APIテスト生成アシスタント",
     scenarioTestAssistant: "シナリオテスト生成アシスタント",
-    aiAssistant: "AI アシスタント",
+    aiAssistant: "AI 生成",
     // その他の UI テキスト
     parseAPI: "API 解析",
     orchestrate: "オーケストレーション",

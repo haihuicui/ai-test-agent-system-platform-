@@ -392,7 +392,7 @@ export const translations = {
     // AI 助手
     apiTestAssistant: "API测试生成助手",
     scenarioTestAssistant: "场景测试生成助手",
-    aiAssistant: "AI 助手",
+    aiAssistant: "AI 生成",
     // 其他 UI 文本
     parseAPI: "API 解析",
     orchestrate: "编排",

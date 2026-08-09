@@ -391,7 +391,7 @@ export const translations = {
     // AI Assistant
     apiTestAssistant: "API Test Generation Assistant",
     scenarioTestAssistant: "Scenario Test Generation Assistant",
-    aiAssistant: "AI Assistant",
+    aiAssistant: "AI Generate",
     // Other UI text
     parseAPI: "Parse API",
     orchestrate: "Orchestrate",

@@ -10,7 +10,6 @@ import {
   Zap,
   FileCode,
   Sparkles,
-  MessageSquare,
   RefreshCw,
   Workflow,
   Layers,
@@ -684,7 +683,7 @@ export default function APITestsPage() {
                       onClick={() => { setCreateNewThread(false); setAiChatOpen(true); }}
                       className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white border-0 shadow-md hover:shadow-lg transition-all"
                     >
-                      <MessageSquare className="mr-2 h-4 w-4" />
+                      <Sparkles className="mr-2 h-4 w-4" />
                       {t("apiTests.aiAssistant")}
                     </Button>
                   </>
@@ -723,7 +722,7 @@ export default function APITestsPage() {
                       onClick={() => { setCreateNewThread(false); setAiChatOpen(true); }}
                       className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white border-0 shadow-md hover:shadow-lg transition-all"
                     >
-                      <MessageSquare className="mr-2 h-4 w-4" />
+                      <Sparkles className="mr-2 h-4 w-4" />
                       {t("apiTests.aiAssistant")}
                     </Button>
                   </>

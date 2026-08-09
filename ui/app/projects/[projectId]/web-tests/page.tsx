@@ -9,7 +9,6 @@ import {
   Zap,
   FileCode,
   Sparkles,
-  MessageSquare,
   RefreshCw,
   Workflow,
   Layers,
@@ -888,15 +887,7 @@ export default function WebTestsPage() {
               </div>
 
               <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setAiGenerateDialogOpen(true)}
-                  className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white border-0 shadow-md hover:shadow-lg transition-all"
-                >
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  AI 生成
-                </Button>
+                {/* 「AI 生成」对话框入口已移除，统一走右侧 AI 对话面板 */}
                 <Button
                   variant="outline"
                   size="sm"
@@ -911,8 +902,8 @@ export default function WebTestsPage() {
                   onClick={() => { setCreateNewThread(false); setAiChatOpen(true); }}
                   className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white border-0 shadow-md hover:shadow-lg transition-all"
                 >
-                  <MessageSquare className="mr-2 h-4 w-4" />
-                  AI 助手
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  AI 生成
                 </Button>
                 <Button
                   variant="outline"
