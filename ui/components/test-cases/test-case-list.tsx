@@ -14,12 +14,10 @@ import {
   ChevronUp,
   GripVertical,
   Sparkles,
-  Upload,
   Download,
   ClipboardList,
   Keyboard,
   Filter,
-  MessageSquare,
   Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -95,7 +93,9 @@ interface TestCaseListProps {
   onBulkEdit?: () => void;
   onViewTestCase: (testCase: TestCaseInfo) => void;
   onQuickCreateTestCase?: (title: string, template: TestCaseTemplate) => void;
+  /** @deprecated 入口已移除，统一走 AI 助手对话生成（保留 prop 兼容页面接线） */
   onAIGenerate?: () => void;
+  /** @deprecated 入口已移除，文档生成走 AI 助手对话上传 PDF（保留 prop 兼容页面接线） */
   onAIGenerateFromDocument?: () => void;
   onOpenAIChat?: () => void;
   aiChatOpen?: boolean;
@@ -136,8 +136,6 @@ export function TestCaseList({
   onBulkEdit,
   onViewTestCase,
   onQuickCreateTestCase,
-  onAIGenerate,
-  onAIGenerateFromDocument,
   onOpenAIChat,
   aiChatOpen,
   folderName,
@@ -484,7 +482,7 @@ export function TestCaseList({
             ({pagination ? pagination.total : testCases.length})
           </span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           <form onSubmit={handleSearch} className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -519,22 +517,6 @@ export function TestCaseList({
             )}
           </Button>
 
-          {onAIGenerate && (
-            <Button
-              size="sm"
-              onClick={onAIGenerate}
-              className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white border-0 shadow-md hover:shadow-lg transition-all"
-            >
-              <Sparkles className="mr-2 h-4 w-4" />
-              AI 生成
-            </Button>
-          )}
-          {onAIGenerateFromDocument && (
-            <Button variant="outline" size="sm" onClick={onAIGenerateFromDocument}>
-              <Upload className="mr-2 h-4 w-4" />
-              从文档生成
-            </Button>
-          )}
           <Button variant="outline" size="sm" onClick={onCreateTestCase}>
             <Plus className="mr-2 h-4 w-4" />
             新建用例
@@ -545,8 +527,8 @@ export function TestCaseList({
               onClick={onOpenAIChat}
               className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white border-0 shadow-md hover:shadow-lg transition-all"
             >
-              <MessageSquare className="mr-2 h-4 w-4" />
-              AI 助手
+              <Sparkles className="mr-2 h-4 w-4" />
+              AI 生成
             </Button>
           )}
           <Button
@@ -782,24 +764,12 @@ export function TestCaseList({
               </div>
             )}
 
-            {/* 操作按钮 */}
+            {/* 操作按钮（AI 生成/从文档生成已统一收敛到右上角 AI 入口） */}
             <div className="flex items-center gap-3">
               {onQuickCreateTestCase && !showQuickCreate && (
                 <Button variant="outline" onClick={() => setShowQuickCreate(true)}>
                   <Sparkles className="mr-2 h-4 w-4" />
                   快速创建
-                </Button>
-              )}
-              {onAIGenerate && (
-                <Button variant="outline" onClick={onAIGenerate}>
-                  <Sparkles className="mr-2 h-4 w-4" />
-                AI生成
-                </Button>
-              )}
-              {onAIGenerateFromDocument && (
-                <Button variant="outline" onClick={onAIGenerateFromDocument}>
-                  <Upload className="mr-2 h-4 w-4" />
-                  从文档生成
                 </Button>
               )}
               <Button variant="outline" onClick={() => toast.info("导入测试用例功能开发中")}>
