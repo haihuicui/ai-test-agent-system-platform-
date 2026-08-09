@@ -37,8 +37,8 @@ engine = create_async_engine(
     poolclass=NullPool,
 )
 
-# 创建异步会话工厂
-async_session_factory = async_sessionmaker(
+# NullPool 会话工厂（原始实现）；模块级公开名 async_session_factory 是池化代理（见下文）
+_nullpool_session_factory = async_sessionmaker(
     engine,
     class_=AsyncSession,
     expire_on_commit=False,
@@ -80,7 +80,23 @@ def get_session_factory() -> async_sessionmaker:
     """按池化模式返回会话工厂：queue 模式按事件循环分桶，否则全局 NullPool。"""
     if _USE_LOOP_POOL:
         return _pooled_session_factory()
-    return async_session_factory
+    return _nullpool_session_factory
+
+
+class _SessionFactoryProxy:
+    """async_session_factory() 调用点的池化代理。
+
+    全仓库 20+ 处直接 `async_session_factory()`（各 agent 工具、storageState 解析等），
+    若直连 NullPool 工厂，DB_POOL=queue 对它们不生效。代理后所有调用点零改动：
+    queue 模式按事件循环分桶复用连接（省每次 ~0.5-1s SCRAM 建连），默认模式行为不变。
+    """
+
+    def __call__(self) -> AsyncSession:
+        return get_session_factory()()
+
+
+# 公开会话工厂：保持原有用法 `async_session_factory()` 不变
+async_session_factory = _SessionFactoryProxy()
 
 # pragma: no cover  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2YzNBMGJBPT06M2NmMGZmN2E=
 

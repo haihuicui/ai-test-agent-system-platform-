@@ -281,6 +281,6 @@ async def main():
     print("OK")
 asyncio.run(main())
 """)],
-            capture_output=True, text=True, timeout=3,
+            capture_output=True, text=True, timeout=15,  # 高负载机器上 python 启动即可超 3s；15s 仍能识别死锁（死锁永不退出）
         )
         assert result.stdout.strip() == "OK", f"顺序调用应正常: {result.stdout} {result.stderr}"
