@@ -41,7 +41,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { Pagination } from "@/components/ui/pagination";
 import { useLanguage } from "@/providers/LanguageProvider";
@@ -434,11 +433,6 @@ export function TestCaseList({
             {statusLabels[testCase.status]}
           </Badge>
         </td>
-        <td className="p-3 overflow-hidden">
-          <span className="text-sm truncate block">
-            {testCase.owner || testCase.created_by || "-"}
-          </span>
-        </td>
         <td className="p-3">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -722,11 +716,11 @@ export function TestCaseList({
         </div>
       )}
 
-      {/* 列表 */}
-      <ScrollArea className="flex-1">
+      {/* 列表（overflow-auto 支持横向滚动：表格 min-w 保底，窄屏不再挤没 TITLE 列） */}
+      <div className="flex-1 overflow-auto">
         {loading && testCases.length === 0 ? (
           <div className="p-4">
-            <table className="w-full table-fixed">
+            <table className="w-full table-fixed min-w-[880px]">
               <thead className="sticky top-0 bg-card">
                 <tr className="border-b text-left text-xs font-medium uppercase text-muted-foreground">
                   <th className="w-16 p-3"></th>
@@ -735,7 +729,6 @@ export function TestCaseList({
                   <th className="p-3">TITLE</th>
                   <th className="w-28 p-3">PRIORITY</th>
                   <th className="w-28 p-3">STATUS</th>
-                  <th className="w-36 p-3">OWNER</th>
                   <th className="w-16 p-3"></th>
                 </tr>
               </thead>
@@ -823,7 +816,7 @@ export function TestCaseList({
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
             >
-              <table className="w-full table-fixed">
+              <table className="w-full table-fixed min-w-[880px]">
                 <thead className="sticky top-0 bg-card">
                   <tr className="border-b text-left text-xs font-medium uppercase text-muted-foreground">
                     <th className="w-16 p-3">
@@ -838,7 +831,6 @@ export function TestCaseList({
                     <th className="p-3">TITLE</th>
                     <th className="w-28 p-3">PRIORITY</th>
                     <th className="w-28 p-3">STATUS</th>
-                    <th className="w-36 p-3">OWNER</th>
                     <th className="w-16 p-3"></th>
                   </tr>
                 </thead>
@@ -873,7 +865,7 @@ export function TestCaseList({
             )}
           </div>
         )}
-      </ScrollArea>
+      </div>
 
       {/* 分页 */}
       {pagination && pagination.total > 0 && (

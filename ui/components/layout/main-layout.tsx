@@ -50,7 +50,8 @@ export function MainLayout({ children, title, headerContent }: MainLayoutProps) 
         currentProject={currentProject}
         onProjectChange={handleProjectChange}
       />
-      <div className="flex flex-1 flex-col overflow-hidden">
+      {/* min-w-0：允许内容列收缩到视口内，否则内容过宽时整列溢出被裁（AI 侧栏只剩一条缝） */}
+      <div className="flex flex-1 min-w-0 flex-col overflow-hidden">
         <Header title={title}>{headerContent}</Header>
         <main className="flex-1 overflow-auto bg-muted/30 p-6">{children}</main>
       </div>

@@ -528,9 +528,10 @@ export default function TestCasesPage() {
   return (
     <MainLayout title={t("testCases.title")}>
       <div className="relative flex h-[calc(100vh-8rem)] rounded-lg border bg-card overflow-hidden">
-        <div className="flex h-full w-full">
-          {/* 文件夹树 */}
-          <div className="w-80 shrink-0">
+        {/* min-w-0：允许整行收缩，给右侧 AIChatDock 让位，否则行内表格 min-w 会把面板顶出容器 */}
+        <div className="flex h-full w-full min-w-0">
+          {/* 文件夹树（收窄为 256px，给列表让位） */}
+          <div className="w-64 shrink-0">
             <FolderTree
               ref={folderTreeRef}
               projectId={projectId}
