@@ -376,6 +376,53 @@ class TestValidateScenarioDesign:
         assert any(w["category"] == "unverified_param" for w in result["warnings"])
 
     @pytest.mark.asyncio
+    async def test_no_pagination_warning_for_single_object_get(self):
+        """GET /user/{username} 这类单对象查询不应触发分页断言误报"""
+        step_id = uuid4()
+        endpoint_id = uuid4()
+        scenario_id = uuid4()
+
+        step = self._make_step(
+            step_id, 1, "查询用户", endpoint_id,
+            request_override={"path": "/user/testuser"},
+            assertions=[{"type": "status", "expected": 200}],
+        )
+        endpoint = self._make_endpoint(endpoint_id, method="GET", path="/user/{username}")
+
+        session = AsyncMock()
+        session.get = AsyncMock(return_value=MagicMock(global_variables={}))
+        session.execute = AsyncMock(return_value=MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[])))))
+
+        result = await _validate_scenario_design(
+            session, scenario_id, [step], {endpoint_id: endpoint}, None
+        )
+
+        assert not any(w["category"] == "weak_pagination_assertion" for w in result["warnings"])
+
+    @pytest.mark.asyncio
+    async def test_pagination_warning_kept_for_list_get(self):
+        """GET 集合路径（无路径参数）仍应提示分页/列表断言"""
+        step_id = uuid4()
+        endpoint_id = uuid4()
+        scenario_id = uuid4()
+
+        step = self._make_step(
+            step_id, 1, "查询用户列表", endpoint_id,
+            assertions=[{"type": "status", "expected": 200}],
+        )
+        endpoint = self._make_endpoint(endpoint_id, method="GET", path="/users")
+
+        session = AsyncMock()
+        session.get = AsyncMock(return_value=MagicMock(global_variables={}))
+        session.execute = AsyncMock(return_value=MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[])))))
+
+        result = await _validate_scenario_design(
+            session, scenario_id, [step], {endpoint_id: endpoint}, None
+        )
+
+        assert any(w["category"] == "weak_pagination_assertion" for w in result["warnings"])
+
+    @pytest.mark.asyncio
     async def test_runtime_variable_resolves_path_param(self):
         step_id = uuid4()
         endpoint_id = uuid4()

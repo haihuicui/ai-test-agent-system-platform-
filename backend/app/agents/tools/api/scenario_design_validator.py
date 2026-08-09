@@ -228,11 +228,15 @@ async def _validate_scenario_design(
         # 3. 分页/列表步骤业务断言检查
         method = (endpoint.method or "GET").upper()
         params_str = str(params).lower()
-        is_pagination = (
-            method == "GET"
-            or "page" in params_str
-            or "size" in params_str
-            or "current" in params_str
+        endpoint_path = endpoint.path or ""
+        # 路径含 {param} 的 GET 是单对象查询（如 GET /user/{username}），
+        # 不是分页/列表场景，不应要求 records/list/total 类断言。
+        has_pagination_params = any(
+            k in params_str for k in ("page", "size", "current", "limit", "offset")
+        )
+        is_single_object_get = method == "GET" and "{" in endpoint_path
+        is_pagination = has_pagination_params or (
+            method == "GET" and not is_single_object_get
         )
         if is_pagination:
             has_list_assertion = any(

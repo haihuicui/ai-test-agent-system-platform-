@@ -76,3 +76,4 @@ agent-articles-result.txt
 
 # Demo videos (large binaries, keep out of the repo)
 *.mp4
+.env.bak-*

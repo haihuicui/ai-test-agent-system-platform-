@@ -1264,6 +1264,7 @@ class ScenarioExecutionEngine:
             expected = assertion["expected"]
             path = assertion.get("path")
 
+            actual: Any = None
             try:
                 operator = normalize_operator(assertion.get("operator"), default="eq")
 
@@ -1272,7 +1273,16 @@ class ScenarioExecutionEngine:
                 elif assertion_type == "jsonpath":
                     actual = self.context._extract_by_jsonpath(response["body"], path)
                 elif assertion_type == "header":
-                    actual = response["headers"].get(path)
+                    # httpx 响应头转 dict 后键全小写（如 content-type），
+                    # 断言里常写 "Content-Type"，精确匹配会拿到 None。
+                    headers = response.get("headers") or {}
+                    actual = headers.get(path)
+                    if actual is None and path:
+                        path_lower = str(path).lower()
+                        for hk, hv in headers.items():
+                            if str(hk).lower() == path_lower:
+                                actual = hv
+                                break
                 else:
                     actual = None
 
@@ -1285,6 +1295,12 @@ class ScenarioExecutionEngine:
                 actual = None
                 operator = assertion.get("operator") or "eq"
                 message = f"断言失败: {exc}"
+            except TypeError as exc:
+                # 比较运算遇到 None/类型不匹配（如 actual 缺失时 gt/lt），
+                # 降级为断言失败而非让整个步骤 error。
+                passed = False
+                operator = assertion.get("operator") or "eq"
+                message = f"断言失败: 实际值无法比较（{exc}）"
 
             results.append({
                 "assertion": assertion,
@@ -1340,7 +1356,15 @@ class ScenarioExecutionEngine:
         elif operator == "lt":
             return actual < expected
         elif operator == "contains":
-            return expected in actual
+            # actual 为 None（如 header 未命中）时 `expected in actual` 会抛
+            # TypeError("argument of type 'NoneType' is not iterable")，
+            # 这里安全降级为断言失败而不是让整个步骤崩溃。
+            if actual is None:
+                return False
+            try:
+                return expected in actual
+            except TypeError:
+                return str(expected) in str(actual)
         else:
             raise ValueError(f"不支持的比较运算符: {operator!r}")
 

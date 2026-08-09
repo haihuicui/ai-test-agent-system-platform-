@@ -71,6 +71,7 @@ def _build_resume_human_message(
     script_name = payload.get("script_name", "")
     test_count = payload.get("test_count", 0)
     endpoint_id = payload.get("endpoint_id", "")
+    scenario_id = payload.get("scenario_id", "")
     comment_text = comment.strip()
     comment_clause = f"补充说明：{comment_text}。" if comment_text else ""
 
@@ -83,16 +84,33 @@ def _build_resume_human_message(
         metadata["script_name"] = script_name
     if endpoint_id:
         metadata["endpoint_id"] = endpoint_id
+    if scenario_id:
+        metadata["scenario_id"] = scenario_id
 
     if decision == "execute":
-        feedback = (
-            f"用户选择立即执行测试"
-            f"（{test_count} 个用例{f'，脚本 {script_name}' if script_name else ''}）。"
-            f"{comment_clause}"
-            "请调用 download_api_script 下载脚本，"
-            "然后 execute_api_script 执行（必须带 execution_config 中的 env_id），"
-            "执行后按红线做反假阳性校验并保存报告。"
-        )
+        if mode == "scenario":
+            # 场景模式走 execute_scenario，不是单端点的 download/execute_api_script 链路
+            count_clause = f"（{test_count} 个步骤{f'，场景 {script_name}' if script_name else ''}）"
+            scenario_clause = (
+                f"请调用 execute_scenario 执行场景（scenario_id={scenario_id}，"
+                if scenario_id
+                else "请调用 execute_scenario 执行场景（"
+            )
+            feedback = (
+                f"用户选择立即执行场景测试{count_clause}。"
+                f"{comment_clause}"
+                f"{scenario_clause}必须带 execution_config 中的 env_id），"
+                "执行后按红线做反假阳性校验并保存报告。"
+            )
+        else:
+            feedback = (
+                f"用户选择立即执行测试"
+                f"（{test_count} 个用例{f'，脚本 {script_name}' if script_name else ''}）。"
+                f"{comment_clause}"
+                "请调用 download_api_script 下载脚本，"
+                "然后 execute_api_script 执行（必须带 execution_config 中的 env_id），"
+                "执行后按红线做反假阳性校验并保存报告。"
+            )
     elif decision == "skip":
         feedback = (
             f"用户选择暂不执行测试"

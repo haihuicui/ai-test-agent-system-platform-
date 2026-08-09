@@ -34,9 +34,15 @@ export function buildEndpointPromptBlock(
   const desc = endpoint.summary || endpoint.description || "";
   const tag = endpoint.tag_group || "";
 
-  const lines: string[] = [
-    `【${endpoint.method.toUpperCase()}】${endpoint.display_name} ${endpoint.path}`,
-  ];
+  // display_name 可能已是 "{METHOD} {path}" 形式（OpenAPI 导入时无 summary 的
+  // 回退命名），此时再拼接 path 会出现 "GET /user/{x} /user/{x}" 的重复展示。
+  const method = endpoint.method.toUpperCase();
+  const nameContainsPath = endpoint.display_name.includes(endpoint.path);
+  const title = nameContainsPath
+    ? `【${method}】${endpoint.display_name}`
+    : `【${method}】${endpoint.display_name} ${endpoint.path}`;
+
+  const lines: string[] = [title];
 
   if (includeId && endpoint.id) {
     lines.push(`接口 ID：${endpoint.id}`);

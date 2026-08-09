@@ -89,7 +89,12 @@ class TestAPIExecutionInvitationMiddleware:
         ) as mock_interrupt:
             result = middleware.after_model(state, runtime=None)
 
-        mock_interrupt.assert_called_once_with(payload)
+        mock_interrupt.assert_called_once()
+        # 中间件会在 payload 上附加 risk_level/risk_reason 再传给 interrupt
+        called_payload = mock_interrupt.call_args.args[0]
+        assert {k: v for k, v in called_payload.items() if k in payload} == payload
+        assert called_payload["risk_level"] in ("low", "medium", "high")
+        assert called_payload["risk_reason"]
         assert result is not None
         assert result["jump_to"] == "model"
         human_msg = result["messages"][0]
@@ -114,6 +119,33 @@ class TestAPIExecutionInvitationMiddleware:
         assert "execute_api_script" in content
         assert "execution_config" in content
         assert human_msg.additional_kwargs["_execution_invitation"]["endpoint_id"] == "ep-123"
+
+    def test_execute_resume_scenario_mode_refs_execute_scenario(self, middleware):
+        """场景模式恢复消息应指引 execute_scenario，而不是单端点工具链"""
+        payload = _build_payload(
+            mode="scenario",
+            scenario_id="sc-456",
+            script_name="用户主流程测试",
+            test_count=3,
+        )
+        payload.pop("endpoint_id")
+        messages = [_build_ai_message(payload)]
+        state = {"messages": messages}
+
+        with patch(
+            "app.agents.api.execution_invitation_middleware.interrupt",
+            return_value={"decision": "execute"},
+        ):
+            result = middleware.after_model(state, runtime=None)
+
+        human_msg = result["messages"][0]
+        content = str(human_msg.content)
+        assert "execute_scenario" in content
+        assert "sc-456" in content
+        assert "3 个步骤" in content
+        assert "download_api_script" not in content
+        assert "execute_api_script" not in content
+        assert human_msg.additional_kwargs["_execution_invitation"]["scenario_id"] == "sc-456"
 
     def test_no_interrupt_when_already_resumed(self, middleware):
         payload = _build_payload()

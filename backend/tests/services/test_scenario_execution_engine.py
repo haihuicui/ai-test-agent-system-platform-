@@ -119,6 +119,34 @@ class TestAssertionOperators:
         with pytest.raises(ValueError, match="不支持的比较运算符"):
             engine._compare(200, 200, "regex")
 
+    def test_compare_contains_with_none_actual_returns_false(self, engine):
+        """header 未命中时 contains 不应抛 TypeError，安全降级为 False"""
+        assert engine._compare(None, "application/json", "contains") is False
+
+    def test_run_assertions_header_case_insensitive(self, engine):
+        """httpx 响应头转 dict 后键全小写，断言写 Content-Type 也应命中"""
+        response = {
+            "status": 200,
+            "body": {"code": 200},
+            "headers": {"content-type": "application/json"},
+        }
+        assertions = [
+            {"type": "header", "path": "Content-Type", "expected": "application/json", "operator": "contains"},
+        ]
+        results = engine._run_assertions(response, assertions)
+        assert results[0]["passed"] is True
+        assert results[0]["actual"] == "application/json"
+
+    def test_run_assertions_header_missing_contains_fails_gracefully(self, engine):
+        """header 缺失 + contains：断言失败但不抛异常、不产生 error 步骤"""
+        response = {"status": 200, "body": {}, "headers": {}}
+        assertions = [
+            {"type": "header", "path": "Content-Type", "expected": "json", "operator": "contains"},
+        ]
+        results = engine._run_assertions(response, assertions)
+        assert results[0]["passed"] is False
+        assert "断言" in results[0]["message"]
+
     def test_run_assertions_normalizes_legacy_aliases(self, engine):
         response = {"status": 200, "body": {"success": True}, "headers": {}}
         assertions = [
