@@ -108,7 +108,8 @@ services:
     volumes:
       - clickhousedata:/var/lib/clickhouse
     healthcheck:
-      test: ["CMD-SHELL", "wget --spider -q http://localhost:8123/ping || exit 1"]
+      # 用 127.0.0.1 而非 localhost：IPv6 禁用的宿主机上 localhost 优先解析 ::1，wget 直接拒绝
+      test: ["CMD-SHELL", "wget --spider -q http://127.0.0.1:8123/ping || exit 1"]
       interval: 5s
       timeout: 3s
       retries: 24
