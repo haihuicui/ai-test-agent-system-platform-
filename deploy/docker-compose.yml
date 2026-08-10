@@ -35,7 +35,7 @@ services:
       - mongodata:/data/db
     healthcheck:
       test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
-      interval: 10s
+      interval: 30s   # mongosh 冷启动烧 CPU（高负载时>5s），10s 间隔会形成启动风暴
       timeout: 5s
       retries: 12
     networks: [internal]
