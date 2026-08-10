@@ -31,6 +31,7 @@ from app.agents.api.scenario_quality_middleware import ScenarioQualityGateMiddle
 from app.agents.tools.api import get_local_tools
 from app.config.settings import settings
 from app.core.llms import text_model as model
+from app.core.tracing import with_langfuse_tracing
 from app.utils.filesystem import FixedFilesystemBackend
 from app.utils.shell_env import build_shell_env
 
@@ -278,5 +279,5 @@ api_agent = create_agent(
             interrupt_on=DANGEROUS_TOOLS_HITL,
         )
 # 导出 agent 供 LangGraph API 使用（langgraph.json: api_agent -> agent.py:agent）
-agent = api_agent
+agent = with_langfuse_tracing(api_agent, "api")
 # pragma: no cover  My80OmFIVnBZMlhsdEpUbXRiZm92b2s2YlZsVldBPT06YzRiOTU0ZTI=

@@ -38,6 +38,7 @@ from app.agents.web_mcp.execution_invitation_middleware import WebExecutionInvit
 from app.agents.web_mcp.intent_confirmation_middleware import WebIntentConfirmationMiddleware
 from app.config.settings import settings
 from app.core.llms import text_model as model
+from app.core.tracing import with_langfuse_tracing
 from app.models.environment import AuthType
 from app.repositories.environment_repo import EnvironmentRepository
 from app.utils.shell_env import build_shell_env, ensure_playwright_mcp_project, get_playwright_mcp_command_args
@@ -472,7 +473,7 @@ async def make_agent(config: RunnableConfig | None = None) -> AsyncIterator[Preg
         )
 
         # yield agent，session 会保持存活直到请求处理完成
-        yield web_agent
+        yield with_langfuse_tracing(web_agent, "web")
 
 
 # 导出 make_agent 供 LangGraph API 使用

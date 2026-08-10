@@ -171,6 +171,15 @@ class Settings(BaseSettings):
     image_parser_api_key: Optional[str] = None
     image_parser_model: Optional[str] = None
 
+    # Langfuse LLM 观测（自部署，见 deploy/langfuse/）。默认关闭；
+    # 观测链路故障必须 fail-open 不影响 Agent——实现见 backend/app/core/tracing.py
+    langfuse_enabled: bool = False
+    langfuse_public_key: Optional[str] = None
+    langfuse_secret_key: Optional[str] = None
+    langfuse_host: str = "http://localhost:3100"
+    # trace 单字段截断阈值（字符），防大 payload（累积消息历史）撑爆 trace；0 = 不截断
+    langfuse_trace_max_chars: int = 20_000
+
     # 性能测试工作目录配置
     # 路径字段说明：相对路径基于项目根目录（PROJECT_ROOT）解析，绝对路径原样使用，
     # 加载后统一转为绝对路径（见 _resolve_project_paths）

@@ -1,0 +1,170 @@
+# ==============================================================================
+# Langfuse v3 自部署（LLM 观测平台）
+# 使用: cp .env.example .env → 修改【!】项 → docker compose up -d
+# 拓扑: 仅 langfuse-web 发布 ${LANGFUSE_PORT:-3100}（内网访问），其余服务仅内部网络可达
+# 资源: 建议宿主机 ≥ 4GB 空闲内存（ClickHouse 为主力消耗）
+# 安全: 严禁暴露公网——trace 内含业务 PRD 等敏感数据
+# ==============================================================================
+name: langfuse
+
+services:
+  # ---------- UI + API ----------
+  langfuse-web:
+    image: langfuse/langfuse:3
+    restart: unless-stopped
+    ports:
+      - "${LANGFUSE_PORT:-3100}:3000"
+    environment: &langfuse-env
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?must set POSTGRES_PASSWORD in deploy/langfuse/.env}@postgres:5432/${POSTGRES_DB:-langfuse}
+      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_MIGRATION_URL: clickhouse://clickhouse:9000
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-clickhouse}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?must set CLICKHOUSE_PASSWORD}
+      CLICKHOUSE_CLUSTER_ENABLED: "false"
+      REDIS_CONNECTION_STRING: redis://redis:6379
+      # 【!】必须与实际访问地址一致，否则登录后跳转错误
+      NEXTAUTH_URL: ${NEXTAUTH_URL:?must set NEXTAUTH_URL, e.g. http://192.168.60.x:3100}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?must set NEXTAUTH_SECRET}
+      SALT: ${SALT:?must set SALT}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?must set ENCRYPTION_KEY, 64 hex chars}
+      # 关闭遥测（医疗数据合规）
+      TELEMETRY_ENABLED: "false"
+      # S3（MinIO）：事件与媒体存储
+      LANGFUSE_S3_EVENT_UPLOAD_ENABLED: "true"
+      LANGFUSE_S3_EVENT_UPLOAD_BUCKET: langfuse-events
+      LANGFUSE_S3_EVENT_UPLOAD_REGION: auto
+      LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minio}
+      LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:?must set MINIO_ROOT_PASSWORD}
+      LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT: http://minio:9000
+      LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE: "true"
+      LANGFUSE_S3_MEDIA_UPLOAD_ENABLED: "true"
+      LANGFUSE_S3_MEDIA_UPLOAD_BUCKET: langfuse-media
+      LANGFUSE_S3_MEDIA_UPLOAD_REGION: auto
+      LANGFUSE_S3_MEDIA_UPLOAD_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minio}
+      LANGFUSE_S3_MEDIA_UPLOAD_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:?must set MINIO_ROOT_PASSWORD}
+      LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT: http://minio:9000
+      LANGFUSE_S3_MEDIA_UPLOAD_FORCE_PATH_STYLE: "true"
+      # 免手工初始化：首启自动创建 组织/项目/管理员账号/API Key（见 .env）
+      LANGFUSE_INIT_ORG_ID: ${LANGFUSE_INIT_ORG_ID:-aiplatform3}
+      LANGFUSE_INIT_ORG_NAME: ${LANGFUSE_INIT_ORG_NAME:-AIPlatform3}
+      LANGFUSE_INIT_PROJECT_ID: ${LANGFUSE_INIT_PROJECT_ID:-aiplatform3-prod}
+      LANGFUSE_INIT_PROJECT_NAME: ${LANGFUSE_INIT_PROJECT_NAME:-AIPlatform3 生产}
+      LANGFUSE_INIT_USER_EMAIL: ${LANGFUSE_INIT_USER_EMAIL:?must set LANGFUSE_INIT_USER_EMAIL}
+      LANGFUSE_INIT_USER_NAME: ${LANGFUSE_INIT_USER_NAME:-admin}
+      LANGFUSE_INIT_USER_PASSWORD: ${LANGFUSE_INIT_USER_PASSWORD:?must set LANGFUSE_INIT_USER_PASSWORD}
+      LANGFUSE_INIT_PROJECT_PUBLIC_KEY: ${LANGFUSE_INIT_PROJECT_PUBLIC_KEY:?must set LANGFUSE_INIT_PROJECT_PUBLIC_KEY}
+      LANGFUSE_INIT_PROJECT_SECRET_KEY: ${LANGFUSE_INIT_PROJECT_SECRET_KEY:?must set LANGFUSE_INIT_PROJECT_SECRET_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    networks: [internal]
+
+  # ---------- 异步 trace 消费 ----------
+  langfuse-worker:
+    image: langfuse/langfuse-worker:3
+    restart: unless-stopped
+    environment: *langfuse-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    networks: [internal]
+
+  # ---------- 基础设施 ----------
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      POSTGRES_DB: ${POSTGRES_DB:-langfuse}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 24
+    networks: [internal]
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8-alpine
+    restart: unless-stopped
+    environment:
+      CLICKHOUSE_DB: langfuse
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-clickhouse}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?}
+    volumes:
+      - clickhousedata:/var/lib/clickhouse
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:8123/ping || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 24
+    networks: [internal]
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 24
+    networks: [internal]
+
+  minio:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    restart: unless-stopped
+    command: ["server", "/data"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?}
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ["CMD-SHELL", "mc ready local || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 24
+    networks: [internal]
+
+  # 一次性初始化：创建 S3 bucket（幂等，已存在则跳过）
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD} &&
+      mc mb --ignore-existing local/langfuse-events &&
+      mc mb --ignore-existing local/langfuse-media
+      "
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?}
+    networks: [internal]
+
+volumes:
+  pgdata:
+  clickhousedata:
+  redisdata:
+  miniodata:
+
+networks:
+  internal:
+    driver: bridge

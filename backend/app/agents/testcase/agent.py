@@ -36,6 +36,7 @@ from app.agents.testcase.tool_call_validation_middleware import (
 from app.agents.testcase.context_overflow_patch import patch_model_for_context_overflow
 from app.config.settings import settings
 from app.core.llms import text_model, image_model, get_text_model_with_temperature
+from app.core.tracing import with_langfuse_tracing
 from app.utils.shell_env import build_shell_env
 
 # 在模型序列化消息前做最后一道 tool-call 邻接修复
@@ -949,7 +950,7 @@ async def make_agent(model: Any | None = None) -> AsyncIterator[Pregel]:
         context_schema=TestCaseGeneratorContext,
     )
 
-    yield testcase_agent
+    yield with_langfuse_tracing(testcase_agent, "testcase")
 # type: ignore  My80OmFIVnBZMlhsdEpUbXRiZm92b2s2U1ZkTlZnPT06OTM3YzViOWQ=
 
 

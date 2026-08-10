@@ -37,6 +37,7 @@ from langgraph.pregel import Pregel
 from app.agents.tools.security import get_local_tools
 from app.config.settings import settings
 from app.core.llms import text_model as model
+from app.core.tracing import with_langfuse_tracing
 from app.utils.filesystem import FixedFilesystemBackend
 from app.utils.shell_env import build_shell_env
 
@@ -445,4 +446,4 @@ security_agent = create_agent(
 )
 
 # 导出供 LangGraph API 使用
-agent = security_agent
+agent = with_langfuse_tracing(security_agent, "security")
