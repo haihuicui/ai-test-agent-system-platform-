@@ -21,7 +21,7 @@ docker compose logs -f langfuse-web   # 观察迁移日志，出现 Ready 即可
 
 1. 浏览器访问 `NEXTAUTH_URL` 配置的地址（如 `http://192.168.60.X:3100`），
    用 `LANGFUSE_INIT_USER_EMAIL` / `LANGFUSE_INIT_USER_PASSWORD` 登录。
-2. Settings → Projects 应已存在 `AIPlatform3 生产` 项目（免手工初始化），
+2. Settings → Projects 应已存在 `AI智能测试平台` 项目（免手工初始化），
    API Keys 与 `.env` 中的 `LANGFUSE_INIT_PROJECT_PUBLIC_KEY/SECRET_KEY` 一致。
 3. **立即修改 admin 密码**（首启初始化密码仅用于首次登录）。
 
