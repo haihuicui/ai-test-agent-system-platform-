@@ -9,11 +9,11 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import re
 from typing import TYPE_CHECKING, Any
-from uuid import uuid4
 
 from langchain.agents.middleware import AgentMiddleware, hook_config
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
@@ -103,6 +103,26 @@ def _build_gate_block_message(tool_call: dict[str, Any], tool_name: str) -> Tool
         name=tool_name,
         status="error",
     )
+
+
+def _stable_invitation_id(payload: dict[str, Any], content: str) -> str:
+    """从邀约内容推导稳定 ID。
+
+    LangGraph 的 interrupt 恢复语义是「节点/hook 整体重新执行」而非从
+    interrupt 点续跑：resume 到达后 after_model 会从头再跑一遍。若用随机
+    UUID，重执行时 ID 必然变化，前端 resume 携带的旧 ID 永远不匹配，
+    正常确认也会被误判为幽灵而反复重弹（E2E 实测确认）。
+    内容 hash 保证同一邀约为同一 ID、不同邀约为不同 ID。
+    """
+    raw = "|".join([
+        str(payload.get("mode", "")),
+        str(payload.get("endpoint_id", "")),
+        str(payload.get("scenario_id", "")),
+        str(payload.get("script_name", "")),
+        str(payload.get("test_count", "")),
+        content,
+    ])
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
 
 
 def _interrupt_with_invitation_check(payload: dict[str, Any], max_reinterrupts: int = 3) -> Any:
@@ -309,8 +329,9 @@ class APIExecutionInvitationMiddleware(AgentMiddleware):
         payload["risk_level"] = risk_level.value
         payload["risk_reason"] = risk_reason
         # 幽灵确认防护：resume 必须回传匹配的 invitation_id（见
-        # _interrupt_with_invitation_check 与 testcase 的 _phase 校验根因一致）
-        payload["invitation_id"] = uuid4().hex
+        # _interrupt_with_invitation_check 与 testcase 的 _phase 校验根因一致）。
+        # ID 必须对 hook 重执行稳定——用内容 hash 而非随机 UUID。
+        payload["invitation_id"] = _stable_invitation_id(payload, content)
 
         after_ai = messages[messages.index(last_ai) + 1 :]
         if any(
