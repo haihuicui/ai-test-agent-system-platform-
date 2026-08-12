@@ -22,7 +22,7 @@ from sqlalchemy import select
 
 from app.utils.sync_executor import run_sync
 from app.utils.shell_env import resolve_effective_headless, write_storage_state_config
-from app.utils.web_mcp_storage_state import resolve_project_login_state
+from app.utils.web_mcp_storage_state import resolve_effective_storage_state
 from app.config import settings
 from app.config.database import async_session_factory
 from app.models.attachment import Attachment, AttachmentEntityType
@@ -259,13 +259,14 @@ async def _execute_and_report(
     # 6. 执行脚本
     resolved_headless = settings.web_mcp_headless if headless is None else headless
 
-    # 登录态隔离：项目已配置登录态时生成/复用独立配置（playwright.config.ss-*.js）
-    # 并通过 --config 传入，不再依赖共享 playwright.config.js 中的 storageState——
+    # 登录态隔离：解析生效的 storageState（项目级优先、全局回退，与 make_agent
+    # 同一公共解析），生成/复用独立配置（playwright.config.ss-*.js）并通过
+    # --config 传入，不再依赖共享 playwright.config.js 中的 storageState——
     # 后者会被并发 run 互相覆盖（登录态丢失 / 跨项目串扰）。解析走 60s 缓存，
     # 与 agent 启动时的解析共享结果，正常路径零 DB 开销。
     run_config_path: Optional[str] = None
     if project_identifier:
-        _, storage_state = await resolve_project_login_state(project_identifier)
+        storage_state = await resolve_effective_storage_state(project_identifier)
         if storage_state:
             run_config_path = await write_storage_state_config(
                 str(project_root),

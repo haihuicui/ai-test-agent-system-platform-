@@ -45,8 +45,7 @@ from app.utils.shell_env import (
     get_playwright_mcp_command_args,
     write_storage_state_config,
 )
-from app.utils.storage_state_validator import validate_storage_state
-from app.utils.web_mcp_storage_state import resolve_project_login_state
+from app.utils.web_mcp_storage_state import resolve_effective_storage_state
 
 logger = logging.getLogger(__name__)
 
@@ -276,8 +275,8 @@ def build_web_agent_model():
 
 
 # =============================================================================
-# 项目登录态解析：已公共化到 app.utils.web_mcp_storage_state.resolve_project_login_state
-# （execution_tools 执行链路复用同一解析与 60s 缓存）。
+# 项目登录态解析：已公共化到 app.utils.web_mcp_storage_state
+# （resolve_effective_storage_state 与 execution_tools 执行链路共享语义与 60s 缓存）。
 # =============================================================================
 
 
@@ -303,35 +302,15 @@ async def make_agent(config: RunnableConfig | None = None) -> AsyncIterator[Preg
         except RuntimeError:
             pass
 
-    # 解析项目级 storageState。项目已配置登录态时强制走项目/环境级，避免回退到全局过期的文件；
-    # 未配置登录态时不使用 storageState；仅在 project_identifier 为空或解析异常时才允许全局 fallback。
-    # TCP 探测与 DB 查询并行，省 ~1s 串行等待。
+    # 解析生效的 storageState：项目/环境级优先，未配置登录态时回退全局配置
+    # （公共解析逻辑，与 execute_web_script 执行链路保持一致，避免探索已登录
+    # 但执行无登录态的语义分裂）。TCP 探测与 DB 查询并行，省 ~1s 串行等待。
     shared_url = (settings.web_mcp_server_url or "").strip()
     probe_task: asyncio.Task[bool] | None = (
         asyncio.create_task(_probe_tcp(shared_url)) if shared_url else None
     )
 
-    storage_state: str | None = None
-    has_login_config = False
-
-    if project_identifier:
-        has_login_config, storage_state = await resolve_project_login_state(
-            project_identifier
-        )
-
-    # 仅在未解析到项目/未配置登录态时，才允许回退到全局配置，且必须校验有效。
-    if not storage_state and not has_login_config:
-        global_ss = settings.web_mcp_storage_state
-        if global_ss:
-            validation = validate_storage_state(global_ss)
-            if validation.is_valid:
-                storage_state = global_ss
-                logger.info("[WebMCPAgent] 使用全局 storageState: %s", storage_state)
-            else:
-                logger.warning(
-                    "[WebMCPAgent] 全局 storageState 无效，跳过注入: %s",
-                    validation.reason,
-                )
+    storage_state = await resolve_effective_storage_state(project_identifier)
 
     # 确保 Playwright MCP 项目目录已初始化（共享配置固定为无登录态静态模板）
     await ensure_playwright_mcp_project(

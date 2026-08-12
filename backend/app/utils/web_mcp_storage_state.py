@@ -212,3 +212,34 @@ async def resolve_project_login_state(
 
     _login_state_cache[project_identifier] = (now, has_login_config, storage_state)
     return has_login_config, storage_state
+
+
+async def resolve_effective_storage_state(project_identifier: str) -> "str | None":
+    """解析当前 run 生效的 storageState 路径（MCP 探索与脚本执行必须一致）。
+
+    优先级：项目/环境级 storageState → 全局 ``settings.web_mcp_storage_state``
+    （仅当项目未配置登录态时回退，且需校验有效）。返回 ``None`` 表示本 run
+    不带登录态。
+    """
+    storage_state: str | None = None
+    has_login_config = False
+    if project_identifier:
+        has_login_config, storage_state = await resolve_project_login_state(
+            project_identifier
+        )
+
+    if not storage_state and not has_login_config:
+        # 延迟 import，避免与配置加载产生循环依赖
+        from app.config import settings
+
+        global_ss = settings.web_mcp_storage_state
+        if global_ss:
+            validation = validate_storage_state(global_ss)
+            if validation.is_valid:
+                logger.info("[WebMCPStorage] 使用全局 storageState: %s", global_ss)
+                return global_ss
+            logger.warning(
+                "[WebMCPStorage] 全局 storageState 无效，跳过注入: %s",
+                validation.reason,
+            )
+    return storage_state
