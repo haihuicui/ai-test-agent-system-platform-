@@ -257,19 +257,22 @@ class ContextInjectionMiddleware(AgentMiddleware):
     ) -> ModelResponse:
         ctx = request.runtime.context
 
-        # 会话隔离作用域：写入 contextvar，工具层路径解析据此把会话产物
-        # （功能矩阵/用例 JSONL/manifest/导出文件）强制隔离到
-        # workspace/<project>/<thread_id>/，同项目并发会话互不覆盖。
+        # 会话隔离作用域：写入 config["configurable"]（跨 task 共享的可变 dict，
+        # 工具侧可靠读取的主通道）+ contextvar（同 task 快速路径）。
+        # 工具层路径解析据此把会话产物（功能矩阵/用例 JSONL/manifest/导出文件）
+        # 强制隔离到 workspace/<project>/<thread_id>/，同项目并发会话互不覆盖。
         # thread_id 由 LangGraph 平台注入 config["configurable"]；非平台环境
         # （直调/单测）取不到时回退为项目级隔离。
         thread_id = ""
+        config = None
         try:
             config = get_config()
             if config and isinstance(config.get("configurable"), dict):
                 thread_id = config["configurable"].get("thread_id") or ""
         except Exception:
+            config = None
             thread_id = ""
-        set_session_scope(getattr(ctx, "project_identifier", "") or "", thread_id)
+        set_session_scope(getattr(ctx, "project_identifier", "") or "", thread_id, config=config)
 
         session_dir = ""
         if ctx.project_identifier.strip():
