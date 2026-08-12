@@ -10,14 +10,25 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
-from typing import Any
+from typing import TYPE_CHECKING, Any
+from uuid import uuid4
 
 from langchain.agents.middleware import AgentMiddleware, hook_config
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langgraph.types import interrupt
 
 from app.agents.api.execution_risk import evaluate_risk, extract_risk_context
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+
+    from langgraph.types import Command
+
+    from langchain.agents.middleware.types import ToolCallRequest
+
+logger = logging.getLogger(__name__)
 
 
 _EXECUTION_INVITATION_MARKER_RE = re.compile(
@@ -32,6 +43,92 @@ _DEFAULT_ALTERNATIVES = [
     {"key": "edit", "label": "修改脚本"},
     {"key": "other", "label": "其他"},
 ]
+
+# 执行硬门禁管控的工具：必须存在用户「立即执行」邀约决策才允许调用。
+# execute_api_script_by_artifact_id 不在此列——用户显式提供 Script ID 即授权。
+_GATED_EXECUTION_TOOLS = {"execute_scenario", "execute_api_script"}
+
+
+def _find_execute_decision(
+    messages: list[Any],
+    *,
+    scenario_id: str = "",
+    endpoint_id: str = "",
+    tool_name: str = "",
+) -> bool:
+    """检查消息历史中是否存在匹配的「执行邀约 · 立即执行」决策。
+
+    两级匹配：
+    1. 精确：邀约 metadata 的 scenario_id/endpoint_id 与工具参数一致 → 放行；
+    2. 兜底：存在同 mode 的 execute 决策（模型可能在邀约 JSON 中漏填 ID）
+       → 放行但记 warning，避免误拦正常流程。
+    """
+    expected_mode = "scenario" if tool_name == "execute_scenario" else "api"
+    fallback = False
+    for m in reversed(messages):
+        if not isinstance(m, HumanMessage):
+            continue
+        ak = m.additional_kwargs if isinstance(m.additional_kwargs, dict) else {}
+        meta = ak.get("_execution_invitation")
+        if not isinstance(meta, dict) or meta.get("decision") != "execute":
+            continue
+        if scenario_id and meta.get("scenario_id") == scenario_id:
+            return True
+        if endpoint_id and meta.get("endpoint_id") == endpoint_id:
+            return True
+        if meta.get("mode", "api") == expected_mode:
+            fallback = True
+    if fallback:
+        logger.warning(
+            "执行门禁兜底放行 %s：存在同模式邀约执行决策但 ID 未精确匹配",
+            tool_name,
+        )
+    return fallback
+
+
+def _build_gate_block_message(tool_call: dict[str, Any], tool_name: str) -> ToolMessage:
+    """构造执行门禁拦截的 ToolMessage（模型当轮可见，可先补邀约再重试）。"""
+    content = json.dumps({
+        "success": False,
+        "error": "执行门禁拦截：未检测到用户「立即执行」的邀约决策",
+        "message": (
+            "按流程必须先在回复末尾输出 <EXECUTION_INVITATION> 标记，"
+            "等待用户选择「立即执行」后才能调用执行工具。"
+            "请先输出邀约标记；若用户已在对话中明确同意执行，请补发邀约以完成确认闭环。"
+        ),
+    }, ensure_ascii=False)
+    return ToolMessage(
+        content=content,
+        tool_call_id=tool_call["id"],
+        name=tool_name,
+        status="error",
+    )
+
+
+def _interrupt_with_invitation_check(payload: dict[str, Any], max_reinterrupts: int = 3) -> Any:
+    """触发邀约 interrupt，并校验 resume 是否属于本次邀约。
+
+    背景与 testcase 的 _interrupt_with_phase_check 相同：前端 SDK 串行排队
+    所有 submit，重复点击或过期卡片产生的 resume 会被排队的下一个
+    pending interrupt 消费，造成"幽灵确认"。邀约 payload 携带
+    invitation_id，前端 resume 时回传；不匹配则重新弹出当前卡片，
+    最多重弹 max_reinterrupts 次后兜底接受（避免极端死循环）。
+    未携带 invitation_id 的旧版前端 payload 直接放行（向后兼容）。
+    """
+    response = interrupt(payload)
+    for _ in range(max_reinterrupts):
+        if not isinstance(response, dict):
+            return response
+        response_id = response.get("invitation_id")
+        if response_id is None or response_id == payload.get("invitation_id"):
+            return response
+        logger.warning(
+            "邀约 resume 的 invitation_id 不匹配（期望 %s，实得 %s），重新弹出当前卡片",
+            payload.get("invitation_id"),
+            response_id,
+        )
+        response = interrupt(payload)
+    return response
 
 
 def _parse_execution_invitation(content: str) -> dict[str, Any] | None:
@@ -169,6 +266,9 @@ class APIExecutionInvitationMiddleware(AgentMiddleware):
         risk_level, risk_reason = evaluate_risk(risk_ctx)
         payload["risk_level"] = risk_level.value
         payload["risk_reason"] = risk_reason
+        # 幽灵确认防护：resume 必须回传匹配的 invitation_id（见
+        # _interrupt_with_invitation_check 与 testcase 的 _phase 校验根因一致）
+        payload["invitation_id"] = uuid4().hex
 
         after_ai = messages[messages.index(last_ai) + 1 :]
         if any(
@@ -178,7 +278,7 @@ class APIExecutionInvitationMiddleware(AgentMiddleware):
         ):
             return None
 
-        response = interrupt(payload)
+        response = _interrupt_with_invitation_check(payload)
 
         decision = "execute"
         comment = ""
@@ -201,3 +301,51 @@ class APIExecutionInvitationMiddleware(AgentMiddleware):
     ) -> dict[str, Any] | None:
         """异步版本直接复用同步逻辑。"""
         return self.after_model(state, runtime)
+
+    # ------------------------------------------------------------------
+    # 执行硬门禁：未收到用户「立即执行」邀约决策前，拦截执行类工具调用。
+    # 只读 state 做校验（纯同步逻辑），同步/异步路径行为一致。
+    # ------------------------------------------------------------------
+
+    def _check_execution_gate(
+        self, request: "ToolCallRequest"
+    ) -> ToolMessage | None:
+        tool_call = request.tool_call
+        tool_name = tool_call.get("name", "")
+        if tool_name not in _GATED_EXECUTION_TOOLS:
+            return None
+
+        args = tool_call.get("args") or {}
+        state = request.state if isinstance(request.state, dict) else {}
+        messages = state.get("messages", []) or []
+
+        if _find_execute_decision(
+            messages,
+            scenario_id=args.get("scenario_id") or "",
+            endpoint_id=args.get("endpoint_id") or "",
+            tool_name=tool_name,
+        ):
+            return None
+
+        logger.warning("执行门禁拦截 %s：消息历史中无邀约执行决策", tool_name)
+        return _build_gate_block_message(tool_call, tool_name)
+
+    def wrap_tool_call(
+        self,
+        request: "ToolCallRequest",
+        handler: "Callable[[ToolCallRequest], ToolMessage | Command[Any]]",
+    ) -> "ToolMessage | Command[Any]":
+        blocked = self._check_execution_gate(request)
+        if blocked is not None:
+            return blocked
+        return handler(request)
+
+    async def awrap_tool_call(
+        self,
+        request: "ToolCallRequest",
+        handler: "Callable[[ToolCallRequest], Awaitable[ToolMessage | Command[Any]]]",
+    ) -> "ToolMessage | Command[Any]":
+        blocked = self._check_execution_gate(request)
+        if blocked is not None:
+            return blocked
+        return await handler(request)

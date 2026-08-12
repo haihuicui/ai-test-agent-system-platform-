@@ -816,7 +816,10 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
       // 防止 React 严格模式下重复触发
       if (autoResumeTriggeredRef.current) return;
       autoResumeTriggeredRef.current = true;
-      resumeInterruptWithOptions({ decision: "execute" });
+      resumeInterruptWithOptions({
+        decision: "execute",
+        invitation_id: (interrupt.value as any)?.invitation_id,
+      });
     }
   }, [isExecutionInvitationInterrupt, interrupt, isResumingInterrupt, autoExecuteEnabled, resumeInterrupt]);
 
@@ -1086,6 +1089,7 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
                     alternatives={(interrupt.value as any).alternatives}
                     risk_level={(interrupt.value as any).risk_level}
                     risk_reason={(interrupt.value as any).risk_reason}
+                    invitation_id={(interrupt.value as any).invitation_id}
                     onResume={resumeInterruptWithOptions}
                     isLoading={isResumingInterrupt}
                   />

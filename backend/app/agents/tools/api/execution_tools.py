@@ -30,6 +30,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.api.runtime_context import get_conversation_id as get_ctx_conversation_id
+from app.utils.shell_env import build_restricted_env
 from app.utils.sync_executor import run_sync
 from app.config import settings
 from app.config.database import async_session_factory
@@ -560,7 +561,10 @@ async def _execute_script_internal(
         is_windows = sys.platform == "win32"
 
         # 准备环境变量（设置 CI=1 禁用 Playwright HTML reporter 自动打开浏览器）
-        env = _ensure_node_in_path(os.environ.copy())
+        # 密钥隔离：测试脚本由模型生成，必须以白名单环境运行，
+        # 防止脚本通过 process.env 读取 LLM Key / DB 密码等进程密钥；
+        # AUTH_TOKEN / API_BASE_URL 等测试必需变量由下方受控通道显式注入。
+        env = _ensure_node_in_path(build_restricted_env())
         if reporter == "html":
             env['CI'] = '1'
             env["PLAYWRIGHT_HTML_OUTPUT_DIR"] = str(report_dir)
@@ -713,7 +717,7 @@ async def _execute_script_internal(
             try:
                 stdout_bytes, stderr_bytes = await asyncio.wait_for(
                     proc.communicate(),
-                    timeout=300,  # 5分钟超时
+                    timeout=settings.api_exec_timeout,
                 )
             except asyncio.TimeoutError:
                 if proc.returncode is None:
@@ -728,7 +732,7 @@ async def _execute_script_internal(
                     "success": False,
                     "exit_code": 3,
                     "preflight_status": "ok",
-                    "error": "脚本执行超时（超过5分钟）",
+                    "error": f"脚本执行超时（超过{settings.api_exec_timeout}秒）",
                     "duration": duration,
                     "stdout": "",
                     "stderr": "",
@@ -766,7 +770,7 @@ async def _execute_script_internal(
                     text=True,
                     encoding='utf-8',
                     errors='replace',
-                    timeout=300,
+                    timeout=settings.api_exec_timeout,
                     shell=is_windows,
                     env=env,
                 )
@@ -789,7 +793,7 @@ async def _execute_script_internal(
                     "success": False,
                     "exit_code": 3,
                     "preflight_status": "ok",
-                    "error": "脚本执行超时（超过5分钟）",
+                    "error": f"脚本执行超时（超过{settings.api_exec_timeout}秒）",
                     "duration": duration,
                     "stdout": "",
                     "stderr": "",

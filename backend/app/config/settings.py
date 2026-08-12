@@ -192,6 +192,10 @@ class Settings(BaseSettings):
     api_workspace_root: str = "backend/workspace/api"
     # api_mcp_root: str = "backend/mcp/api"
     api_skills_root: str = ".claude/skills"
+    # API agent shell 命令默认超时（秒）：deepagents LocalShellBackend 的 execute 超时
+    api_shell_timeout: int = 180
+    # API 测试脚本子进程执行超时（秒）：npm test / pytest 整轮执行预算
+    api_exec_timeout: int = 300
 
     # 接口测试 trace 配置（同时被场景测试日志格式化复用）
     api_test_sensitive_headers: list[str] = [

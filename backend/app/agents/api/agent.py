@@ -13,6 +13,7 @@ API 自动化测试智能体
 - Tools: 原子操作（数据库、存储、MCP）
 """
 import asyncio
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
@@ -33,7 +34,7 @@ from app.config.settings import settings
 from app.core.llms import text_model as model
 from app.core.tracing import with_langfuse_tracing
 from app.utils.filesystem import FixedFilesystemBackend
-from app.utils.shell_env import build_shell_env
+from app.utils.shell_env import build_restricted_env
 
 # =============================================================================
 # 配置
@@ -45,9 +46,9 @@ workspace_root = Path(settings.api_workspace_root).resolve()
 skills_backend = FilesystemBackend(root_dir=skills_root, virtual_mode=True)
 workspace_backend = FilesystemBackend(root_dir=workspace_root, virtual_mode=True)
 shell_backend = LocalShellBackend(root_dir=Path(settings.api_workspace_root).resolve(),
-                                  inherit_env=True,
-                                  env=build_shell_env(),
-                                  timeout=180,
+                                  inherit_env=False,
+                                  env=build_restricted_env(),
+                                  timeout=settings.api_shell_timeout,
                                   virtual_mode=True)
 composite_backend = CompositeBackend(
     default=shell_backend,
@@ -119,6 +120,20 @@ _STAGE_RULES: dict[str, str] = {
 # 中间件
 # =============================================================================
 
+# 运行时上下文注入块的包裹标记：注入前先剥离旧块，保证重试/重复进入时幂等。
+_CTX_BEGIN = "<!-- API-RUNTIME-CONTEXT:BEGIN -->"
+_CTX_END = "<!-- API-RUNTIME-CONTEXT:END -->"
+_CTX_BLOCK_RE = re.compile(
+    re.escape(_CTX_BEGIN) + r".*?" + re.escape(_CTX_END),
+    re.DOTALL,
+)
+
+
+def _strip_ctx_block(content: str) -> str:
+    """移除已注入的运行时上下文块（不存在时原样返回）。"""
+    return _CTX_BLOCK_RE.sub("", content)
+
+
 class APIContextInjectionMiddleware(AgentMiddleware):
     """上下文注入中间件 - 将运行时参数和阶段规则注入到系统提示词"""
 
@@ -151,6 +166,7 @@ class APIContextInjectionMiddleware(AgentMiddleware):
 
         try:
             context_info = f"""
+{_CTX_BEGIN}
 
 ---
 ## 🎯 运行时上下文
@@ -169,12 +185,22 @@ class APIContextInjectionMiddleware(AgentMiddleware):
             stage_rule = _STAGE_RULES.get(template_type, "")
             if stage_rule:
                 context_info += stage_rule
+            context_info += f"\n{_CTX_END}\n"
 
-            # 如果 content 是列表，需要将字符串包装成正确的内容块格式
+            # 幂等注入：重试中间件复用同一 request 对象时，先剥离旧注入块再追加，
+            # 避免系统提示词被重复追加导致 token 膨胀与上下文混乱。
             if isinstance(request.system_message.content, list):
-                request.system_message.content = request.system_message.content + [{"type": "text", "text": context_info}]
+                kept_blocks = []
+                for block in request.system_message.content:
+                    if isinstance(block, dict) and block.get("type") == "text":
+                        stripped = _strip_ctx_block(block.get("text", ""))
+                        if not stripped.strip():
+                            continue
+                        block = {**block, "text": stripped}
+                    kept_blocks.append(block)
+                request.system_message.content = kept_blocks + [{"type": "text", "text": context_info}]
             else:
-                request.system_message.content = request.system_message.content + context_info
+                request.system_message.content = _strip_ctx_block(request.system_message.content) + context_info
             return await handler(request)
         finally:
             conversation_id_ctx.reset(ctx_token)
@@ -236,6 +262,7 @@ SYSTEM_PROMPT = """# API 自动化测试专家
 以下规则由工具代码强制执行，你只需按流程调用即可：
 - `save_test_script` 内置断言质量门禁（FAIL/WEAK 硬拒），保存前先 `audit_script_assertions` 预检
 - 执行邀约由系统中间件自动触发，你只需在保存后输出 `<EXECUTION_INVITATION>` 标记
+- **执行硬门禁**：未收到用户「立即执行」决策时调用 `execute_scenario` / `execute_api_script` 会被系统直接拒绝，请先输出邀约标记
 - 场景质量由 `ScenarioQualityGateMiddleware` 在 `execute_scenario` 前自动预检（路径参数闭环、teardown 等）
 - `save_test_script` 按 `endpoint_id` 自动更新已有记录，不会重复创建
 

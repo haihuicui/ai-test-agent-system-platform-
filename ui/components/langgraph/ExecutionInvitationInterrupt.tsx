@@ -24,7 +24,9 @@ interface ExecutionInvitationInterruptProps {
   alternatives?: ExecutionAlternative[];
   risk_level?: RiskLevel;
   risk_reason?: string;
-  onResume: (value: { decision: string; comment?: string }) => void;
+  /** 邀约唯一标识：resume 时回传，后端据此防止过期卡片幽灵确认 */
+  invitation_id?: string;
+  onResume: (value: { decision: string; comment?: string; invitation_id?: string }) => void;
   isLoading?: boolean;
 }
 
@@ -86,6 +88,7 @@ export function ExecutionInvitationInterrupt({
   alternatives,
   risk_level,
   risk_reason,
+  invitation_id,
   onResume,
   isLoading,
 }: ExecutionInvitationInterruptProps) {
@@ -111,7 +114,7 @@ export function ExecutionInvitationInterrupt({
     }
     setLastClicked(key);
     setIsSubmitting(true);
-    onResume({ decision: key, comment: comment.trim() || undefined });
+    onResume({ decision: key, comment: comment.trim() || undefined, invitation_id });
   };
 
   const handleOtherSubmit = () => {
@@ -119,7 +122,7 @@ export function ExecutionInvitationInterrupt({
     if (!text) return;
     setLastClicked("other");
     setIsSubmitting(true);
-    onResume({ decision: "other", comment: text });
+    onResume({ decision: "other", comment: text, invitation_id });
   };
 
   const handleOtherCancel = () => {
