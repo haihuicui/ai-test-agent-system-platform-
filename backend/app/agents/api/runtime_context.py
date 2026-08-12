@@ -3,11 +3,22 @@ API Agent 运行时上下文共享模块
 
 提供不依赖 agent.py 与 tools 的共享上下文变量，
 用于在同一次 AI 对话的模型调用与工具调用之间传递会话标识。
+
+会话标识读取顺序（2026-08 真实环境验证后收敛）：
+1. ``config["configurable"]["conversation_id"]``——FastAPI 直调图路径
+   （generate_from_schema）显式传入；
+2. ``config["configurable"]["thread_id"]``——前端 SDK 直连路径下平台
+   每次 run 自动注入，一个 thread 即一次会话；模型节点与工具节点共享
+   同一组原生 config 键（中间件写回的自定义键会被 patch_config 重建
+   丢弃，contextvar set 也传播不到兄弟 task——均实测确认）；
+3. contextvar——单测/同 task 场景的回退通道。
 """
 
 import asyncio
 import contextvars
 from typing import Optional
+
+from langgraph.config import get_config
 
 # 当前 AI 对话（会话）ID。
 # 在 APIContextInjectionMiddleware 中设置，工具函数可通过 get_conversation_id() 读取。
@@ -19,6 +30,19 @@ conversation_id_ctx: contextvars.ContextVar[Optional[str]] = contextvars.Context
 
 def get_conversation_id() -> Optional[str]:
     """获取当前会话 ID，如果不在 Agent 调用上下文中则返回 None。"""
+    try:
+        config = get_config()
+        if config and isinstance(config.get("configurable"), dict):
+            conversation_id = config["configurable"].get("conversation_id")
+            if conversation_id:
+                return conversation_id
+            # 前端聊天路径无显式 conversation_id：平台注入的 thread_id
+            # 即会话标识（一个 thread 就是一次会话）
+            thread_id = config["configurable"].get("thread_id")
+            if thread_id:
+                return thread_id
+    except Exception:
+        pass
     return conversation_id_ctx.get()
 
 

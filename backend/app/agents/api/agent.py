@@ -147,12 +147,15 @@ class APIContextInjectionMiddleware(AgentMiddleware):
         environment_id = request.runtime.context.environment_id
         template_type = getattr(request.runtime.context, "template_type", "api_test") or "api_test"
 
-        # 从 LangGraph 运行配置中读取 conversation_id；未提供时为当前调用生成一个，
-        # 并写回 config，保证同一次 agent 调用内的多次工具调用共享同一个会话 ID。
+        # 从 LangGraph 运行配置中读取 conversation_id；未提供时回退平台注入的
+        # thread_id（前端 SDK 直连路径：一个 thread 即一次会话——写回的自定义键
+        # 跨节点不传播，thread_id 是模型/工具节点共享的原生键），最后才生成新 ID。
         conversation_id = ""
         config = get_config()
         if config and isinstance(config.get("configurable"), dict):
             conversation_id = config["configurable"].get("conversation_id", "") or ""
+            if not conversation_id:
+                conversation_id = config["configurable"].get("thread_id", "") or ""
         if not conversation_id:
             conversation_id = str(uuid4())
         if config is not None:

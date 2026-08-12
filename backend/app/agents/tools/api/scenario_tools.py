@@ -213,8 +213,9 @@ def _get_current_conversation_id(config: RunnableConfig | None) -> str | None:
     """
     获取当前 AI 会话 ID。
 
-    优先从 LangGraph 运行配置读取（工具调用上下文内最可靠），
-    读取不到时回退到 contextvar。
+    优先用注入的 RunnableConfig 读取显式 conversation_id（FastAPI 直调图路径），
+    否则统一走 runtime_context.get_conversation_id 的三通道读取
+    （含平台原生 thread_id 回退——前端 SDK 直连路径下唯一可靠的通道）。
     """
     if config and isinstance(config.get("configurable"), dict):
         conversation_id = config["configurable"].get("conversation_id")
