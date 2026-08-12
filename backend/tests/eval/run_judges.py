@@ -8,10 +8,12 @@
 - 支持断点续跑：已落盘的 id 自动跳过（Ctrl+C 随时可中断）
 
 用法（cwd = backend，需要平台 .env 里的模型配置）：
-    ./.venv/Scripts/python.exe -m tests.eval.run_judges
+    ./.venv/Scripts/python.exe -m tests.eval.run_judges                    # 全量
+    ./.venv/Scripts/python.exe -m tests.eval.run_judges --only-labeled     # 只跑已盲标的样本（分批试跑用）
 """
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 import time
@@ -24,6 +26,7 @@ from tests.eval.metrics import JUDGES
 EVAL_DIR = Path(__file__).parent
 DATASET_PATH = EVAL_DIR / "dataset" / "regression_v1.jsonl"
 SCORES_PATH = EVAL_DIR / "dataset" / "judge_scores_v1.jsonl"
+LABELS_PATH = EVAL_DIR / "dataset" / "human_labels_v1.jsonl"
 
 
 def load_jsonl(path: Path) -> list[dict]:
@@ -52,13 +55,27 @@ def score_sample(sample: dict) -> dict:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description="裁判分数落盘")
+    parser.add_argument("--only-labeled", action="store_true",
+                        help="只跑 human_labels_v1.jsonl 里已完整标注的样本（分批试跑/省 API）")
+    args = parser.parse_args()
+
     samples = load_jsonl(DATASET_PATH)
     if not samples:
         sys.exit(f"回归集为空：{DATASET_PATH}（先跑 harvest_samples）")
 
+    if args.only_labeled:
+        labeled_ids = {
+            r["id"] for r in load_jsonl(LABELS_PATH)
+            if r.get("assertability_pass") is not None and r.get("coverage_pass") is not None
+        }
+        if not labeled_ids:
+            sys.exit(f"无已完整标注的样本：{LABELS_PATH}")
+        samples = [s for s in samples if s["id"] in labeled_ids]
+
     done = {r["id"] for r in load_jsonl(SCORES_PATH)}
     todo = [s for s in samples if s["id"] not in done]
-    print(f"回归集 {len(samples)} 条，已落盘 {len(done)} 条，本轮待跑 {len(todo)} 条")
+    print(f"待评样本 {len(samples)} 条，已落盘 {len(done)} 条，本轮待跑 {len(todo)} 条")
     if not todo:
         print(f"无新增样本，分数文件已是最新：{SCORES_PATH}")
         return

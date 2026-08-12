@@ -90,6 +90,9 @@ cd backend
 
 # 4. 裁判落盘：逐条跑分写 judge_scores_v1.jsonl，断点续跑，Ctrl+C 可中断
 ./.venv/Scripts/python.exe -m tests.eval.run_judges
+#    分批试跑（如先标 15 条验证管线）：jsonl 只保留已标行（null 行移走），
+#    用 --only-labeled 只跑已标样本省 API；报告带样本量闸，n<20 仅出警告结论
+./.venv/Scripts/python.exe -m tests.eval.run_judges --only-labeled
 
 # 5. 出校准报告：一致率/Kappa/混淆矩阵/分层一致率 + 分歧清单
 ./.venv/Scripts/python.exe -m tests.eval.calibrate_report

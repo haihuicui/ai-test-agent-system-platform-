@@ -36,6 +36,9 @@ DIMENSIONS = (
 # 启用决策线（README 校准节约定）：一致率 ≥0.8 且 Kappa ≥0.6 才允许切 strict 门禁
 AGREEMENT_LINE = 0.8
 KAPPA_LINE = 0.6
+# 最小样本量：低于此数时即使一致率过线也不许切门禁（n 太小 Kappa 无意义，
+# 一致率偶然性大——本闸防"标几条就收工"）
+MIN_SAMPLES = 20
 
 
 def load_jsonl(path: Path) -> list[dict]:
@@ -92,6 +95,7 @@ def main() -> None:
     lines: list[str] = ["# 校准报告\n"]
     disagreements: list[str] = ["# 分歧样本清单（裁判 × 人工不一致）\n"]
     overall_ok = True
+    dim_ns: dict[str, int] = {}
 
     for key, label_field, zh_name in DIMENSIONS:
         pairs: list[tuple[int, int]] = []
@@ -129,6 +133,7 @@ def main() -> None:
             continue
 
         n = len(pairs)
+        dim_ns[zh_name] = n
         agree = sum(1 for j, h in pairs if j == h) / n
         kappa = cohens_kappa(pairs)
         cm = confusion(pairs)
@@ -154,9 +159,14 @@ def main() -> None:
                          f"{', '.join(judge_errors[:5])}{' …' if len(judge_errors) > 5 else ''}\n")
 
     lines.append("\n## 启用决策\n\n")
-    if overall_ok:
-        lines.append("✅ 两维一致率与 Kappa 均过线——允许把 threshold 定为正式拦截线，"
+    min_n = min(dim_ns.values(), default=0)
+    if overall_ok and min_n >= MIN_SAMPLES:
+        lines.append("✅ 两维一致率与 Kappa 均过线、样本量达标——允许把 threshold 定为正式拦截线，"
                      "pytest 门禁从观测模式切 strict（CI 接入见 README）。\n")
+    elif overall_ok:
+        lines.append(f"⚠️ 一致率过线但样本量不足（最少维度 n={min_n} < {MIN_SAMPLES}）——"
+                     "Kappa 在小样本下无统计意义，本结论仅供管线验证/分批试跑参考，"
+                     "**禁止据此切门禁**；标满样本后重新出报告。\n")
     else:
         lines.append("❌ 未过线——不许切 strict。下一步：逐条过 disagreements.md，"
                      "判分歧主因是 rubric 措辞 / 阈值 / 同源自评偏好，"
