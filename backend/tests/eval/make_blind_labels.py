@@ -53,11 +53,16 @@ JUDGING_RULES = """\
 - 有明确取值范围的字段完全没碰边界（min/max 附近一个都没有）→ 判 0
 - 全是 Happy Path → 坚决判 0
 
-### 填法
+### 填法（两种，可混用）
 
-- 1 = 通过（裁判应该给过线分）；0 = 不通过；null = 未标注
+- **一体式（推荐）**：在下面每条样本末尾的「> 判定」行直接填
+  （`assertability=_ coverage=_ note=`，把 _ 改成 0/1），全部填完跑
+  `./.venv/Scripts/python.exe -m tests.eval.collect_labels` 自动回收进 jsonl；
+- **答题卡**：直接填 human_labels_v1.jsonl 里的 null（适合习惯逐行填的）。
+- 1 = 通过（裁判应该给过线分）；0 = 不通过；_ / null = 未标注
 - note 可空；判 0 时建议写一句锚点（如「TC-03 预期结果是'显示正常'」），
   分歧分析时要靠它定位
+- ⚠️ md 里已填判定后，重跑 make_blind_labels 会覆盖——必须先 collect_labels 回收
 """
 
 
@@ -108,7 +113,8 @@ def write_worksheet(samples: list[dict]) -> None:
         parts.append(
             f"\n## {i}. {s['id']}\n\n"
             f"- 来源：`{s.get('source', '?')}`　分组：{group}　用例数：{s.get('case_count', '?')}\n\n"
-            f"```json\n{s['actual_output']}\n```\n"
+            f"```json\n{s['actual_output']}\n```\n\n"
+            f"> 判定：assertability=_ coverage=_ note=\n"  # collect_labels 回收行，格式勿动
         )
     WORKSHEET_PATH.write_text("".join(parts), encoding="utf-8")
 

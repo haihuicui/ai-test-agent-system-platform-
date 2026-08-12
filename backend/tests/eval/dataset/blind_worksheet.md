@@ -19,11 +19,16 @@
 - 有明确取值范围的字段完全没碰边界（min/max 附近一个都没有）→ 判 0
 - 全是 Happy Path → 坚决判 0
 
-### 填法
+### 填法（两种，可混用）
 
-- 1 = 通过（裁判应该给过线分）；0 = 不通过；null = 未标注
+- **一体式（推荐）**：在下面每条样本末尾的「> 判定」行直接填
+  （`assertability=_ coverage=_ note=`，把 _ 改成 0/1），全部填完跑
+  `./.venv/Scripts/python.exe -m tests.eval.collect_labels` 自动回收进 jsonl；
+- **答题卡**：直接填 human_labels_v1.jsonl 里的 null（适合习惯逐行填的）。
+- 1 = 通过（裁判应该给过线分）；0 = 不通过；_ / null = 未标注
 - note 可空；判 0 时建议写一句锚点（如「TC-03 预期结果是'显示正常'」），
   分歧分析时要靠它定位
+- ⚠️ md 里已填判定后，重跑 make_blind_labels 会覆盖——必须先 collect_labels 回收
 
 ---
 
@@ -114,6 +119,8 @@
  }
 ]
 ```
+
+> 判定：assertability=_ coverage=_ note=
 
 ## 2. ws-test_cases_module_03
 
@@ -207,6 +214,8 @@
  }
 ]
 ```
+
+> 判定：assertability=_ coverage=_ note=
 
 ## 3. ws-sorted_cases
 
@@ -517,6 +526,8 @@
 ]
 ```
 
+> 判定：assertability=_ coverage=_ note=
+
 ## 4. ws-dms_test_cases
 
 - 来源：`workspace/testcase/dms_test_cases.jsonl`　分组：(旧样本)　用例数：25
@@ -800,6 +811,8 @@
  }
 ]
 ```
+
+> 判定：assertability=_ coverage=_ note=
 
 ## 5. ws-tc_sysconfig_module_v2
 
@@ -1444,6 +1457,8 @@
 ]
 ```
 
+> 判定：assertability=_ coverage=_ note=
+
 ## 6. ws-tc_sysconfig_v3
 
 - 来源：`workspace/testcase/tc_sysconfig_v3.jsonl`　分组：(旧样本)　用例数：25
@@ -2087,6 +2102,8 @@
 ]
 ```
 
+> 判定：assertability=_ coverage=_ note=
+
 ## 7. ws-tc_sysconfig_module_系统配置
 
 - 来源：`workspace/testcase/tc_sysconfig_module_系统配置.jsonl`　分组：(旧样本)　用例数：25
@@ -2684,6 +2701,8 @@
  }
 ]
 ```
+
+> 判定：assertability=_ coverage=_ note=
 
 ## 8. ws-tc_all_merged
 
@@ -3308,6 +3327,8 @@
  }
 ]
 ```
+
+> 判定：assertability=_ coverage=_ note=
 
 ## 9. ws-PR-2-final_module_01
 
@@ -4002,6 +4023,8 @@
  }
 ]
 ```
+
+> 判定：assertability=_ coverage=_ note=
 
 ## 10. ws-test_cases_login
 
@@ -4843,6 +4866,8 @@
 ]
 ```
 
+> 判定：assertability=_ coverage=_ note=
+
 ## 11. ws-PR-1-test_cases_module_01_login
 
 - 来源：`workspace/testcase/PR-1/test_cases_module_01_login.jsonl`　分组：PR-1　用例数：27
@@ -5470,6 +5495,8 @@
 ]
 ```
 
+> 判定：assertability=_ coverage=_ note=
+
 ## 12. ws-PR-1-test_cases_dressup_module_03_preview
 
 - 来源：`workspace/testcase/PR-1/test_cases_dressup_module_03_preview.jsonl`　分组：PR-1　用例数：17
@@ -5840,6 +5867,8 @@
  }
 ]
 ```
+
+> 判定：assertability=_ coverage=_ note=
 
 ## 13. ws-PR-2-test_cases_sysconfig
 
@@ -6486,6 +6515,8 @@
 ]
 ```
 
+> 判定：assertability=_ coverage=_ note=
+
 ## 14. ws-PR-1-test_cases_dressup_module_05_multi
 
 - 来源：`workspace/testcase/PR-1/test_cases_dressup_module_05_multi.jsonl`　分组：PR-1　用例数：14
@@ -6851,6 +6882,8 @@
  }
 ]
 ```
+
+> 判定：assertability=_ coverage=_ note=
 
 ## 15. ws-PR-2-final_module_05
 
@@ -7382,6 +7415,8 @@
 ]
 ```
 
+> 判定：assertability=_ coverage=_ note=
+
 ## 16. ws-PR-1-test_cases_dressup_module_06_rule
 
 - 来源：`workspace/testcase/PR-1/test_cases_dressup_module_06_rule.jsonl`　分组：PR-1　用例数：12
@@ -7699,6 +7734,8 @@
  }
 ]
 ```
+
+> 判定：assertability=_ coverage=_ note=
 
 ## 17. ws-PR-2-test_cases_module_05_rf
 
@@ -8229,6 +8266,8 @@
 ]
 ```
 
+> 判定：assertability=_ coverage=_ note=
+
 ## 18. ws-PR-1-test_cases_dressup_module_01_merge
 
 - 来源：`workspace/testcase/PR-1/test_cases_dressup_module_01_merge.jsonl`　分组：PR-1　用例数：10
@@ -8494,6 +8533,8 @@
  }
 ]
 ```
+
+> 判定：assertability=_ coverage=_ note=
 
 ## 19. ws-PR-2-test_cases_module_01_pos
 
@@ -9000,6 +9041,8 @@
 ]
 ```
 
+> 判定：assertability=_ coverage=_ note=
+
 ## 20. ws-PR-1-test_cases_module_03_captcha
 
 - 来源：`workspace/testcase/PR-1/test_cases_module_03_captcha.jsonl`　分组：PR-1　用例数：12
@@ -9285,6 +9328,8 @@
  }
 ]
 ```
+
+> 判定：assertability=_ coverage=_ note=
 
 ## 21. ws-PR-2-test_cases_perm
 
@@ -9751,6 +9796,8 @@
 ]
 ```
 
+> 判定：assertability=_ coverage=_ note=
+
 ## 22. ws-PR-1-test_cases_module_02_session
 
 - 来源：`workspace/testcase/PR-1/test_cases_module_02_session.jsonl`　分组：PR-1　用例数：11
@@ -10022,6 +10069,8 @@
  }
 ]
 ```
+
+> 判定：assertability=_ coverage=_ note=
 
 ## 23. ws-PR-2-test_cases_module_01
 
@@ -10471,6 +10520,8 @@
 ]
 ```
 
+> 判定：assertability=_ coverage=_ note=
+
 ## 24. ws-PR-1-test_cases_dressup_module_02_title
 
 - 来源：`workspace/testcase/PR-1/test_cases_dressup_module_02_title.jsonl`　分组：PR-1　用例数：9
@@ -10661,6 +10712,8 @@
  }
 ]
 ```
+
+> 判定：assertability=_ coverage=_ note=
 
 ## 25. ws-tc_sysconfig_v2
 
@@ -11429,6 +11482,8 @@
 ]
 ```
 
+> 判定：assertability=_ coverage=_ note=
+
 ## 26. ws-PR-1-test_cases_dressup_module_04_single
 
 - 来源：`workspace/testcase/PR-1/test_cases_dressup_module_04_single.jsonl`　分组：PR-1　用例数：7
@@ -11604,6 +11659,8 @@
  }
 ]
 ```
+
+> 判定：assertability=_ coverage=_ note=
 
 ## 27. ws-s53_test_cases
 
@@ -12362,6 +12419,8 @@
 ]
 ```
 
+> 判定：assertability=_ coverage=_ note=
+
 ## 28. ws-PR-1-test_cases_module_05_multi
 
 - 来源：`workspace/testcase/PR-1/test_cases_module_05_multi.jsonl`　分组：PR-1　用例数：8
@@ -12562,6 +12621,8 @@
  }
 ]
 ```
+
+> 判定：assertability=_ coverage=_ note=
 
 ## 29. ws-test_cases_isolate
 
@@ -13149,6 +13210,8 @@
 ]
 ```
 
+> 判定：assertability=_ coverage=_ note=
+
 ## 30. ws-PR-1-test_cases_module_03_add
 
 - 来源：`workspace/testcase/PR-1/test_cases_module_03_add.jsonl`　分组：PR-1　用例数：5
@@ -13319,6 +13382,8 @@
  }
 ]
 ```
+
+> 判定：assertability=_ coverage=_ note=
 
 ## 31. ws-PR-2-pq_cases_v3
 
@@ -13793,6 +13858,8 @@
  }
 ]
 ```
+
+> 判定：assertability=_ coverage=_ note=
 
 ## 32. ws-test_cases_compare
 
@@ -14512,6 +14579,8 @@
 ]
 ```
 
+> 判定：assertability=_ coverage=_ note=
+
 ## 33. ws-PR-1-test_cases_supplement
 
 - 来源：`workspace/testcase/PR-1/test_cases_supplement.jsonl`　分组：PR-1　用例数：4
@@ -14652,6 +14721,8 @@
  }
 ]
 ```
+
+> 判定：assertability=_ coverage=_ note=
 
 ## 34. ws-PR-2-pq_cases
 
@@ -15114,6 +15185,8 @@
  }
 ]
 ```
+
+> 判定：assertability=_ coverage=_ note=
 
 ## 35. ws-user_login_test_cases
 
@@ -15866,6 +15939,8 @@
 ]
 ```
 
+> 判定：assertability=_ coverage=_ note=
+
 ## 36. ws-PR-1-test_cases_module_06_log
 
 - 来源：`workspace/testcase/PR-1/test_cases_module_06_log.jsonl`　分组：PR-1　用例数：6
@@ -16015,6 +16090,8 @@
  }
 ]
 ```
+
+> 判定：assertability=_ coverage=_ note=
 
 ## 37. ws-td_cases
 
@@ -16421,6 +16498,8 @@
 ]
 ```
 
+> 判定：assertability=_ coverage=_ note=
+
 ## 38. ws-PR-1-test_cases_module_04_logout
 
 - 来源：`workspace/testcase/PR-1/test_cases_module_04_logout.jsonl`　分组：PR-1　用例数：5
@@ -16558,6 +16637,8 @@
  }
 ]
 ```
+
+> 判定：assertability=_ coverage=_ note=
 
 ## 39. ws-PR-2-pt_cases
 
@@ -17003,6 +17084,8 @@
 ]
 ```
 
+> 判定：assertability=_ coverage=_ note=
+
 ## 40. ws-test_cases_flow
 
 - 来源：`workspace/testcase/test_cases_flow.jsonl`　分组：(root)　用例数：10
@@ -17429,6 +17512,8 @@
 ]
 ```
 
+> 判定：assertability=_ coverage=_ note=
+
 ## 41. ws-PR-1-test_cases_module_01
 
 - 来源：`workspace/testcase/PR-1/test_cases_module_01.jsonl`　分组：PR-1　用例数：3
@@ -17537,6 +17622,8 @@
  }
 ]
 ```
+
+> 判定：assertability=_ coverage=_ note=
 
 ## 42. ws-PR-2-gp_cases
 
@@ -17980,6 +18067,8 @@
  }
 ]
 ```
+
+> 判定：assertability=_ coverage=_ note=
 
 ## 43. ws-标气管理_测试用例
 
@@ -18641,6 +18730,8 @@
 ]
 ```
 
+> 判定：assertability=_ coverage=_ note=
+
 ## 44. ws-PR-1-test_cases_module_04_edit
 
 - 来源：`workspace/testcase/PR-1/test_cases_module_04_edit.jsonl`　分组：PR-1　用例数：4
@@ -18755,6 +18846,8 @@
  }
 ]
 ```
+
+> 判定：assertability=_ coverage=_ note=
 
 ## 45. ws-PR-2-pt_cases_v2
 
@@ -19198,3 +19291,5 @@
  }
 ]
 ```
+
+> 判定：assertability=_ coverage=_ note=

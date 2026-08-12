@@ -11,6 +11,7 @@ tests/eval/
 ├── test_testcase_quality.py  # pytest 参数化门禁
 ├── harvest_samples.py        # 从 workspace 历史产出采集回归样本（含分层均衡策略）
 ├── make_blind_labels.py      # 生成盲标工作表 + 标注骨架
+├── collect_labels.py         # 回收工作表判定行 → 写回标注骨架
 ├── run_judges.py             # 裁判分数落盘（盲标完成后才准跑）
 ├── calibrate_report.py       # 一致率/Kappa/分歧清单
 └── dataset/
@@ -78,9 +79,14 @@ cd backend
 # 2. 生成盲标材料：worksheet 含用例全文、无任何裁判分；行序固定 seed 打乱
 ./.venv/Scripts/python.exe -m tests.eval.make_blind_labels
 
-# 3. 人工盲标：对照 dataset/blind_worksheet.md，把 human_labels_v1.jsonl 的
-#    null 全部填成 0/1（判定规则写在 worksheet 头部，与两个裁判一一对应）。
+# 3. 人工盲标：对照 dataset/blind_worksheet.md 判定 45 条样本
+#    （判定规则写在 worksheet 头部，与两个裁判一一对应）。
+#    两种填法可混用：
+#    a) 一体式：在 worksheet 每条样本末尾的「> 判定」行把 _ 改成 0/1，标完回收：
+./.venv/Scripts/python.exe -m tests.eval.collect_labels
+#    b) 答题卡：直接填 human_labels_v1.jsonl 的 null。
 #    【此步完成前禁止跑 run_judges——提前看裁判分会污染人工判断】
+#    ⚠️ worksheet 里已填判定后，重跑 make_blind_labels 前必须先 collect 回收
 
 # 4. 裁判落盘：逐条跑分写 judge_scores_v1.jsonl，断点续跑，Ctrl+C 可中断
 ./.venv/Scripts/python.exe -m tests.eval.run_judges
