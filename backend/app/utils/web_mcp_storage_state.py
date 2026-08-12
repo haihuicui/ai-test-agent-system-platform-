@@ -4,6 +4,7 @@
 避免 agent 直接导入 StorageStateService / WebTestService 造成循环依赖。
 """
 
+import asyncio
 import logging
 from pathlib import Path
 from typing import Optional
@@ -14,8 +15,10 @@ UUIDValueError = ValueError
 from sqlalchemy import select
 
 from app.config.database import async_session_factory
+from app.models.environment import AuthType
 from app.models.project import Project
 from app.models.storage_state_job import StorageStateJob
+from app.repositories.environment_repo import EnvironmentRepository
 from app.repositories.project_repo import ProjectRepository
 from app.utils.storage_state_validator import validate_storage_state
 from app.utils.sync_executor import run_sync
@@ -136,3 +139,76 @@ async def _resolve_project(session, project_identifier: str) -> Optional[Project
         return await repo.get_by_id(project_id)
     except (UUIDValueError, ValueError):
         return None
+
+
+# =============================================================================
+# 项目登录态解析缓存：每 run 查 project/env 两张表，langgraph 侧
+# 是 NullPool，每条会话还要付一次 PG SCRAM 建连（~0.5-1s）。60s TTL 足够
+# 新鲜（storageState 续期后路径变化最多滞后 60s）。
+# =============================================================================
+
+_LOGIN_STATE_CACHE_TTL_SECONDS = 60.0
+_login_state_cache: dict[str, tuple[float, bool, "str | None"]] = {}
+
+
+async def resolve_project_login_state(
+    project_identifier: str,
+) -> tuple[bool, "str | None"]:
+    """解析项目登录态，返回 (has_login_config, storage_state 路径)。
+
+    成功结果按 project_identifier 缓存 60s；异常不缓存（下次重试）。
+    """
+    now = asyncio.get_running_loop().time()
+    cached = _login_state_cache.get(project_identifier)
+    if cached and now - cached[0] < _LOGIN_STATE_CACHE_TTL_SECONDS:
+        return cached[1], cached[2]
+
+    has_login_config = False
+    storage_state: str | None = None
+    env = None
+    try:
+        async with async_session_factory() as session:
+            project = await ProjectRepository(session).get_by_identifier(
+                project_identifier
+            )
+            if project is not None:
+                env = await EnvironmentRepository(
+                    session
+                ).get_default_by_project(project.id)
+                if env is not None:
+                    if env.auth_type == AuthType.FORM_LOGIN.value:
+                        has_login_config = True
+                    else:
+                        auth_config = env.auth_config or {}
+                        has_login_config = bool(
+                            auth_config.get("form_login")
+                            or auth_config.get("storage_state")
+                        )
+                if has_login_config:
+                    storage_state = await resolve_project_storage_state_path(
+                        project_identifier, env.id if env else None
+                    )
+                    if storage_state:
+                        logger.info(
+                            "[WebMCPAgent] 使用项目级 storageState: %s",
+                            storage_state,
+                        )
+                    else:
+                        logger.warning(
+                            "[WebMCPAgent] 项目 %s 已配置 Web 登录但无有效项目级 "
+                            "storageState，不使用全局 fallback，将依赖脚本自身登录逻辑。",
+                            project_identifier,
+                        )
+                elif project is not None:
+                    logger.info(
+                        "[WebMCPAgent] 项目 %s 未配置 Web 登录，不使用 storageState。",
+                        project_identifier,
+                    )
+    except Exception as exc:
+        logger.warning(
+            "[WebMCPAgent] 解析项目默认环境登录态失败: %s", exc
+        )
+        return False, None
+
+    _login_state_cache[project_identifier] = (now, has_login_config, storage_state)
+    return has_login_config, storage_state

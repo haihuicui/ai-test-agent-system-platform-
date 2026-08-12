@@ -609,12 +609,15 @@ class StorageStateService:
                                 f"storageState 运行时探针判定失效: {probe_reason}"
                             )
 
-                # 激活：更新 playwright.config.js 注入 storageState
+                # 确保 MCP 工作区环境就绪（node_modules / 共享配置）。
+                # 登录态不再注入共享 playwright.config.js：agent 与执行链路每个 run
+                # 会按项目解析 storageState 并生成独立的 playwright.config.ss-*.js
+                # （见 shell_env.write_storage_state_config），避免并发 run 互相覆盖
+                # 共享配置（登录态丢失 / 跨项目串扰）。
                 web_mcp_root = Path(settings.web_mcp_root).resolve()
                 await ensure_playwright_mcp_project(
                     str(web_mcp_root),
                     headless=headless,
-                    storage_state=str(output_path),
                 )
 
                 # 更新环境认证配置与凭据：测试环境下密码作为普通字段保存到 auth_secret，

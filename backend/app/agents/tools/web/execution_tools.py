@@ -21,7 +21,8 @@ from sqlalchemy import select
 # noqa  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2TVhwMk9RPT06MTE1M2I2M2M=
 
 from app.utils.sync_executor import run_sync
-from app.utils.shell_env import resolve_effective_headless
+from app.utils.shell_env import resolve_effective_headless, write_storage_state_config
+from app.utils.web_mcp_storage_state import resolve_project_login_state
 from app.config import settings
 from app.config.database import async_session_factory
 from app.models.attachment import Attachment, AttachmentEntityType
@@ -257,6 +258,22 @@ async def _execute_and_report(
 
     # 6. 执行脚本
     resolved_headless = settings.web_mcp_headless if headless is None else headless
+
+    # 登录态隔离：项目已配置登录态时生成/复用独立配置（playwright.config.ss-*.js）
+    # 并通过 --config 传入，不再依赖共享 playwright.config.js 中的 storageState——
+    # 后者会被并发 run 互相覆盖（登录态丢失 / 跨项目串扰）。解析走 60s 缓存，
+    # 与 agent 启动时的解析共享结果，正常路径零 DB 开销。
+    run_config_path: Optional[str] = None
+    if project_identifier:
+        _, storage_state = await resolve_project_login_state(project_identifier)
+        if storage_state:
+            run_config_path = await write_storage_state_config(
+                str(project_root),
+                storage_state,
+                headless=resolved_headless,
+                config_key=project_identifier,
+            )
+
     execution_result = await _execute_script_internal(
         script_path=str(relative_path),
         script_filename=script_filename,
@@ -267,6 +284,7 @@ async def _execute_and_report(
         json_report_file=str(json_report_file),
         test_output_dir=str(test_output_dir),
         headless=resolved_headless,
+        config_path=run_config_path,
     )
 
     # 7. 解析 JSON 结构化结果（用例级 pass/fail/时长），失败时回退到 return_code 判定
@@ -423,6 +441,7 @@ async def _execute_script_internal(
     json_report_file: str,
     test_output_dir: str,
     headless: bool = True,
+    config_path: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     内部执行脚本函数
@@ -441,6 +460,8 @@ async def _execute_script_internal(
         json_report_file: 隔离的 JSON 结果文件路径
         test_output_dir: 隔离的 test-results 输出目录
         headless: 是否无头运行
+        config_path: 可选的独立 playwright 配置路径（携带项目登录态的
+            playwright.config.ss-*.js）；未传时加载默认共享配置
 
     Returns:
         执行结果字典
@@ -465,11 +486,13 @@ async def _execute_script_internal(
         # reporter 同时产出 html（人读）+ json（机读）；即便调用方只要 json 也保留 html 便于排查。
         reporter_spec = "html,json" if reporter == "html" else f"{reporter},json"
         headed_flag = "--headed" if not effective_headless else ""
+        config_flag = f'--config="{config_path}"' if config_path else ""
 
         if is_windows:
             cmd = (
                 f'npx playwright test "{script_filename}" --reporter={reporter_spec} '
-                f'--output="{test_output_dir}" --timeout={test_timeout} --retries={retries} {headed_flag}'
+                f'--output="{test_output_dir}" --timeout={test_timeout} --retries={retries} '
+                f'{config_flag} {headed_flag}'
             )
         else:
             cmd = [
@@ -479,6 +502,8 @@ async def _execute_script_internal(
                 f"--timeout={test_timeout}",
                 f"--retries={retries}",
             ]
+            if config_path:
+                cmd.append(f"--config={config_path}")
             if headed_flag:
                 cmd.append("--headed")
 

@@ -39,13 +39,14 @@ from app.agents.web_mcp.intent_confirmation_middleware import WebIntentConfirmat
 from app.config.settings import settings
 from app.core.llms import text_model as model
 from app.core.tracing import with_langfuse_tracing
-from app.models.environment import AuthType
-from app.repositories.environment_repo import EnvironmentRepository
-from app.utils.shell_env import build_shell_env, ensure_playwright_mcp_project, get_playwright_mcp_command_args
+from app.utils.shell_env import (
+    build_shell_env,
+    ensure_playwright_mcp_project,
+    get_playwright_mcp_command_args,
+    write_storage_state_config,
+)
 from app.utils.storage_state_validator import validate_storage_state
-from app.utils.web_mcp_storage_state import resolve_project_storage_state_path
-from app.repositories.project_repo import ProjectRepository
-from app.config.database import async_session_factory
+from app.utils.web_mcp_storage_state import resolve_project_login_state
 
 logger = logging.getLogger(__name__)
 
@@ -53,8 +54,6 @@ logger = logging.getLogger(__name__)
 # 配置
 # =============================================================================
 # noqa  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2TkdSNlVRPT06ZGFhYmJjYWY=
-
-model.profile = ModelProfile(max_input_tokens=128000)
 
 skills_root = Path(settings.web_mcp_skills_root).resolve()
 workspace_root = Path(settings.web_mcp_workspace_root).resolve()
@@ -123,6 +122,19 @@ class WebContextInjectionMiddleware(AgentMiddleware):
 **重要提示：** 这些参数由系统自动注入，不要询问用户提供。
 ---
 """
+        # 幂等保护：若 system_message 已被注入过（上游复用 message 对象的场景），
+        # 直接放行，避免每次模型调用重复追加导致提示词无限膨胀。
+        existing = request.system_message.content
+        if isinstance(existing, list):
+            already_injected = any(
+                isinstance(block, dict) and "## 🎯 运行时上下文" in str(block.get("text", ""))
+                for block in existing
+            )
+        else:
+            already_injected = "## 🎯 运行时上下文" in (existing or "")
+        if already_injected:
+            return await handler(request)
+
         # 如果 content 是列表，需要将字符串包装成正确的内容块格式
         if isinstance(request.system_message.content, list):
             request.system_message.content = request.system_message.content + [{"type": "text", "text": context_info}]
@@ -264,77 +276,9 @@ def build_web_agent_model():
 
 
 # =============================================================================
-# 项目登录态解析缓存：make_agent 每 run 查 project/env 两张表，langgraph 侧
-# 是 NullPool，每条会话还要付一次 PG SCRAM 建连（~0.5-1s）。60s TTL 足够
-# 新鲜（storageState 续期后路径变化最多滞后 60s）。
+# 项目登录态解析：已公共化到 app.utils.web_mcp_storage_state.resolve_project_login_state
+# （execution_tools 执行链路复用同一解析与 60s 缓存）。
 # =============================================================================
-
-_LOGIN_STATE_CACHE_TTL_SECONDS = 60.0
-_login_state_cache: dict[str, tuple[float, bool, "str | None"]] = {}
-
-
-async def _resolve_project_login_state(
-    project_identifier: str,
-) -> tuple[bool, "str | None"]:
-    """解析项目登录态，返回 (has_login_config, storage_state 路径)。
-
-    成功结果按 project_identifier 缓存 60s；异常不缓存（下次重试）。
-    保持原内联实现的日志与语义不变。
-    """
-    now = asyncio.get_running_loop().time()
-    cached = _login_state_cache.get(project_identifier)
-    if cached and now - cached[0] < _LOGIN_STATE_CACHE_TTL_SECONDS:
-        return cached[1], cached[2]
-
-    has_login_config = False
-    storage_state: str | None = None
-    env = None
-    try:
-        async with async_session_factory() as session:
-            project = await ProjectRepository(session).get_by_identifier(
-                project_identifier
-            )
-            if project is not None:
-                env = await EnvironmentRepository(
-                    session
-                ).get_default_by_project(project.id)
-                if env is not None:
-                    if env.auth_type == AuthType.FORM_LOGIN.value:
-                        has_login_config = True
-                    else:
-                        auth_config = env.auth_config or {}
-                        has_login_config = bool(
-                            auth_config.get("form_login")
-                            or auth_config.get("storage_state")
-                        )
-                if has_login_config:
-                    storage_state = await resolve_project_storage_state_path(
-                        project_identifier, env.id if env else None
-                    )
-                    if storage_state:
-                        logger.info(
-                            "[WebMCPAgent] 使用项目级 storageState: %s",
-                            storage_state,
-                        )
-                    else:
-                        logger.warning(
-                            "[WebMCPAgent] 项目 %s 已配置 Web 登录但无有效项目级 "
-                            "storageState，不使用全局 fallback，将依赖脚本自身登录逻辑。",
-                            project_identifier,
-                        )
-                elif project is not None:
-                    logger.info(
-                        "[WebMCPAgent] 项目 %s 未配置 Web 登录，不使用 storageState。",
-                        project_identifier,
-                    )
-    except Exception as exc:
-        logger.warning(
-            "[WebMCPAgent] 解析项目默认环境登录态失败: %s", exc
-        )
-        return False, None
-
-    _login_state_cache[project_identifier] = (now, has_login_config, storage_state)
-    return has_login_config, storage_state
 
 
 @asynccontextmanager
@@ -368,11 +312,10 @@ async def make_agent(config: RunnableConfig | None = None) -> AsyncIterator[Preg
     )
 
     storage_state: str | None = None
-    use_global_fallback = False
     has_login_config = False
 
     if project_identifier:
-        has_login_config, storage_state = await _resolve_project_login_state(
+        has_login_config, storage_state = await resolve_project_login_state(
             project_identifier
         )
 
@@ -383,7 +326,6 @@ async def make_agent(config: RunnableConfig | None = None) -> AsyncIterator[Preg
             validation = validate_storage_state(global_ss)
             if validation.is_valid:
                 storage_state = global_ss
-                use_global_fallback = True
                 logger.info("[WebMCPAgent] 使用全局 storageState: %s", storage_state)
             else:
                 logger.warning(
@@ -391,13 +333,22 @@ async def make_agent(config: RunnableConfig | None = None) -> AsyncIterator[Preg
                     validation.reason,
                 )
 
-    # 确保 Playwright MCP 项目目录已初始化（配置、依赖），并注入登录态
+    # 确保 Playwright MCP 项目目录已初始化（共享配置固定为无登录态静态模板）
     await ensure_playwright_mcp_project(
         settings.web_mcp_root,
         headless=settings.web_mcp_headless,
-        storage_state=storage_state,
-        use_global_storage_state_fallback=use_global_fallback,
     )
+
+    # 登录态隔离：解析到 storageState 的 run 生成独立配置（playwright.config.ss-*.js），
+    # 并发 run 不再互相覆盖共享 playwright.config.js（登录态丢失 / 跨项目串扰）。
+    run_config_path: str | None = None
+    if storage_state:
+        run_config_path = await write_storage_state_config(
+            settings.web_mcp_root,
+            storage_state,
+            headless=settings.web_mcp_headless,
+            config_key=project_identifier or "global",
+        )
 
     # 创建 MCP 客户端：优先连接常驻 server（streamable HTTP），否则 per-run stdio 启动。
     # 常驻 server 按无登录态配置启动，解析到 storageState 的 run 必须走 stdio 隔离，
@@ -420,7 +371,9 @@ async def make_agent(config: RunnableConfig | None = None) -> AsyncIterator[Preg
                 "[WebMCPAgent] 已解析 storageState，使用 stdio 隔离启动（不走常驻 server）。"
             )
         mcp_command, mcp_args = await get_playwright_mcp_command_args(
-            settings.web_mcp_root, headless=settings.web_mcp_headless
+            settings.web_mcp_root,
+            headless=settings.web_mcp_headless,
+            config_path=run_config_path,
         )
         client = _build_mcp_client(mcp_command, mcp_args)
 
@@ -446,6 +399,19 @@ async def make_agent(config: RunnableConfig | None = None) -> AsyncIterator[Preg
             len(mcp_tools),
             "全量" if whitelist is None else "白名单裁剪",
         )
+        if whitelist is not None:
+            loaded_names = {t.name for t in loaded_tools}
+            dropped = sorted(loaded_names - {t.name for t in mcp_tools})
+            logger.debug("[WebMCPAgent] 被白名单裁掉的 MCP 工具: %s", ", ".join(dropped))
+            # 白名单中列了但 server 未提供的工具：多半是 MCP 升级改名或拼写过时，
+            # 需要同步维护 CORE_MCP_TOOLS / WEB_MCP_TOOL_WHITELIST。
+            missing = sorted(whitelist - loaded_names)
+            if missing:
+                logger.warning(
+                    "[WebMCPAgent] 白名单中的 %d 个工具未被 MCP server 提供（疑似过时）: %s",
+                    len(missing),
+                    ", ".join(missing),
+                )
         all_tools = mcp_tools + get_local_tools()
 # type: ignore  My80OmFIVnBZMlhsdEpUbXRiZm92b2s2TkdSNlVRPT06ZGFhYmJjYWY=
 

@@ -420,13 +420,13 @@ class WebTestService:
                     else:
                         logger.info("[WebTest] 未解析到环境，不使用 storageState")
 
-                # 显式禁用全局 settings.web_mcp_storage_state 回退，确保未配置登录态时
-                # 不会注入历史 storageState。
+                # 确保工作区环境就绪。本链路执行使用下方 temp_path 的独立
+                # playwright.config.ts（storageState 由 _generate_playwright_config
+                # 注入），不依赖共享配置；共享 playwright.config.js 固定无登录态，
+                # 并发 run 不会互相覆盖登录态。
                 await ensure_playwright_mcp_project(
                     str(workspace_root),
                     headless=execution_config.get("headless", True),
-                    storage_state=storage_state_path,
-                    use_global_storage_state_fallback=False,
                 )
                 exec_root = workspace_root / ".web_test_runs" / str(run_id)
                 await run_sync(lambda: exec_root.mkdir(parents=True, exist_ok=True))
