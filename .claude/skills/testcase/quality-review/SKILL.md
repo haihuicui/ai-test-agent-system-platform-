@@ -96,7 +96,7 @@ task(
 - 用例文件清单：{case_file_paths}
 
 ## 结果目录
-{project_dir}/（逐模块写入 adversarial_review_m{{NN}}.md，信任度评估写入 adversarial_review_summary.md）
+{会话工作目录}/（即运行时上下文注入的「会话工作目录」，形如 /<项目>/<会话ID>/；逐模块写入 adversarial_review_m{{NN}}.md，信任度评估写入 adversarial_review_summary.md）
 
 审查重点分配：P0/高风险功能点的用例逐条审查；P2/P3 功能点抽样审查。
 """,
@@ -113,7 +113,7 @@ task(
 
 子代理最终消息只返回统计摘要（缺陷计数 + 信任度 + 文件清单）。收到摘要后**必须用 `read_file` 读取结果文件**，将完整发现原样纳入评审报告：
 
-1. 逐模块读取 `{project_dir}/adversarial_review_m*.md`，🔴 严重缺陷进入评审报告的问题清单（严重问题），🟡 可改进项进入问题清单（一般问题）
+1. 逐模块读取 `{会话工作目录}/adversarial_review_m*.md`，🔴 严重缺陷进入评审报告的问题清单（严重问题），🟡 可改进项进入问题清单（一般问题）
 2. 读取 `adversarial_review_summary.md`，信任度评估展示在评审报告的"补充建议"末尾
 3. 交叉验证减分值需根据 Agent 发现的问题**重新计算**（通常 Agent 会发现更多扣分项）
 4. **结果文件缺失或为空时**：按模块拆分后重新发起 task（每次只审 1~2 个模块），禁止原样整体重试
@@ -130,8 +130,8 @@ task(
 
 **操作步骤：**
 
-1. 读取功能矩阵文件，路径规则与 Phase 1 保存时保持一致：
-   - 传入了 `project_identifier`：`<project_identifier>/feature_matrix.jsonl`
+1. 读取功能矩阵文件，路径规则与 Phase 1 保存时保持一致（以保存工具返回的 `read_path` 为准，形如 `/<project_identifier>/<会话ID>/feature_matrix.jsonl`）：
+   - 传入了 `project_identifier`：`<project_identifier>/<会话ID>/feature_matrix.jsonl`（即「会话工作目录」下）
    - 未传入 `project_identifier`：`feature_matrix.jsonl`
    - 后端代码可通过 `load_feature_matrix(project_identifier="...")` 获取同一文件
 2. **从中提取 `constraints` 字段**（如果 Phase 1 已写入），获取：

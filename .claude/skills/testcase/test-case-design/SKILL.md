@@ -392,7 +392,7 @@ Body:
 ### 模块开始前
 
 使用文件读取工具读取功能矩阵。读取路径需与 Phase 1 保存路径保持一致（均为 Agent 虚拟文件系统路径，以保存工具返回的 `read_path` 字段为准）：
-- 若 Phase 1 传入了 `project_identifier`，文件位于 `/<project_identifier>/feature_matrix.jsonl`（如 `/PR-1/feature_matrix.jsonl`）
+- 若 Phase 1 传入了 `project_identifier`，文件位于当前会话工作目录下（形如 `/<project_identifier>/<会话ID>/feature_matrix.jsonl`）
 - 若未传入，文件位于 `/feature_matrix.jsonl`
 - **禁止使用保存工具返回的宿主机绝对路径（/app/backend/workspace/...）**，read_file 只能访问虚拟路径
 - 若按上述路径读取失败，先用 glob 搜索 `**/feature_matrix.jsonl` 定位实际文件位置，不要凭记忆重造功能点清单

@@ -17,6 +17,7 @@ from langchain.agents.middleware.human_in_the_loop import (
     ReviewConfig,
 )
 from langchain_core.messages import AIMessage, HumanMessage
+from langgraph.config import get_config
 from langgraph.types import Overwrite, interrupt
 
 if TYPE_CHECKING:
@@ -1295,12 +1296,25 @@ class PhaseReviewMiddleware(AgentMiddleware):
             if phase == "test-strategy":
                 ctx = getattr(runtime, "context", None) if runtime else None
                 pid = (getattr(ctx, "project_identifier", "") or "").strip() if ctx else ""
-                matrix_path = f"/{pid}/feature_matrix.jsonl" if pid else "/feature_matrix.jsonl"
+                # 矩阵文件在会话工作目录 <project>/<thread_id>/ 下（thread_id 由
+                # 平台注入 config["configurable"]；非平台环境回退为项目级目录）
+                thread_id = ""
+                try:
+                    cfg = get_config()
+                    if cfg and isinstance(cfg.get("configurable"), dict):
+                        thread_id = cfg["configurable"].get("thread_id") or ""
+                except Exception:
+                    thread_id = ""
+                if pid and thread_id:
+                    matrix_path = f"/{pid}/{thread_id}/feature_matrix.jsonl"
+                elif pid:
+                    matrix_path = f"/{pid}/feature_matrix.jsonl"
+                else:
+                    matrix_path = "/feature_matrix.jsonl"
                 feedback += (
                     f" 进入 Phase 3 前，必须使用文件读取工具读取 {matrix_path}"
                     " 获取当前模块的功能点清单，确保用例设计基于结构化矩阵。"
-                    "（Phase 1 保存时传入了 project_identifier，文件隔离在"
-                    f" /{pid or '<project_identifier>'}/ 目录下；注意这是 Agent 虚拟文件系统"
+                    "（文件位于当前会话工作目录下；注意这是 Agent 虚拟文件系统"
                     "路径，不要使用保存工具返回的 /app/backend/workspace/... 宿主机绝对路径，"
                     "read_file 无法访问宿主机路径；若按此路径未找到，"
                     "先用 glob 搜索 **/feature_matrix.jsonl 定位实际文件位置。）"

@@ -18,7 +18,9 @@ from langchain_core.tools import tool
 from app.agents.tools.testcase.excel_tools import (
     _parse_json_objects,
     _resolve_input_path,
+    _to_virtual_path,
 )
+from app.agents.tools.testcase.workspace_paths import apply_session_scope
 from app.config.settings import settings
 from app.utils.testcase_validation import _validate_case, normalize_case_type
 
@@ -51,7 +53,11 @@ _HAPPY_PATH_PATTERNS = (
 
 
 def _resolve_manifest_path(manifest_path: str) -> Path:
-    """将 manifest 路径解析到 workspace_root 下，禁止越权。"""
+    """将 manifest 路径解析到 workspace_root 下，禁止越权。
+
+    纯文件名/项目前缀路径自动隔离到当前会话目录 <project>/<thread_id>/，
+    避免 manifest 落在 workspace 根目录被所有项目/会话共享互相覆盖。
+    """
     raw = Path(manifest_path)
 
     if raw.anchor:
@@ -67,6 +73,8 @@ def _resolve_manifest_path(manifest_path: str) -> Path:
 
     if not rel.parts:
         raise ValueError(f"manifest 路径无效：{manifest_path}")
+
+    rel = apply_session_scope(rel)
 
     resolved = (_WORKSPACE_ROOT / rel).resolve()
     if not resolved.is_relative_to(_WORKSPACE_ROOT):
@@ -389,7 +397,11 @@ def _perform_module_self_check(
 
 
 def _resolve_case_file_path(file_path: str) -> Path:
-    """将用例文件路径解析到 workspace_root 下，禁止越权。"""
+    """将用例文件路径解析到 workspace_root 下，禁止越权。
+
+    纯文件名/项目前缀路径自动隔离到当前会话目录 <project>/<thread_id>/，
+    同项目并发会话的模块用例文件互不覆盖；已含会话前缀的路径幂等保留。
+    """
     raw = Path(file_path)
 
     if raw.anchor:
@@ -405,6 +417,8 @@ def _resolve_case_file_path(file_path: str) -> Path:
 
     if not rel.parts:
         raise ValueError(f"用例文件路径无效：{file_path}")
+
+    rel = apply_session_scope(rel)
 
     resolved = (_WORKSPACE_ROOT / rel).resolve()
     if not resolved.is_relative_to(_WORKSPACE_ROOT):
@@ -504,6 +518,7 @@ async def save_test_cases_file(file_path: str, content: str) -> dict[str, Any]:
     return {
         "success": True,
         "file_path": str(resolved),
+        "read_path": _to_virtual_path(resolved),
         "cases_count": len(cases),
         "violations": violations[:20],
         "message": message,

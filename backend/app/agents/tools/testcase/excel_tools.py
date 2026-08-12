@@ -31,6 +31,7 @@ from app.agents.tools.testcase.export_formats import (
     generate_test_cases_json_bytes,
     generate_test_cases_markdown_bytes,
 )
+from app.agents.tools.testcase.workspace_paths import apply_session_scope
 # pragma: no cover  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2UWtSWGRBPT06OWM0ZDYxMTc=
 
 # 与 agent.py 中 composite_backend 的 "/" 路由保持一致：
@@ -178,6 +179,8 @@ def _resolve_workspace_path(output_path: str | Path, suffix: str = ".xlsx") -> P
       - 相对路径（如 "测试用例.xlsx"）也落到 workspace_root 下；
       - 已经位于 workspace_root 内的真实绝对路径保持不变；
       - 缺少指定后缀时自动补全（默认 .xlsx）。
+    纯文件名/项目前缀路径自动隔离到当前会话目录 <project>/<thread_id>/，
+    避免同项目并发会话导出同名文件互相覆盖；已含会话前缀的路径幂等保留。
     并禁止通过 ".." 越权写到 workspace_root 之外。
     """
     raw = Path(output_path)
@@ -198,6 +201,8 @@ def _resolve_workspace_path(output_path: str | Path, suffix: str = ".xlsx") -> P
     if not rel.parts:
         raise ValueError(f"导出路径无效：{output_path}")
 
+    rel = apply_session_scope(rel)
+
     resolved = (_WORKSPACE_ROOT / rel).resolve()
     if not resolved.is_relative_to(_WORKSPACE_ROOT):
         raise ValueError(
@@ -211,6 +216,8 @@ def _resolve_input_path(input_path: str | Path) -> Path:
 
     与 _resolve_workspace_path 的映射规则一致（虚拟根/相对/真实绝对路径都落到
     workspace_root），但**不**强制 .xlsx 后缀，用于读取用例数据文件（.jsonl/.json）。
+    纯文件名/项目前缀路径自动补当前会话目录前缀（与写入侧一致），
+    已含会话前缀的路径幂等保留。
     同样禁止通过 ".." 越权读取 workspace_root 之外的文件。
     """
     raw = Path(input_path)
@@ -228,6 +235,8 @@ def _resolve_input_path(input_path: str | Path) -> Path:
 
     if not rel.parts:
         raise ValueError(f"输入文件路径无效：{input_path}")
+
+    rel = apply_session_scope(rel)
 
     resolved = (_WORKSPACE_ROOT / rel).resolve()
     if not resolved.is_relative_to(_WORKSPACE_ROOT):

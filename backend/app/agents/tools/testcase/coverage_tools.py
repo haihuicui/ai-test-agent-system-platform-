@@ -30,9 +30,9 @@ from app.agents.tools.testcase.excel_tools import (
     _resolve_input_path,
 )
 from app.agents.tools.testcase.feature_matrix_tools import (
-    _sanitize_project_identifier,
     load_feature_matrix,
 )
+from app.agents.tools.testcase.workspace_paths import session_scope_segments
 from app.config.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -119,17 +119,18 @@ def _load_cases(
             except Exception as e:
                 warnings.append(f"用例文件路径无效：{f}（{e}）")
     else:
-        # 自动扫描：传入 project_identifier 时限定在项目隔离目录内，
-        # 避免把其他项目的用例计入本项目覆盖率。注意同项目目录仍可能
-        # 残留历史会话的用例文件，调用方应尽量显式传 case_files。
+        # 自动扫描：优先收窄到当前会话目录 <project>/<thread_id>/，
+        # 避免把其他项目或同项目其他会话（含历史遗留）的用例计入覆盖率。
+        # 提示词已强制显式传 case_files，此处仅为兜底；会话目录不存在时
+        # 扫描结果为空（rglob 对不存在路径返回空迭代），符合预期。
         scan_root = _WORKSPACE_ROOT
-        if project_identifier.strip():
-            try:
-                proj_dir = _WORKSPACE_ROOT / _sanitize_project_identifier(project_identifier)
-                if proj_dir.is_dir():
-                    scan_root = proj_dir
-            except ValueError:
-                pass
+        project, thread = session_scope_segments(project_identifier)
+        if project:
+            proj_dir = _WORKSPACE_ROOT / project
+            if thread:
+                scan_root = proj_dir / thread
+            elif proj_dir.is_dir():
+                scan_root = proj_dir
         paths = [
             p
             for p in scan_root.rglob("*.jsonl")

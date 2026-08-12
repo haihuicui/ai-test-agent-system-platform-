@@ -337,18 +337,18 @@ class TestSaveFeatureMatrixTool:
         assert result2["success"] is True
         assert result2["read_path"] == "/plain_matrix.jsonl"
 
-    def test_explicit_subdirectory_not_isolated(self, temp_workspace):
-        """显式指定 output_file 子目录时，尊重原路径，不追加 project_identifier"""
+    def test_explicit_subdirectory_scoped_to_project(self, temp_workspace):
+        """显式指定 output_file 子目录时，子目录保留在项目隔离前缀之下（会话隔离语义）"""
         result = _call(save_feature_matrix_tool,
             features=[{**VALID_FEATURE}],
             output_file="custom/subdir/matrix.jsonl",
             project_identifier="order-system")
         assert result["success"] is True
         saved_file = Path(result["file"])
-        assert saved_file.relative_to(temp_workspace) == Path("custom") / "subdir" / "matrix.jsonl"
+        assert saved_file.relative_to(temp_workspace) == Path("order-system") / "custom" / "subdir" / "matrix.jsonl"
         assert saved_file.is_file()
-        # 不应在项目隔离目录下创建副本
-        assert not (temp_workspace / "order-system" / "matrix.jsonl").exists()
+        # 不应在项目目录之外创建副本
+        assert not (temp_workspace / "custom" / "subdir" / "matrix.jsonl").exists()
 
     def test_project_identifier_sanitization(self, temp_workspace):
         """project_identifier 含非法字符时应被清理为合法目录名"""
@@ -398,12 +398,12 @@ class TestResolveAndLoadFeatureMatrix:
         path = resolve_feature_matrix_path(project_identifier="billing-system")
         assert path.relative_to(temp_workspace) == Path("billing-system") / "feature_matrix.jsonl"
 
-    def test_resolve_respects_explicit_subdirectory(self, temp_workspace):
-        """显式子目录不应被 project_identifier 覆盖"""
+    def test_resolve_explicit_subdirectory_scoped_to_project(self, temp_workspace):
+        """显式子目录保留在项目隔离前缀之下（会话隔离语义）"""
         path = resolve_feature_matrix_path(
             project_identifier="billing-system",
             output_file="archived/matrix.jsonl")
-        assert path.relative_to(temp_workspace) == Path("archived") / "matrix.jsonl"
+        assert path.relative_to(temp_workspace) == Path("billing-system") / "archived" / "matrix.jsonl"
 
     def test_load_feature_matrix_success(self, temp_workspace):
         """load_feature_matrix 应能读取 save_feature_matrix_tool 保存的文件"""

@@ -17,6 +17,7 @@ from typing import Any
 from langchain_core.tools import tool
 
 from app.config.settings import settings
+from app.agents.tools.testcase.workspace_paths import apply_session_scope
 
 logger = logging.getLogger(__name__)
 
@@ -151,21 +152,14 @@ def _sanitize_project_identifier(project_identifier: str) -> str:
 def _resolve_matrix_path(output_file: str, project_identifier: str = "") -> Path:
     """将输出文件路径解析到 workspace_root 下，禁止越权。
 
-    若提供了 project_identifier 且 output_file 仅为文件名（未显式指定目录），
-    则自动将文件隔离到 workspace_root/<project_identifier>/ 下，避免多项目冲突。
-    若 output_file 显式包含子目录或是绝对路径，则尊重原有路径结构。
+    文件统一隔离到 ``workspace_root/<project>/<thread_id>/`` 会话目录，
+    避免不同项目及同项目并发会话之间的文件冲突；thread 缺失时
+    （非平台环境/直调）退化为项目级目录。output_file 已含项目/会话
+    前缀时幂等保留（兼容保存工具返回的 read_path 回传）。
     """
     raw = Path(output_file)
 
-    # 用户显式指定了目录结构（含子目录或绝对路径）时，不再追加项目隔离目录
-    has_explicit_directory = bool(raw.anchor) or (
-        len(raw.parts) > 1 and raw.parent.name not in ("", ".")
-    )
-
-    if project_identifier.strip() and not has_explicit_directory:
-        safe_id = _sanitize_project_identifier(project_identifier)
-        rel = Path(safe_id) / raw.name
-    elif raw.anchor:
+    if raw.anchor:
         try:
             if raw.is_absolute() and raw.resolve().is_relative_to(_WORKSPACE_ROOT):
                 return raw.resolve()
@@ -178,6 +172,8 @@ def _resolve_matrix_path(output_file: str, project_identifier: str = "") -> Path
 
     if not rel.parts:
         raise ValueError(f"输出文件路径无效：{output_file}")
+
+    rel = apply_session_scope(rel, project_identifier)
 
     resolved = (_WORKSPACE_ROOT / rel).resolve()
     if not resolved.is_relative_to(_WORKSPACE_ROOT):

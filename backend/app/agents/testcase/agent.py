@@ -16,6 +16,7 @@ from deepagents.backends import FilesystemBackend, LocalShellBackend, CompositeB
 from deepagents.middleware._utils import append_to_system_message
 from deepagents.middleware.subagents import SubAgent
 from langchain.agents.middleware import AgentMiddleware, ModelRequest, ModelResponse, wrap_model_call
+from langgraph.config import get_config
 from langgraph.pregel import Pregel
 
 from app.agents.tools.testcase import get_all_tools, get_local_tools
@@ -34,6 +35,7 @@ from app.agents.testcase.tool_call_validation_middleware import (
     patch_model_for_tool_call_adjacency,
 )
 from app.agents.testcase.context_overflow_patch import patch_model_for_context_overflow
+from app.agents.tools.testcase.runtime_context import set_session_scope
 from app.config.settings import settings
 from app.core.llms import text_model, image_model, get_text_model_with_temperature
 from app.core.tracing import with_langfuse_tracing
@@ -255,6 +257,24 @@ class ContextInjectionMiddleware(AgentMiddleware):
     ) -> ModelResponse:
         ctx = request.runtime.context
 
+        # 会话隔离作用域：写入 contextvar，工具层路径解析据此把会话产物
+        # （功能矩阵/用例 JSONL/manifest/导出文件）强制隔离到
+        # workspace/<project>/<thread_id>/，同项目并发会话互不覆盖。
+        # thread_id 由 LangGraph 平台注入 config["configurable"]；非平台环境
+        # （直调/单测）取不到时回退为项目级隔离。
+        thread_id = ""
+        try:
+            config = get_config()
+            if config and isinstance(config.get("configurable"), dict):
+                thread_id = config["configurable"].get("thread_id") or ""
+        except Exception:
+            thread_id = ""
+        set_session_scope(getattr(ctx, "project_identifier", "") or "", thread_id)
+
+        session_dir = ""
+        if ctx.project_identifier.strip():
+            session_dir = f"/{ctx.project_identifier}/{thread_id}/" if thread_id else f"/{ctx.project_identifier}/"
+
         # RAG 开关：每次 model call 前清除上一轮缓存，然后统一走 resolve_enable_rag
         # 解析一次后缓存到 runtime，后续 RAGMiddleware / RagAwareSkillsMiddleware
         # 直接读缓存，避免对消息历史的 O(n) 重复遍历（从 3 次降到 1 次）。
@@ -284,6 +304,7 @@ class ContextInjectionMiddleware(AgentMiddleware):
 - `默认模板类型`: `{ctx.template_type}`
 - `RAG 检索`: `{'开启' if enable_rag else '关闭'}`
 - `自动审批阈值`: `{getattr(ctx, 'auto_approve_threshold', 100.0)}`（报告综合评分 ≥ 该阈值时将跳过人工评审）
+- `会话工作目录`: `{session_dir or '（未设置）'}`（本会话所有工作文件——功能矩阵、用例 JSONL、评审结果文件、导出文件——都保存在该目录下。保存类工具 save_feature_matrix_tool / save_test_cases_file / 导出工具会自动使用该目录，无需手动拼接路径；用 read_file / write_file / edit_file 直接操作文件、或为子代理指定结果目录时，必须以该目录为前缀。同项目其他会话的文件对你不可见，不要访问上级目录中其他会话的文件）
 
 **重要提示：**
 1. 这些参数由系统自动注入，不要询问用户提供
@@ -479,7 +500,7 @@ SYSTEM_PROMPT = """
 2. 工具会自动校验字段完整性和格式合法性，校验失败时根据返回的 `errors` 修正后重新调用
 3. 保存成功后，在报告中注明文件路径和功能点总数
 4. 若用户选择"跳过本阶段"，仍需调用本工具保存当前已分析的矩阵（标记为草稿）
-5. 调用时请传入 `project_identifier`（与本次测试任务一致）。工具会自动将 `feature_matrix.jsonl` 隔离到该项目的专属目录下，避免不同项目之间的文件冲突
+5. 调用时请传入 `project_identifier`（与本次测试任务一致）。工具会自动将 `feature_matrix.jsonl` 隔离到当前会话的专属目录（`/<项目>/<会话ID>/`，即运行时上下文中的「会话工作目录」），避免不同项目及同项目并发会话之间的文件冲突
 6. **输出阶段报告标题（`## 需求解析报告` / `## 功能测试矩阵`）后，本消息内禁止附带任何工具调用**。系统检测到阶段标题后会自动弹出人工评审卡片；只有收到用户决策（通过/跳过/修改意见）后，才允许执行 `save_feature_matrix_tool`、`write_todos` 等后续工具调用。若工具调用与阶段报告混在一起，评审卡片会被系统跳过。
 
 > ⚡ **强制要求**：不调用本工具的 Phase 1 是不完整的。后续 Phase 3/4 将无法做确定性覆盖对照。
@@ -515,7 +536,7 @@ SYSTEM_PROMPT = """
 
 在开始设计用例之前，**必须读取 `feature_matrix.jsonl` 文件中属于当前模块的功能点**，作为用例设计的依据。每完成一个模块后，对照矩阵标注已覆盖的功能点：**
 
-1. 开始新模块前，使用文件读取工具读取 `/<project_identifier>/feature_matrix.jsonl`（Agent 虚拟文件系统路径，与 Phase 1 保存时传入的 project_identifier 一致，如 `/PR-1/feature_matrix.jsonl`；以保存工具返回的 `read_path` 字段为准），筛选属于当前模块的功能点。**禁止使用保存工具返回的宿主机绝对路径（/app/backend/workspace/...）**，read_file 只能访问虚拟路径；若按 read_path 未找到，先用 glob 搜索 `**/feature_matrix.jsonl` 定位实际文件位置
+1. 开始新模块前，使用文件读取工具读取 Phase 1 保存的功能矩阵（**路径以 `save_feature_matrix_tool` 返回的 `read_path` 字段为准**，形如 `/<项目>/<会话ID>/feature_matrix.jsonl`），筛选属于当前模块的功能点。**禁止使用保存工具返回的宿主机绝对路径（/app/backend/workspace/...）**，read_file 只能访问虚拟路径；若按 read_path 未找到，先用 glob 搜索 `**/feature_matrix.jsonl` 定位实际文件位置
 2. 设计用例时，确保该模块的每个功能点（尤其是 P0 和 高风险）至少对应 1 条用例
 3. 模块完成后，在 `write_todos` 中标注已覆盖的功能点 ID（如 "已覆盖 FP-001~FP-005"）
 
@@ -525,7 +546,7 @@ SYSTEM_PROMPT = """
 
 每完成一个模块的用例设计后，必须按以下顺序执行，**否则禁止进入下一模块**：
 
-1. 用 `save_test_cases_file` 将该模块用例保存到 JSONL 文件（文件名建议包含模块序号，如 `test_cases_module_05.jsonl`）。该工具**允许覆盖**历史会话遗留的同名文件，并自动做解析校验与 JSONL 规范化——不要用通用 `write_file`（不可覆盖）或逐行 `edit_file`（同文件多次并行 edit 只有最后一个生效）来创建模块文件。
+1. 用 `save_test_cases_file` 将该模块用例保存到 JSONL 文件（文件名建议包含模块序号，如 `test_cases_module_05.jsonl`；文件会自动保存到当前会话工作目录，`file_path` 直接传文件名即可，保存后记住返回的 `read_path` 供后续读取与导出）。该工具**允许覆盖**历史会话遗留的同名文件，并自动做解析校验与 JSONL 规范化——不要用通用 `write_file`（不可覆盖）或逐行 `edit_file`（同文件多次并行 edit 只有最后一个生效）来创建模块文件。
 2. 调用 `module_self_check_tool(input_files=["..."], expected_module="模块名")` 执行模块级自检（确定性校验：编号、模块、数据、预期结果、优先级）。
 3. 若自检返回失败，根据返回的 `violations` 修正 JSONL 文件后重新调用自检。
 4. 自检通过后，更新 `write_todos` 标记完成并进入下一模块。

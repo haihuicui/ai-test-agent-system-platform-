@@ -184,9 +184,9 @@ save_feature_matrix_tool(
 - `user_feedback_summary`: (建议填写) 各阶段的用户关键反馈，供后续阶段参考
 
 **路径隔离说明**：
-- 调用时必须传入 `project_identifier`，工具会自动把 `feature_matrix.jsonl` 保存到该项目的专属目录下
-- 例如 `project_identifier="order-system"` 时，实际文件路径为 `order-system/feature_matrix.jsonl`
-- 这样可避免不同项目的功能矩阵互相覆盖；Phase 3/4 读取时也应使用同一 `project_identifier` 对应的目录
+- 调用时必须传入 `project_identifier`，工具会自动把 `feature_matrix.jsonl` 保存到当前会话的专属目录（`/<项目>/<会话ID>/`，即运行时上下文中的「会话工作目录」）
+- 例如 `project_identifier="order-system"` 时，实际文件路径形如 `order-system/<会话ID>/feature_matrix.jsonl`，以工具返回的 `read_path` 为准
+- 这样可避免不同项目及同项目并发会话的功能矩阵互相覆盖；Phase 3/4 读取时应使用保存工具返回的 `read_path`
 - 后端读取函数 `load_feature_matrix(project_identifier="...")` 与保存端使用完全相同的路径解析规则，返回的数据中包含 `features` 列表和 `constraints` 对象
 
 > ⚡ **强制要求**：只输出 Markdown 矩阵而不调用本工具的 Phase 1 是不完整的。后续 Phase 3 用例设计和 Phase 4 质量评审将失去确定性覆盖对照的能力。
