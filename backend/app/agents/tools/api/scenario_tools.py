@@ -15,6 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.api.runtime_context import get_conversation_id
+from app.agents.api.runtime_context import get_execution_lock
 from app.agents.tools.api.scenario_design_validator import _validate_scenario_design
 from app.config.database import async_session_factory
 from app.models.api_endpoint import APIEndpoint
@@ -1628,6 +1629,27 @@ async def execute_scenario(
         ...     debug=True
         ... )
     """
+    # 同场景执行串行化：防并发执行的 teardown 互删对方步骤创建的资源
+    async with get_execution_lock(f"scenario-exec:{scenario_id}"):
+        return await _execute_scenario_impl(
+            scenario_id=scenario_id,
+            variables=variables,
+            base_url=base_url,
+            debug=debug,
+            skip_assertion_gate=skip_assertion_gate,
+            skip_design_gate=skip_design_gate,
+        )
+
+
+async def _execute_scenario_impl(
+    scenario_id: str,
+    variables: dict | None = None,
+    base_url: str = "",
+    debug: bool = False,
+    skip_assertion_gate: bool = False,
+    skip_design_gate: bool = False,
+) -> str:
+    """execute_scenario 的实际实现（调用方已持有同场景执行锁）。"""
     from app.services.scenario_execution_engine import ScenarioExecutionEngine
 
     async with async_session_factory() as session:

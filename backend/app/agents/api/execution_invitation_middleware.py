@@ -131,6 +131,33 @@ def _interrupt_with_invitation_check(payload: dict[str, Any], max_reinterrupts: 
     return response
 
 
+async def _derive_method_risk_flags(endpoint_id: str) -> tuple[bool, bool] | None:
+    """从 endpoint 元数据静态推导 (has_write_ops, has_delete_ops)。
+
+    邀约 payload 中的操作类型由模型自报，属于不受信输入——模型低报风险会
+    导致 LOW 风险自动执行路径跳过人工确认。这里以数据库中的 HTTP method
+    为准静态推导；任何失败（DB 抖动、endpoint 不存在、非法 UUID）返回
+    None，调用方回退模型自报值（fail-open，不阻断邀约）。
+    """
+    try:
+        from sqlalchemy import select
+
+        from app.config.database import async_session_factory
+        from app.models.api_endpoint import APIEndpoint
+
+        async with async_session_factory() as session:
+            result = await session.execute(
+                select(APIEndpoint.method).where(APIEndpoint.id == endpoint_id)
+            )
+            method = (result.scalar_one_or_none() or "").upper()
+        if not method:
+            return None
+        return method in {"POST", "PUT", "PATCH"}, method == "DELETE"
+    except Exception as exc:
+        logger.warning("静态推导 endpoint %s 的 method 失败，回退模型自报值: %s", endpoint_id, exc)
+        return None
+
+
 def _parse_execution_invitation(content: str) -> dict[str, Any] | None:
     """从 AI 消息中提取执行邀约标记。"""
     match = _EXECUTION_INVITATION_MARKER_RE.search(content)
@@ -243,8 +270,18 @@ class APIExecutionInvitationMiddleware(AgentMiddleware):
     """API 测试执行邀约中间件。"""
 
     @hook_config(can_jump_to=["model", "end"])
-    def after_model(self, state: dict[str, Any], runtime: Any) -> dict[str, Any] | None:
-        """检测执行邀约标记并触发结构化中断。"""
+    def after_model(
+        self,
+        state: dict[str, Any],
+        runtime: Any,
+        *,
+        derived_flags: tuple[bool, bool] | None = None,
+    ) -> dict[str, Any] | None:
+        """检测执行邀约标记并触发结构化中断。
+
+        derived_flags: aafter_model 异步路径从 endpoint 元数据静态推导的
+        (has_write_ops, has_delete_ops)，用于覆盖模型自报的不受信值。
+        """
         messages = state.get("messages", [])
         last_ai = next(
             (m for m in reversed(messages) if isinstance(m, AIMessage)),
@@ -260,6 +297,11 @@ class APIExecutionInvitationMiddleware(AgentMiddleware):
         payload = _parse_execution_invitation(content)
         if not payload:
             return None
+
+        # 风险评估信源修正：api 单端点模式以 DB method 推导为准（模型自报不受信）；
+        # scenario 模式恒 HIGH（evaluate_risk 内置），无需推导
+        if derived_flags is not None and payload.get("mode", "api") == "api":
+            payload["has_write_ops"], payload["has_delete_ops"] = derived_flags
 
         # 附加风险评估（LOW/MEDIUM/HIGH），供前端差异化展示
         risk_ctx = extract_risk_context(payload)
@@ -299,8 +341,22 @@ class APIExecutionInvitationMiddleware(AgentMiddleware):
     async def aafter_model(
         self, state: dict[str, Any], runtime: Any
     ) -> dict[str, Any] | None:
-        """异步版本直接复用同步逻辑。"""
-        return self.after_model(state, runtime)
+        """异步版本：先做 endpoint method 静态推导，再复用同步逻辑。
+
+        同步路径无法安全桥接异步 DB 查询（跨事件循环风险），回退模型自报值；
+        生产 LangGraph server 走异步路径，静态推导在此生效。
+        """
+        derived: tuple[bool, bool] | None = None
+        messages = state.get("messages", [])
+        last_ai = next(
+            (m for m in reversed(messages) if isinstance(m, AIMessage)),
+            None,
+        )
+        if last_ai and not last_ai.tool_calls:
+            payload = _parse_execution_invitation(str(last_ai.content or ""))
+            if payload and payload.get("mode", "api") == "api" and payload.get("endpoint_id"):
+                derived = await _derive_method_risk_flags(str(payload["endpoint_id"]))
+        return self.after_model(state, runtime, derived_flags=derived)
 
     # ------------------------------------------------------------------
     # 执行硬门禁：未收到用户「立即执行」邀约决策前，拦截执行类工具调用。

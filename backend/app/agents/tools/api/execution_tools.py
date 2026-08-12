@@ -30,6 +30,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.api.runtime_context import get_conversation_id as get_ctx_conversation_id
+from app.agents.api.runtime_context import get_execution_lock
 from app.utils.shell_env import build_restricted_env
 from app.utils.sync_executor import run_sync
 from app.config import settings
@@ -182,6 +183,27 @@ async def execute_api_script(
         ...     }
         ... )
     """
+    # 同端点执行串行化：防止并发会话互相覆盖脚本文件与执行统计
+    async with get_execution_lock(f"api-exec:{endpoint_id or local_script_path}"):
+        return await _execute_api_script_impl(
+            local_script_path=local_script_path,
+            framework=framework,
+            reporter=reporter,
+            project_identifier=project_identifier,
+            endpoint_id=endpoint_id,
+            execution_config=execution_config,
+        )
+
+
+async def _execute_api_script_impl(
+    local_script_path: str,
+    framework: str = "playwright",
+    reporter: str = "html",
+    project_identifier: str = "PR-1",
+    endpoint_id: Optional[str] = None,
+    execution_config: Optional[Dict[str, Any]] = None
+) -> str:
+    """execute_api_script 的实际实现（调用方已持有同端点执行锁）。"""
     try:
         # 用于诊断的上下文，最终随结果返回
         diagnostics: Dict[str, Any] = {
@@ -1489,6 +1511,25 @@ async def execute_api_script_by_artifact_id(
     Returns:
         JSON 格式的执行结果
     """
+    # 与 execute_api_script 同 key 空间：同端点执行互斥
+    async with get_execution_lock(f"api-exec:{endpoint_id}"):
+        return await _execute_api_script_by_artifact_id_impl(
+            attachment_id=attachment_id,
+            endpoint_id=endpoint_id,
+            project_identifier=project_identifier,
+            execution_config=execution_config,
+            framework=framework,
+        )
+
+
+async def _execute_api_script_by_artifact_id_impl(
+    attachment_id: str,
+    endpoint_id: str,
+    project_identifier: str,
+    execution_config: Optional[Dict[str, Any]] = None,
+    framework: str = "playwright",
+) -> str:
+    """execute_api_script_by_artifact_id 的实际实现（调用方已持有同端点执行锁）。"""
     try:
         diagnostics: Dict[str, Any] = {
             "attachment_id": attachment_id,
