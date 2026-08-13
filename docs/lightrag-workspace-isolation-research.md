@@ -1,6 +1,8 @@
 # LightRAG 服务端多 workspace 隔离 — 调研与二期方案
 
 > 调研日期：2026-08-13。关联：多项目隔离模块 C（一期已落地工具层 space_id 强制映射）。
+>
+> **⚠️ 修正（同日 gh 核实后）**：本文初稿采信搜索摘要"PR #2445 已实现全端点路由"，经 `gh api` 核实——**PR #2445 于 2026-03-06 关闭未合并**，上游 main（含 v1.5.6）`get_workspace_from_request` 仍仅 /health 一个调用点；#2698 消毒修复已含于 1.5.5；#2904 仍 open。**二期已改为 vendored 1.5.5 自研 backport 并完成**（commit `1dc080b`，diff 存档 `LightRAG/local-patches/`）。下文保留调研过程与上游事实供参考。
 
 ## 现状
 

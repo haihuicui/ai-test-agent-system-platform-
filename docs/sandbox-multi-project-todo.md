@@ -18,11 +18,14 @@
 
 ## 二、二期：LightRAG 服务端真 workspace 隔离（多团队推广前必须）
 
-调研结论：[lightrag-workspace-isolation-research.md](lightrag-workspace-isolation-research.md)（上游 PR #2445 已实现全端点路由，vendored 1.5.5 早于该合入）。
+调研结论：[lightrag-workspace-isolation-research.md](lightrag-workspace-isolation-research.md)。
+**方案修正（2026-08-13）**：上游 PR #2445 关闭未合并，main/v1.5.6 均无全端点路由——
+不存在可升级的 tag，改为 vendored 1.5.5 自研 backport（`1dc080b`）。
 
-- [ ] **升级 vendored LightRAG**：目标版本必须包含 #2445（per-request 路由）+ #2904 修复（/query context 回退 bug）+ #2698 修复（Cypher 注入消毒）
-- [ ] **升级回归**：LightRAG/.venv 跑其自带 workspace 隔离测试（tests/workspace/）；root venv 全量验证 rag_* 7 工具 + 入库管道
-- [ ] **跨项目串扰 E2E（服务端生效版）**：两 workspace 分别入库不同文档，/query 互不可见
+- [x] ~~**升级 vendored LightRAG**~~ → **自研 backport**：实例注册表（懒加载+per-workspace 锁）+ WorkspaceRAGProxy/DocManagerProxy（router 零改动）+ WorkspaceContextMiddleware ✅ `1dc080b`
+- [x] **服务端隔离验证**：本地轻量存储实例 + 真实 LLM 入库查询 6/6 PASS（alpha 知 A 不知 B、beta 知 B 不知 A、默认库均不知）✅ 复验脚本 `LightRAG/tests/workspace/e2e_request_routing_*.py`
+- [x] **diff 存档**：`LightRAG/local-patches/workspace-request-routing.patch` + README（防 vendored 升级覆盖）✅
+- [ ] **跨项目串扰 E2E（平台级）**：两项目并发会话检索互不可见——**阻塞：远程中间件（192.168.60.103 Milvus:19530/Neo4j:7474）未启动**，本机 9621 生产存储配置起不来；待中间件恢复后执行
 - [ ] **项目标识符消毒对齐**：中文项目名会被服务端转 `_`（不同项目可能退化同名）——平台侧注入 space_id 前先做 `_sanitize_config_key` 同款 hash 后缀
 - [ ] 验收：A 项目会话检索不到 B 项目文档；内存占用随 workspace 数增长可控（>20 项目参考 #2745 加 LRU）
 
