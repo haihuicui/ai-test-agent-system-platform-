@@ -1,0 +1,290 @@
+diff --git a/LightRAG/lightrag/api/lightrag_server.py b/LightRAG/lightrag/api/lightrag_server.py
+index c9d8143..189e010 100644
+--- a/LightRAG/lightrag/api/lightrag_server.py
++++ b/LightRAG/lightrag/api/lightrag_server.py
+@@ -2,6 +2,9 @@
+ LightRAG FastAPI Server
+ """
+ 
++import asyncio
++import contextvars
++
+ from fastapi import FastAPI, Depends, HTTPException, Request
+ from fastapi.exceptions import RequestValidationError
+ from fastapi.responses import JSONResponse, FileResponse, HTMLResponse, Response
+@@ -83,6 +86,79 @@ webui_title = os.getenv("WEBUI_TITLE")
+ webui_description = os.getenv("WEBUI_DESCRIPTION")
+ 
+ # Global authentication configuration
++
++# =============================================================================
++# Workspace 请求上下文（per-request 多 workspace 路由的公共通道）
++# =============================================================================
++# LIGHTRAG-WORKSPACE 请求头经 WorkspaceContextMiddleware 解析消毒后写入本
++# contextvar；WorkspaceRAGProxy / WorkspaceDocManagerProxy 在属性访问时读取，
++# 把调用透明路由到对应 workspace 的 LightRAG / DocumentManager 实例。
++# FastAPI/Starlette 在同一 asyncio task 链内执行 middleware 与 endpoint，
++# contextvar 因此是请求级的可靠通道；实例懒加载由 middleware 在进入 endpoint
++# 前完成（async 区），代理只做同步查表。
++_request_workspace_ctx: contextvars.ContextVar = contextvars.ContextVar(
++    "lightrag_request_workspace", default=None
++)
++
++_WORKSPACE_SANITIZE_RE = re.compile(r"[^a-zA-Z0-9_]")
++
++
++def _sanitize_workspace_header(value: str):
++    """消毒 workspace 标识（防注入/路径遍历，与上游 #2792 同一套规则）。"""
++    cleaned = (value or "").strip()
++    if not cleaned:
++        return None
++    sanitized = _WORKSPACE_SANITIZE_RE.sub("_", cleaned)
++    if sanitized != cleaned:
++        logger.warning(
++            f"Workspace header '{cleaned}' contains invalid characters. "
++            f"Sanitized to '{sanitized}'."
++        )
++    return sanitized
++
++
++class WorkspaceContextMiddleware:
++    """ASGI middleware：解析 LIGHTRAG-WORKSPACE 头，写入请求级 contextvar。
++
++    携带 workspace 头的请求在进入 endpoint 前由 ``ensure_instance`` 回调
++    完成对应 LightRAG 实例的懒加载，保证代理层同步查表必命中。
++    非 HTTP scope（lifespan/websocket）直接透传；请求结束复位 contextvar，
++    避免连接复用串扰。
++    """
++
++    def __init__(self, app, ensure_instance=None):
++        self.app = app
++        self.ensure_instance = ensure_instance  # async callable(workspace) -> Any
++
++    async def __call__(self, scope, receive, send):
++        if scope["type"] != "http":
++            await self.app(scope, receive, send)
++            return
++
++        workspace = None
++        for key, value in scope.get("headers") or []:
++            if key.lower() == b"lightrag-workspace":
++                workspace = _sanitize_workspace_header(
++                    value.decode("utf-8", errors="replace")
++                )
++                break
++
++        if workspace and self.ensure_instance is not None:
++            try:
++                await self.ensure_instance(workspace)
++            except Exception:
++                # 实例创建失败时按默认 workspace 继续（fail-open），
++                # 由 endpoint 的错误处理返回业务错误，而非中间件 500。
++                logger.exception(
++                    f"[Workspace] 实例懒加载失败 workspace={workspace}，回退默认 workspace"
++                )
++                workspace = None
++
++        token = _request_workspace_ctx.set(workspace)
++        try:
++            await self.app(scope, receive, send)
++        finally:
++            _request_workspace_ctx.reset(token)
+ auth_configured = bool(auth_handler.accounts)
+ 
+ 
+@@ -1284,8 +1360,15 @@ def create_app(args):
+             yield
+ 
+         finally:
+-            # Clean up database connections
++            # Clean up database connections（默认实例 + 全部 workspace 懒加载实例）
+             await rag.finalize_storages()
++            for _ws, _instance in list(_ws_instances.items()):
++                try:
++                    await _instance.finalize_storages()
++                except Exception:
++                    logger.warning(
++                        f"[Workspace] finalize 失败 workspace={_ws}", exc_info=True
++                    )
+ 
+             if "LIGHTRAG_GUNICORN_MODE" not in os.environ:
+                 # Only perform cleanup in Uvicorn single-process mode
+@@ -1431,21 +1514,10 @@ def create_app(args):
+         Returns:
+             Workspace identifier (may be empty string for global namespace)
+         """
+-        # Check custom header first
+-        workspace = request.headers.get("LIGHTRAG-WORKSPACE", "").strip()
+-
+-        if not workspace:
+-            workspace = None
+-        else:
+-            sanitized = re.sub(r"[^a-zA-Z0-9_]", "_", workspace)
+-            if sanitized != workspace:
+-                logger.warning(
+-                    f"Workspace header '{workspace}' contains invalid characters. "
+-                    f"Sanitized to '{sanitized}'."
+-                )
+-                workspace = sanitized
+-
+-        return workspace
++        # 与 WorkspaceContextMiddleware 共用同一套消毒规则
++        return _sanitize_workspace_header(
++            request.headers.get("LIGHTRAG-WORKSPACE", "")
++        )
+ 
+     # Create working directory if it doesn't exist
+     Path(args.working_dir).mkdir(parents=True, exist_ok=True)
+@@ -2032,11 +2104,13 @@ def create_app(args):
+         for spec in ROLES
+     }
+ 
+-    # Initialize RAG with unified configuration
+-    try:
+-        rag = LightRAG(
++    # Initialize RAG with unified configuration.
++    # 构造参数收敛为工厂函数：默认实例与 workspace 懒加载实例共用同一套配置，
++    # 仅 workspace 不同（存储命名空间按 workspace 隔离）。
++    def _build_rag_kwargs(workspace: str) -> dict:
++        return dict(
+             working_dir=args.working_dir,
+-            workspace=args.workspace,
++            workspace=workspace,
+             llm_model_func=create_llm_model_func(args.llm_binding),
+             llm_model_name=args.llm_model,
+             llm_model_max_async=args.max_async,
+@@ -2093,6 +2167,9 @@ def create_app(args):
+                 for spec in ROLES
+             },
+         )
++
++    try:
++        rag = LightRAG(**_build_rag_kwargs(args.workspace))
+     except Exception as e:
+         logger.error(f"Failed to initialize LightRAG: {e}")
+         raise
+@@ -2106,17 +2183,120 @@ def create_app(args):
+         )
+     )
+ 
++    # =========================================================================
++    # Workspace 实例注册表（per-request 多 workspace 路由的后端）
++    # =========================================================================
++    # LIGHTRAG-WORKSPACE 头经 WorkspaceContextMiddleware 解析后写入请求级
++    # contextvar，并由 middleware 在进入 endpoint 前完成实例懒加载；
++    # 下方两个代理把 router 内既有的 rag/doc_manager 调用透明路由到对应
++    # workspace 的实例——router 代码零改动。
++    _default_workspace = args.workspace or ""
++    _ws_instances: dict = {}  # workspace -> LightRAG（默认 workspace 用 rag，不入表）
++    _ws_locks: dict = {}      # workspace -> asyncio.Lock（防首请求并发重复创建）
++    _ws_registry_lock = asyncio.Lock()
++
++    async def get_rag_for_workspace(workspace):
++        """按 workspace 获取 LightRAG 实例（懒加载 + per-workspace 锁）。
++
++        默认 workspace（含未携带 header 的请求）直接返回全局 rag 单例，
++        零额外开销；其余 workspace 首次访问时用与全局实例相同的配置创建，
++        并完成 initialize_storages / check_and_migrate_data 初始化。
++        """
++        if not workspace or workspace == _default_workspace:
++            return rag
++        cached = _ws_instances.get(workspace)
++        if cached is not None:
++            return cached
++        async with _ws_registry_lock:
++            lock = _ws_locks.setdefault(workspace, asyncio.Lock())
++        async with lock:
++            cached = _ws_instances.get(workspace)
++            if cached is not None:
++                return cached
++            logger.info(f"[Workspace] 懒加载 LightRAG 实例: workspace={workspace}")
++            instance = LightRAG(**_build_rag_kwargs(workspace))
++            instance.register_role_llm_builder(
++                lambda role, meta: (
++                    create_role_llm_func(role, meta),
++                    create_role_llm_model_kwargs(role, meta),
++                )
++            )
++            await instance.initialize_storages()
++            await instance.check_and_migrate_data()
++            _ws_instances[workspace] = instance
++            logger.info(f"[Workspace] 实例就绪: workspace={workspace}")
++            return instance
++
++    def _resolve_rag_for_current_request():
++        """同步解析当前请求应使用的 rag（middleware 已保证懒加载完成）。"""
++        workspace = _request_workspace_ctx.get()
++        if not workspace or workspace == _default_workspace:
++            return rag
++        instance = _ws_instances.get(workspace)
++        if instance is None:
++            # 兜底：middleware ensure 失败（fail-open 回退）或绕过 middleware
++            # 的调用路径。回退默认实例并记告警，避免属性访问抛 500。
++            logger.warning(
++                f"[Workspace] 实例未就绪 workspace={workspace}，回退默认 workspace"
++            )
++            return rag
++        return instance
++
++    class WorkspaceRAGProxy:
++        """把属性访问按请求 contextvar 路由到对应 workspace 的 LightRAG 实例。
++
++        router 拿到的“rag”即本代理：方法/属性调用透明转发，async 方法
++        在调用点才产生协程，与直接持有实例无差别。默认 workspace 走全局
++        单例零开销路径。
++        """
++
++        def __getattr__(self, name):
++            return getattr(_resolve_rag_for_current_request(), name)
++
++        def __setattr__(self, name, value):
++            setattr(_resolve_rag_for_current_request(), name, value)
++
++    class WorkspaceDocManagerProxy:
++        """按请求 contextvar 路由到对应 workspace 的 DocumentManager（轻量缓存）。"""
++
++        _dm_cache: dict = {}
++
++        def _resolve(self):
++            workspace = _request_workspace_ctx.get() or _default_workspace
++            manager = self._dm_cache.get(workspace)
++            if manager is None:
++                manager = DocumentManager(args.input_dir, workspace=workspace)
++                self._dm_cache[workspace] = manager
++            return manager
++
++        def __getattr__(self, name):
++            return getattr(self._resolve(), name)
++
++        def __setattr__(self, name, value):
++            if name == "_dm_cache":
++                object.__setattr__(self, name, value)
++                return
++            setattr(self._resolve(), name, value)
++
+     # Add routes
+     # root_path is set on the app for reverse proxy support;
+     # routes stay at their natural paths and are prefixed by the proxy or uvicorn --root-path
+-    app.include_router(create_document_routes(rag, doc_manager, api_key))
+-    app.include_router(create_query_routes(rag, api_key, args.top_k))
+-    app.include_router(create_graph_routes(rag, api_key))
++    app.include_router(
++        create_document_routes(WorkspaceRAGProxy(), WorkspaceDocManagerProxy(), api_key)
++    )
++    app.include_router(create_query_routes(WorkspaceRAGProxy(), api_key, args.top_k))
++    app.include_router(create_graph_routes(WorkspaceRAGProxy(), api_key))
+ 
+-    # Add Ollama API routes
++    # Add Ollama API routes（平台不使用 Ollama 兼容层，保持默认 workspace 行为）
+     ollama_api = OllamaAPI(rag, top_k=args.top_k, api_key=api_key)
+     app.include_router(ollama_api.router, prefix="/api")
+ 
++    # Workspace 上下文中间件：注册在最内层（最接近 endpoint），确保 contextvar
++    # 与实例懒加载在端点执行前完成；ensure 回调即注册表的懒加载入口。
++    app.add_middleware(
++        WorkspaceContextMiddleware, ensure_instance=get_rag_for_workspace
++    )
++
+     # Custom Swagger UI endpoint for offline support
+     @app.get("/docs", include_in_schema=False)
+     async def custom_swagger_ui_html(request: Request):
