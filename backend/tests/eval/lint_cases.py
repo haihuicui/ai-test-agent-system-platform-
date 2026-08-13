@@ -11,7 +11,14 @@
     ./.venv/Scripts/python.exe -m tests.eval.lint_cases              # 全量扫描
     ./.venv/Scripts/python.exe -m tests.eval.lint_cases --json       # 机器可读（接 CI）
     ./.venv/Scripts/python.exe -m tests.eval.lint_cases --path workspace/testcase/PR-1
-退出码：有 error 级违规 = 1，否则 0（warning 不阻断）。
+
+baseline 模式（存量冻结、只报新增——历史问题已确认不修的团队用法）：
+    # 一次性：把当前存量违规冻结为基线
+    ./.venv/Scripts/python.exe -m tests.eval.lint_cases --write-baseline
+    # 日常/CI：只报基线之外的新增违规；新增 error 退出码 1，已消除的会计入"已修复"
+    ./.venv/Scripts/python.exe -m tests.eval.lint_cases --baseline
+
+退出码：有 error 级违规（baseline 模式下为新增 error）= 1，否则 0（warning 不阻断）。
 """
 from __future__ import annotations
 
@@ -24,6 +31,7 @@ from pathlib import Path
 
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_SCAN = BACKEND_ROOT / "workspace" / "testcase"
+BASELINE_PATH = Path(__file__).parent / "dataset" / "lint_baseline.json"
 
 SKIP_PATTERNS = ("feature_matrix", "expected_result", "manifest", "conversation")
 
@@ -149,6 +157,28 @@ def lint(scan_root: Path) -> list[dict]:
     return issues
 
 
+def fingerprint(issue: dict) -> str:
+    """违规指纹：file|rule|case——case_number 稳定可跨行号漂移；
+    文件级规则（case 为空）天然按 (file, rule) 去重。"""
+    return f"{issue['file']}|{issue['rule']}|{issue['case']}"
+
+
+def write_baseline(issues: list[dict]) -> None:
+    BASELINE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "note": "存量违规冻结基线——历史问题不修，只拦新增。"
+                "重生成：lint_cases --write-baseline（会接受当前全部存量）",
+        "issues": sorted(fingerprint(i) for i in issues),
+    }
+    BASELINE_PATH.write_text(json.dumps(payload, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+
+
+def load_baseline() -> set[str]:
+    if not BASELINE_PATH.exists():
+        sys.exit(f"基线不存在：{BASELINE_PATH}（先跑 --write-baseline 冻结存量）")
+    return set(json.loads(BASELINE_PATH.read_text(encoding="utf-8"))["issues"])
+
+
 def print_report(issues: list[dict]) -> None:
     by_rule = Counter((i["level"], i["rule"]) for i in issues)
     errors = sum(1 for i in issues if i["level"] == "error")
@@ -169,9 +199,37 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="测试用例规范 lint")
     parser.add_argument("--path", type=Path, default=DEFAULT_SCAN)
     parser.add_argument("--json", action="store_true", help="机器可读输出（接 CI）")
+    parser.add_argument("--write-baseline", action="store_true",
+                        help="把当前全部违规冻结为基线（确认存量不修时执行一次）")
+    parser.add_argument("--baseline", action="store_true",
+                        help="只报基线之外的新增违规（日常/CI 模式）")
     args = parser.parse_args()
 
     issues = lint(args.path)
+
+    if args.write_baseline:
+        write_baseline(issues)
+        print(f"基线已冻结：{len(issues)} 条存量违规 → {BASELINE_PATH}")
+        print("之后跑 lint_cases --baseline 只会报告新增违规。")
+        return
+
+    if args.baseline:
+        baseline = load_baseline()
+        current = {fingerprint(i): i for i in issues}
+        new_issues = [i for fp, i in current.items() if fp not in baseline]
+        fixed = baseline - set(current)
+        if args.json:
+            print(json.dumps({"new": new_issues, "fixed_count": len(fixed)},
+                             ensure_ascii=False, indent=1))
+        else:
+            print(f"[baseline 模式] 基线 {len(baseline)} 条，已修复 {len(fixed)} 条，"
+                  f"新增 {len(new_issues)} 条\n")
+            if new_issues:
+                print_report(new_issues)
+            else:
+                print("✅ 无新增违规——存量问题未恶化")
+        sys.exit(1 if any(i["level"] == "error" for i in new_issues) else 0)
+
     if args.json:
         print(json.dumps(issues, ensure_ascii=False, indent=1))
     else:

@@ -24,6 +24,7 @@ tests/eval/
 └── dataset/
     ├── regression_v1.jsonl   # 回归集 v1（actual_output only，45 条，只增不减）
     ├── regression_v2.jsonl   # 回归集 v2（带 feature_matrix，覆盖/忠实度裁判用）
+    ├── lint_baseline.json    # lint 存量违规冻结基线（1285 条，只拦新增）
     ├── human_labels_v1.jsonl # 人工盲标（0/1，校准基准）
     ├── judge_scores_v1.jsonl # 裁判分数落盘（重分析不重跑）
     └── blind_worksheet.md    # 盲标阅读材料（用例全文 + 判定行，无裁判分）
@@ -38,6 +39,8 @@ uv pip install --python backend/.venv/Scripts/python.exe "deepeval>=3.0"
 # 用例规范 lint（零 token，推荐每次改 prompt 后先跑它）
 cd backend
 ./.venv/Scripts/python.exe -m tests.eval.lint_cases          # 有 error 退出码 1
+# baseline 模式：存量 1285 条已冻结为基线（历史不修），日常只报新增——接 CI 用这个
+./.venv/Scripts/python.exe -m tests.eval.lint_cases --baseline
 
 # 覆盖漏测审计（项目级全景：FP 漏测清单/薄弱覆盖/无追溯文件；P0 未覆盖退出码 1）
 ./.venv/Scripts/python.exe -m tests.eval.coverage_audit

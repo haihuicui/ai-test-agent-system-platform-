@@ -5,13 +5,16 @@ validate_case_hygiene（规范级 warning 通道）与 _hygiene_note（中间件
 """
 from __future__ import annotations
 
+import json
 from types import SimpleNamespace
 
 import pytest
+from langchain_core.messages import ToolMessage
 
 from app.agents.testcase.case_quality_middleware import (
     _hygiene_note,
     _is_fuzzy_result,
+    _postprocess,
     _validate_case,
 )
 from app.utils.testcase_validation import validate_case_hygiene
@@ -298,6 +301,54 @@ class TestHygieneNote:
 
     def test_other_tool_ignored(self):
         assert _hygiene_note(self._req("read_file", {"path": "x"})) == ""
+
+
+class TestPostprocess:
+    """_postprocess 的 warning 拼接：成功结果尾部追加提示，与失败清单共存。"""
+
+    def _req(self, name: str, args: dict):
+        return SimpleNamespace(tool_call={"name": name, "args": args, "id": "call-1"})
+
+    def _ok_msg(self, content: dict) -> ToolMessage:
+        return ToolMessage(content=json.dumps(content, ensure_ascii=False),
+                           tool_call_id="call-1", name="batch_create_test_cases_tool")
+
+    def test_batch_success_appends_hygiene_note(self):
+        cases = [_valid_case(), _valid_case()]  # 均缺 case_type/priority/remarks
+        result = self._ok_msg({"success": True,
+                               "data": {"total": 2, "succeeded": 2, "failed": 0, "results": []}})
+        out = _postprocess(result, self._req("batch_create_test_cases_tool",
+                                             {"test_cases": cases}))
+        assert "2 条缺 case_type" in out.content
+        assert "不影响本次创建" in out.content
+
+    def test_batch_partial_failure_keeps_both_notes(self):
+        cases = [_valid_case()]
+        result = self._ok_msg({"success": True, "data": {
+            "total": 2, "succeeded": 1, "failed": 1,
+            "results": [{"index": 1, "name": "X", "success": False, "error": "重复编号"}],
+        }})
+        out = _postprocess(result, self._req("batch_create_test_cases_tool",
+                                             {"test_cases": cases}))
+        assert "失败清单" in out.content       # 原有的失败提示保留
+        assert "规范提示" in out.content       # warning 提示共存
+
+    def test_clean_batch_returns_original(self):
+        case = _valid_case()
+        case.update({"case_type": "functional", "priority": "high", "remarks": "FP-001"})
+        case["test_case_steps"].append({"step": "b", "result": "c"})
+        result = self._ok_msg({"success": True,
+                               "data": {"total": 1, "succeeded": 1, "failed": 0, "results": []}})
+        out = _postprocess(result, self._req("batch_create_test_cases_tool",
+                                             {"test_cases": [case]}))
+        assert out.content == result.content  # 无提示时原样返回
+
+    def test_error_result_not_touched(self):
+        result = ToolMessage(content="boom", tool_call_id="call-1",
+                             name="batch_create_test_cases_tool", status="error")
+        out = _postprocess(result, self._req("batch_create_test_cases_tool",
+                                             {"test_cases": [_valid_case()]}))
+        assert out.content == "boom"
 
 
 if __name__ == "__main__":
