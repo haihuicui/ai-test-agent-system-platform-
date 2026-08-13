@@ -24,12 +24,15 @@ from deepagents.middleware import SkillsMiddleware
 from langchain.agents.middleware import AgentMiddleware, ModelRequest, ModelResponse
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_mcp_adapters.tools import load_mcp_tools
+from langgraph.config import get_config
 from langgraph.pregel import Pregel
 
 from app.agents.tools.android import get_local_tools
 from app.config.settings import settings
 from app.core.llms import text_model as model
+from app.core.tracing import with_langfuse_tracing
 from app.utils.filesystem import FixedFilesystemBackend
+from app.utils.session_scope import set_session_scope
 from app.utils.shell_env import build_restricted_env
 # type: ignore  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2U0RaRGFBPT06M2FmMDUyYTQ=
 
@@ -91,6 +94,14 @@ class AndroidContextInjectionMiddleware(AgentMiddleware):
     ) -> ModelResponse:
         project_identifier = request.runtime.context.project_identifier
         folder_id = request.runtime.context.folder_id
+
+        # 统一会话作用域：workspace 隔离 / Langfuse 打标的公共通道
+        _config = get_config()
+        set_session_scope(
+            project_identifier,
+            ((_config.get("configurable") or {}).get("thread_id") if _config else None),
+            _config,
+        )
 
         context_info = f"""
 
@@ -345,7 +356,7 @@ async def make_agent() -> AsyncIterator[Pregel]:
         )
 # type: ignore  My80OmFIVnBZMlhsdEpUbXRiZm92b2s2U0RaRGFBPT06M2FmMDUyYTQ=
 
-        yield android_agent
+        yield with_langfuse_tracing(android_agent, "android")
 
 
 # 创建顶层实例（兼容 LangGraph API）
@@ -360,4 +371,4 @@ android_agent = create_agent(
     context_schema=AndroidAgentContext,
 )
 
-agent = android_agent
+agent = with_langfuse_tracing(android_agent, "android")

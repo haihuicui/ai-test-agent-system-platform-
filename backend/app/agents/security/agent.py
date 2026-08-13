@@ -32,6 +32,7 @@ if os.name == "nt":
     os.environ.setdefault("PYTHONIOENCODING", "utf-8")
 from langchain.agents.middleware import AgentMiddleware, ModelRequest, ModelResponse
 from langchain_mcp_adapters.client import MultiServerMCPClient
+from langgraph.config import get_config
 from langgraph.pregel import Pregel
 
 from app.agents.tools.security import get_local_tools
@@ -39,6 +40,7 @@ from app.config.settings import settings
 from app.core.llms import text_model as model
 from app.core.tracing import with_langfuse_tracing
 from app.utils.filesystem import FixedFilesystemBackend
+from app.utils.session_scope import set_session_scope
 from app.utils.shell_env import build_restricted_env
 
 # =============================================================================
@@ -98,6 +100,14 @@ class SecurityContextInjectionMiddleware(AgentMiddleware):
     ) -> ModelResponse:
         project_identifier = request.runtime.context.project_identifier
         target = request.runtime.context.target
+
+        # 统一会话作用域：workspace 隔离 / Langfuse 打标的公共通道
+        _config = get_config()
+        set_session_scope(
+            project_identifier,
+            ((_config.get("configurable") or {}).get("thread_id") if _config else None),
+            _config,
+        )
 
         context_info = f"""
 

@@ -45,6 +45,7 @@ from app.utils.shell_env import (
     get_playwright_mcp_command_args,
     write_storage_state_config,
 )
+from app.utils.session_scope import set_session_scope
 from app.utils.web_mcp_storage_state import resolve_effective_storage_state
 
 logger = logging.getLogger(__name__)
@@ -108,6 +109,15 @@ class WebContextInjectionMiddleware(AgentMiddleware):
         context = getattr(request.runtime, "context", None)
         project_identifier = getattr(context, "project_identifier", "") or ""
         folder_id = getattr(context, "folder_id", "") or ""
+
+        # 统一会话作用域：workspace 隔离 / RAG space 映射 / Langfuse 打标的公共通道。
+        # 必须在下方幂等 return 之前执行——每次模型调用都刷新，避免交替会话串扰。
+        _config = get_config()
+        set_session_scope(
+            project_identifier,
+            ((_config.get("configurable") or {}).get("thread_id") if _config else None),
+            _config,
+        )
 
         context_info = f"""
 

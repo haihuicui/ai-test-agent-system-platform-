@@ -34,6 +34,7 @@ from app.config.settings import settings
 from app.core.llms import text_model as model
 from app.core.tracing import with_langfuse_tracing
 from app.utils.filesystem import FixedFilesystemBackend
+from app.utils.session_scope import set_session_scope
 from app.utils.shell_env import build_restricted_env
 
 # =============================================================================
@@ -163,6 +164,13 @@ class APIContextInjectionMiddleware(AgentMiddleware):
                 config["configurable"] = {}
             config["configurable"]["conversation_id"] = conversation_id
         request.runtime.context.conversation_id = conversation_id
+
+        # 统一会话作用域：workspace 隔离 / RAG space 映射 / Langfuse 打标的公共通道
+        set_session_scope(
+            project_identifier,
+            (config.get("configurable") or {}).get("thread_id") if config else None,
+            config,
+        )
 
         # 将 conversation_id 写入 contextvar，供工具函数直接读取
         ctx_token = conversation_id_ctx.set(conversation_id)

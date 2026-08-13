@@ -27,11 +27,14 @@ from deepagents.backends import FilesystemBackend, LocalShellBackend, CompositeB
 from deepagents.middleware import SkillsMiddleware
 from langchain.agents.middleware import AgentMiddleware, ModelRequest, ModelResponse
 from langchain_core.language_models import ModelProfile
+from langgraph.config import get_config
 from langgraph.pregel import Pregel
 
 from app.agents.tools.web import get_local_tools
 from app.config.settings import settings
 from app.core.llms import text_model as model
+from app.core.tracing import with_langfuse_tracing
+from app.utils.session_scope import set_session_scope
 from app.utils.shell_env import build_restricted_env
 # fmt: off  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2TmpKbFVBPT06YmYyODhkYzg=
 
@@ -92,6 +95,14 @@ class WebContextInjectionMiddleware(AgentMiddleware):
     ) -> ModelResponse:
         project_identifier = request.runtime.context.project_identifier
         folder_id = request.runtime.context.folder_id
+
+        # 统一会话作用域：workspace 隔离 / RAG space 映射 / Langfuse 打标的公共通道
+        _config = get_config()
+        set_session_scope(
+            project_identifier,
+            ((_config.get("configurable") or {}).get("thread_id") if _config else None),
+            _config,
+        )
 
         context_info = f"""
 
@@ -452,8 +463,8 @@ async def make_agent() -> AsyncIterator[Pregel]:
         context_schema=WebAgentContext,
     )
 
-    # yield agent
-    yield web_agent
+    # yield agent（Langfuse 观测包装，fail-open）
+    yield with_langfuse_tracing(web_agent, "web_cli")
 
 
 # 导出 make_agent 供 LangGraph API 使用
