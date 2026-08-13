@@ -12,6 +12,7 @@ import pytest
 from langchain_core.messages import ToolMessage
 
 from app.agents.testcase.case_quality_middleware import (
+    CaseQualityGateMiddleware,
     _hygiene_note,
     _is_fuzzy_result,
     _postprocess,
@@ -349,6 +350,41 @@ class TestPostprocess:
         out = _postprocess(result, self._req("batch_create_test_cases_tool",
                                              {"test_cases": [_valid_case()]}))
         assert out.content == "boom"
+
+
+class TestWrapToolCall:
+    """中间件类级接线验证：wrap_tool_call 全链路（precheck → handler → postprocess）。"""
+
+    def _req(self, name: str, args: dict):
+        return SimpleNamespace(tool_call={"name": name, "args": args, "id": "call-1"})
+
+    def _ok_handler(self, request):
+        return ToolMessage(content='{"success": true, "data": {"total": 1, "succeeded": 1, "failed": 0}}',
+                           tool_call_id="call-1",
+                           name=request.tool_call["name"])
+
+    def test_error_violation_blocks_before_handler(self):
+        """error 级违规：handler 不执行，直接返回拦截消息。"""
+        case = _valid_case()
+        case["test_case_steps"] = [{"step": "登录", "result": "成功"}]  # 模糊词
+        called = []
+        out = CaseQualityGateMiddleware().wrap_tool_call(
+            self._req("create_test_case_tool", case),
+            lambda req: called.append(req) or self._ok_handler(req),
+        )
+        assert not called  # handler 未被调用
+        assert out.status == "error"
+        assert "质量校验未通过" in out.content
+
+    def test_clean_call_passes_with_hygiene_note(self):
+        """规范问题（缺 case_type/priority/remarks）：放行但结果尾部追加提示。"""
+        out = CaseQualityGateMiddleware().wrap_tool_call(
+            self._req("create_test_case_tool", _valid_case()),
+            self._ok_handler,
+        )
+        assert out.status != "error"
+        assert '"success": true' in out.content
+        assert "规范提示" in out.content  # warning 通道已接线
 
 
 if __name__ == "__main__":
