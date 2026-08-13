@@ -2,10 +2,14 @@
 
 对 Agent 生成的测试用例做语义级质量门禁：**像写单元测试一样测 AI 输出**。
 
+> 评估维度的完整规划（三层体系：代码 lint / LLM 语义裁判 / 过程质量）
+> 与各层实施状态见 [DIMENSIONS.md](DIMENSIONS.md)。
+
 ## 结构
 
 ```
 tests/eval/
+├── DIMENSIONS.md             # 评估维度三层地图（规划 + 实施状态追踪）
 ├── lint_cases.py             # 用例规范 lint（代码规则，零 token，可直接接 CI）
 ├── judge_model.py            # DeepSeek 裁判封装（DeepEvalBaseLLM 协议）
 ├── metrics.py                # 2 个 G-Eval 裁判定义（单一事实源，门禁与落盘共用）
