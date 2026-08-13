@@ -11,6 +11,7 @@ import os
 import re
 import threading
 import urllib.parse
+from functools import wraps
 from pathlib import Path
 from typing import Any, Optional
 
@@ -19,6 +20,7 @@ from langchain_core.tools import tool
 
 from app.agents.tools.testcase.pdf_processor import PDFProcessor
 from app.config.settings import settings
+from app.utils.session_scope import get_session_project
 from app.utils.sync_executor import run_sync
 # type: ignore  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2WTJ4c05BPT06M2RjZTI1Zjk=
 
@@ -256,6 +258,42 @@ _rag_tools_lock = threading.Lock()
 _RAG_CACHE_FAILURE_TTL = 60.0
 
 
+def _wrap_rag_tools_with_session_space(tools: list) -> list:
+    """给 rag_* 工具注入会话级 space_id（多项目知识库隔离管道）。
+
+    规则：
+    - ``space_id`` 缺省时自动取当前会话项目标识（session_scope 公共通道，
+      模型节点与工具节点共享的平台原生 config 键）；
+    - 模型显式传入与会话项目不一致的 space_id 时以会话项目为准并记
+      warning——跨项目检索只能是平台行为，不能由模型参数越权；
+    - 非会话上下文（CLI/单测，无 project）保持调用方传参不变。
+
+    包装发生在 Agent 进程（MCP 客户端侧），get_rag_tools 单例缓存保证
+    只包装一次。LightRAG 服务端真 workspace 隔离（二期）就绪后，本管道
+    注入的 space_id 经 LIGHTRAG-WORKSPACE 头自动生效，无需再改工具层。
+    """
+    for rag_tool in tools:
+        if not rag_tool.name.startswith("rag_"):
+            continue
+        original_arun = rag_tool._arun
+
+        @wraps(original_arun)
+        async def wrapped_arun(*args, _orig=original_arun, _name=rag_tool.name, **kwargs):
+            session_project = get_session_project()
+            if session_project:
+                caller_space = kwargs.get("space_id")
+                if caller_space and caller_space != session_project:
+                    logger.warning(
+                        "[RAG] %s 显式 space_id=%r 与会话项目不一致，以会话项目 %r 为准",
+                        _name, caller_space, session_project,
+                    )
+                kwargs["space_id"] = session_project
+            return await _orig(*args, **kwargs)
+
+        rag_tool._arun = wrapped_arun
+    return tools
+
+
 async def get_rag_tools() -> list:
     """获取 RAG MCP 工具（单例模式，首次调用建立 SSE 连接后缓存复用）。
 
@@ -307,6 +345,7 @@ async def get_rag_tools() -> list:
         })
 
         tools = await client.get_tools()
+        tools = _wrap_rag_tools_with_session_space(tools)
         _rag_tools_cache = tools
         _rag_tools_cache_ts = _time.monotonic()
         logger.info("RAG MCP 客户端已初始化，共 %d 个工具", len(tools))
