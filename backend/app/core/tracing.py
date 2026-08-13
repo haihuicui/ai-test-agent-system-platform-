@@ -41,7 +41,6 @@ def _get_handler() -> Any | None:
         return _handler
     try:
         from langfuse import Langfuse
-        from langfuse.langchain import CallbackHandler
 
         client_kwargs: dict[str, Any] = {
             "public_key": settings.langfuse_public_key,
@@ -57,7 +56,7 @@ def _get_handler() -> Any | None:
             # 旧版 SDK 不支持 mask 参数时降级为不截断
             client_kwargs.pop("mask", None)
             Langfuse(**client_kwargs)
-        _handler = CallbackHandler()
+        _handler = _get_session_enriched_handler_class()()
         logger.info("[Langfuse] 观测已启用: host=%s", settings.langfuse_host)
     except Exception:
         _init_failed = True
@@ -65,6 +64,51 @@ def _get_handler() -> Any | None:
             "[Langfuse] 初始化失败，本次进程关闭观测（不影响 Agent 运行）", exc_info=True
         )
     return _handler
+
+
+def _make_session_enriched_handler_class():
+    """构建从平台注入 metadata 派生会话/项目维度的 CallbackHandler 子类。
+
+    为什么需要：中间件写回 ``config["metadata"]`` 在 LangGraph patch_config
+    语义下传播不到回调（与 configurable 自定义键写回断裂同类，2026-08-13
+    E2E 实测确认 trace 无 session_id）。但 LangGraph Server 会把 run 的
+    ``thread_id`` 与 context 字段（``project_identifier`` 等）注入回调可见的
+    metadata——直接从那里派生，零侵入 run 创建链路：
+    - ``session_id`` ← thread_id（同一会话的多次 run 聚合成 Langfuse session）
+    - ``tags`` 追加 ``project:<identifier>``（项目维度过滤/成本分摊）
+    """
+    from langfuse.langchain import CallbackHandler
+
+    class SessionEnrichedCallbackHandler(CallbackHandler):
+        def _parse_langfuse_trace_attributes_from_metadata(self, metadata):
+            attributes = super()._parse_langfuse_trace_attributes_from_metadata(metadata)
+            if not metadata:
+                return attributes
+            if "session_id" not in attributes:
+                thread_id = metadata.get("thread_id")
+                if isinstance(thread_id, str) and thread_id:
+                    attributes["session_id"] = thread_id
+            project = metadata.get("project_identifier")
+            if isinstance(project, str) and project:
+                tags = list(attributes.get("tags") or [])
+                project_tag = f"project:{project}"
+                if project_tag not in tags:
+                    tags.append(project_tag)
+                attributes["tags"] = tags
+            return attributes
+
+    return SessionEnrichedCallbackHandler
+
+
+_SessionEnrichedCallbackHandler = None
+
+
+def _get_session_enriched_handler_class():
+    """惰性解析子类（langfuse 未安装时保持 None，由 _get_handler fail-open）。"""
+    global _SessionEnrichedCallbackHandler
+    if _SessionEnrichedCallbackHandler is None:
+        _SessionEnrichedCallbackHandler = _make_session_enriched_handler_class()
+    return _SessionEnrichedCallbackHandler
 
 
 def with_langfuse_tracing(agent: Any, agent_name: str) -> Any:

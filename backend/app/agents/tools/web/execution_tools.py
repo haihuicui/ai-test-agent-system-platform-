@@ -532,7 +532,7 @@ async def _execute_script_internal(
             max_memory_mb=settings.exec_max_memory_mb,
             shell=is_windows,
             env=env,
-            label=f"web-exec-{execution_id}",
+            label=f"web-exec-{Path(html_report_dir).parent.name}",
         )
 
         end_time = datetime.now()

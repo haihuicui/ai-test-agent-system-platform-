@@ -68,36 +68,12 @@ def set_session_scope(
             config["configurable"] = {}
         config["configurable"][_CONFIG_PROJECT_KEY] = project_identifier or ""
         config["configurable"][_CONFIG_THREAD_KEY] = thread_id or ""
-        _inject_trace_metadata(config, project_identifier, thread_id)
 
 
-def _inject_trace_metadata(
-    config: dict,
-    project_identifier: Optional[str],
-    thread_id: Optional[str],
-) -> None:
-    """向 run config 的 metadata 注入 Langfuse trace 维度（fail-open）。
-
-    - ``langfuse_session_id``：v3 CallbackHandler 约定的会话维度键，
-      用 thread_id 让同一会话的多次 run 聚合成一个 Langfuse session；
-    - ``project_id``：非保留键，v3 handler 会并入 trace.metadata，
-      供按项目过滤/成本分摊。
-
-    不写 ``langfuse_tags``：图级 with_config 已注入 ``agent:<name>``，
-    运行期 metadata 浅合并会覆盖同名键，追加反而丢掉 agent 标签。
-    metadata 传递依赖 LangChain config 合并行为，写不进去也不影响功能。
-    """
-    try:
-        metadata = config.get("metadata")
-        if not isinstance(metadata, dict):
-            metadata = {}
-            config["metadata"] = metadata
-        if thread_id:
-            metadata["langfuse_session_id"] = thread_id
-        if project_identifier:
-            metadata["project_id"] = project_identifier
-    except Exception:
-        pass
+# 注意：Langfuse trace 打标不在本模块做。中间件写回 config["metadata"]
+# 在 patch_config 语义下传播不到回调 handler（2026-08-13 E2E 实测确认），
+# 打标由 core/tracing.py 的 CallbackHandler 子类从平台注入的 metadata
+# （thread_id/project_identifier）派生——那是回调唯一可靠可见的通道。
 
 
 def _read_config(key: str) -> Optional[str]:

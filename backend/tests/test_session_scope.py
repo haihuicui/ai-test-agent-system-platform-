@@ -82,25 +82,3 @@ class TestSetSessionScope:
         config: dict = {}
         set_session_scope("proj-a", "thread-1", config)
         assert config["configurable"]["session_project"] == "proj-a"
-
-
-class TestTraceMetadataInjection:
-    def test_langfuse_session_and_project_injected(self):
-        config = _config_with(configurable={})
-        set_session_scope("proj-a", "thread-1", config)
-        metadata = config["metadata"]
-        assert metadata["langfuse_session_id"] == "thread-1"
-        assert metadata["project_id"] == "proj-a"
-
-    def test_existing_metadata_preserved(self):
-        """已有 metadata（如图级 langfuse_tags）不被覆盖。"""
-        config = _config_with(metadata={"langfuse_tags": ["agent:api"]})
-        set_session_scope("proj-a", "thread-1", config)
-        assert config["metadata"]["langfuse_tags"] == ["agent:api"]
-        assert config["metadata"]["project_id"] == "proj-a"
-
-    def test_empty_values_skip_injection(self):
-        config = _config_with(metadata={})
-        set_session_scope("", "", config)
-        assert "langfuse_session_id" not in config["metadata"]
-        assert "project_id" not in config["metadata"]
