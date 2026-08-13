@@ -7,10 +7,11 @@
 4. 交叉查询验证隔离：alpha 知 A 不知 B；beta 知 B 不知 A；默认库均不知
 """
 import json
+import os
 import time
 import urllib.request
 
-BASE = "http://127.0.0.1:9622"
+BASE = os.environ.get("VERIFY_BASE", "http://127.0.0.1:9622")
 
 DOC_A = (
     "阿尔法项目（Project Alpha）的数据传输层统一使用 Foxconn-9000 私有协议。"

@@ -25,8 +25,11 @@
 - [x] ~~**升级 vendored LightRAG**~~ → **自研 backport**：实例注册表（懒加载+per-workspace 锁）+ WorkspaceRAGProxy/DocManagerProxy（router 零改动）+ WorkspaceContextMiddleware ✅ `1dc080b`
 - [x] **服务端隔离验证**：本地轻量存储实例 + 真实 LLM 入库查询 6/6 PASS（alpha 知 A 不知 B、beta 知 B 不知 A、默认库均不知）✅ 复验脚本 `LightRAG/tests/workspace/e2e_request_routing_*.py`
 - [x] **diff 存档**：`LightRAG/local-patches/workspace-request-routing.patch` + README（防 vendored 升级覆盖）✅
-- [ ] **跨项目串扰 E2E（平台级）**：两项目并发会话检索互不可见——**阻塞：远程中间件（192.168.60.103 Milvus:19530/Neo4j:7474）未启动**，本机 9621 生产存储配置起不来；待中间件恢复后执行
+- [x] **生产存储隔离验证**：Neo4j/Milvus 下双 workspace 6/6 PASS（本机 9621，含默认库存量零影响确认）✅ 2026-08-13
+- [ ] **远程部署 backport（用户侧操作）**：103 的 lightrag 容器从本仓库 vendored 源码构建（deploy/docker-compose.yml:344），需 `git pull origin main`（≥1dc080b）后重新 `docker compose build lightrag && docker compose up -d lightrag rag-server`。**注意**：当前远程 lightrag 容器 /health 500，部署前先确认其状态
+- [ ] **跨项目串扰 E2E（平台级）**：两项目并发会话检索互不可见——待 103 部署后执行；平台管道（space_id → workspace 头）已有单测覆盖，服务端隔离已验证，风险低
 - [ ] **项目标识符消毒对齐**：中文项目名会被服务端转 `_`（不同项目可能退化同名）——平台侧注入 space_id 前先做 `_sanitize_config_key` 同款 hash 后缀
+- [ ] **清理测试 workspace**：生产存储中的 ws_alpha/ws_beta 测试文档（隔离命名空间内，不污染默认库与 cmp_space），验证完毕后可经 WebUI 删除
 - [ ] 验收：A 项目会话检索不到 B 项目文档；内存占用随 workspace 数增长可控（>20 项目参考 #2745 加 LRU）
 
 ## 三、二期：容器化执行（沙箱 L1，多团队推广前）
