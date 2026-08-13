@@ -1,15 +1,20 @@
 """Tests for CaseQualityGateMiddleware 的确定性校验函数。
 
-覆盖 _is_fuzzy_result（模糊预期结果判定）与 _validate_case（单条用例质量红线校验）。
+覆盖 _is_fuzzy_result（模糊预期结果判定）、_validate_case（单条用例质量红线校验）、
+validate_case_hygiene（规范级 warning 通道）与 _hygiene_note（中间件提示生成）。
 """
 from __future__ import annotations
+
+from types import SimpleNamespace
 
 import pytest
 
 from app.agents.testcase.case_quality_middleware import (
+    _hygiene_note,
     _is_fuzzy_result,
     _validate_case,
 )
+from app.utils.testcase_validation import validate_case_hygiene
 
 
 def _valid_case() -> dict:
@@ -69,7 +74,8 @@ class TestValidateCase:
 
     def test_empty_case_reports_all_violations(self):
         violations = _validate_case({})
-        assert len(violations) == 4
+        assert len(violations) == 5
+        assert any("name" in v for v in violations)
         assert any("module" in v for v in violations)
         assert any("case_number" in v for v in violations)
         assert any("test_data" in v for v in violations)
@@ -214,6 +220,84 @@ class TestValidateCase:
         case["预期结果"] = "成功"
         violations = _validate_case(case)
         assert any("顶层预期结果" in v for v in violations)
+
+    def test_name_required(self):
+        """name 缺失或空白时拦截（批量路径 dict 内字段无工具 schema 兜底）。"""
+        case = _valid_case()
+        del case["name"]
+        assert any("name" in v for v in _validate_case(case))
+
+        case = _valid_case()
+        case["name"] = "   "
+        assert any("name" in v for v in _validate_case(case))
+
+
+class TestValidateCaseHygiene:
+    """规范级 warning：只提示不拦截，把 normalize_* 的静默修正显式化。"""
+
+    def _rules(self, case: dict) -> set[str]:
+        return {h["rule"] for h in validate_case_hygiene(case)}
+
+    def test_fully_specified_case_no_hints(self):
+        case = _valid_case()
+        case.update({"case_type": "security", "priority": "high", "remarks": "REQ-1 FP-001"})
+        case["test_case_steps"].append({"step": "点击退出", "result": "返回登录页"})
+        assert validate_case_hygiene(case) == []
+
+    def test_missing_case_type_priority_remarks(self):
+        # _valid_case() 无 case_type/priority/remarks，且仅 1 步
+        rules = self._rules(_valid_case())
+        assert {"case_type缺失", "priority缺失", "无追溯编号", "单步骤"} <= rules
+
+    def test_too_many_steps(self):
+        case = _valid_case()
+        case["test_case_steps"] = [
+            {"step": f"步骤{i}", "result": f"结果{i}"} for i in range(12)
+        ]
+        assert "步骤过多" in self._rules(case)
+
+    def test_legacy_f_number_trace_recognized(self):
+        """F-11 这类旧编号体系也算有效追溯（存量数据真实存在）。"""
+        case = _valid_case()
+        case["remarks"] = "关联需求 F-11"
+        assert "无追溯编号" not in self._rules(case)
+
+    def test_long_name(self):
+        case = _valid_case()
+        case["name"] = "验" * 61
+        assert "名称过长" in self._rules(case)
+
+    def test_non_dict_returns_empty(self):
+        assert validate_case_hygiene(None) == []
+
+
+class TestHygieneNote:
+    """中间件 warning 提示：单条逐条列，批量按规则聚合计数。"""
+
+    def _req(self, name: str, args: dict):
+        return SimpleNamespace(tool_call={"name": name, "args": args})
+
+    def test_single_create_lists_messages(self):
+        note = _hygiene_note(self._req("create_test_case_tool", _valid_case()))
+        assert "不影响本次创建" in note
+        assert "case_type" in note and "priority" in note
+
+    def test_batch_aggregates_by_rule(self):
+        cases = [_valid_case() for _ in range(3)]
+        note = _hygiene_note(
+            self._req("batch_create_test_cases_tool", {"test_cases": cases})
+        )
+        assert "3 条缺 case_type" in note
+        assert "3 条缺 priority" in note
+
+    def test_clean_input_returns_empty(self):
+        case = _valid_case()
+        case.update({"case_type": "functional", "priority": "high", "remarks": "FP-001"})
+        case["test_case_steps"].append({"step": "点击退出", "result": "返回登录页"})
+        assert _hygiene_note(self._req("create_test_case_tool", case)) == ""
+
+    def test_other_tool_ignored(self):
+        assert _hygiene_note(self._req("read_file", {"path": "x"})) == ""
 
 
 if __name__ == "__main__":

@@ -164,6 +164,11 @@ def _validate_case(case: dict[str, Any]) -> list[str]:
     if not isinstance(case, dict):
         return ["用例参数不是有效对象"]
 
+    # name 必填（单条路径工具签名已强制；批量路径 dict 内字段无 schema 兜底，在此拦截）
+    name = case.get("name")
+    if not (isinstance(name, str) and name.strip()):
+        violations.append("缺少用例名称 name（必填）")
+
     # module 必填
     module = case.get("module")
     if not (isinstance(module, str) and module.strip()):
@@ -219,3 +224,65 @@ def _validate_case(case: dict[str, Any]) -> list[str]:
         )
 
     return violations
+
+
+# ── 规范级提示（warning 通道，不阻断创建）────────────────────────────────
+# 与离线 tests/eval/lint_cases.py 规则呼应（离线侧另查历史文件的旧 schema /
+# 字符串步骤等运行时入参不会出现的问题）。核心价值：把 normalize_priority /
+# normalize_case_type 的「静默修正」显式化——模型收到提示，下次生成自我修正。
+_TRACE_NO_RE = re.compile(r"REQ-|FP-|F-\d+")
+_HYGIENE_MAX_STEPS = 10
+
+
+def validate_case_hygiene(case: dict[str, Any]) -> list[dict[str, str]]:
+    """规范级检查，返回提示列表 [{"rule", "message"}]（空列表表示无提示）。
+
+    只提示不拦截：这些问题不影响入库正确性，但批量静默修正会让模型
+    永远不知道自己没传——存量数据中 case_type 缺失 14% 即源于此。
+    """
+    hints: list[dict[str, str]] = []
+    if not isinstance(case, dict):
+        return hints
+
+    case_type = str(case.get("case_type") or "").strip()
+    if not case_type:
+        hints.append({
+            "rule": "case_type缺失",
+            "message": "未提供 case_type，将按 functional 归类——建议显式标注（security/compatibility/...）",
+        })
+
+    priority = str(case.get("priority") or "").strip()
+    if not priority:
+        hints.append({
+            "rule": "priority缺失",
+            "message": "未提供 priority，将按默认 medium 处理——建议显式标注（critical/high/medium/low）",
+        })
+
+    steps = case.get("test_case_steps")
+    if isinstance(steps, list):
+        if len(steps) == 1:
+            hints.append({
+                "rule": "单步骤",
+                "message": "仅 1 个步骤——疑似操作与断言合并，检查是否丢失过程断言",
+            })
+        elif len(steps) > _HYGIENE_MAX_STEPS:
+            hints.append({
+                "rule": "步骤过多",
+                "message": f"{len(steps)} 个步骤 > {_HYGIENE_MAX_STEPS}——一条用例验证过多检查点，建议拆分",
+            })
+
+    remarks = str(case.get("remarks") or "")
+    if not _TRACE_NO_RE.search(remarks):
+        hints.append({
+            "rule": "无追溯编号",
+            "message": "remarks 无 REQ-/FP- 追溯编号——建议关联需求/功能点编号，保证用例可溯源",
+        })
+
+    name = str(case.get("name") or "")
+    if len(name) > 60:
+        hints.append({
+            "rule": "名称过长",
+            "message": f"用例名称 {len(name)} 字 > 60——建议精简为动宾结构",
+        })
+
+    return hints

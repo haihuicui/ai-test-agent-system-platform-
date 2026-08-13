@@ -6,7 +6,12 @@
 - 预期结果禁止"正确""成功""正常"等模糊词，必须可客观判定
 - 每条用例必须提供具体测试数据值（禁止空 test_data / 占位描述）
 - case_number 必须符合 ``TC-[项目]-[模块]-[序号]`` 格式
-- module（所属模块）必填
+- module（所属模块）必填；name（用例名称）必填
+
+另设 warning 通道（``validate_case_hygiene``，不阻断创建）：case_type/priority
+缺失、单步骤、步骤过多、无追溯编号、名称过长——把 normalize_* 的静默修正
+显式化回传给模型，驱动后续生成自我修正（规则与离线 tests/eval/lint_cases.py
+呼应）。
 
 批量创建（``batch_create_test_cases_tool``）的创建前校验统一由
 ``ModuleSelfCheckMiddleware`` 执行（规则为本校验的超集），本中间件只做
@@ -17,12 +22,13 @@ from __future__ import annotations
 
 import json
 import logging
+from collections import Counter
 from typing import TYPE_CHECKING, Any
 
 from langchain.agents.middleware import AgentMiddleware
 from langchain_core.messages import ToolMessage
 
-from app.utils.testcase_validation import _is_fuzzy_result, _validate_case
+from app.utils.testcase_validation import _is_fuzzy_result, _validate_case, validate_case_hygiene
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -101,34 +107,84 @@ def _parse_result_json(content: Any) -> dict[str, Any] | None:
     return data if isinstance(data, dict) else None
 
 
+# 批量路径 warning 聚合时的规则短文案（单条路径直接用 validate_case_hygiene 的 message）
+_HYGIENE_RULE_LABEL = {
+    "case_type缺失": "缺 case_type（已按 functional 归类）",
+    "priority缺失": "缺 priority（已按默认 medium 处理）",
+    "单步骤": "仅 1 步（疑似操作与断言合并）",
+    "步骤过多": "步骤数 >10（建议拆分）",
+    "无追溯编号": "缺 REQ-/FP- 追溯编号",
+    "名称过长": "名称超 60 字",
+}
+
+
+def _hygiene_note(request: ToolCallRequest) -> str:
+    """创建成功后的规范提示（warning 通道，不阻断）。
+
+    把 normalize_* 的静默修正显式化：单条路径逐条列提示；批量路径按规则
+    聚合计数（避免 30 条各列一遍淹没结果）。无提示返回空串。
+    """
+    tool_name = request.tool_call.get("name")
+    args = request.tool_call.get("args") or {}
+
+    if tool_name == _SINGLE_CREATE_TOOL:
+        hints = validate_case_hygiene(args)
+        if not hints:
+            return ""
+        items = "；".join(h["message"] for h in hints)
+        return f"\n\n[系统提示] 本条用例规范提示（不影响本次创建）：{items}。"
+
+    if tool_name == _BATCH_TOOL:
+        counter: Counter[str] = Counter()
+        for case in args.get("test_cases") or []:
+            if not isinstance(case, dict):
+                continue
+            for h in validate_case_hygiene(case):
+                counter[h["rule"]] += 1
+        if not counter:
+            return ""
+        items = "；".join(
+            f"{n} 条{_HYGIENE_RULE_LABEL.get(rule, rule)}" for rule, n in counter.most_common()
+        )
+        return (
+            f"\n\n[系统提示] 本批用例规范提示（不影响本次创建）：{items}。"
+            "建议后续创建时显式补全这些字段。"
+        )
+
+    return ""
+
+
 def _postprocess(result: ToolMessage | Command[Any], request: ToolCallRequest) -> ToolMessage | Command[Any]:
-    """创建后比对：批量创建有失败时，在结果末尾追加失败清单提示。"""
+    """创建后处理：批量部分失败追加失败清单（error 级反馈）；
+    单条/批量成功但有规范问题时追加 warning 提示（规范级反馈）。"""
     if not isinstance(result, ToolMessage) or result.status == "error":
         return result
-    if request.tool_call.get("name") != _BATCH_TOOL:
+    if request.tool_call.get("name") not in (_SINGLE_CREATE_TOOL, _BATCH_TOOL):
         return result
 
-    data = _parse_result_json(result.content)
-    inner = data.get("data") if data else None
-    if not isinstance(inner, dict):
-        return result
+    note = ""
+    if request.tool_call.get("name") == _BATCH_TOOL:
+        data = _parse_result_json(result.content)
+        inner = data.get("data") if data else None
+        if isinstance(inner, dict):
+            total = inner.get("total", 0)
+            succeeded = inner.get("succeeded", 0)
+            failed = inner.get("failed", 0)
+            if failed:
+                failed_items = [
+                    {"index": r.get("index"), "name": r.get("name"), "error": r.get("error")}
+                    for r in inner.get("results", [])
+                    if isinstance(r, dict) and not r.get("success")
+                ]
+                note += (
+                    f"\n\n[系统提示] 本次提交 {total} 条用例，成功 {succeeded} 条、失败 {failed} 条。"
+                    f"失败清单：{json.dumps(failed_items, ensure_ascii=False)}。"
+                    "请修正失败用例的参数后重新批量创建（仅补失败项，不要重复创建已成功用例）。"
+                )
 
-    total = inner.get("total", 0)
-    succeeded = inner.get("succeeded", 0)
-    failed = inner.get("failed", 0)
-    if not failed:
+    note += _hygiene_note(request)
+    if not note:
         return result
-
-    failed_items = [
-        {"index": r.get("index"), "name": r.get("name"), "error": r.get("error")}
-        for r in inner.get("results", [])
-        if isinstance(r, dict) and not r.get("success")
-    ]
-    note = (
-        f"\n\n[系统提示] 本次提交 {total} 条用例，成功 {succeeded} 条、失败 {failed} 条。"
-        f"失败清单：{json.dumps(failed_items, ensure_ascii=False)}。"
-        "请修正失败用例的参数后重新批量创建（仅补失败项，不要重复创建已成功用例）。"
-    )
     return result.model_copy(update={"content": str(result.content) + note})
 
 
