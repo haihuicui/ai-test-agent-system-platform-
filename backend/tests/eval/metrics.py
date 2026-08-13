@@ -46,6 +46,27 @@ exception_coverage_metric = GEval(
     async_mode=False,
 )
 
+# ── 裁判 3：需求覆盖完整性（FP 级，v2 带矩阵样本专用）────────────────
+# 与 coverage_audit 分工：代码查「有没有用例声明覆盖这个 FP」，
+# 本裁判查「相关用例的内容是否真语义覆盖了每个 test_point」——抓虚假声明。
+# 评估单位为单个 FP（judge_coverage.py 负责按 FP 筛选相关用例组装 input），
+# 避免「登录模块用例对编辑地点 FP 打低分」的冤案。
+coverage_faithfulness_metric = GEval(
+    name="需求覆盖完整性",
+    evaluation_steps=[
+        "input 是功能矩阵中的一个功能点（含 test_points 测试要点清单与 priority），actual_output 是与该功能点相关的测试用例集",
+        "逐个 test_point 判定：用例集中是否存在至少一条用例，其测试步骤与预期结果在语义上真实验证了该要点",
+        "仅名称/备注提到要点但步骤未实际验证的，不算覆盖（防虚假声明）",
+        "每个未被覆盖的 test_point：P0 功能点扣 0.15 分，P1 扣 0.10 分，P2/P3 扣 0.05 分",
+        "用例集与该功能点完全无关时，得分为 0",
+        "reason 中必须明确列出每个未覆盖 test_point 的原文",
+    ],
+    evaluation_params=[LLMTestCaseParams.INPUT, LLMTestCaseParams.ACTUAL_OUTPUT],
+    threshold=0.8,
+    model=_judge,
+    async_mode=False,
+)
+
 # (维度 key, metric) —— run_judges 落盘与 calibrate_report 对比共用此 key
 JUDGES = (
     ("assertability", assertability_metric),

@@ -12,6 +12,7 @@ tests/eval/
 ├── DIMENSIONS.md             # 评估维度三层地图（规划 + 实施状态追踪）
 ├── lint_cases.py             # 用例规范 lint（代码规则，零 token，可直接接 CI）
 ├── coverage_audit.py         # 覆盖漏测审计（复用运行时 compute_coverage，项目级全景）
+├── judge_coverage.py         # 需求覆盖语义裁判（FP 级 G-Eval，抓虚假声明/真漏测）
 ├── defense_stats.py          # 防线有效性统计（拦截率/评审发现/信任度，零 token）
 ├── judge_model.py            # DeepSeek 裁判封装（DeepEvalBaseLLM 协议）
 ├── metrics.py                # 2 个 G-Eval 裁判定义（单一事实源，门禁与落盘共用）
@@ -44,6 +45,10 @@ cd backend
 
 # 覆盖漏测审计（项目级全景：FP 漏测清单/薄弱覆盖/无追溯文件；P0 未覆盖退出码 1）
 ./.venv/Scripts/python.exe -m tests.eval.coverage_audit
+
+# 需求覆盖语义裁判（FP 级 G-Eval：相关用例是否真语义覆盖每个 test_point；
+# REQ 主题需求级对齐防 FP 编号撞车；断点续跑。首跑：25 FP = 23 过 / 2 真漏测）
+./.venv/Scripts/python.exe -m tests.eval.judge_coverage --project PR-1
 
 # 防线有效性统计（中间件拦截率、对抗评审发现、信任度分布——过程质量量化）
 ./.venv/Scripts/python.exe -m tests.eval.defense_stats
