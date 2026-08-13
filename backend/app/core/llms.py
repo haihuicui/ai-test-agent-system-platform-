@@ -37,6 +37,7 @@ def get_text_model():
             max_retries=settings.llm_max_retries,
             timeout=settings.llm_timeout,
             max_tokens=settings.llm_max_tokens,
+            stream_chunk_timeout=settings.llm_stream_chunk_timeout,
         )
         model.profile = ModelProfile(max_input_tokens=128000)
         logger.info(f"Text model ready: deepseek/{settings.llm_model}")
@@ -101,6 +102,7 @@ def get_text_model_with_temperature(temperature: float = 0.3, max_tokens: int | 
             max_retries=settings.llm_max_retries,
             timeout=settings.llm_timeout,
             max_tokens=max_tokens if max_tokens is not None else settings.llm_max_tokens,
+            stream_chunk_timeout=settings.llm_stream_chunk_timeout,
         )
         model.profile = ModelProfile(max_input_tokens=128000)
         return model

@@ -159,6 +159,12 @@ class Settings(BaseSettings):
     # DeepSeek 调用韧性参数（其 API 503 失败率较高，长会话需更强重试）
     llm_max_retries: int = 5  # SDK 指数退避重试次数（默认仅 2，不足以吸收 503 尖峰）
     llm_timeout: float = 600.0  # 单次请求超时（秒），16K tokens 长报告生成需要余量
+    # 流式 chunk 间隔超时（langchain-openai>=1.2 新增，默认 120s）：
+    # 测量相邻两个内容 chunk 的墙钟间隔，SSE keepalive 不重置计时。
+    # deepseek-v4 推理模型长生成时服务端可出现 2-3 分钟内容静默，
+    # 120s 默认值会把"慢但活着"的流误杀（StreamChunkTimeoutError）。
+    # 调大到 300s 保留死连接检测能力；设为 0 可完全禁用。
+    llm_stream_chunk_timeout: float = 300.0
     # 输出上限；DeepSeek 默认 4096。deepseek-v4 为推理模型，reasoning 与正文共享该配额——
     # 主 Agent 在长上下文（6万+ tokens 检索结果）后深度规划时，思考链可吃满 8192 导致
     # 正文静默为空、run 以 success 假结束（2026-08-06 thread e67525ea 实证）。

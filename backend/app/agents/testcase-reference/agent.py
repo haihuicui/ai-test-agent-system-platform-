@@ -21,7 +21,19 @@ from app.config.settings import settings
 from app.agents.testcase.tool_registry import get_all_tools
 
 # 配置模型和技能目录
-model = init_chat_model("deepseek:deepseek-v4-flash")
+# 注意：必须显式对齐统一配置（原 init_chat_model 单参数形式全走 SDK 默认值，
+# 绕过了 llms.py 配置中心——无 max_retries=5 / timeout=600 / max_tokens=16384，
+# 且 langchain-openai>=1.2 的 stream_chunk_timeout 默认 120s 会误杀推理模型
+# 长生成的内容静默期，导致 StreamChunkTimeoutError 运行中断）。
+model = init_chat_model(
+    f"deepseek:{settings.llm_model}",
+    api_key=settings.deepseek_api_key,
+    temperature=0.3,
+    max_retries=settings.llm_max_retries,
+    timeout=settings.llm_timeout,
+    max_tokens=settings.llm_max_tokens,
+    stream_chunk_timeout=settings.llm_stream_chunk_timeout,
+)
 
 skills_root = Path(settings.testcase_skills_root).resolve()
 skills_backend = FilesystemBackend(root_dir=skills_root, virtual_mode=True)

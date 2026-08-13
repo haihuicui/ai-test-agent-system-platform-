@@ -278,6 +278,7 @@ def build_web_agent_model():
         max_retries=settings.llm_max_retries,
         timeout=settings.llm_timeout,
         max_tokens=settings.llm_max_tokens,
+        stream_chunk_timeout=settings.llm_stream_chunk_timeout,
         extra_body={"thinking": {"type": "disabled"}},
     )
     fast_model.profile = ModelProfile(max_input_tokens=128000)
