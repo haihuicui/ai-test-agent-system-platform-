@@ -125,6 +125,37 @@ class TestDetectPhase:
     def test_other_phases_non_heading_not_detected(self, content):
         assert _detect_phase(content) is None
 
+    @pytest.mark.parametrize(
+        ("content", "expected"),
+        [
+            # 回归：thread 806fbde8 实测——模型自加中文章节编号 + 括号修订后缀，
+            # 导致评审卡片不弹出（两版报告 run 均以 success 结束而非 interrupt）
+            ("## 一、需求解析报告", "requirement-analysis"),
+            ("## 二、功能测试矩阵（修订版 · 15 FP / 8 模块）", "requirement-analysis"),
+            ("一、需求解析报告", "requirement-analysis"),
+            ("## 二、功能测试矩阵", "requirement-analysis"),
+            ("## 三、测试用例生成完成", "test-case-generation"),
+            ("## 四、测试用例质量评审报告", "quality-review"),
+            ("## 📊 四、测试用例质量评审报告", "quality-review"),
+            ("## 五、输出格式化", "output-format-selection"),
+            ("## 二、测试策略报告（精简版）", "test-strategy"),
+        ],
+    )
+    def test_cn_section_number_heading_detected(self, content, expected):
+        """中文章节编号前缀（一、二、…）与括号注释后缀不应阻断阶段检测。"""
+        assert _detect_phase(content) == expected
+
+    @pytest.mark.parametrize(
+        "content",
+        [
+            "# 主标题带文字 · 需求解析报告（修订版）",  # 标题前有实质文字，非独立标题行
+            "- 一、需求解析报告是第一步",                # 列表项且标题后带内容
+            "正文提及 二、功能测试矩阵 几个字",          # 行内提及
+        ],
+    )
+    def test_cn_section_number_non_heading_not_detected(self, content):
+        assert _detect_phase(content) is None
+
 
 class TestAdvancePhaseTodos:
     def test_approve_completes_current_and_advances_next(self):

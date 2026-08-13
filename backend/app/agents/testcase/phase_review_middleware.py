@@ -35,16 +35,31 @@ def _decorated_heading_pattern(*titles: str) -> str:
     行首允许最多两段装饰符号簇——同时覆盖 "✅ 标题"（纯 emoji）和
     "## 📊 标题"（Markdown+emoji 组合）；标题须独占一行，正文行内提及
     （如 «- 测试用例生成完成：共26条»）不会误触发。
+
+    额外容忍（实测失配案例：thread 806fbde8 修订版报告）：
+    - 中文章节编号前缀：模型爱把 SKILL 规范的 «## 需求解析报告» 写成
+      «## 一、需求解析报告»——"一"是 CJK 词字符，原装饰簇无法消费；
+    - 括号注释后缀：如 «## 二、功能测试矩阵（修订版 · 15 FP / 8 模块）»。
     """
-    return rf"(?m)^\s*(?:[^\w\s]{{1,6}}\s*){{0,2}}(?:{'|'.join(titles)})\s*$"
+    return (
+        rf"(?m)^\s*(?:[^\w\s]{{1,6}}\s*){{0,2}}"
+        rf"(?:[一二三四五六七八九十]{{1,3}}[、.．]\s*)?"
+        rf"(?:{'|'.join(titles)})"
+        rf"(?:\s*[（(][^）)\n]{{0,40}}[)）])?\s*$"
+    )
+
+
+# 中文章节编号前缀：模型输出章节式报告时常自发添加（「一、」「二、」等），
+# 显式 ## pattern 也需容忍，否则 search 同样失配。
+_CN_SECTION_PREFIX = r"(?:[一二三四五六七八九十]{1,3}[、.．]\s*)?"
 
 
 _PHASE_PATTERNS: dict[str, list[str]] = {
     "requirement-analysis": [
         # Markdown heading 格式 (## 开头)
-        r"##\s*需求解析报告",
-        r"##\s*需求解析摘要",
-        r"##\s*功能测试矩阵",
+        rf"##\s*{_CN_SECTION_PREFIX}需求解析报告",
+        rf"##\s*{_CN_SECTION_PREFIX}需求解析摘要",
+        rf"##\s*{_CN_SECTION_PREFIX}功能测试矩阵",
         # Emoji 格式 (兼容 SKILL.md 输出规范中的 📊/📋 前缀)
         r"📊\s*需求解析报告",
         r"📊\s*需求解析摘要",
@@ -52,23 +67,23 @@ _PHASE_PATTERNS: dict[str, list[str]] = {
         _decorated_heading_pattern("需求解析报告", "需求解析摘要", "功能测试矩阵"),
     ],
     "test-strategy": [
-        r"##\s*测试策略报告",
+        rf"##\s*{_CN_SECTION_PREFIX}测试策略报告",
         _decorated_heading_pattern("测试策略报告"),
     ],
     "test-case-generation": [
-        r"##\s*测试用例生成完成",
-        r"##\s*用例生成汇总",
-        r"##\s*测试用例汇总",
+        rf"##\s*{_CN_SECTION_PREFIX}测试用例生成完成",
+        rf"##\s*{_CN_SECTION_PREFIX}用例生成汇总",
+        rf"##\s*{_CN_SECTION_PREFIX}测试用例汇总",
         _decorated_heading_pattern("测试用例生成完成", "用例生成汇总", "测试用例汇总"),
     ],
     "quality-review": [
-        r"##\s*📊\s*测试用例质量评审报告",
-        r"##\s*测试用例质量评审报告",
+        rf"##\s*📊\s*{_CN_SECTION_PREFIX}测试用例质量评审报告",
+        rf"##\s*{_CN_SECTION_PREFIX}测试用例质量评审报告",
         _decorated_heading_pattern("测试用例质量评审报告"),
     ],
     "output-format-selection": [
-        r"##\s*输出格式化",
-        r"##\s*交付物格式选择",
+        rf"##\s*{_CN_SECTION_PREFIX}输出格式化",
+        rf"##\s*{_CN_SECTION_PREFIX}交付物格式选择",
         _decorated_heading_pattern("输出格式化", "交付物格式选择"),
     ],
 }
