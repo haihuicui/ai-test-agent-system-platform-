@@ -35,6 +35,8 @@ from app.schemas.enums import TestResultStatus
 from app.models.mongodb.api_test_log import APITestDetailLog
 from app.services.environment_service import EnvironmentService
 from app.utils.exceptions import BadRequestException
+from app.utils.proc_watchdog import run_cmd_with_watchdog, watch_async_proc
+from app.utils.shell_env import build_script_exec_env
 from app.utils.sync_executor import run_sync
 
 logger = logging.getLogger(__name__)
@@ -567,22 +569,6 @@ def _get_npx_cmd() -> list[str]:
     return ["npx"]
 
 
-def _ensure_node_in_path(env: dict[str, str]) -> dict[str, str]:
-    """确保 PATH 包含常见的 Node.js 安装目录。"""
-    node_paths = [
-        r"C:\Program Files\nodejs",
-        r"C:\Program Files (x86)\nodejs",
-        os.path.expanduser(r"~\AppData\Roaming\npm"),
-        "/usr/local/bin",
-        "/usr/bin",
-    ]
-    current_path = env.get("PATH", "")
-    paths_to_add = [p for p in node_paths if p not in current_path]
-    if paths_to_add:
-        env = {**env, "PATH": os.pathsep.join(paths_to_add + [current_path])}
-    return env
-
-
 async def _run_subprocess_with_fallback(
     cmd: list[str],
     cwd: str,
@@ -882,8 +868,9 @@ class APITestExecutor:
         proc: Optional[asyncio.subprocess.Process] = None
 
         try:
-            # 准备环境变量：确保 PATH 包含 Node.js
-            env = _ensure_node_in_path({**os.environ})
+            # 白名单环境（密钥隔离）：仅 OS/Node 工具链变量；
+            # 业务变量（AUTH_TOKEN 等）在下方经受控通道显式注入
+            env = build_script_exec_env()
 
             # 通过 EnvironmentService 解析环境变量（支持 execution_config + 项目环境 fallback）
             env_service = EnvironmentService(session)
@@ -971,37 +958,47 @@ class APITestExecutor:
                 finally:
                     json_fp.close()
 
-                try:
-                    _, stderr_bytes = await asyncio.wait_for(
-                        proc.communicate(),
-                        timeout=execution_config.get("timeout", 300),
+                # 资源看门狗：进程树 RSS 超限即 kill 整棵树（防内存失控拖垮共享服务器）
+                watchdog = asyncio.create_task(
+                    watch_async_proc(
+                        proc,
+                        settings.exec_max_memory_mb,
+                        label=f"api-run-{run_id}",
                     )
-                except asyncio.TimeoutError:
-                    if proc.returncode is None:
-                        try:
-                            proc.kill()
-                            await asyncio.wait_for(proc.wait(), timeout=5)
-                        except Exception:
-                            pass
-                    raise
+                )
+                try:
+                    try:
+                        _, stderr_bytes = await asyncio.wait_for(
+                            proc.communicate(),
+                            timeout=execution_config.get("timeout", 300),
+                        )
+                    except asyncio.TimeoutError:
+                        if proc.returncode is None:
+                            try:
+                                proc.kill()
+                                await asyncio.wait_for(proc.wait(), timeout=5)
+                            except Exception:
+                                pass
+                        raise
+                finally:
+                    watchdog.cancel()
                 stderr = stderr_bytes.decode("utf-8", errors="replace")
                 returncode = proc.returncode
 
             except NotImplementedError:
                 # Windows SelectorEventLoop 不支持 asyncio 子进程，降级到线程池同步执行
+                # （run_cmd_with_watchdog 内建同样的超时/内存看门狗）
                 logger.info("[APITestExecutor] 当前 EventLoop 不支持 asyncio 子进程，降级到同步 subprocess")
                 try:
                     sync_result = await run_sync(
-                        subprocess.run,
+                        run_cmd_with_watchdog,
                         [*npx_cmd, "playwright", "test", relative_path.as_posix(),
                          "--reporter=json,html"],
                         cwd=str(workspace_dir),
-                        capture_output=True,
-                        text=True,
-                        encoding="utf-8",
-                        errors="replace",
                         timeout=execution_config.get("timeout", 300),
+                        max_memory_mb=settings.exec_max_memory_mb,
                         env=env,
+                        label=f"api-run-{run_id}",
                     )
                     # 同步模式：JSON 写入 stdout，从 stdout 读取结构化结果
                     stdout = sync_result.stdout or ""
@@ -2029,63 +2026,6 @@ class APITestExecutor:
             logger.warning("[APITestExecutor] 清理报告目录失败: %s", e)
 
         return object_name
-
-    async def _generate_allure_report(
-        self,
-        run_id: UUID,
-        work_dir: Path,
-    ) -> Optional[str]:
-        """
-        生成 Allure 测试报告
-
-        Args:
-            run_id: 测试运行 ID
-            work_dir: 工作目录（包含 allure-results）
-
-        Returns:
-            str: 报告目录路径 (MinIO)
-        """
-        try:
-            allure_results_dir = work_dir / "allure-results"
-
-            # 检查 Allure 结果是否存在
-            if not allure_results_dir.exists():
-                logger.info("[APITestExecutor] 未找到 Allure 测试结果")
-                return None
-
-            # 生成 HTML 报告到临时目录
-            allure_report_dir = work_dir / "allure-report"
-            proc = await asyncio.create_subprocess_exec(
-                "allure", "generate", str(allure_results_dir), "-o", str(allure_report_dir), "--clean",
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-            await asyncio.wait_for(proc.communicate(), timeout=30)
-
-            # 将报告打包为 ZIP 并上传到 MinIO
-            import zipfile
-            zip_path = work_dir / "allure-report.zip"
-            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-                for file in allure_report_dir.rglob('*'):
-                    if file.is_file():
-                        arcname = file.relative_to(allure_report_dir)
-                        zipf.write(file, arcname)
-
-            # 上传到 MinIO
-            report_path = f"api-test-reports/{run_id}/allure-report.zip"
-            with open(zip_path, 'rb') as f:
-                MinIOClient.upload_bytes(
-                    object_name=report_path,
-                    data=f.read(),
-                    content_type="application/zip",
-                )
-# noqa  My80OmFIVnBZMlhsdEpUbXRiZm92b2s2YW1wNk1BPT06ZWUzYTIzYTg=
-
-            return report_path
-
-        except Exception as e:
-            logger.error("[APITestExecutor] 生成 Allure 报告失败: %s", e)
-            return None
 
     async def save_detail_log(
         self,

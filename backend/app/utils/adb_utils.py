@@ -15,6 +15,7 @@ from typing import Optional
 # type: ignore  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2ZW5KRFpRPT06NGJlNmNjNTQ=
 
 from app.config import settings
+from app.utils.shell_env import build_script_exec_env
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +69,7 @@ def _run_adb_sync(args: list[str], timeout: int = 10) -> subprocess.CompletedPro
         errors="replace",
         timeout=timeout,
         shell=is_windows,
+        env=build_script_exec_env(),
     )
     print(f"[ADB] 返回码: {result.returncode}")
     print(f"[ADB] stdout: {repr(result.stdout)}")

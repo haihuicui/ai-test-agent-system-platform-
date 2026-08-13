@@ -42,6 +42,8 @@ dependencies = [
     "langfuse>=3.0,<4.0",
     "pillow>=11.0.0",
     "aiohttp>=3.14.0",
+    # 子进程树内存看门狗（沙箱 L0 资源限制；见 backend/app/utils/proc_watchdog.py）
+    "psutil>=6.0.0",
 ]
 
 [dependency-groups]

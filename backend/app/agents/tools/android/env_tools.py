@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Optional
 # pragma: no cover  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2UWs1a01nPT06Y2E3ZmFlOGQ=
 
+from app.utils.shell_env import build_script_exec_env
 from app.utils.sync_executor import run_sync
 
 from langchain_core.tools import tool
@@ -45,7 +46,8 @@ async def check_android_env() -> str:
             encoding="utf-8",
             errors="replace",
             timeout=10,
-            shell=sys.platform == "win32"
+            shell=sys.platform == "win32",
+            env=build_script_exec_env(),
         )
         checks["node"] = {
             "available": result.returncode == 0,
@@ -65,7 +67,8 @@ async def check_android_env() -> str:
             encoding="utf-8",
             errors="replace",
             timeout=10,
-            shell=sys.platform == "win32"
+            shell=sys.platform == "win32",
+            env=build_script_exec_env(),
         )
         checks["adb"] = {
             "available": result.returncode == 0,
@@ -87,7 +90,8 @@ async def check_android_env() -> str:
             encoding="utf-8",
             errors="replace",
             timeout=10,
-            shell=sys.platform == "win32"
+            shell=sys.platform == "win32",
+            env=build_script_exec_env(),
         )
         if result.returncode == 0:
             lines = result.stdout.strip().split("\n")[1:]  # 跳过 "List of devices attached"
@@ -231,7 +235,8 @@ async def init_android_project(
             encoding="utf-8",
             errors="replace",
             timeout=300,
-            shell=sys.platform == "win32"
+            shell=sys.platform == "win32",
+            env=build_script_exec_env(),
         )
 
         return json.dumps({

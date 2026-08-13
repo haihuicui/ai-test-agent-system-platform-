@@ -50,8 +50,6 @@ from app.agents.tools.api.execution_tools import (
 )
 
 from app.agents.tools.api.runner_tools import (
-    run_tests,
-    run_test_suite,
     parse_test_results,
 )
 
@@ -123,8 +121,6 @@ EXECUTION_TOOLS = [
 # type: ignore  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2UVZkTVF3PT06MjJlNmJjMTM=
 
 RUNNER_TOOLS = [
-    run_tests,
-    run_test_suite,
     parse_test_results,
 ]
 

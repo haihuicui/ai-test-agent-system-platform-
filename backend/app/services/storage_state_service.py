@@ -30,7 +30,7 @@ from app.repositories.environment_repo import EnvironmentRepository
 from app.repositories.project_repo import ProjectRepository
 from app.schemas.storage_state import LoginSelectors, StorageStateJobInfo
 from app.utils.exceptions import BadRequestException, NotFoundException
-from app.utils.shell_env import ensure_playwright_mcp_project
+from app.utils.shell_env import build_script_exec_env, ensure_playwright_mcp_project
 from app.utils.storage_state_validator import validate_storage_state
 from app.utils.sync_executor import run_sync
 
@@ -505,8 +505,9 @@ class StorageStateService:
                         tmp_dir, output_path, headless
                     )
 
-                    env_vars = os.environ.copy()
-                    env_vars.update({
+                    # 白名单环境（密钥隔离）：登录凭据经 extra_env 受控通道注入，
+                    # 进程密钥（LLM Key/DB 密码等）不进入子进程
+                    env_vars = build_script_exec_env({
                         "LOGIN_URL": selectors.login_url,
                         "LOGIN_USERNAME": username,
                         "LOGIN_PASSWORD": password,
@@ -1106,7 +1107,7 @@ test('token inject and save storage state', async ({{ context, page }}) => {{
         stdout, stderr, returncode = await self._run_playwright_subprocess(
             cmd=cmd,
             cwd=str(web_mcp_root),
-            env=os.environ.copy(),
+            env=build_script_exec_env(),
             timeout=settings.web_exec_timeout_seconds,
         )
         if returncode != 0:

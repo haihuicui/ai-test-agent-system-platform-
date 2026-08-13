@@ -259,6 +259,10 @@ class Settings(BaseSettings):
     web_exec_retries: int = 1                # playwright 自动重试次数；healer 会针对性修复重跑，此处不宜过高以免拉长失败反馈
     web_exec_max_concurrency: int = 2        # 全局并发执行上限（不同子功能间），防报告/资源互相覆盖
 
+    # 测试子进程资源看门狗（沙箱 L0）：进程树 RSS 超限即 kill 整棵树，
+    # 防单会话内存失控拖垮共享服务器。容器化（L1）后由 --memory 原生接管。
+    exec_max_memory_mb: int = 2048
+
     # Web CLI 测试工作目录配置
     web_cli_workspace_root: str = "backend/workspace/web_cli"
     web_cli_skills_root: str = ".claude/skills"

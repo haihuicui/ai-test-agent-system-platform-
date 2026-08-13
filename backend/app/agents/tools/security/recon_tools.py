@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Optional, List
 from datetime import datetime
 
+from app.utils.shell_env import build_script_exec_env
 from app.utils.sync_executor import run_sync
 
 from langchain_core.tools import tool
@@ -29,7 +30,7 @@ SECURITY_WORKSPACE.mkdir(parents=True, exist_ok=True)
 
 
 def _run_command(cmd: list[str], timeout: int = 300, cwd: Optional[str] = None) -> dict:
-    """通用命令执行辅助函数"""
+    """通用命令执行辅助函数（白名单环境，密钥隔离）"""
     try:
         result = subprocess.run(
             cmd,
@@ -39,6 +40,7 @@ def _run_command(cmd: list[str], timeout: int = 300, cwd: Optional[str] = None) 
             errors="replace",
             timeout=timeout,
             cwd=cwd or str(SECURITY_WORKSPACE),
+            env=build_script_exec_env(),
         )
         return {
             "success": result.returncode == 0,

@@ -33,7 +33,8 @@ from app.schemas.enums import TestResultStatus
 from app.schemas.storage_state import LoginSelectors
 from app.utils.exceptions import NotFoundException
 from app.utils.playwright_report import map_playwright_status, parse_playwright_json
-from app.utils.shell_env import ensure_playwright_mcp_project
+from app.utils.proc_watchdog import watch_async_proc
+from app.utils.shell_env import build_script_exec_env, ensure_playwright_mcp_project
 from app.utils.storage_state_validator import validate_storage_state
 from app.utils.sync_executor import run_sync
 from app.config.minio_client import MinIOClient
@@ -46,22 +47,6 @@ def _get_npx_cmd() -> list[str]:
     if os.name == "nt":  # Windows
         return ["npx.cmd"]
     return ["npx"]
-
-
-def _ensure_node_in_path(env: dict[str, str]) -> dict[str, str]:
-    """确保 PATH 包含常见的 Node.js 安装目录。"""
-    node_paths = [
-        r"C:\Program Files\nodejs",
-        r"C:\Program Files (x86)\nodejs",
-        os.path.expanduser(r"~\AppData\Roaming\npm"),
-        "/usr/local/bin",
-        "/usr/bin",
-    ]
-    current_path = env.get("PATH", "")
-    paths_to_add = [p for p in node_paths if p not in current_path]
-    if paths_to_add:
-        env = {**env, "PATH": os.pathsep.join(paths_to_add + [current_path])}
-    return env
 
 
 logger = logging.getLogger(__name__)
@@ -852,11 +837,10 @@ export default defineConfig({{
         timeout = execution_config.get("timeout", 300)
         work_dir = os.path.dirname(config_path)
 
-        # 准备环境变量：确保 PATH 包含 Node.js
-        env = _ensure_node_in_path({**os.environ})
+        # 白名单环境（密钥隔离）：仅 OS/Node 工具链变量；
+        # 调用方业务变量经 extra_env 受控通道注入
         env_vars = execution_config.get("env") or execution_config.get("environment_variables")
-        if env_vars:
-            env.update(env_vars)
+        env = build_script_exec_env(dict(env_vars) if env_vars else None)
 
         npx_cmd = _get_npx_cmd()
 
@@ -891,9 +875,20 @@ export default defineConfig({{
                 stderr=asyncio.subprocess.PIPE,
                 env=env,
             )
-            stdout, stderr = await asyncio.wait_for(
-                proc.communicate(), timeout=timeout
+            # 资源看门狗：进程树 RSS 超限即 kill 整棵树（防内存失控拖垮共享服务器）
+            watchdog = asyncio.create_task(
+                watch_async_proc(
+                    proc,
+                    settings.exec_max_memory_mb,
+                    label=f"web-run-{os.path.basename(work_dir)}",
+                )
             )
+            try:
+                stdout, stderr = await asyncio.wait_for(
+                    proc.communicate(), timeout=timeout
+                )
+            finally:
+                watchdog.cancel()
 
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
 

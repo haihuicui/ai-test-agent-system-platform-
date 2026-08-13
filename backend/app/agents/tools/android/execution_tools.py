@@ -8,6 +8,7 @@ Android 测试脚本执行工具（企业级执行层）
 - 批量执行的错误隔离
 """
 
+import asyncio
 import os
 import sys
 import json
@@ -24,6 +25,7 @@ from uuid import UUID
 from langchain_core.tools import tool
 from sqlalchemy import select
 
+from app.utils.shell_env import build_script_exec_env
 from app.utils.sync_executor import run_sync
 from app.config import settings
 from app.config.database import async_session_factory
@@ -40,6 +42,11 @@ from app.config.minio_client import MinIOClient
 
 
 WORKSPACE_TESTS_ROOT = Path(settings.android_workspace_root) / "tests"
+
+# Android 执行全局串行锁：adb 物理设备是独占资源，且 midscene_run/
+# 产物目录为框架默认的固定相对路径（无法 per-run 命名），并发执行会互相
+# 清理/误读产物。进程内串行 + 执行前清理残留，保证解析到的产物属于本次执行。
+_android_exec_lock = asyncio.Lock()
 
 
 def get_workspace_tests_dir() -> Path:
@@ -257,10 +264,8 @@ async def _execute_once(
     else:
         return {"success": False, "error": f"不支持的测试框架: {framework}"}
 
-    env = os.environ.copy()
-    env["CI"] = "1"
-    if extra_env:
-        env.update(extra_env)
+    # 白名单环境（密钥隔离）：仅 OS/Node 工具链变量；extra_env 经受控通道注入
+    env = build_script_exec_env({"CI": "1", **(extra_env or {})})
 
     result = await run_sync(
         subprocess.run,
@@ -640,46 +645,53 @@ async def execute_android_script(
             except Exception as e:
                 print(f"[Android Script Execution] 创建运行记录失败: {e}")
 
-        # 3. 执行脚本（带重试）
-        execution_result = await _execute_android_script_internal(
-            script_path=str(relative_path),
-            script_filename=script_filename,
-            framework=framework,
-            project_root=str(project_root),
-            max_retries=max_retries,
-        )
+        # 3~5. 执行 → 解析 → 上传报告：全程持锁（adb 设备独占 + midscene_run
+        # 固定产物目录），锁内先清理上次执行残留，避免误读历史产物。
+        async with _android_exec_lock:
+            midscene_run_dir = project_root / "midscene_run"
+            if await run_sync(midscene_run_dir.exists):
+                await run_sync(shutil.rmtree, midscene_run_dir, True)
 
-        # 4. 解析结果
-        parsed_results = await run_sync(_parse_midscene_results, project_root)
-        if not parsed_results:
-            parsed_results = await run_sync(_extract_results_from_stdout, execution_result.get("stdout", ""))
+            # 3. 执行脚本（带重试）
+            execution_result = await _execute_android_script_internal(
+                script_path=str(relative_path),
+                script_filename=script_filename,
+                framework=framework,
+                project_root=str(project_root),
+                max_retries=max_retries,
+            )
 
-        # 5. 上传报告
-        report_object_name: Optional[str] = None
-        report_attachment_id: Optional[str] = None
-        if reporter == "html" and execution_result.get("report_path") and project_identifier:
-            async with async_session_factory() as db:
-                project_result = await db.execute(
-                    select(Project).where(Project.identifier == project_identifier)
-                )
-                project = project_result.scalar_one_or_none()
+            # 4. 解析结果
+            parsed_results = await run_sync(_parse_midscene_results, project_root)
+            if not parsed_results:
+                parsed_results = await run_sync(_extract_results_from_stdout, execution_result.get("stdout", ""))
 
-                if project:
-                    report_object_name = await _save_android_test_report(
-                        project_identifier=project_identifier,
-                        project=project,
-                        report_path=execution_result["report_path"],
-                        execution_result=execution_result,
-                        project_root=str(project_root),
+            # 5. 上传报告
+            report_object_name: Optional[str] = None
+            report_attachment_id: Optional[str] = None
+            if reporter == "html" and execution_result.get("report_path") and project_identifier:
+                async with async_session_factory() as db:
+                    project_result = await db.execute(
+                        select(Project).where(Project.identifier == project_identifier)
                     )
-                    # 查询刚创建的 attachment id
-                    if report_object_name:
-                        attachment_result = await db.execute(
-                            select(Attachment).where(Attachment.object_name == report_object_name)
+                    project = project_result.scalar_one_or_none()
+
+                    if project:
+                        report_object_name = await _save_android_test_report(
+                            project_identifier=project_identifier,
+                            project=project,
+                            report_path=execution_result["report_path"],
+                            execution_result=execution_result,
+                            project_root=str(project_root),
                         )
-                        attachment = attachment_result.scalar_one_or_none()
-                        if attachment:
-                            report_attachment_id = str(attachment.id)
+                        # 查询刚创建的 attachment id
+                        if report_object_name:
+                            attachment_result = await db.execute(
+                                select(Attachment).where(Attachment.object_name == report_object_name)
+                            )
+                            attachment = attachment_result.scalar_one_or_none()
+                            if attachment:
+                                report_attachment_id = str(attachment.id)
 
         # 6. 更新 AndroidTestRun 与 AndroidTestResult
         if run_id_str:

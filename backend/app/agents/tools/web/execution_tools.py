@@ -21,7 +21,12 @@ from sqlalchemy import select
 # noqa  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2TVhwMk9RPT06MTE1M2I2M2M=
 
 from app.utils.sync_executor import run_sync
-from app.utils.shell_env import resolve_effective_headless, write_storage_state_config
+from app.utils.proc_watchdog import run_cmd_with_watchdog
+from app.utils.shell_env import (
+    build_script_exec_env,
+    resolve_effective_headless,
+    write_storage_state_config,
+)
 from app.utils.web_mcp_storage_state import resolve_effective_storage_state
 from app.config import settings
 from app.config.database import async_session_factory
@@ -399,20 +404,18 @@ async def _static_check_script(script_path: str, project_root: str) -> Dict[str,
             npx = shutil.which("npx") or "npx"
             cmd = [npx, "playwright", "test", script_path, "--list"]
 
-        env = os.environ.copy()
-        env['CI'] = '1'
+        # 白名单环境（密钥隔离）：仅 OS/Node 工具链变量 + CI 标记
+        env = build_script_exec_env({'CI': '1'})
 
         result = await run_sync(
-            subprocess.run,
+            run_cmd_with_watchdog,
             cmd,
             cwd=project_root,
-            capture_output=True,
-            text=True,
-            encoding='utf-8',
-            errors='replace',
             timeout=settings.web_exec_static_check_timeout,
+            max_memory_mb=settings.exec_max_memory_mb,
             shell=is_windows,
             env=env,
+            label=f"web-static-check-{script_path}",
         )
 
         if result.returncode == 0:
@@ -511,26 +514,25 @@ async def _execute_script_internal(
         print(f"[Web Script Execution] 执行命令: {cmd if is_windows else ' '.join(cmd)}")
         print(f"[Web Script Execution] 工作目录: {project_root}")
 
-        # 环境变量：
+        # 环境变量（白名单隔离，禁止全量继承进程密钥）：
         # - CI=1 禁用 Playwright HTML reporter 自动打开浏览器
         # - PLAYWRIGHT_HTML_REPORT 指向隔离的 HTML 目录
         # - PLAYWRIGHT_JSON_OUTPUT_FILE 指向隔离的 JSON 结果文件
-        env = os.environ.copy()
-        env['CI'] = '1'
-        env['PLAYWRIGHT_HTML_REPORT'] = html_report_dir
-        env['PLAYWRIGHT_JSON_OUTPUT_FILE'] = json_report_file
+        env = build_script_exec_env({
+            'CI': '1',
+            'PLAYWRIGHT_HTML_REPORT': html_report_dir,
+            'PLAYWRIGHT_JSON_OUTPUT_FILE': json_report_file,
+        })
 
         result = await run_sync(
-            subprocess.run,
+            run_cmd_with_watchdog,
             cmd,
             cwd=project_root,
-            capture_output=True,
-            text=True,
-            encoding='utf-8',
-            errors='replace',
             timeout=settings.web_exec_timeout_seconds,
+            max_memory_mb=settings.exec_max_memory_mb,
             shell=is_windows,
-            env=env
+            env=env,
+            label=f"web-exec-{execution_id}",
         )
 
         end_time = datetime.now()

@@ -153,6 +153,28 @@ def build_restricted_env(
     return env
 
 
+def build_script_exec_env(
+    extra_env: dict[str, str] | None = None,
+    extra_paths: list[str] | None = None,
+) -> dict[str, str]:
+    """构建运行 LLM 生成脚本的子进程环境（密钥隔离白名单）。
+
+    所有 spawn 模型生成代码（Playwright/tsx/wdio spec、npx/pytest 等）的
+    执行点必须统一使用本函数，禁止 ``os.environ.copy()`` / ``{**os.environ}``
+    全量继承——否则进程密钥（LLM API Key、DB 密码、Langfuse Secret、
+    MinIO 密钥）对生成脚本完全可见。
+
+    PATH 已由 ``build_shell_path`` 注入 Node/npm 候选目录（与旧
+    ``_ensure_node_in_path`` 覆盖同一批路径，且去重/存在性校验更严谨）。
+
+    Args:
+        extra_env: 受控注入通道（AUTH_TOKEN、API_BASE_URL、PLAYWRIGHT_* 等），
+            调用方显式传入，不受白名单限制。
+        extra_paths: 需要优先追加到 PATH 的额外目录。
+    """
+    return build_restricted_env(extra_paths=extra_paths, extra_env=extra_env)
+
+
 # 避免并发请求同时触发 npm install 导致 node_modules 损坏。
 _playwright_mcp_init_lock = asyncio.Lock()
 
@@ -325,6 +347,7 @@ async def ensure_playwright_mcp_project(
                     cwd=str(root),
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
+                    env=build_script_exec_env(),
                 )
                 stdout, stderr = await proc.communicate()
                 if proc.returncode != 0:
@@ -356,6 +379,7 @@ async def ensure_playwright_mcp_project(
                     cwd=str(root),
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
+                    env=build_script_exec_env(),
                 )
                 browser_stdout, browser_stderr = await browser_proc.communicate()
                 if browser_proc.returncode != 0:

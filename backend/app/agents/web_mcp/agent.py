@@ -40,7 +40,7 @@ from app.config.settings import settings
 from app.core.llms import text_model as model
 from app.core.tracing import with_langfuse_tracing
 from app.utils.shell_env import (
-    build_shell_env,
+    build_restricted_env,
     ensure_playwright_mcp_project,
     get_playwright_mcp_command_args,
     write_storage_state_config,
@@ -60,8 +60,8 @@ workspace_root = Path(settings.web_mcp_workspace_root).resolve()
 skills_backend = FilesystemBackend(root_dir=skills_root, virtual_mode=True)
 workspace_backend = FilesystemBackend(root_dir=workspace_root, virtual_mode=True)
 shell_backend = LocalShellBackend(root_dir=Path(settings.web_mcp_workspace_root).resolve(),
-                                  inherit_env=True,
-                                  env=build_shell_env(),
+                                  inherit_env=False,
+                                  env=build_restricted_env(),
                                   timeout=180,
                                   virtual_mode=True)
 composite_backend = CompositeBackend(
