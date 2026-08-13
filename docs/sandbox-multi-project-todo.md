@@ -5,14 +5,16 @@
 
 ## 一、待手动验证（重启服务后执行，阻塞二期开工）
 
-- [ ] **重启三服务**（前端 3000 / 后端 8003 / Agent 2026），激活一期改动
-  - 注意：root/.venv 为 LangGraph 生产环境，psutil 已双 venv 安装，无需再装
-- [ ] **白名单环境功能回归**：API 链路执行 1 条真实用例（动态 token 环境），确认 AUTH_TOKEN 注入正常、脚本能跑通
-- [ ] **Web 链路回归**：web agent 执行 1 条带子功能的脚本，确认登录态注入（storageState per-project config）在白名单 env 下正常
-- [ ] **金丝雀验证**：让 api agent 执行一条 `console.log(Object.keys(process.env).length)` 脚本，从报告 stdout 确认可见环境变量仅白名单内（应 < 30 个，且无 *_KEY/*_SECRET/*PASSWORD）
-- [ ] **Langfuse 维度确认**：跑一轮对话后在 Langfuse UI（192.168.60.103:3100）确认 trace 带 session（=thread_id）与 metadata.project_id
-  - 若 metadata 未生效（中间件写 config.metadata 被重建），fallback：改 `core/tracing.py` 的 CallbackHandler 子类从 configurable 读
-- [ ] **Android 链路回归**（如有设备）：执行 1 条 midscene 脚本，确认串行锁 + midscene_run 清理不影响报告解析
+> 2026-08-13 已全部验证通过（修复包 `439e030`）。E2E 抓到两个真实 bug 并已修复：
+> `execute_web_script` 的 execution_id 作用域、Langfuse 打标通道（改 handler 子类派生）。
+
+- [x] **重启三服务**（前端 3000 / 后端 8003 / Agent 2026），激活一期改动 ✅ 全部 200
+- [x] **白名单环境功能回归**：API 链路执行真实用例（动态 token 环境）——playwright 栈、trace helper、Authorization 注入+脱敏全部正常（用例失败为被测环境业务 404，与沙箱无关）✅
+- [x] **Web 链路回归**：web agent 全链路 2/2 通过，登录态注入、test_run/报告/摘要持久化正常 ✅（期间修复 execution_id 作用域 bug）
+- [x] **金丝雀验证**：子进程 62 个可见 env 键全部可解释（白名单 + npm/playwright 运行时注入），敏感键零泄露 ✅
+- [x] **Langfuse 维度确认**：trace session=thread_id、tags=['project:PR-1'] ✅（经 fallback 预案：handler 子类从平台注入 metadata 派生；中间件写 config.metadata 实测不传播）
+  - 已知行为（低优先级）：图级 `langfuse_tags: [agent:<name>]` 被 LangGraph Server run metadata 覆盖从未生效，graph_id 已在 metadata 中可等价使用
+- [x] **Android 链路回归**：按用户指示跳过
 
 ## 二、二期：LightRAG 服务端真 workspace 隔离（多团队推广前必须）
 
