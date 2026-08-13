@@ -20,6 +20,7 @@ from pathlib import Path
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 WORKSPACE = BACKEND_ROOT / "workspace" / "testcase"
 DATASET_PATH = Path(__file__).parent / "dataset" / "regression_v1.jsonl"
+DATASET_PATH_V2 = Path(__file__).parent / "dataset" / "regression_v2.jsonl"
 
 # 跳过非用例文件（矩阵/预期结果聚合/对话历史等）
 SKIP_PATTERNS = ("feature_matrix", "expected_result", "manifest", "conversation")
@@ -73,7 +74,29 @@ def iter_case_files_balanced(max_files: int, per_dir_cap: int | None) -> list[Pa
     return picked
 
 
-def pack_sample(path: Path, max_cases: int) -> dict | None:
+def find_matrix(path: Path) -> Path | None:
+    """用例文件所属项目的功能矩阵：按顶层目录归属（PR-1/PR-2 有项目级矩阵）。
+    root 散文件是多项目历史混杂，无法可靠关联，返回 None（裁判对无矩阵样本
+    跳过覆盖类维度，宁缺毋滥）。"""
+    rel = path.relative_to(WORKSPACE)
+    if len(rel.parts) == 1:
+        return None
+    m = WORKSPACE / rel.parts[0] / "feature_matrix.jsonl"
+    return m if m.exists() else None
+
+
+def load_matrix(path: Path) -> list[dict]:
+    rows = []
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        if line.strip():
+            try:
+                rows.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+    return rows
+
+
+def pack_sample(path: Path, max_cases: int, with_matrix: bool = False) -> dict | None:
     """把一个 JSONL 用例文件打包成回归样本（截断到 max_cases 条控制 prompt 体积）。"""
     cases = []
     for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
@@ -91,14 +114,27 @@ def pack_sample(path: Path, max_cases: int) -> dict | None:
     rel = path.relative_to(BACKEND_ROOT).as_posix()
     # id 含父目录避免跨项目同名文件冲突（如 PR-1/PR-2 下的 module_01）
     slug = path.relative_to(WORKSPACE).with_suffix("").as_posix().replace("/", "-")
-    return {
+    group = top_group(path)
+    sample = {
         "id": f"ws-{slug}",
         "input": f"[采集自 {rel}，需求原文未保留；裁判仅依据 actual_output 评分]",
         "actual_output": json.dumps(cases, ensure_ascii=False, indent=1),
         "source": rel,
         "case_count": len(cases),
-        "group": top_group(path),  # 分层一致率分析用（PR-1 / PR-2 / (root)）
+        "group": group,  # 分层一致率分析用（PR-1 / PR-2 / (root)）
     }
+    if with_matrix:
+        m = find_matrix(path)
+        rows = load_matrix(m) if m else None
+        sample["feature_matrix"] = rows  # None = 无项目矩阵，覆盖类裁判跳过本样本
+        if rows:
+            # 需求侧输入回填：矩阵的 test_points 即需求的功能点级转述，
+            # 覆盖完整性/需求忠实度裁判以此为基准
+            sample["input"] = (
+                f"[项目 {group} 用例；功能矩阵 {len(rows)} 个功能点存于 feature_matrix 字段，"
+                f"覆盖/忠实度裁判以 test_points 为需求基准]"
+            )
+    return sample
 
 
 def main() -> None:
@@ -109,8 +145,13 @@ def main() -> None:
                         help="size=全局大文件优先（默认）；balanced=按顶层目录轮询均衡，校准扩采用")
     parser.add_argument("--per-dir-cap", type=int, default=None,
                         help="balanced 策略下单目录最多取几个（默认按组数自动均摊）")
-    parser.add_argument("--out", type=Path, default=DATASET_PATH)
+    parser.add_argument("--with-matrix", action="store_true",
+                        help="关联所属项目的 feature_matrix 回填样本（覆盖/忠实度裁判用），"
+                             "默认输出切到 regression_v2.jsonl")
+    parser.add_argument("--out", type=Path, default=None)
     args = parser.parse_args()
+    if args.out is None:
+        args.out = DATASET_PATH_V2 if args.with_matrix else DATASET_PATH
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
     existing_ids = set()
@@ -127,13 +168,17 @@ def main() -> None:
     added = 0
     with args.out.open("a", encoding="utf-8") as f:
         for path in candidates:
-            sample = pack_sample(path, args.max_cases)
+            sample = pack_sample(path, args.max_cases, with_matrix=args.with_matrix)
             if sample is None or sample["id"] in existing_ids:
                 continue
             f.write(json.dumps(sample, ensure_ascii=False) + "\n")
             added += 1
+            matrix_mark = ""
+            if args.with_matrix:
+                n = len(sample["feature_matrix"]) if sample["feature_matrix"] else 0
+                matrix_mark = f"  矩阵:{n}FP" if n else "  矩阵:无"
             print(f"+ {sample['id']}  [{sample['group']}] "
-                  f"({sample['case_count']} 条用例, {len(sample['actual_output'])} 字符)")
+                  f"({sample['case_count']} 条用例, {len(sample['actual_output'])} 字符){matrix_mark}")
 
     print(f"\n采集完成：新增 {added} 条 → {args.out}")
     print("提示：input 为占位的样本可直接用（裁判只看 actual_output）；"

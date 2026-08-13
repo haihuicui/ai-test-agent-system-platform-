@@ -6,19 +6,21 @@
 
 ```
 tests/eval/
+├── lint_cases.py             # 用例规范 lint（代码规则，零 token，可直接接 CI）
 ├── judge_model.py            # DeepSeek 裁判封装（DeepEvalBaseLLM 协议）
 ├── metrics.py                # 2 个 G-Eval 裁判定义（单一事实源，门禁与落盘共用）
 ├── test_testcase_quality.py  # pytest 参数化门禁
-├── harvest_samples.py        # 从 workspace 历史产出采集回归样本（含分层均衡策略）
+├── harvest_samples.py        # 从 workspace 历史产出采集回归样本（分层均衡 + 矩阵关联）
 ├── make_blind_labels.py      # 生成盲标工作表 + 标注骨架
 ├── collect_labels.py         # 回收工作表判定行 → 写回标注骨架
 ├── run_judges.py             # 裁判分数落盘（盲标完成后才准跑）
 ├── calibrate_report.py       # 一致率/Kappa/分歧清单
 └── dataset/
-    ├── regression_v1.jsonl   # 回归集（每行一条样本，只增不减）
+    ├── regression_v1.jsonl   # 回归集 v1（actual_output only，45 条，只增不减）
+    ├── regression_v2.jsonl   # 回归集 v2（带 feature_matrix，覆盖/忠实度裁判用）
     ├── human_labels_v1.jsonl # 人工盲标（0/1，校准基准）
     ├── judge_scores_v1.jsonl # 裁判分数落盘（重分析不重跑）
-    └── blind_worksheet.md    # 盲标阅读材料（用例全文，无裁判分）
+    └── blind_worksheet.md    # 盲标阅读材料（用例全文 + 判定行，无裁判分）
 ```
 
 ## 快速开始
@@ -27,16 +29,34 @@ tests/eval/
 # 0. 首次安装（backend/.venv，评估代码不进生产环境）
 uv pip install --python backend/.venv/Scripts/python.exe "deepeval>=3.0"
 
-# 1. 采集真实样本（从 workspace 历史用例文件）
+# 用例规范 lint（零 token，推荐每次改 prompt 后先跑它）
 cd backend
-../backend/.venv/Scripts/python.exe -m tests.eval.harvest_samples
+./.venv/Scripts/python.exe -m tests.eval.lint_cases          # 有 error 退出码 1
+
+# 1. 采集真实样本（从 workspace 历史用例文件）
+./.venv/Scripts/python.exe -m tests.eval.harvest_samples
+# 带功能矩阵的 v2 采集（覆盖完整性/需求忠实度裁判的输入）
+./.venv/Scripts/python.exe -m tests.eval.harvest_samples --strategy balanced --with-matrix --max-files 60
 
 # 2. 跑评估
-../backend/.venv/Scripts/python.exe -m pytest tests/eval/ -v
+./.venv/Scripts/python.exe -m pytest tests/eval/ -v
 ```
 
 > 想屏蔽 deepeval 的 PostHog 遥测上报（内网会超时告警，不影响功能）：
 > `export DEEPEVAL_TELEMETRY_OPT_OUT=YES`
+
+## lint 规则（lint_cases.py）
+
+确定性代码检查，规则源自 workspace 全量 1828 条用例的真实违规画像：
+
+| 级别 | 规则 | 查什么 |
+|------|------|--------|
+| error | E1 case_type 缺失 / E2 priority 缺失 / E3 无步骤 / E4 命名为空 | 结构性硬伤，直接阻断 |
+| warning | W1 case_type 非法值 / W4 单步骤 / W5 步骤>10 / W6 无 REQ-/FP-/F- 追溯 / W7 命名不规范 | 单条用例规范 |
+| warning | W8 priority 双体系混用 / W9 critical 占比>50% / W10 步骤非结构化(字符串) / W11 旧 schema | 文件级/结构级问题 |
+
+首份基线（2026-08）：459 error / 826 warning，违规集中于 sorted_cases、dms_test_cases
+等旧格式文件。新产出的准入标准：**error 必须为 0**，warning 只减不增。
 
 ## 样本格式（regression_v1.jsonl，每行一条）
 
