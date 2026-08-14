@@ -183,6 +183,10 @@ class Settings(BaseSettings):
     qwen_api_key: Optional[str] = None
     qwen_model: str = "qwen3.6-35b"
 
+    # testcase Agent 文本模型提供方：deepseek（默认）| qwen（自部署，数据不出网）
+    # 只切换文本决策模型；image_model（VLM 图片转录）不受影响
+    testcase_llm_provider: str = "deepseek"
+
     # Langfuse LLM 观测（自部署，见 deploy/langfuse/）。默认关闭；
     # 观测链路故障必须 fail-open 不影响 Agent——实现见 backend/app/core/tracing.py
     langfuse_enabled: bool = False

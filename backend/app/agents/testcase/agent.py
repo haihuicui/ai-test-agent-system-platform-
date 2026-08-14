@@ -38,9 +38,27 @@ from app.agents.testcase.context_overflow_patch import patch_model_for_context_o
 from app.agents.testcase.summarization_cutoff_patch import patch_summarization_cutoff
 from app.agents.tools.testcase.runtime_context import set_session_scope
 from app.config.settings import settings
-from app.core.llms import text_model, image_model, get_text_model_with_temperature
+from app.core.llms import (
+    image_model,
+    text_model as deepseek_text_model,
+    get_text_model_with_temperature,
+    get_qwen_model,
+    get_qwen_model_with_temperature,
+)
 from app.core.tracing import with_langfuse_tracing
 from app.utils.shell_env import build_restricted_env
+
+# 文本模型提供方切换（settings.testcase_llm_provider）：
+# - deepseek（默认）：ChatDeepSeek 直连深度求索
+# - qwen：自部署 vLLM 网关（数据不出网），同为推理模型，下方评审子代理的
+#   max_tokens 注释与预算对两者同样适用
+# 只切换文本决策模型；image_model（VLM 图片转录）恒不变。
+if settings.testcase_llm_provider == "qwen":
+    text_model = get_qwen_model()
+    _text_model_with_temperature = get_qwen_model_with_temperature
+else:
+    text_model = deepseek_text_model
+    _text_model_with_temperature = get_text_model_with_temperature
 
 # 在模型序列化消息前做最后一道 tool-call 邻接修复
 # （create_deep_agent 的内置 middleware 会排在用户 middleware 之后，
@@ -150,7 +168,7 @@ summary 文件写 `### 📊 信任度评估`（整体可信度 / 最不可信区
 """
 
 # 独立模型实例：低温（评审要确定性）+ 双倍输出预算，并做同款异常/邻接修复
-adversarial_reviewer_model = get_text_model_with_temperature(
+adversarial_reviewer_model = _text_model_with_temperature(
     temperature=0.1,
     max_tokens=ADVERSARIAL_REVIEWER_MAX_TOKENS,
 )

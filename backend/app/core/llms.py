@@ -153,6 +153,34 @@ def get_qwen_model():
         raise
 
 
+def get_qwen_model_with_temperature(temperature: float = 0.3, max_tokens: int | None = None):
+    """创建指定 temperature 的自部署千问模型。
+
+    与 get_text_model_with_temperature 同契约，供 testcase Agent 按阶段调温。
+    qwen3.6 同为推理模型，reasoning 与正文共享 max_tokens 配额——
+    长评审场景需显式调大 max_tokens，否则正文静默为空（finish_reason=length）。
+
+    注意：此函数不使用 lru_cache，每次调用都新建实例。
+    """
+    if not settings.qwen_api_base:
+        raise RuntimeError(
+            "Qwen model not configured. Set QWEN_API_BASE/QWEN_API_KEY in .env"
+        )
+    from langchain_openai import ChatOpenAI
+    model = ChatOpenAI(
+        base_url=settings.qwen_api_base,
+        api_key=settings.qwen_api_key,
+        model=settings.qwen_model,
+        temperature=temperature,
+        max_retries=settings.llm_max_retries,
+        timeout=settings.llm_timeout,
+        max_tokens=max_tokens if max_tokens is not None else settings.llm_max_tokens,
+        stream_chunk_timeout=settings.llm_stream_chunk_timeout,
+    )
+    model.profile = ModelProfile(max_input_tokens=245760)
+    return model
+
+
 # 全局模型实例（供各 Agent 直接导入使用）
 text_model = get_text_model()
 image_model = get_image_model()
