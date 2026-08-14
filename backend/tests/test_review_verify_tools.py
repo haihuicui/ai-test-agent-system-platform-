@@ -117,6 +117,19 @@ class TestExtractBlockerQuotes:
         findings = _extract_blocker_quotes(_review_md(body))
         assert findings[0]["quotes"] == [HIT_QUOTE, MISS_QUOTE]
 
+    def test_backtick_segments_split(self):
+        """反引号分别包裹的多段引用拆为独立引文（矛盾举证的自然格式）。"""
+        body = """#### B1 | TC-PR1-MENU-001 | 断言矛盾
+- **位置**：步骤 1/2 预期
+- **原文**：`"result": "侧边导航保留「调试」菜单项"` 与 `"result": "侧边导航不存在「调试」菜单项"`
+- **误判场景**：互斥断言必有一次误报
+- **修复建议**：拆分"""
+        findings = _extract_blocker_quotes(_review_md(body))
+        assert findings[0]["quotes"] == [
+            '"result": "侧边导航保留「调试」菜单项"',
+            '"result": "侧边导航不存在「调试」菜单项"',
+        ]
+
     def test_no_blocker_section_returns_empty(self):
         assert _extract_blocker_quotes("## 随便一份文件\n没有任何阻断段") == []
 
@@ -175,6 +188,27 @@ class TestVerifyCitations:
     def test_json_escape_tolerance(self):
         """语料中是 JSON 转义的 \\"，引文是未转义的引号——归一化后应命中。"""
         result = self._run(_blocker("B1", quote='断言"调试"菜单保留'))
+        assert result["verified"] == 1
+
+    def test_backtick_segments_each_must_hit(self):
+        """反引号多段引用：全部命中才证实，任一未命中即未证实。"""
+        body = """#### B1 | TC-PR1-MENU-001 | 断言矛盾
+- **位置**：步骤 1/2 预期
+- **原文**：`显示 5 个子项：整机测试/单模块测试/队列进样/历史列表/老化调试` 与 `这段不存在于任何文件的引用文字`
+- **误判场景**：互斥断言
+- **修复建议**：拆分"""
+        result = self._run(body)
+        assert result["verified"] == 0
+        assert result["unverified"] == 1
+        assert result["unverified_items"][0]["reason"] == "not_found"
+
+    def test_backtick_segments_all_hit_verified(self):
+        body = """#### B1 | TC-PR1-MENU-001 | 断言矛盾
+- **位置**：步骤 1/2 预期
+- **原文**：`显示 5 个子项：整机测试/单模块测试/队列进样/历史列表/老化调试` 与 `断言"调试"菜单保留`
+- **误判场景**：互斥断言
+- **修复建议**：拆分"""
+        result = self._run(body)
         assert result["verified"] == 1
 
     def test_mixed_files_counts(self):
@@ -256,8 +290,8 @@ class TestVerifyReviewCitationsTool:
         assert len(result["review_files"]) == 1
         assert all("summary" not in Path(f).name for f in result["review_files"])
 
-    def test_feature_matrix_not_in_corpus(self, tmp_workspace):
-        """feature_matrix.jsonl 不作为校验语料（引文仅在矩阵中 → 未命中）。"""
+    def test_feature_matrix_included_in_corpus(self, tmp_workspace):
+        """feature_matrix.jsonl 必须纳入语料——零覆盖类发现的举证对象就是矩阵。"""
         proj_dir = tmp_workspace / "PROJ-1"
         self._write_jsonl(
             proj_dir / "feature_matrix.jsonl",
@@ -267,16 +301,21 @@ class TestVerifyReviewCitationsTool:
             _review_md(_blocker("B1", quote="整机测试队列进样历史列表老化调试的功能点")),
             encoding="utf-8",
         )
-        # 无用例文件时工具直接失败（语料为空）
+        # 无用例文件时：矩阵本身即构成语料，引文命中矩阵内容 → 已证实
         result = _call(verify_review_citations, project_identifier="PROJ-1")
-        assert result["success"] is False
+        assert result["success"] is True
+        assert result["verified"] == 1
 
+        # 引文既不在矩阵也不在用例中 → 未证实
         self._write_jsonl(proj_dir / "test_cases_module_01_menu.jsonl", [_case()])
+        proj_dir.joinpath("adversarial_review_m01.md").write_text(
+            _review_md(_blocker("B1", quote="完全不存在于任何文件的引文内容片段")),
+            encoding="utf-8",
+        )
         result = _call(verify_review_citations, project_identifier="PROJ-1")
         assert result["success"] is True
         assert result["unverified"] == 1
         assert result["unverified_items"][0]["reason"] == "not_found"
-        assert all("feature_matrix" not in Path(f).name for f in result["case_files_used"])
 
     def test_no_review_files_fails(self, tmp_workspace):
         proj_dir = tmp_workspace / "PROJ-1"

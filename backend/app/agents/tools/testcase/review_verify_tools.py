@@ -42,9 +42,14 @@ _QUOTE_RE = re.compile(r"^-\s*\*\*原文\*\*：(.+?)\s*$")
 # 引文归一化后的最小字符数：低于此长度不具备举证辨识度，不参与匹配
 _MIN_QUOTE_CHARS = 10
 
-# 用例语料排除项（与 coverage_tools 一致的口径）
+# 用例语料排除项（卸载区不是评审输入）
+# 注意：feature_matrix.jsonl 不排除——「P0 test_point 零覆盖」类发现的举证对象
+# 恰恰是功能矩阵（引 test_points 原文证明无对应用例），排除会导致真实举证被误杀。
 _EXCLUDED_DIR_NAMES = {"large_tool_results"}
-_EXCLUDED_FILE_NAMES = {"feature_matrix.jsonl"}
+_EXCLUDED_FILE_NAMES: set[str] = set()
+
+# 反引号包裹的引文片段：子代理多段引用时的自然格式（`"a"` 与 `"b"`）
+_BACKTICK_RE = re.compile(r"`([^`]+)`")
 
 
 def _normalize(text: str) -> str:
@@ -63,12 +68,25 @@ def _normalize(text: str) -> str:
     return re.sub(r"\s+", "", text)
 
 
+def _split_quotes(raw: str) -> list[str]:
+    """把一条「原文」行拆成独立引文片段（纯函数）。
+
+    子代理多段引用时的自然格式是用反引号分别包裹、以「与」/「、」连接
+    （如 `` `"result": "保留"` 与 `"result": "不存在"` `` ——矛盾举证本来就
+    需要两段都真实存在）。有反引号组时逐组作为独立引文，全部命中才证实；
+    无反引号时整行作为一条引文。
+    """
+    groups = [g.strip() for g in _BACKTICK_RE.findall(raw) if g.strip()]
+    return groups if groups else [raw]
+
+
 def _extract_blocker_quotes(review_text: str) -> list[dict[str, Any]]:
     """从评审结果文件中提取阻断发现的举证引文（纯函数，供工具和测试复用）。
 
     仅扫描「### 🚫 阻断发现」段落（附录表格、待确认假设段落不含举证义务）；
     每条发现以 `#### B# | 用例编号 | 缺陷类型` 开头，
-    其下 `- **原文**：` 行为举证引文（允许多条，全部通过才算已证实）。
+    其下 `- **原文**：` 行为举证引文（允许多行，每行再按反引号拆段，
+    全部通过才算已证实）。
     """
     findings: list[dict[str, Any]] = []
     in_blocker_section = False
@@ -93,7 +111,7 @@ def _extract_blocker_quotes(review_text: str) -> list[dict[str, Any]]:
             continue
         quote = _QUOTE_RE.match(line)
         if quote and current is not None:
-            current["quotes"].append(quote.group(1).strip())
+            current["quotes"].extend(_split_quotes(quote.group(1).strip()))
     return findings
 
 
@@ -171,10 +189,9 @@ def verify_citations(
 
 
 def _load_case_corpus(scan_dir: Path) -> tuple[str, list[str], list[str]]:
-    """读取扫描目录下全部用例 JSONL，拼接为归一化前的原始语料。
+    """读取扫描目录下全部 JSONL（含 feature_matrix.jsonl），拼接为原始语料。
 
-    Returns:
-        (corpus_text, source_files, warnings)
+    语料 = 子代理在评审任务中可能引用的一切输入文件：用例 JSONL + 功能矩阵。
     """
     warnings: list[str] = []
     sources: list[str] = []
