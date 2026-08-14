@@ -35,6 +35,7 @@ from app.agents.testcase.tool_call_validation_middleware import (
     patch_model_for_tool_call_adjacency,
 )
 from app.agents.testcase.context_overflow_patch import patch_model_for_context_overflow
+from app.agents.testcase.summarization_cutoff_patch import patch_summarization_cutoff
 from app.agents.tools.testcase.runtime_context import set_session_scope
 from app.config.settings import settings
 from app.core.llms import text_model, image_model, get_text_model_with_temperature
@@ -51,6 +52,10 @@ patch_model_for_tool_call_adjacency(image_model)
 # 让 deepagents summarization 的「摘要+重试」兜底生效，避免大文档分析时 run 直接中断
 patch_model_for_context_overflow(text_model)
 patch_model_for_context_overflow(image_model)
+
+# summarization 空裁切推进：避免「只裁旧摘要」的空裁切导致连续空摘要事件
+# （空 section 垃圾 + 无效 LLM 摘要调用 + 上下文细节反复压缩丢失）
+patch_summarization_cutoff()
 
 # ============================================================================
 # 对抗性评审专用子代理（Phase 4 隔离评审）

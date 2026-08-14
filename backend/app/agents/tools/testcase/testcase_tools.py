@@ -1110,14 +1110,13 @@ async def preview_test_cases(
     try:
         limit = max(1, min(int(limit), _PREVIEW_MAX_CASES))
 
-        # 无过滤条件时：可直接在文件读取阶段截断，避免全量解析大 JSONL 文件
-        has_filters = any([module, priority, case_type])
-        max_cases_val = None if has_filters else (limit * 2)  # 多读一些，给去重留余量
-
+        # 全量加载：total 必须反映数据源的的真实总数——读取阶段截断会让 total 虚低
+        # （E2E 实证：7/10/13 条的文件 total 全被截成 limit*2=6），Agent 拿 total
+        # 核对保存条数时会被误导。截断只作用于展示条数（sampled = filtered[:limit]）。
         if _is_file_path(source):
-            cases = _load_test_cases_from_file(source, dedup=False, max_cases=max_cases_val)
+            cases = _load_test_cases_from_file(source, dedup=False)
         else:
-            cases = _parse_json_objects(source, source="inline_json", max_objects=max_cases_val)
+            cases = _parse_json_objects(source, source="inline_json")
 
         if not cases:
             return {

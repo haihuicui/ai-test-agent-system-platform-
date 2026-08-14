@@ -206,6 +206,27 @@ class TestPreviewTestCases:
         assert len(preview_result) < 1000
         assert preview_result.endswith("...")
 
+    async def test_total_reflects_real_count_beyond_read_cutoff(self, workspace_tmp):
+        """total 必须是数据源真实总数，与展示截断（limit）无关——
+        E2E 实证 bug：无过滤时读取阶段截断 limit*2=6，13 条文件 total 显示 6，
+        Agent 拿 total 核对保存条数时被误导。"""
+        cases = [
+            {
+                "name": f"用例{i:02d}",
+                "case_number": f"TC-{i:03d}",
+                "module": "日志模块",
+                "priority": "high",
+            }
+            for i in range(1, 14)  # 13 条，超过默认 limit*2=6
+        ]
+        virtual_path = await _write_jsonl(workspace_tmp, "total_real_count.jsonl", cases)
+        result = await preview_test_cases.ainvoke({"source": virtual_path})
+
+        assert result["success"] is True
+        assert result["total"] == 13
+        assert result["preview_count"] == 3  # 默认 limit=3，只展示 3 条
+        assert len(result["cases"]) == 3
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

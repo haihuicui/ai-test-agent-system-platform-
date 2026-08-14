@@ -133,6 +133,32 @@ class TestExtractBlockerQuotes:
     def test_no_blocker_section_returns_empty(self):
         assert _extract_blocker_quotes("## 随便一份文件\n没有任何阻断段") == []
 
+    def test_h2_blocker_section_extracted(self):
+        """阻断段标题为 H2（## 🚫）时同样可提取——E2E 实证模型对段落层级选择不稳定，
+        文件大标题占 H1 时章节自然落 H2，写死 H3 会整段漏提（12 条阻断全灭事故）。"""
+        md = f"""# 对抗性评审 — 串口与调试窗口
+
+## 🚫 阻断发现
+
+{_blocker("B1")}
+
+## 📎 附录发现（计数：1）
+| # | 涉及用例 | 缺陷类型 |
+|---|---------|---------|
+| 1 | TC-PR1-MENU-003 | 措辞模糊 |
+"""
+        findings = _extract_blocker_quotes(md)
+        assert len(findings) == 1
+        assert findings[0]["finding"] == "B1"
+        assert findings[0]["quotes"] == [HIT_QUOTE]
+
+    def test_h4_finding_head_does_not_reset_section(self):
+        """B 头（#### H4）不得被当作段落边界重置阻断段状态——
+        否则同一阻断段内第二条发现起全部漏提。"""
+        body = _blocker("B1") + "\n\n" + _blocker("B2", quote=MISS_QUOTE)
+        findings = _extract_blocker_quotes(_review_md(body))
+        assert [f["finding"] for f in findings] == ["B1", "B2"]
+
 
 # ═════════════════════════════════════════════════════════════════════════════
 # verify_citations 纯函数
@@ -325,6 +351,44 @@ class TestVerifyReviewCitationsTool:
 
         assert result["success"] is False
         assert "adversarial_review_m*.md" in result["error"]
+
+    def test_jsonl_only_reviews_gets_conversion_hint(self, tmp_workspace):
+        """目录下只有 JSONL 版评审结果时：报错须分流为「格式转换」指引，
+        禁止暗示重新发起评审 task（结果已落盘，重跑是白白返工）。"""
+        proj_dir = tmp_workspace / "PROJ-1"
+        self._write_jsonl(proj_dir / "test_cases_module_01_menu.jsonl", [_case()])
+        self._write_jsonl(
+            proj_dir / "adversarial_review_m01.jsonl",
+            [{"module": "菜单", "case_number": "TC-PR1-MENU-001", "severity": "blocker"}],
+        )
+
+        result = _call(verify_review_citations, project_identifier="PROJ-1")
+
+        assert result["success"] is False
+        assert "adversarial_review_m01.jsonl" in result["message"]
+        assert "禁止重新发起隔离评审" in result["message"]
+
+    def test_review_jsonl_excluded_from_corpus(self, tmp_workspace):
+        """评审 JSONL 不得进入引文搜索空间——否则引文可对评审文件自证，
+        反幻觉校验落空（幻觉引文引的是评审文件而非用例）。"""
+        proj_dir = tmp_workspace / "PROJ-1"
+        self._write_jsonl(proj_dir / "test_cases_module_01_menu.jsonl", [_case()])
+        phantom_quote = "仅存在于评审文件中而任何用例都没有的断言片段"
+        self._write_jsonl(
+            proj_dir / "adversarial_review_m01.jsonl",
+            [{"module": "菜单", "severity": "blocker", "quote": phantom_quote}],
+        )
+        (proj_dir / "adversarial_review_m01.md").write_text(
+            _review_md(_blocker("B1", quote=phantom_quote)),
+            encoding="utf-8",
+        )
+
+        result = _call(verify_review_citations, project_identifier="PROJ-1")
+
+        assert result["success"] is True
+        assert result["verified"] == 0
+        assert result["unverified"] == 1
+        assert result["unverified_items"][0]["reason"] == "not_found"
 
     def test_missing_dir_fails(self, tmp_workspace):
         result = _call(verify_review_citations, project_identifier="NOPE-9")

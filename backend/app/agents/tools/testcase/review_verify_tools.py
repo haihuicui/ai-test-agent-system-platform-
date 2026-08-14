@@ -34,8 +34,11 @@ _WORKSPACE_ROOT = Path(settings.testcase_workspace_root).resolve()
 _REVIEW_FILE_GLOB = "adversarial_review_m*.md"
 
 # 段落与发现格式（与 adversarial-reviewer 系统提示的结果文件格式契约一一对应）
-_SECTION_RE = re.compile(r"^###\s+")
-_BLOCKER_SECTION_RE = re.compile(r"^###\s+🚫\s*阻断发现")
+# 段落标题层级兼容 H1~H3（模型对「阻断发现」段的层级选择不稳定：文件大标题用 H1 时
+# 章节自然落到 H2，旧实现写死 H3 导致真实评审文件整段提取失败——E2E 实证）；
+# B 头仍是 H4，故段落边界正则必须排除 ####（负向前瞻），否则 B 头会重置阻断段状态。
+_SECTION_RE = re.compile(r"^#{1,3}\s+(?!#)")
+_BLOCKER_SECTION_RE = re.compile(r"^#{1,3}\s+🚫\s*阻断发现")
 _FINDING_HEAD_RE = re.compile(r"^####\s+(B\d+)\s*\|\s*([^|]+?)\s*\|\s*(.+?)\s*$")
 _QUOTE_RE = re.compile(r"^-\s*\*\*原文\*\*：(.+?)\s*$")
 
@@ -47,6 +50,10 @@ _MIN_QUOTE_CHARS = 10
 # 恰恰是功能矩阵（引 test_points 原文证明无对应用例），排除会导致真实举证被误杀。
 _EXCLUDED_DIR_NAMES = {"large_tool_results"}
 _EXCLUDED_FILE_NAMES: set[str] = set()
+
+# 评审结果文件自身不得进入引文搜索空间——否则幻觉引文可对评审文件「自证」
+# （引文实际引的是评审文件而非用例），反幻觉校验落空。
+_EXCLUDED_FILE_PREFIXES = ("adversarial_review_",)
 
 # 反引号包裹的引文片段：子代理多段引用时的自然格式（`"a"` 与 `"b"`）
 _BACKTICK_RE = re.compile(r"`([^`]+)`")
@@ -201,6 +208,8 @@ def _load_case_corpus(scan_dir: Path) -> tuple[str, list[str], list[str]]:
             continue
         if path.name in _EXCLUDED_FILE_NAMES:
             continue
+        if path.name.startswith(_EXCLUDED_FILE_PREFIXES):
+            continue
         try:
             parts.append(path.read_text(encoding="utf-8"))
             sources.append(str(path))
@@ -271,12 +280,30 @@ async def verify_review_citations(
 
     review_files = sorted(scan_dir.glob(_REVIEW_FILE_GLOB))
     if not review_files:
+        # 报错分流：目录下可能已有 JSONL 格式的评审结果（主 Agent 发起评审 task 时
+        # 未按 .md 契约指定输出格式的常见后果）——此时重新发起评审是白白返工，
+        # 正确动作是把既有结果转换为 .md 契约格式。
+        jsonl_reviews = sorted(scan_dir.glob("adversarial_review_*.jsonl"))
+        if jsonl_reviews:
+            names = "、".join(p.name for p in jsonl_reviews[:6])
+            return {
+                "success": False,
+                "error": f"目录 {scan_dir} 下未找到 adversarial_review_m*.md",
+                "message": (
+                    f"发现 JSONL 格式的评审结果（{names}），但举证校验要求 .md 契约格式。"
+                    "评审结果已落盘，**禁止重新发起隔离评审 task**——请用 read_file 读取 "
+                    "JSONL 结果，按 .md 契约转换后用 write_file 写入同名 .md 文件："
+                    "阻断发现段落标题 `## 🚫 阻断发现`（H2/H3 均可），"
+                    "每条发现以 `#### B# | 用例编号 | 缺陷类型` 开头（H4），"
+                    "其下 `- **原文**：` 行放从用例 JSONL 逐字复制的引文。"
+                ),
+            }
         return {
             "success": False,
             "error": f"目录 {scan_dir} 下未找到 adversarial_review_m*.md",
             "message": (
                 "评审结果文件缺失。请按 Skill 指引按模块拆分后重新发起隔离评审 task "
-                "（每次只审 1~2 个模块），禁止原样整体重试。"
+                "（每次只审 1~2 个模块，输出契约明确为 .md 格式），禁止原样整体重试。"
             ),
         }
 
@@ -303,7 +330,10 @@ async def verify_review_citations(
     if result["total_blockers"] == 0:
         warnings.append(
             "未提取到任何阻断发现举证——若评审文件声称存在阻断发现，"
-            "请核对其结果文件是否符合格式契约（#### B# | 用例 | 类型 + `- **原文**：` 行）。"
+            "请核对其结果文件是否符合格式契约：阻断发现段落标题 `## 🚫 阻断发现`"
+            "（H2/H3 均可，但必须带 🚫 与「阻断发现」字样），"
+            "每条发现以 `#### B# | 用例 | 类型` 开头（H4，B 后数字），"
+            "其下须有 `- **原文**：` 引文行（全角冒号）。"
         )
 
     return {
