@@ -1,0 +1,306 @@
+"""对抗性评审举证校验工具。
+
+Phase 4 隔离评审（adversarial-reviewer 子代理）的阻断发现按输出契约必须携带
+「原文」举证——从用例 JSONL 文件中逐字复制的片段。本工具把「举证是否真实」
+从人工核实变成确定性校验：
+
+- 扫描会话工作目录下的 adversarial_review_m*.md（仅「🚫 阻断发现」段落）；
+- 提取每条发现的原文引文（`- **原文**：` 行）；
+- 归一化（去空白 / JSON 转义差异）后在该会话全部用例 JSONL 文本中做子串匹配；
+- 匹配失败或缺失引文 → 判定「未证实」——评审 Agent 幻觉举证的典型信号
+  （如引用不存在的用例编号、凭记忆复述而非逐字复制）。
+
+主 Agent 在收到子代理摘要后、read_file 整合结果前调用本工具：
+未证实的发现不得进入评审报告的阻断清单，降级附录处理并计数说明。
+"""
+
+from __future__ import annotations
+
+import logging
+import re
+from pathlib import Path
+from typing import Any
+
+from langchain_core.tools import tool
+
+from app.agents.tools.testcase.workspace_paths import session_scope_segments
+from app.config.settings import settings
+
+logger = logging.getLogger(__name__)
+
+_WORKSPACE_ROOT = Path(settings.testcase_workspace_root).resolve()
+
+# 评审结果文件名模式（summary 文件 adversarial_review_summary.md 不匹配 m*，天然排除）
+_REVIEW_FILE_GLOB = "adversarial_review_m*.md"
+
+# 段落与发现格式（与 adversarial-reviewer 系统提示的结果文件格式契约一一对应）
+_SECTION_RE = re.compile(r"^###\s+")
+_BLOCKER_SECTION_RE = re.compile(r"^###\s+🚫\s*阻断发现")
+_FINDING_HEAD_RE = re.compile(r"^####\s+(B\d+)\s*\|\s*([^|]+?)\s*\|\s*(.+?)\s*$")
+_QUOTE_RE = re.compile(r"^-\s*\*\*原文\*\*：(.+?)\s*$")
+
+# 引文归一化后的最小字符数：低于此长度不具备举证辨识度，不参与匹配
+_MIN_QUOTE_CHARS = 10
+
+# 用例语料排除项（与 coverage_tools 一致的口径）
+_EXCLUDED_DIR_NAMES = {"large_tool_results"}
+_EXCLUDED_FILE_NAMES = {"feature_matrix.jsonl"}
+
+
+def _normalize(text: str) -> str:
+    """归一化文本用于引文匹配：抹平 JSON 转义与全部空白差异。
+
+    子代理 read_file 看到的是 JSONL 原始文本（含 \\" \\n 等转义），
+    逐字复制时可能做格式清理；两边同构归一后做子串匹配，
+    容忍转义差异但仍能识别纯编造的引文。
+    """
+    text = (
+        text.replace('\\"', '"')
+        .replace("\\n", "")
+        .replace("\\t", "")
+        .replace("\\/", "/")
+    )
+    return re.sub(r"\s+", "", text)
+
+
+def _extract_blocker_quotes(review_text: str) -> list[dict[str, Any]]:
+    """从评审结果文件中提取阻断发现的举证引文（纯函数，供工具和测试复用）。
+
+    仅扫描「### 🚫 阻断发现」段落（附录表格、待确认假设段落不含举证义务）；
+    每条发现以 `#### B# | 用例编号 | 缺陷类型` 开头，
+    其下 `- **原文**：` 行为举证引文（允许多条，全部通过才算已证实）。
+    """
+    findings: list[dict[str, Any]] = []
+    in_blocker_section = False
+    current: dict[str, Any] | None = None
+
+    for line in review_text.splitlines():
+        if _SECTION_RE.match(line):
+            in_blocker_section = bool(_BLOCKER_SECTION_RE.match(line))
+            current = None
+            continue
+        if not in_blocker_section:
+            continue
+        head = _FINDING_HEAD_RE.match(line)
+        if head:
+            current = {
+                "finding": head.group(1),
+                "case_ref": head.group(2).strip(),
+                "defect_type": head.group(3).strip(),
+                "quotes": [],
+            }
+            findings.append(current)
+            continue
+        quote = _QUOTE_RE.match(line)
+        if quote and current is not None:
+            current["quotes"].append(quote.group(1).strip())
+    return findings
+
+
+def verify_citations(
+    review_texts: dict[str, str],
+    case_corpus: str,
+) -> dict[str, Any]:
+    """校验各评审文件阻断发现的引文是否真实存在于用例语料（纯函数）。
+
+    Args:
+        review_texts: {评审文件名: 文件内容}
+        case_corpus: 全部用例 JSONL 拼接后的原始文本（未归一化）
+
+    Returns:
+        total_blockers / verified / unverified / too_short / no_evidence /
+        unverified_items（含文件、发现号、涉及用例、引文预览、原因）
+    """
+    corpus = _normalize(case_corpus)
+    total = verified = unverified = too_short = no_evidence = 0
+    unverified_items: list[dict[str, Any]] = []
+
+    for file_name, text in sorted(review_texts.items()):
+        for f in _extract_blocker_quotes(text):
+            total += 1
+            if not f["quotes"]:
+                no_evidence += 1
+                unverified += 1
+                unverified_items.append({
+                    "file": file_name,
+                    "finding": f["finding"],
+                    "case_ref": f["case_ref"],
+                    "defect_type": f["defect_type"],
+                    "reason": "no_evidence",
+                    "quote_preview": "",
+                })
+                continue
+            finding_ok = True
+            for quote in f["quotes"]:
+                norm_quote = _normalize(quote)
+                if len(norm_quote) < _MIN_QUOTE_CHARS:
+                    too_short += 1
+                    finding_ok = False
+                    unverified_items.append({
+                        "file": file_name,
+                        "finding": f["finding"],
+                        "case_ref": f["case_ref"],
+                        "defect_type": f["defect_type"],
+                        "reason": "too_short",
+                        "quote_preview": quote[:60],
+                    })
+                    continue
+                if norm_quote not in corpus:
+                    finding_ok = False
+                    unverified_items.append({
+                        "file": file_name,
+                        "finding": f["finding"],
+                        "case_ref": f["case_ref"],
+                        "defect_type": f["defect_type"],
+                        "reason": "not_found",
+                        "quote_preview": quote[:60],
+                    })
+            if finding_ok:
+                verified += 1
+            else:
+                unverified += 1
+
+    return {
+        "total_blockers": total,
+        "verified": verified,
+        "unverified": unverified,
+        "too_short": too_short,
+        "no_evidence": no_evidence,
+        "unverified_items": unverified_items,
+    }
+
+
+def _load_case_corpus(scan_dir: Path) -> tuple[str, list[str], list[str]]:
+    """读取扫描目录下全部用例 JSONL，拼接为归一化前的原始语料。
+
+    Returns:
+        (corpus_text, source_files, warnings)
+    """
+    warnings: list[str] = []
+    sources: list[str] = []
+    parts: list[str] = []
+    for path in sorted(scan_dir.rglob("*.jsonl")):
+        if _EXCLUDED_DIR_NAMES.intersection(path.parts):
+            continue
+        if path.name in _EXCLUDED_FILE_NAMES:
+            continue
+        try:
+            parts.append(path.read_text(encoding="utf-8"))
+            sources.append(str(path))
+        except Exception as e:
+            warnings.append(f"读取用例文件失败：{path}（{e}）")
+    return "\n".join(parts), sources, warnings
+
+
+@tool
+async def verify_review_citations(
+    project_identifier: str = "",
+    review_dir: str = "",
+) -> dict[str, Any]:
+    """校验对抗性评审阻断发现的举证引文是否真实存在于用例文件中。
+
+    Phase 4 隔离评审结果整合的**第一步**（收到 adversarial-reviewer 摘要后、
+    read_file 逐模块整合前）调用。阻断发现的「原文」举证必须能在本次
+    Phase 3 生成的用例 JSONL 中找到（归一化子串匹配）：
+    - 找不到 / 缺失引文 / 引文过短 → 判定「未证实」（幻觉举证信号），
+      该发现不得进入评审报告阻断清单，降级附录并在报告中计数说明；
+    - 全部通过 → 按契约整合阻断清单。
+
+    Args:
+        project_identifier: 项目标识符（与 save_feature_matrix_tool 传入的一致）。
+        review_dir: 评审结果文件所在目录（Agent 虚拟路径，即「会话工作目录」，
+            形如 /<项目>/<会话ID>/）。不传时按当前会话作用域自动定位。
+
+    Returns:
+        {
+          "success": bool,
+          "review_files": [...],        # 扫描到的评审结果文件
+          "case_files_used": [...],     # 参与匹配的用例 JSONL
+          "total_blockers": int,        # 阻断发现总数
+          "verified": int,              # 引文全部命中的发现数
+          "unverified": int,            # 未证实发现数（含缺引文/过短/未命中）
+          "unverified_items": [ {file, finding, case_ref, defect_type, reason, quote_preview} ],
+          "warnings": [...],
+          "message": str,
+          "error": str                  # 仅失败时
+        }
+    """
+    if review_dir:
+        raw = Path(review_dir)
+        parts = raw.parts[1:] if raw.anchor else raw.parts
+        scan_dir = (_WORKSPACE_ROOT / Path(*parts)).resolve()
+        if not scan_dir.is_relative_to(_WORKSPACE_ROOT):
+            return {
+                "success": False,
+                "error": f"评审目录越权：{review_dir} 解析后超出工作目录 {_WORKSPACE_ROOT}",
+            }
+    else:
+        project, thread = session_scope_segments(project_identifier)
+        scan_dir = _WORKSPACE_ROOT
+        if project:
+            scan_dir = scan_dir / project
+            if thread:
+                scan_dir = scan_dir / thread
+
+    if not scan_dir.is_dir():
+        return {
+            "success": False,
+            "error": f"评审目录不存在：{scan_dir}",
+            "message": (
+                "未找到评审结果目录。请确认 adversarial-reviewer 子代理已按契约 "
+                "将会话工作目录写入 adversarial_review_m*.md，或通过 review_dir 显式指定。"
+            ),
+        }
+
+    review_files = sorted(scan_dir.glob(_REVIEW_FILE_GLOB))
+    if not review_files:
+        return {
+            "success": False,
+            "error": f"目录 {scan_dir} 下未找到 adversarial_review_m*.md",
+            "message": (
+                "评审结果文件缺失。请按 Skill 指引按模块拆分后重新发起隔离评审 task "
+                "（每次只审 1~2 个模块），禁止原样整体重试。"
+            ),
+        }
+
+    warnings: list[str] = []
+    review_texts: dict[str, str] = {}
+    for path in review_files:
+        try:
+            review_texts[path.name] = path.read_text(encoding="utf-8")
+        except Exception as e:
+            warnings.append(f"读取评审文件失败：{path}（{e}）")
+
+    corpus, case_sources, case_warnings = _load_case_corpus(scan_dir)
+    warnings.extend(case_warnings)
+    if not corpus.strip():
+        return {
+            "success": False,
+            "error": "未找到任何用例 JSONL 文件作为校验语料",
+            "warnings": warnings,
+            "message": "请确认 Phase 3 已将用例写入会话工作目录。",
+        }
+
+    result = verify_citations(review_texts, corpus)
+
+    if result["total_blockers"] == 0:
+        warnings.append(
+            "未提取到任何阻断发现举证——若评审文件声称存在阻断发现，"
+            "请核对其结果文件是否符合格式契约（#### B# | 用例 | 类型 + `- **原文**：` 行）。"
+        )
+
+    return {
+        "success": True,
+        "review_files": [str(p) for p in review_files],
+        "case_files_used": case_sources,
+        "warnings": warnings,
+        **result,
+        "message": (
+            f"举证校验完成：阻断发现 {result['total_blockers']} 条，"
+            f"已证实 {result['verified']} 条，未证实 {result['unverified']} 条"
+            "（明细见 unverified_items 的 reason：no_evidence=缺引文 / "
+            "too_short=引文过短 / not_found=引文未命中用例文件）。"
+            "未证实发现不得进入阻断清单——整合时降级附录并在评审报告中计数说明；"
+            "已证实发现按契约逐条渲染进阻断清单。"
+        ),
+    }

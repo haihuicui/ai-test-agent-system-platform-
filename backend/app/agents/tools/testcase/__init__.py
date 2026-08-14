@@ -46,6 +46,10 @@ from app.agents.tools.testcase.coverage_tools import (
     compute_coverage_report,
 )
 
+from app.agents.tools.testcase.review_verify_tools import (
+    verify_review_citations,
+)
+
 # 按业务域分类的工具列表
 TESTCASE_TOOLS = [
     create_test_case_tool,
@@ -58,6 +62,7 @@ TESTCASE_TOOLS = [
     save_test_case_manifest_tool,
     save_feature_matrix_tool,
     compute_coverage_report,
+    verify_review_citations,
 ]
 
 DOCUMENT_TOOLS = [
@@ -116,6 +121,8 @@ __all__ = [
     "load_feature_matrix",
     # 覆盖对照
     "compute_coverage_report",
+    # 评审举证校验
+    "verify_review_citations",
     # 文档解析
     "parse_document_from_url",
     # Excel 导出
