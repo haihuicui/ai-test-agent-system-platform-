@@ -251,6 +251,86 @@ class TestVerifyCitations:
         assert result["verified"] == 1
         assert result["unverified"] == 1
 
+    def test_duplicate_findings_across_files_deduped(self):
+        """同一阻断出现在多个文件（排障副本 *_contract.md）只计一次——
+        E2E 实证：5 模块 12 条阻断因副本被重复计为 24 条。"""
+        body = _blocker("B1")
+        result = verify_citations(
+            {
+                "adversarial_review_m01.md": _review_md(body),
+                "adversarial_review_m01_contract.md": _review_md(body),
+            },
+            CASE_CORPUS,
+        )
+        assert result["total_blockers"] == 1
+        assert result["verified"] == 1
+        assert result["unverified"] == 0
+
+    def test_duplicate_key_any_verified_version_wins(self):
+        """副本间引文为子集关系（排障转写删节了一段）：交集非空 → 同组，
+        逐字完整版命中即证实——失真删节版不再拖垮整条阻断。"""
+        full = """#### B1 | TC-PR1-MENU-001 | 断言矛盾
+- **位置**：步骤 1/2 预期
+- **原文**：`显示 5 个子项：整机测试/单模块测试/队列进样/历史列表/老化调试` 与 `这段不存在于任何文件的引用文字`
+- **误判场景**：互斥断言
+- **修复建议**：拆分"""
+        abridged = _blocker("B1", quote=HIT_QUOTE)  # 子集：只保留逐字那段
+        result = verify_citations(
+            {
+                "adversarial_review_m01.md": _review_md(full),
+                "adversarial_review_m01_contract.md": _review_md(abridged),
+            },
+            CASE_CORPUS,
+        )
+        assert result["total_blockers"] == 1
+        assert result["verified"] == 1
+        assert result["unverified"] == 0
+
+    def test_disjoint_quotes_same_case_type_not_merged(self):
+        """同用例同缺陷类型但引文无交集：是两条独立阻断，不得误并。"""
+        result = verify_citations(
+            {
+                "adversarial_review_m01.md": _review_md(
+                    _blocker("B1", quote=HIT_QUOTE) + "\n\n" + _blocker("B2", quote=MISS_QUOTE)
+                ),
+            },
+            CASE_CORPUS,
+        )
+        assert result["total_blockers"] == 2
+        assert result["verified"] == 1
+        assert result["unverified"] == 1
+
+    def test_substring_quotes_merged(self):
+        """分段结构被抹平的转写（两段连成一段）与原单段形成子串关系 → 同组——
+        E2E 实证：md 版引文「A 与 B」连成一条，contract 版仅「A」。"""
+        flattened = _blocker("B1", quote=f"{HIT_QUOTE} 与 断言\"调试\"菜单保留")  # 两段连成一条
+        single = _blocker("B1", quote=HIT_QUOTE)  # 原单段
+        result = verify_citations(
+            {
+                "adversarial_review_m01.md": _review_md(flattened),
+                "adversarial_review_m01_contract.md": _review_md(single),
+            },
+            CASE_CORPUS,
+        )
+        assert result["total_blockers"] == 1
+        assert result["verified"] == 1  # 逐字单段版本命中，整组证实
+
+    def test_unverified_duplicate_files_merged_in_report(self):
+        """重复文件的未证实明细：file 字段合并全部来源，只报一次。"""
+        body = _blocker("B1", quote=MISS_QUOTE)
+        result = verify_citations(
+            {
+                "adversarial_review_m01.md": _review_md(body),
+                "adversarial_review_m01_contract.md": _review_md(body),
+            },
+            CASE_CORPUS,
+        )
+        assert result["total_blockers"] == 1
+        assert result["unverified"] == 1
+        assert len(result["unverified_items"]) == 1
+        assert "m01.md" in result["unverified_items"][0]["file"]
+        assert "m01_contract.md" in result["unverified_items"][0]["file"]
+
 
 # ═════════════════════════════════════════════════════════════════════════════
 # 工具端到端（tmp workspace）

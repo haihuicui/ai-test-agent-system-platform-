@@ -122,6 +122,15 @@ def _extract_blocker_quotes(review_text: str) -> list[dict[str, Any]]:
     return findings
 
 
+def _quotes_overlap(a: set[str], b: set[str]) -> bool:
+    """两版本引文集是否指向同一阻断：集合相交，或任一引文互为子串
+    （排障转写会把反引号分段结构抹掉——两段连成一段后与原单段形成
+    前缀/包含关系，集合交集捕获不到，子串规则兜底）。"""
+    if a & b:
+        return True
+    return any(x in y or y in x for x in a for y in b)
+
+
 def verify_citations(
     review_texts: dict[str, str],
     case_corpus: str,
@@ -135,55 +144,85 @@ def verify_citations(
     Returns:
         total_blockers / verified / unverified / too_short / no_evidence /
         unverified_items（含文件、发现号、涉及用例、引文预览、原因）
+
+    跨文件去重：排障过程中产生的副本文件（如 *_contract.md）会让同一阻断
+    在多个文件中重复出现，而副本间引文常有删节差异（E2E 实证：5 模块 12 条
+    阻断因副本被重复计为 24 条）。合并规则：同 (用例编号, 缺陷类型) 且
+    **引文集重叠**（集合相交，或任一引文互为子串——删节与分段结构抹平两种
+    典型形态，见 _quotes_overlap）的版本视为同一阻断合并计数，任一版本
+    引文全部命中即证实；引文无重叠的版本是各自独立的阻断
+    （同用例同缺陷类型可存在多条不同缺陷点的发现，不得误并）。
     """
     corpus = _normalize(case_corpus)
-    total = verified = unverified = too_short = no_evidence = 0
-    unverified_items: list[dict[str, Any]] = []
 
+    # 第一遍：各文件版本独立校验
+    all_versions: list[dict[str, Any]] = []
     for file_name, text in sorted(review_texts.items()):
         for f in _extract_blocker_quotes(text):
-            total += 1
+            failures: list[dict[str, Any]] = []
             if not f["quotes"]:
-                no_evidence += 1
-                unverified += 1
-                unverified_items.append({
-                    "file": file_name,
-                    "finding": f["finding"],
-                    "case_ref": f["case_ref"],
-                    "defect_type": f["defect_type"],
+                failures.append({
                     "reason": "no_evidence",
                     "quote_preview": "",
                 })
-                continue
-            finding_ok = True
             for quote in f["quotes"]:
                 norm_quote = _normalize(quote)
                 if len(norm_quote) < _MIN_QUOTE_CHARS:
-                    too_short += 1
-                    finding_ok = False
-                    unverified_items.append({
-                        "file": file_name,
-                        "finding": f["finding"],
-                        "case_ref": f["case_ref"],
-                        "defect_type": f["defect_type"],
-                        "reason": "too_short",
-                        "quote_preview": quote[:60],
-                    })
-                    continue
-                if norm_quote not in corpus:
-                    finding_ok = False
-                    unverified_items.append({
-                        "file": file_name,
-                        "finding": f["finding"],
-                        "case_ref": f["case_ref"],
-                        "defect_type": f["defect_type"],
-                        "reason": "not_found",
-                        "quote_preview": quote[:60],
-                    })
-            if finding_ok:
-                verified += 1
-            else:
-                unverified += 1
+                    failures.append({"reason": "too_short", "quote_preview": quote[:60]})
+                elif norm_quote not in corpus:
+                    failures.append({"reason": "not_found", "quote_preview": quote[:60]})
+            all_versions.append({
+                "file": file_name,
+                "finding": f["finding"],
+                "case_ref": f["case_ref"],
+                "defect_type": f["defect_type"],
+                "norm_quotes": {_normalize(q) for q in f["quotes"]},
+                "failures": failures,
+            })
+
+    # 第二遍：同 (用例编号, 缺陷类型) 内按引文集交集做连通分量合并
+    groups: list[list[dict[str, Any]]] = []
+    for v in all_versions:
+        intersecting = [
+            i for i, g in enumerate(groups)
+            if g[0]["case_ref"] == v["case_ref"]
+            and g[0]["defect_type"] == v["defect_type"]
+            and any(_quotes_overlap(v["norm_quotes"], member["norm_quotes"]) for member in g)
+        ]
+        if not intersecting:
+            groups.append([v])
+            continue
+        # 与多个组相交时把它们并成一组（传递连通）
+        target = intersecting[0]
+        groups[target].append(v)
+        for i in reversed(intersecting[1:]):
+            groups[target].extend(groups.pop(i))
+
+    # 第三遍：按组聚合——组内任一版本全引文命中即证实
+    total = verified = unverified = too_short = no_evidence = 0
+    unverified_items: list[dict[str, Any]] = []
+    for versions in groups:
+        total += 1
+        if any(not v["failures"] for v in versions):
+            verified += 1
+            continue
+        unverified += 1
+        # 未证实：取失败最少的版本作为代表明细，文件字段合并全部来源
+        representative = min(versions, key=lambda v: len(v["failures"]))
+        files = "、".join(dict.fromkeys(v["file"] for v in versions))
+        for failure in representative["failures"]:
+            if failure["reason"] == "too_short":
+                too_short += 1
+            elif failure["reason"] == "no_evidence":
+                no_evidence += 1
+            unverified_items.append({
+                "file": files,
+                "finding": representative["finding"],
+                "case_ref": representative["case_ref"],
+                "defect_type": representative["defect_type"],
+                "reason": failure["reason"],
+                "quote_preview": failure["quote_preview"],
+            })
 
     return {
         "total_blockers": total,
