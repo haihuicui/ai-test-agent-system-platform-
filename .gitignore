@@ -64,6 +64,7 @@ backend/test-results/
 .langgraph_api/
 
 # Local debug scripts
+tewt.py
 backend/run_api_test_directly.py
 backend/start_fastapi_debug.py
 fastapi_debug.log
