@@ -192,7 +192,7 @@ PROMPT = f"""Phase 1（需求解析）、Phase 2（测试策略）、Phase 3（�
 - test_cases_module_02_task.jsonl（任务创建-备注，2 条）
 - test_cases_module_03_chart.jsonl（谱图展示，1 条）
 
-请跳过 Phase 1-3，直接执行 Phase 4 质量评审。严格按照 quality-review Skill 的流程：
+请跳过 Phase 1-3，直接执行 Phase 4 质量评审。**本任务按 ⭐ 标准模式执行（强制启动隔离 Agent，覆盖评审模式的规模判定）**。严格按照 quality-review Skill 的流程：
 先 compute_coverage_report 计算覆盖率（case_files 显式传入上述 3 个用例文件），
 覆盖率达标后启动 adversarial-reviewer 隔离评审（把上述文件清单与结果目录告诉子代理），
 收到子代理摘要后先用 verify_review_citations 校验举证，再整合输出评审报告。

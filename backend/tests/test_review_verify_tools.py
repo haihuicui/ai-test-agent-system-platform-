@@ -159,6 +159,31 @@ class TestExtractBlockerQuotes:
         findings = _extract_blocker_quotes(_review_md(body))
         assert [f["finding"] for f in findings] == ["B1", "B2"]
 
+    def test_h3_finding_head_extracted(self):
+        """B 头为 H3（### B1 | ...）时同样可提取——E2E 实证子代理在
+        「## 🚫」（H2）段落下自然把 B 头写成 H3，写死 H4 会整段漏提
+        （A4b 断言失败事故）。H3 B 头不得被段落边界正则吞掉。"""
+        md = f"""# 对抗性评审报告 - 模块01
+
+## 🚫 阻断发现
+
+### B1 | TC-PR1-MENU-001 | 必漏报（逻辑矛盾）
+- **位置**：test_case_steps 第2步
+- **原文**：`{HIT_QUOTE}` 与 `断言"调试"菜单保留`
+- **误判场景**：两条预期互相矛盾，无法判定
+- **修复建议**：拆分
+
+## 📎 附录
+
+| 序号 | 用例编号 | 问题描述 |
+"""
+        findings = _extract_blocker_quotes(md)
+        assert len(findings) == 1
+        assert findings[0]["finding"] == "B1"
+        assert findings[0]["case_ref"] == "TC-PR1-MENU-001"
+        assert findings[0]["defect_type"] == "必漏报（逻辑矛盾）"
+        assert findings[0]["quotes"] == [HIT_QUOTE, '断言"调试"菜单保留']
+
 
 # ═════════════════════════════════════════════════════════════════════════════
 # verify_citations 纯函数

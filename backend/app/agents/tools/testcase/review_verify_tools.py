@@ -36,10 +36,12 @@ _REVIEW_FILE_GLOB = "adversarial_review_m*.md"
 # 段落与发现格式（与 adversarial-reviewer 系统提示的结果文件格式契约一一对应）
 # 段落标题层级兼容 H1~H3（模型对「阻断发现」段的层级选择不稳定：文件大标题用 H1 时
 # 章节自然落到 H2，旧实现写死 H3 导致真实评审文件整段提取失败——E2E 实证）；
-# B 头仍是 H4，故段落边界正则必须排除 ####（负向前瞻），否则 B 头会重置阻断段状态。
+# B 头兼容 H3/H4（同一漂移的镜像：段落落 H2 时 B 头自然落 H3——E2E 实证 A4b 失败），
+# 故段落边界正则必须排除 ####（负向前瞻），且阻断段内 B 头优先于段落边界匹配，
+# 否则 H3 B 头会被误当段落边界重置阻断段状态。
 _SECTION_RE = re.compile(r"^#{1,3}\s+(?!#)")
 _BLOCKER_SECTION_RE = re.compile(r"^#{1,3}\s+🚫\s*阻断发现")
-_FINDING_HEAD_RE = re.compile(r"^####\s+(B\d+)\s*\|\s*([^|]+?)\s*\|\s*(.+?)\s*$")
+_FINDING_HEAD_RE = re.compile(r"^#{3,4}\s+(B\d+)\s*\|\s*([^|]+?)\s*\|\s*(.+?)\s*$")
 _QUOTE_RE = re.compile(r"^-\s*\*\*原文\*\*：(.+?)\s*$")
 
 # 引文归一化后的最小字符数：低于此长度不具备举证辨识度，不参与匹配
@@ -100,21 +102,24 @@ def _extract_blocker_quotes(review_text: str) -> list[dict[str, Any]]:
     current: dict[str, Any] | None = None
 
     for line in review_text.splitlines():
+        # 阻断段内优先识别 B 头（H3/H4 兼容）——H3 B 头会被 _SECTION_RE 当作
+        # 段落边界重置阻断段状态，必须先于段落边界匹配
+        if in_blocker_section:
+            head = _FINDING_HEAD_RE.match(line)
+            if head:
+                current = {
+                    "finding": head.group(1),
+                    "case_ref": head.group(2).strip(),
+                    "defect_type": head.group(3).strip(),
+                    "quotes": [],
+                }
+                findings.append(current)
+                continue
         if _SECTION_RE.match(line):
             in_blocker_section = bool(_BLOCKER_SECTION_RE.match(line))
             current = None
             continue
         if not in_blocker_section:
-            continue
-        head = _FINDING_HEAD_RE.match(line)
-        if head:
-            current = {
-                "finding": head.group(1),
-                "case_ref": head.group(2).strip(),
-                "defect_type": head.group(3).strip(),
-                "quotes": [],
-            }
-            findings.append(current)
             continue
         quote = _QUOTE_RE.match(line)
         if quote and current is not None:
