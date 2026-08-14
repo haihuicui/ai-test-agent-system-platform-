@@ -46,10 +46,13 @@ MAX_STEPS = 10        # 超过该拆
 CRITICAL_INFLATION = 0.5  # 文件内 critical/P0 占比超 50% 视为分级失效
 
 
-def iter_cases(scan_root: Path):
-    """产出 (file_path, case_dict, line_no)。脏行跳过（与 harvest 同一容错口径）。"""
+def iter_cases(scan_root: Path, exclude_names: tuple[str, ...] = ()):
+    """产出 (file_path, case_dict, line_no)。脏行跳过（与 harvest 同一容错口径）。
+    exclude_names：路径段含其中任一字符串的文件不扫（如排除对照组会话目录）。"""
     for p in sorted(scan_root.rglob("*.jsonl")):
         if any(s in p.name.lower() for s in SKIP_PATTERNS):
+            continue
+        if exclude_names and any(seg in exclude_names for seg in p.parts):
             continue
         for i, line in enumerate(p.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
             if not line.strip():
@@ -60,7 +63,8 @@ def iter_cases(scan_root: Path):
                 continue
 
 
-def lint(scan_root: Path) -> list[dict]:
+def lint(scan_root: Path, exclude_names: tuple[str, ...] = ()) -> list[dict]:
+    scan_root = Path(scan_root).resolve()  # 统一绝对路径，relative_to 报告才稳
     issues: list[dict] = []
 
     def add(level: str, rule: str, path: Path, msg: str, case: str = "", line: int = 0):
@@ -75,7 +79,7 @@ def lint(scan_root: Path) -> list[dict]:
     file_priority_top: dict[Path, Counter] = defaultdict(Counter)
     file_case_count: Counter = Counter()
 
-    for path, c, line_no in iter_cases(scan_root):
+    for path, c, line_no in iter_cases(scan_root, exclude_names):
         num = str(c.get("case_number") or f"L{line_no}")
         file_case_count[path] += 1
 
