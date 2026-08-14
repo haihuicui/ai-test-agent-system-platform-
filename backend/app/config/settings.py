@@ -177,6 +177,12 @@ class Settings(BaseSettings):
     image_parser_api_key: Optional[str] = None
     image_parser_model: Optional[str] = None
 
+    # 自部署千问文本模型（OpenAI 兼容接口，vLLM 网关，用于 ChatOpenAI）
+    # 与 DeepSeek 互为备选：未配置 qwen_api_base 时 get_qwen_model() 直接报错
+    qwen_api_base: Optional[str] = None
+    qwen_api_key: Optional[str] = None
+    qwen_model: str = "qwen3.6-35b"
+
     # Langfuse LLM 观测（自部署，见 deploy/langfuse/）。默认关闭；
     # 观测链路故障必须 fail-open 不影响 Agent——实现见 backend/app/core/tracing.py
     langfuse_enabled: bool = False

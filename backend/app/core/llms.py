@@ -3,6 +3,7 @@
 
 采用具体 SDK 类创建模型，确保可控性和兼容性：
 - 文本模型：ChatDeepSeek（深度求索）
+- 自部署文本模型：ChatOpenAI（OpenAI 兼容接口，vLLM 网关的千问）
 - 图片/多模态模型：ChatOpenAI（OpenAI 兼容接口，如豆包、阿里云等）
 """
 
@@ -112,6 +113,44 @@ def get_text_model_with_temperature(temperature: float = 0.3, max_tokens: int | 
             temperature, e,
         )
         return text_model  # 降级到默认模型
+
+
+@lru_cache(maxsize=1)
+def get_qwen_model():
+    """创建自部署千问文本模型（OpenAI 兼容接口）。
+
+    适用于 DeepSeek 不可用时的备选文本模型，或需要本地数据不出网的场景。
+    通过 ChatOpenAI 对接 vLLM 网关（10.1.0.29:8001）上的 Qwen3.6-35B。
+
+    Returns:
+        配置好 ModelProfile 的 ChatOpenAI 实例
+
+    Raises:
+        RuntimeError: 未配置 qwen_api_base 时
+    """
+    if not settings.qwen_api_base:
+        raise RuntimeError(
+            "Qwen model not configured. Set QWEN_API_BASE/QWEN_API_KEY in .env"
+        )
+    from langchain_openai import ChatOpenAI
+    try:
+        model = ChatOpenAI(
+            base_url=settings.qwen_api_base,
+            api_key=settings.qwen_api_key,
+            model=settings.qwen_model,
+            temperature=0.3,
+            max_retries=settings.llm_max_retries,
+            timeout=settings.llm_timeout,
+            max_tokens=settings.llm_max_tokens,
+            stream_chunk_timeout=settings.llm_stream_chunk_timeout,
+        )
+        # vLLM 侧 max_model_len=262144，预留 16K 输出配额后的可用输入上限
+        model.profile = ModelProfile(max_input_tokens=245760)
+        logger.info(f"Qwen model ready: {settings.qwen_model} @ {settings.qwen_api_base}")
+        return model
+    except Exception as e:
+        logger.error(f"Failed to create qwen model: {e}")
+        raise
 
 
 # 全局模型实例（供各 Agent 直接导入使用）
