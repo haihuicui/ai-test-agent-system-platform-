@@ -753,6 +753,13 @@ class PhaseReviewMiddleware(AgentMiddleware):
         if phase and last_ai.tool_calls:
             cleaned_ai = _strip_tool_calls(last_ai)
             phase_name = _PHASE_DISPLAY_NAMES[phase]
+            # 被剥离的工具调用不会执行——必须如实告知模型，否则模型不知道
+            # 保存类调用未发生，重出的报告会残留「已保存/已写入」等虚假声明
+            # （E2E 实证：报告称「矩阵已保存」但文件从未落盘）。
+            dropped_tools = "、".join(
+                tc.get("name", "?") if isinstance(tc, dict) else getattr(tc, "name", "?")
+                for tc in last_ai.tool_calls
+            )
             return {
                 "messages": Overwrite(value=[
                     *messages[: messages.index(last_ai)],
@@ -760,8 +767,12 @@ class PhaseReviewMiddleware(AgentMiddleware):
                     HumanMessage(
                         content=(
                             f"检测到 {phase_name} 阶段报告与工具调用混在一起，"
-                            "人工评审卡片无法弹出。请仅输出阶段报告文本（不要附带任何工具调用），"
-                            "等待系统弹出人工评审卡片并收到用户决策后，再执行后续工具调用。"
+                            "人工评审卡片无法弹出。"
+                            f"你刚才的工具调用（{dropped_tools}）已被系统丢弃、未执行——"
+                            "若报告中含「已保存/已写入/已导出」等完成时表述，"
+                            "重出时必须修正为「待评审通过后执行」。"
+                            "请仅输出阶段报告文本（不要附带任何工具调用），"
+                            "等待系统弹出人工评审卡片并收到用户决策后，再重新执行这些工具调用。"
                         )
                     ),
                 ]),

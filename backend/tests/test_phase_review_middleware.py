@@ -993,6 +993,26 @@ class TestPhaseReportToolCallSeparation:
         assert "人工评审卡片无法弹出" in feedback.content
         assert "不要附带任何工具调用" in feedback.content
 
+    def test_split_feedback_declares_dropped_tool_calls(self):
+        """拆分反馈必须如实告知被丢弃的工具调用——E2E 实证：模型不知道
+        save_feature_matrix_tool 未执行，重出的报告残留「矩阵已保存」虚假声明。"""
+        middleware = PhaseReviewMiddleware()
+        state = self._make_state_with_tool_call("""
+## 需求解析报告
+
+功能测试矩阵已结构化保存至 feature_matrix.jsonl。
+""")
+        result = middleware.after_model(state, None)
+
+        feedback = result["messages"].value[2]
+        # 点名被丢弃的工具（模型据此在用户决策后补调）
+        assert "save_feature_matrix_tool" in feedback.content
+        # 明确「未执行」事实（消除「已保存」类虚假声明的认知缺口）
+        assert "已被系统丢弃、未执行" in feedback.content
+        assert "待评审通过后执行" in feedback.content
+        # 引导用户决策后重新执行
+        assert "再重新执行这些工具调用" in feedback.content
+
     def test_phase1_with_tool_calls_preserves_other_messages(self):
         """拆分时应保留阶段报告之前的所有消息"""
         middleware = PhaseReviewMiddleware()
