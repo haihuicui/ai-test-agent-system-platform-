@@ -1,4 +1,4 @@
-"""主 Agent 输出截断兜底中间件。
+"""推理模型输出截断兜底中间件（主 Agent 与评审子代理共用）。
 
 背景：deepseek-v4 系列为推理模型，reasoning 与正文共享 max_tokens 配额。
 主 Agent 在长上下文（数万 tokens 的 RAG 检索/文件读取结果）后进行深度规划时，
@@ -6,7 +6,9 @@
 tool_calls——react 循环把这条空消息视为"任务完成"，run 以 success 静默结束，
 用户视角就是"agent 突然中断"（2026-08-06 thread e67525ea 实证：
 input=67.9K，reasoning=8192/8192，content=0；同类问题此前已在子代理出现，
-见 subagent_result_guard_middleware.py）。
+见 subagent_result_guard_middleware.py；2026-08-15 thread 894dddca 实证：
+adversarial-reviewer 子代理在 16384 预算下仍撞顶，空返回后整个 task 重跑，
+一次本可内部自愈的截断放大为 18 分钟假死）。
 
 本中间件在每次模型调用后检查响应：若为空截断响应，则在请求副本上追加一条
 提醒消息（request.override，不落 state）后重新调用模型；重试仍撞顶时返回
@@ -86,7 +88,20 @@ def _usage(msg: AIMessage) -> tuple[int | None, int | None]:
 
 
 class TruncationRetryMiddleware(AgentMiddleware):
-    """主 Agent 空截断响应的自动重试与可见诊断（正常路径零介入）。"""
+    """主 Agent 空截断响应的自动重试与可见诊断（正常路径零介入）。
+
+    Args:
+        max_tokens: nudge/诊断文案中展示的输出上限。主 Agent 与评审子代理的
+            预算不同（后者见 ADVERSARIAL_REVIEWER_MAX_TOKENS），须如实告知模型，
+            否则 nudge 中的数字会误导其压缩幅度；None 时用 settings.llm_max_tokens。
+    """
+
+    def __init__(self, max_tokens: int | None = None) -> None:
+        self._max_tokens = max_tokens
+
+    @property
+    def _effective_max_tokens(self) -> int:
+        return self._max_tokens if self._max_tokens is not None else settings.llm_max_tokens
 
     async def awrap_model_call(
         self,
@@ -106,7 +121,7 @@ class TruncationRetryMiddleware(AgentMiddleware):
                 input_tokens, reasoning, attempts, _MAX_RETRIES,
             )
             nudge = HumanMessage(
-                content=_NUDGE_TEMPLATE.format(max_tokens=settings.llm_max_tokens)
+                content=_NUDGE_TEMPLATE.format(max_tokens=self._effective_max_tokens)
             )
             # 请求副本注入提醒，不写 state；每次都从原始请求派生，只带一条提醒
             retry_request = request.override(messages=[*(request.messages or []), nudge])
@@ -125,7 +140,7 @@ class TruncationRetryMiddleware(AgentMiddleware):
         )
         diagnosis = msg.model_copy(update={
             "content": _DIAGNOSIS_TEMPLATE.format(
-                max_tokens=settings.llm_max_tokens,
+                max_tokens=self._effective_max_tokens,
                 retries=_MAX_RETRIES,
                 input_tokens=input_tokens,
                 reasoning=reasoning,

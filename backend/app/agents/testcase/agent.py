@@ -88,8 +88,10 @@ patch_summarization_cutoff()
 # 系统提示，约定"逐模块写入结果文件、最终消息只回摘要"的输出契约。
 
 # 实测 69 条用例 × 8 维度评审的完整输出约 13.8K tokens（reasoning 11.9K +
-# 正文 ~2K），16384 留有 ~2.5K 余量；更大规模评审由结果文件契约兜底。
-ADVERSARIAL_REVIEWER_MAX_TOKENS = 16384
+# 正文 ~2K）；2026-08-15 thread 894dddca 实证：复杂模块（TD 封装/组合配置）
+# 评审的 reasoning 超 16K 撞顶空返回——16384 的 2.5K 余量对长评审太薄，
+# 提至 24576；更大规模评审由结果文件契约兜底。
+ADVERSARIAL_REVIEWER_MAX_TOKENS = 24576
 
 ADVERSARIAL_REVIEWER_SYSTEM_PROMPT = """你是一个对抗性评审专家，以"蓄意破坏者"视角独立审查软件测试用例集。
 
@@ -189,6 +191,11 @@ ADVERSARIAL_REVIEWER_SUBAGENT: SubAgent = {
     # 文件工具（read_file/write_file/edit_file/ls/grep/glob）由子代理栈的
     # FilesystemMiddleware 自动注入。
     "tools": [],
+    # 子代理空截断自愈：reasoning 耗尽 max_tokens 时在子代理内部 nudge 重试，
+    # 避免空返回后由主 Agent 重跑整个 task（2026-08-15 thread 894dddca 实证：
+    # 一次可内部自愈的截断被放大为 13 分钟的 task 重跑假死）。
+    # max_tokens 须传入子代理真实预算，nudge 文案数字才不失真。
+    "middleware": [TruncationRetryMiddleware(max_tokens=ADVERSARIAL_REVIEWER_MAX_TOKENS)],
 }
 
 # ============================================================================
