@@ -15,11 +15,15 @@ from typing import Any
 
 from langchain_core.tools import tool
 
+from app.agents.tools.testcase.coverage_tools import (
+    compute_module_test_point_coverage,
+)
 from app.agents.tools.testcase.excel_tools import (
     _parse_json_objects,
     _resolve_input_path,
     _to_virtual_path,
 )
+from app.agents.tools.testcase.feature_matrix_tools import load_feature_matrix
 from app.agents.tools.testcase.workspace_paths import apply_session_scope
 from app.config.settings import settings
 from app.utils.testcase_validation import _validate_case, normalize_case_type
@@ -237,6 +241,7 @@ def _perform_module_self_check(
     current_file_paths: set[Path] | None = None,
     min_p0_count: int = 3,
     check_cross_file_duplicates: bool = True,
+    matrix_features: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """
     对内存中的用例列表执行模块级自检。
@@ -247,6 +252,9 @@ def _perform_module_self_check(
     Args:
         check_cross_file_duplicates: 是否扫描工作区其他文件检查编号跨文件重复。
             中间件场景不掌握文件路径，可设为 False 避免误报。
+        matrix_features: Phase 1 功能矩阵的功能点列表。传入时执行矩阵覆盖
+            对照（第 8 节）；为 None 时跳过（中间件等不掌握矩阵的场景，
+            行为与旧版一致）。
     """
     current_file_paths = current_file_paths or set()
     violations: list[dict[str, Any]] = []
@@ -373,11 +381,82 @@ def _perform_module_self_check(
     if happy_path_violation is not None:
         violations.append(happy_path_violation)
 
+    # 8. 功能矩阵覆盖对照（仅显式传入 matrix_features 时执行）
+    # Phase 3 每模块 checkpoint 的确定性密度防线：SKILL 虽要求逐 test_point
+    # 对照，但无 enforcement 时会被上下文压缩漂移（多需求合并成大文档后
+    # 单功能点深度塌缩的根因之一）。
+    # 分级策略：
+    # - FP 级零覆盖（无任何用例归属）→ error：信号可靠（连模糊匹配都不命中
+    #   基本是真没设计），直接拦截，防住塌缩的最严重形态；
+    # - test_point 级未命中 → warning：test_point 为自由文本，用例措辞差异
+    #   导致的误报代价高（会打断模块推进），留痕由模型自证或人工确认。
+    matrix_checked = False
+    if matrix_features:
+        matrix_checked = True
+        module_fps = [
+            fp
+            for fp in matrix_features
+            if str(fp.get("module") or "").strip() == expected_module
+        ]
+        if not module_fps:
+            violations.append(
+                {
+                    "case_number": None,
+                    "case_name": None,
+                    "level": "warning",
+                    "messages": [
+                        f"功能矩阵中未找到模块 '{expected_module}' 的功能点记录，"
+                        "覆盖对照未执行。可能是矩阵属于其他需求（历史遗留）或模块命名"
+                        "不一致，请确认当前会话的 feature_matrix.jsonl 内容"
+                    ],
+                }
+            )
+        else:
+            cov_rows = compute_module_test_point_coverage(module_fps, cases)
+            reported_uncovered_fp: set[str] = set()
+            for row in cov_rows:
+                fp_key = str(row["fp_id"])
+                if row["fp_match_type"] is None:
+                    if fp_key in reported_uncovered_fp:
+                        continue
+                    reported_uncovered_fp.add(fp_key)
+                    violations.append(
+                        {
+                            "case_number": None,
+                            "case_name": None,
+                            "level": "error",
+                            "messages": [
+                                f"功能点 {row['fp_id']}（{row['feature']}，"
+                                f"{row['priority']}）零用例覆盖：未在任何用例中发现"
+                                "其编号引用或足够的文本重叠。请补充覆盖该功能点的用例"
+                                "（在用例 remarks 中标注 FP 编号可消除匹配歧义），"
+                                "或确认该功能点不属于本模块"
+                            ],
+                        }
+                    )
+                elif not row["covered"] and row["test_point"]:
+                    violations.append(
+                        {
+                            "case_number": None,
+                            "case_name": None,
+                            "level": "warning",
+                            "messages": [
+                                f"功能点 {row['fp_id']}（{row['feature']}）的测试点"
+                                f"疑似未覆盖：「{row['test_point']}」未在归属用例"
+                                f"（{', '.join(row['case_numbers'][:3]) or '无'}）的文本"
+                                "中体现。请确认已有用例覆盖了该测试点（在用例步骤/"
+                                "预期结果中显式描述），或补充对应用例"
+                            ],
+                        }
+                    )
+
     errors = [v for v in violations if v.get("level") == "error"]
     warnings = [v for v in violations if v.get("level") == "warning"]
     passed = len(errors) == 0
 
     summary_parts = [f"共检查 {len(cases)} 条用例，P0 {p0_count} 条"]
+    if matrix_checked:
+        summary_parts.append("已对照功能矩阵做覆盖核对")
     if errors:
         summary_parts.append(f"发现 {len(errors)} 个错误")
     if warnings:
@@ -391,6 +470,7 @@ def _perform_module_self_check(
         "passed": passed,
         "total": len(cases),
         "p0_count": p0_count,
+        "matrix_checked": matrix_checked,
         "violations": violations,
         "summary": "；".join(summary_parts),
     }
@@ -530,6 +610,7 @@ async def module_self_check_tool(
     input_files: list[str],
     expected_module: str,
     min_p0_count: int = 3,
+    project_identifier: str = "",
 ) -> dict[str, Any]:
     """
     对单个模块的用例数据文件做轻量自检。
@@ -545,12 +626,16 @@ async def module_self_check_tool(
         input_files: 该模块的用例数据文件路径（.jsonl/.json），可传多个。
         expected_module: 期望的模块名称，用于校验 module 字段一致性。
         min_p0_count: 该模块最少 P0 用例数（critical 映射为 P0）。
+        project_identifier: 项目标识符。**传入时会加载 Phase 1 保存的功能矩阵，
+            对本模块功能点做确定性覆盖对照**——功能点零用例覆盖将判 error
+            拦截，测试点疑似未覆盖给出 warning；不传则跳过矩阵对照。
 
     Returns:
         {
           "passed": bool,
           "total": int,
           "p0_count": int,
+          "matrix_checked": bool,   # 是否执行了功能矩阵覆盖对照
           "violations": [
             {"case_number": "...", "case_name": "...", "level": "error|warning",
              "messages": ["..."]}
@@ -570,6 +655,7 @@ async def module_self_check_tool(
             "passed": False,
             "total": 0,
             "p0_count": 0,
+            "matrix_checked": False,
             "violations": [
                 {
                     "case_number": None,
@@ -581,7 +667,21 @@ async def module_self_check_tool(
             "summary": f"自检异常：{e}",
         }
 
-    return _perform_module_self_check(
+    # 矩阵覆盖对照：矩阵不可用时（Phase 1 被跳过/保存失败）降级为跳过对照，
+    # 不阻塞其余校验；matrix_checked=False 提示模型在报告中自行标注。
+    matrix_features: list[dict[str, Any]] | None = None
+    matrix_note = ""
+    if project_identifier.strip():
+        matrix = load_feature_matrix(project_identifier=project_identifier)
+        if matrix.get("success"):
+            matrix_features = matrix["features"]
+        else:
+            matrix_note = (
+                f"[无结构化矩阵] 功能矩阵不可用（{matrix.get('error')}），"
+                "覆盖对照未执行，其余校验不受影响"
+            )
+
+    result = _perform_module_self_check(
         cases=cases,
         expected_module=expected_module,
         current_file_paths=current_file_paths,
@@ -591,7 +691,11 @@ async def module_self_check_tool(
         # 去重兜底），扫描只会制造"编号冲突"误报并诱发编号迁移螺旋。
         # 编号唯一性仍校验当前批次内部（见 _perform_module_self_check 第 3 节）。
         check_cross_file_duplicates=False,
+        matrix_features=matrix_features,
     )
+    if matrix_note:
+        result["summary"] = f"{result['summary']}；{matrix_note}"
+    return result
 
 
 @tool

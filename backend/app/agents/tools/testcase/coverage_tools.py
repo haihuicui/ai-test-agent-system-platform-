@@ -219,6 +219,110 @@ def compute_coverage(
     return rows
 
 
+# test_point 命中的二元组重叠率阈值。test_point 是自由文本短句
+# （如「验证码有效期5min」），用例措辞很少逐字复现（「验证码5分钟内有效」），
+# 完整包含之外给一个模糊通道，避免措辞差异造成大量误报。
+_TEST_POINT_FUZZY_THRESHOLD = 0.6
+
+
+def compute_module_test_point_coverage(
+    features: list[dict[str, Any]],
+    cases: list[dict[str, Any]],
+    fuzzy_threshold: float = _DEFAULT_FUZZY_THRESHOLD,
+) -> list[dict[str, Any]]:
+    """逐功能点逐测试点核对覆盖（纯函数，供模块级自检复用）。
+
+    用例归属规则与 compute_coverage 完全一致（显式 FP 编号引用优先，
+    同模块文本模糊匹配兜底）；test_point 命中规则：完整包含或字符
+    二元组重叠率 ≥ 0.6。
+
+    Returns:
+        逐 test_point 一行：
+        {fp_id, feature, priority, test_point, covered, fp_match_type, case_numbers}
+        - fp_match_type 为 None 表示整个功能点零用例归属（该 FP 全部
+          test_point covered=False）；
+        - 功能点无 test_points 时返回一行 test_point="" 的 FP 级记录。
+    """
+    case_entries = [
+        {
+            "number": _case_number_of(case),
+            "module": str(case.get("module") or "").strip(),
+            "text": _case_text(case),
+            "fp_refs": {m.upper() for m in _FP_ID_RE.findall(_case_text(case))},
+        }
+        for case in cases
+    ]
+
+    rows: list[dict[str, Any]] = []
+    for fp in features:
+        fp_id = str(fp.get("id") or "").strip().upper()
+        fp_module = str(fp.get("module") or "").strip()
+        feature_name = str(fp.get("feature") or "").strip()
+        priority = str(fp.get("priority") or "").strip()
+        test_points = [
+            str(p).strip() for p in (fp.get("test_points") or []) if str(p).strip()
+        ]
+
+        explicit = [c for c in case_entries if fp_id and fp_id in c["fp_refs"]]
+        fuzzy: list[dict[str, Any]] = []
+        if not explicit:
+            feature_grams = _bigrams(feature_name)
+            for c in case_entries:
+                # 模块约束：用例声明了模块时必须与功能点同模块，避免跨模块误匹配
+                if c["module"] and fp_module and c["module"] != fp_module:
+                    continue
+                if any(tp in c["text"] for tp in test_points):
+                    fuzzy.append(c)
+                    continue
+                if feature_grams:
+                    overlap = len(feature_grams & _bigrams(c["text"])) / len(feature_grams)
+                    if overlap >= fuzzy_threshold:
+                        fuzzy.append(c)
+
+        attributed = explicit or fuzzy
+        fp_match_type = "explicit" if explicit else ("fuzzy" if fuzzy else None)
+        attributed_numbers = [c["number"] for c in attributed]
+        merged_text = "\n".join(c["text"] for c in attributed)
+        merged_grams = _bigrams(merged_text)
+
+        if not test_points:
+            rows.append(
+                {
+                    "fp_id": fp.get("id"),
+                    "feature": feature_name,
+                    "priority": priority,
+                    "test_point": "",
+                    "covered": fp_match_type is not None,
+                    "fp_match_type": fp_match_type,
+                    "case_numbers": attributed_numbers,
+                }
+            )
+            continue
+
+        for tp in test_points:
+            if fp_match_type is None:
+                hit = False
+            else:
+                tp_grams = _bigrams(tp)
+                hit = tp in merged_text or (
+                    bool(tp_grams)
+                    and len(tp_grams & merged_grams) / len(tp_grams)
+                    >= _TEST_POINT_FUZZY_THRESHOLD
+                )
+            rows.append(
+                {
+                    "fp_id": fp.get("id"),
+                    "feature": feature_name,
+                    "priority": priority,
+                    "test_point": tp,
+                    "covered": hit,
+                    "fp_match_type": fp_match_type,
+                    "case_numbers": attributed_numbers,
+                }
+            )
+    return rows
+
+
 def _build_markdown_table(rows: list[dict[str, Any]]) -> str:
     """生成可直接粘贴进质量评审报告的覆盖对照表。"""
     lines = [

@@ -260,6 +260,196 @@ class TestModuleSelfCheckTool:
         assert any("包含连接词" in " ".join(v["messages"]) for v in result["violations"])
 
 
+def _fp(
+    fp_id: str,
+    module: str = "示例模块",
+    feature: str = "支付退款功能",
+    test_points: list[str] | None = None,
+    priority: str = "P0",
+) -> dict[str, Any]:
+    """构造最小合法的功能矩阵记录。"""
+    return {
+        "id": fp_id,
+        "module": module,
+        "feature": feature,
+        "test_points": test_points if test_points is not None else ["示例测试点"],
+        "priority": priority,
+        "risk_level": "高",
+        "test_type": ["功能"],
+    }
+
+
+def _write_matrix(
+    workspace_root: Path, project: str, features: list[dict[str, Any]]
+) -> None:
+    """把功能矩阵写到项目隔离目录（无 session scope 时的解析位置）。"""
+    matrix_dir = workspace_root / project
+    matrix_dir.mkdir(parents=True, exist_ok=True)
+    with (matrix_dir / "feature_matrix.jsonl").open("w", encoding="utf-8") as f:
+        for fp in features:
+            f.write(json.dumps(fp, ensure_ascii=False) + "\n")
+
+
+class TestMatrixCoverageCheck:
+    """第 8 节：功能矩阵覆盖对照（Phase 3 密度防塌缩的确定性防线）。"""
+
+    @pytest.fixture
+    def matrix_workspace(self, workspace_root: Path, monkeypatch):
+        """矩阵加载走 feature_matrix_tools 自己的 workspace root，需一并指向临时目录。"""
+        from app.agents.tools.testcase import feature_matrix_tools
+
+        monkeypatch.setattr(feature_matrix_tools, "_WORKSPACE_ROOT", workspace_root)
+        return workspace_root
+
+    def test_uncovered_fp_is_error(self, matrix_workspace: Path):
+        """矩阵功能点在用例中零覆盖（编号引用与文本重叠均无）→ error 拦截"""
+        _write_matrix(matrix_workspace, "PROJ", [_fp("FP-001")])
+        # 用例文本与「支付退款功能/示例测试点」零重叠
+        file_path = matrix_workspace / "cases.jsonl"
+        _write_jsonl(file_path, [_valid_case("TC-PROJ-MOD-001")])
+
+        result = _run_tool(
+            module_self_check_tool,
+            {
+                "input_files": [file_path.name],
+                "expected_module": "示例模块",
+                "min_p0_count": 1,
+                "project_identifier": "PROJ",
+            },
+        )
+
+        assert result["passed"] is False
+        assert result["matrix_checked"] is True
+        fp_errors = [
+            v
+            for v in result["violations"]
+            if v["level"] == "error" and "零用例覆盖" in " ".join(v["messages"])
+        ]
+        assert fp_errors and "FP-001" in " ".join(fp_errors[0]["messages"])
+
+    def test_explicit_fp_ref_covers(self, matrix_workspace: Path):
+        """用例 remarks 标注 FP 编号 → explicit 归属，test_point 命中后通过"""
+        _write_matrix(
+            matrix_workspace,
+            "PROJ",
+            [_fp("FP-001", test_points=["执行操作"])],
+        )
+        case = {
+            **_valid_case("TC-PROJ-MOD-001"),
+            "remarks": "关联需求 REQ-001；覆盖 FP-001",
+        }
+        file_path = matrix_workspace / "cases.jsonl"
+        _write_jsonl(file_path, [case])
+
+        result = _run_tool(
+            module_self_check_tool,
+            {
+                "input_files": [file_path.name],
+                "expected_module": "示例模块",
+                "min_p0_count": 1,
+                "project_identifier": "PROJ",
+            },
+        )
+
+        assert result["passed"] is True
+        assert result["matrix_checked"] is True
+        assert not [v for v in result["violations"] if v["level"] == "error"]
+
+    def test_test_point_miss_warns_not_blocks(self, matrix_workspace: Path):
+        """FP 已被覆盖但某测试点文本未命中 → warning 提示，不阻断（措辞差异防误报）"""
+        _write_matrix(
+            matrix_workspace,
+            "PROJ",
+            [_fp("FP-001", test_points=["验证码有效期五分钟"])],
+        )
+        case = {
+            **_valid_case("TC-PROJ-MOD-001"),
+            "remarks": "覆盖 FP-001",
+        }
+        file_path = matrix_workspace / "cases.jsonl"
+        _write_jsonl(file_path, [case])
+
+        result = _run_tool(
+            module_self_check_tool,
+            {
+                "input_files": [file_path.name],
+                "expected_module": "示例模块",
+                "min_p0_count": 1,
+                "project_identifier": "PROJ",
+            },
+        )
+
+        assert result["passed"] is True
+        tp_warnings = [
+            v
+            for v in result["violations"]
+            if v["level"] == "warning" and "疑似未覆盖" in " ".join(v["messages"])
+        ]
+        assert tp_warnings and "验证码有效期五分钟" in " ".join(tp_warnings[0]["messages"])
+
+    def test_matrix_missing_degrades_gracefully(self, matrix_workspace: Path):
+        """传了 project_identifier 但矩阵不存在 → 跳过对照，其余校验照常"""
+        file_path = matrix_workspace / "cases.jsonl"
+        _write_jsonl(file_path, [_valid_case("TC-PROJ-MOD-001")])
+
+        result = _run_tool(
+            module_self_check_tool,
+            {
+                "input_files": [file_path.name],
+                "expected_module": "示例模块",
+                "min_p0_count": 1,
+                "project_identifier": "PROJ",
+            },
+        )
+
+        assert result["passed"] is True
+        assert result["matrix_checked"] is False
+        assert "无结构化矩阵" in result["summary"]
+
+    def test_no_project_identifier_skips_matrix(self, workspace_root: Path):
+        """不传 project_identifier → 完全跳过矩阵对照（向后兼容旧调用方式）"""
+        file_path = workspace_root / "cases.jsonl"
+        _write_jsonl(file_path, [_valid_case("TC-PROJ-MOD-001")])
+
+        result = _run_tool(
+            module_self_check_tool,
+            {
+                "input_files": [file_path.name],
+                "expected_module": "示例模块",
+                "min_p0_count": 1,
+            },
+        )
+
+        assert result["passed"] is True
+        assert result["matrix_checked"] is False
+
+    def test_module_not_in_matrix_warns(self, matrix_workspace: Path):
+        """矩阵存在但无本模块功能点（疑似陈旧矩阵/命名不一致）→ warning 不拦截"""
+        _write_matrix(
+            matrix_workspace,
+            "PROJ",
+            [_fp("FP-001", module="其他模块")],
+        )
+        file_path = matrix_workspace / "cases.jsonl"
+        _write_jsonl(file_path, [_valid_case("TC-PROJ-MOD-001")])
+
+        result = _run_tool(
+            module_self_check_tool,
+            {
+                "input_files": [file_path.name],
+                "expected_module": "示例模块",
+                "min_p0_count": 1,
+                "project_identifier": "PROJ",
+            },
+        )
+
+        assert result["passed"] is True
+        assert result["matrix_checked"] is True
+        assert any(
+            "未找到模块" in " ".join(v["messages"]) for v in result["violations"]
+        )
+
+
 class TestSaveTestCaseManifestTool:
     def test_creates_new_manifest(self, workspace_root: Path):
         result = _run_tool(
