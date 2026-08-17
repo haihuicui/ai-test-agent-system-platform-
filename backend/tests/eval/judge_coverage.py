@@ -18,6 +18,9 @@ v2 是采样样本（balanced 60 文件上限），覆盖评估必须全量，�
 用法（cwd = backend）：
     ./.venv/Scripts/python.exe -m tests.eval.judge_coverage --project PR-1
     ./.venv/Scripts/python.exe -m tests.eval.judge_coverage              # 全部项目
+    # 指定目录模式（模型 A/B 对比：各自会话目录 × 各自矩阵）
+    ./.venv/Scripts/python.exe -m tests.eval.judge_coverage \
+        --cases-dir workspace/testcase/PR-1/<thread_id> --source-tag qwen
 """
 from __future__ import annotations
 
@@ -63,6 +66,14 @@ def load_projects() -> dict[str, dict]:
                 "cases": [c for _, c in iter_project_cases(d)],
             }
     return projects
+
+
+def load_cases_dir(cases_dir: Path, matrix_file: Path | None = None) -> dict:
+    """指定目录模式：矩阵默认取目录下的 feature_matrix.jsonl（--matrix-file 可覆盖）。"""
+    return {
+        "matrix": load_matrix(matrix_file or (cases_dir / "feature_matrix.jsonl")),
+        "cases": [c for _, c in iter_project_cases(cases_dir)],
+    }
 
 
 def slim_case(case: dict) -> dict:
@@ -158,19 +169,35 @@ def judge_fp(project: str, fp: dict, cases: list[dict], matrix_themes: set[str])
 def main() -> None:
     parser = argparse.ArgumentParser(description="需求覆盖语义裁判（FP 级）")
     parser.add_argument("--project", default=None, help="只评指定项目（默认全部）")
+    parser.add_argument("--cases-dir", type=Path, default=None,
+                        help="指定用例目录（矩阵取目录下 feature_matrix.jsonl；A/B 对比用）")
+    parser.add_argument("--matrix-file", type=Path, default=None,
+                        help="显式指定矩阵文件（跨矩阵评估：用 B 组矩阵评 A 组用例）")
+    parser.add_argument("--source-tag", default=None,
+                        help="落盘 project 标签（默认目录名/项目名；A/B 对比时区分组别）")
+    parser.add_argument("--scores-out", type=Path, default=SCORES_PATH)
     args = parser.parse_args()
 
-    projects = load_projects()
-    if not projects:
-        sys.exit(f"未找到带 feature_matrix.jsonl 的项目目录（{WORKSPACE}）")
-    if args.project:
-        if args.project not in projects:
-            sys.exit(f"项目 {args.project} 无矩阵（现有：{list(projects)}）")
-        projects = {args.project: projects[args.project]}
+    if args.cases_dir:
+        tag = args.source_tag or args.cases_dir.name
+        projects = {tag: load_cases_dir(args.cases_dir, args.matrix_file)}
+    else:
+        projects = load_projects()
+        if not projects:
+            sys.exit(f"未找到带 feature_matrix.jsonl 的项目目录（{WORKSPACE}）")
+        if args.project:
+            if args.project not in projects:
+                sys.exit(f"项目 {args.project} 无矩阵（现有：{list(projects)}）")
+            projects = {args.project: projects[args.project]}
 
-    done = load_scored_ids()
+    done: set[str] = set()
+    if args.scores_out.exists():
+        done = {
+            f"{json.loads(l)['project']}|{json.loads(l)['fp_id']}"
+            for l in args.scores_out.read_text(encoding="utf-8").splitlines() if l.strip()
+        }
     t0 = time.time()
-    with SCORES_PATH.open("a", encoding="utf-8") as f:
+    with args.scores_out.open("a", encoding="utf-8") as f:
         for proj, slot in projects.items():
             matrix, cases = slot["matrix"], slot["cases"]
             themes = matrix_req_themes(matrix)
@@ -191,8 +218,8 @@ def main() -> None:
                 print(f"  {row['fp_id']} [{row['priority']}] {row['fp_feature'][:24]}："
                       f"{mark}（相关用例 {row['n_relevant_cases']} 条）")
 
-    print(f"\n完成（耗时 {time.time() - t0:.0f}s）→ {SCORES_PATH}")
-    print("汇总分析：jq 或读 dataset/judge_coverage_v1.jsonl 按 score/reason 过未覆盖清单")
+    print(f"\n完成（耗时 {time.time() - t0:.0f}s）→ {args.scores_out}")
+    print("汇总分析：读落盘文件按 score/reason 过未覆盖清单")
 
 
 if __name__ == "__main__":

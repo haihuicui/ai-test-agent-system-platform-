@@ -41,8 +41,9 @@ from tests.eval.metrics import (
     exception_coverage_metric,
 )
 
-# 聚合样本的用例数上限（控制裁判 prompt 体积；两版同规则截取保证公平）
-MAX_SAMPLE_CASES = 40
+# 聚合样本的用例数上限（控制裁判 prompt 体积；两版同规则截取保证公平。
+# assertability 裁判逐条点评输出长，超 25 条易触 max_tokens 截断 → invalid JSON）
+MAX_SAMPLE_CASES = 25
 
 
 def load_cases(path: Path, exclude_threads: set[str]) -> tuple[list[dict], int]:
@@ -84,8 +85,12 @@ def run_lint_compare(a_path: Path, b_path: Path, a_exclude: tuple[str, ...]) -> 
     return out
 
 
-def judge_output_quality(name: str, cases: list[dict]) -> dict:
-    """产出语义两裁判：聚合样本（按 case_number 排序取前 N，两版同规则）。"""
+def judge_output_quality(name: str, cases: list[dict], n_samples: int = 3) -> dict:
+    """产出语义两裁判：聚合样本（按 case_number 排序取前 N，两版同规则）。
+
+    多次采样取中位数：实测同一裁判对同一样本两次评分可摆动 0.00↔0.90
+    （温度 0 的推理模型 reasoning 路径仍非确定），单次分数不可作对比依据。
+    """
     sample = sorted(cases, key=lambda c: str(c.get("case_number") or ""))[:MAX_SAMPLE_CASES]
     tc = LLMTestCase(
         input=f"[模型 {name} 对同一需求的用例产出，共 {len(sample)} 条参评]",
@@ -94,13 +99,26 @@ def judge_output_quality(name: str, cases: list[dict]) -> dict:
     row = {"n_cases_judged": len(sample)}
     for key, metric in (("assertability", assertability_metric),
                         ("exception_coverage", exception_coverage_metric)):
-        try:
-            metric.measure(tc)
-            row[key] = {"score": metric.score,
-                        "pass": bool(metric.score is not None and metric.score >= metric.threshold),
-                        "reason": metric.reason}
-        except Exception as exc:  # noqa: BLE001
-            row[key] = {"error": f"{type(exc).__name__}: {exc}"}
+        runs: list[tuple[float, str]] = []
+        errors = 0
+        for _ in range(n_samples):
+            try:
+                metric.measure(tc)
+                if metric.score is not None:
+                    runs.append((metric.score, metric.reason or ""))
+            except Exception:  # noqa: BLE001
+                errors += 1
+                time.sleep(1)
+        if not runs:
+            row[key] = {"error": f"{n_samples} 次采样全部失败（invalid JSON/超时）"}
+            continue
+        runs.sort(key=lambda r: r[0])
+        mid = runs[len(runs) // 2]
+        row[key] = {
+            "score": mid[0], "min": runs[0][0], "max": runs[-1][0],
+            "pass": bool(mid[0] >= metric.threshold),
+            "reason": mid[1], "n_ok": len(runs), "n_err": errors,
+        }
     return row
 
 
@@ -196,18 +214,23 @@ def main() -> None:
             quality[key] = judge_output_quality(name, cases)
             for dim in ("assertability", "exception_coverage"):
                 cell = quality[key][dim]
-                mark = f"{cell['score']:.2f}" if "score" in cell else "ERR"
+                mark = (f"{cell['score']:.2f}（{cell['min']:.2f}~{cell['max']:.2f}）"
+                        if "score" in cell else "ERR")
                 print(f"  {key}（{name}）{dim}: {mark}")
-        report.append("\n## 2. 产出语义裁判\n")
+        report.append("\n## 2. 产出语义裁判（3 次采样取中位数）\n")
         report.append(f"| 维度 | {args.a_name} | {args.b_name} |\n|---|---|---|")
         for dim, zh in (("assertability", "可断言性（阈值 0.8）"),
                         ("exception_coverage", "异常与安全覆盖（阈值 0.7）")):
             a_c, b_c = quality["A"][dim], quality["B"][dim]
-            a_t = f"{a_c['score']:.2f}{'✓' if a_c.get('pass') else '✗'}" if "score" in a_c else "ERR"
-            b_t = f"{b_c['score']:.2f}{'✓' if b_c.get('pass') else '✗'}" if "score" in b_c else "ERR"
-            report.append(f"| {zh} | {a_t} | {b_t} |")
+            def fmt(c):
+                if "score" not in c:
+                    return "ERR"
+                spread = "" if c["min"] == c["max"] else f"（{c['min']:.2f}~{c['max']:.2f}）"
+                return f"{c['score']:.2f}{'✓' if c.get('pass') else '✗'}{spread}"
+            report.append(f"| {zh} | {fmt(a_c)} | {fmt(b_c)} |")
         report.append(f"\n> 参评用例：A {quality['A']['n_cases_judged']} 条 / "
-                      f"B {quality['B']['n_cases_judged']} 条（按编号排序取前 {MAX_SAMPLE_CASES}）")
+                      f"B {quality['B']['n_cases_judged']} 条（按编号排序取前 {MAX_SAMPLE_CASES}）；"
+                      f"括号为 3 次采样的 min~max 波动，裁判分数摆动 >0.2 的维度结论需谨慎")
 
         if args.matrix and args.matrix.exists():
             print("\n[3/3] 需求覆盖裁判（FP 级对比）")
