@@ -246,14 +246,20 @@ class ExportService:
             fmt = ExportFormat(job.get("format", ExportFormat.EXCEL.value))
 
             folder_ids = [job["folder_id"]] if job.get("folder_id") else None
+            test_case_ids = job.get("test_case_ids")
             test_cases = await test_case_service.get_test_cases_for_export(
                 project_identifier=job["project_identifier"],
-                test_case_ids=job.get("test_case_ids"),
+                test_case_ids=test_case_ids,
                 folder_ids=folder_ids,
             )
 
             if not test_cases:
                 raise ValueError("未找到可导出的测试用例")
+
+            # 如果前端传入了 test_case_ids，按传入顺序重排，保留前端排序
+            if test_case_ids:
+                order_map = {tc_id: idx for idx, tc_id in enumerate(test_case_ids)}
+                test_cases.sort(key=lambda tc: order_map.get(tc.identifier, float("inf")))
 
             case_dicts = [_test_case_info_to_export_dict(tc) for tc in test_cases]
 

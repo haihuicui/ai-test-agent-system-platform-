@@ -12,6 +12,7 @@ import {
   FileText,
   ChevronDown,
   ChevronUp,
+  ChevronsUpDown,
   GripVertical,
   Sparkles,
   Download,
@@ -154,6 +155,9 @@ export function TestCaseList({
   const [showFilterBar, setShowFilterBar] = React.useState(false);
   const [exportingFormat, setExportingFormat] = React.useState<ExportFormat | null>(null);
 
+  // MODULE 列排序状态：'asc' | 'desc' | null
+  const [moduleSort, setModuleSort] = React.useState<null | "asc" | "desc">(null);
+
   // 优先级标签
   const priorityLabels: Record<Priority, string> = {
     critical: t("testCases.priorityCritical"),
@@ -179,8 +183,12 @@ export function TestCaseList({
     setFilters((prev) => ({ ...prev, search: searchQuery }));
   }, []);
 
-  // 同步外部testCases到本地状态
+  // 同步外部testCases到本地状态（仅在 ID 列表真正变化时才同步，避免覆盖排序/拖拽）
+  const testCasesIdRef = React.useRef<string[]>([]);
   React.useEffect(() => {
+    const ids = testCases.map((tc) => tc.id);
+    if (JSON.stringify(ids) === JSON.stringify(testCasesIdRef.current)) return;
+    testCasesIdRef.current = ids;
     setLocalTestCases(testCases);
   }, [testCases]);
 
@@ -297,6 +305,32 @@ export function TestCaseList({
     }
   }, [searchQuery, onFilterChange, onFilterPriority, onFilterStatus, onSearch]);
 
+  // MODULE 排序处理
+  const handleSortModule = React.useCallback(() => {
+    setModuleSort((prev) => {
+      if (prev === null) return "asc";
+      if (prev === "asc") return "desc";
+      return null;
+    });
+  }, []);
+
+  // 按 moduleSort 对 localTestCases 排序
+  React.useEffect(() => {
+    if (!moduleSort) return;
+    const direction = moduleSort === "asc" ? 1 : -1;
+    setLocalTestCases((prev) => {
+      const sorted = [...prev].sort((a, b) => {
+        const aMod = a.module || "";
+        const bMod = b.module || "";
+        if (aMod === bMod) return 0;
+        if (aMod === "") return direction;
+        if (bMod === "") return -direction;
+        return aMod.localeCompare(bMod, "zh") * direction;
+      });
+      return sorted;
+    });
+  }, [moduleSort]); // 只依赖 moduleSort
+
   // 导出选中的测试用例
   const handleExport = React.useCallback(
     async (format: ExportFormat) => {
@@ -305,7 +339,7 @@ export function TestCaseList({
         return;
       }
 
-      const identifiers = testCases
+      const identifiers = localTestCases
         .filter((tc) => selectedIds.has(tc.id))
         .map((tc) => tc.identifier)
         .filter(Boolean);
@@ -340,7 +374,7 @@ export function TestCaseList({
         setExportingFormat(null);
       }
     },
-    [projectId, selectedIds, testCases, t]
+    [projectId, selectedIds, localTestCases, t]
   );
 
   const isAllSelected =
@@ -796,7 +830,24 @@ export function TestCaseList({
                         aria-label="全选"
                       />
                     </th>
-                    <th className="w-44 p-3">MODULE</th>
+                    <th
+                      className="w-44 p-3 cursor-pointer select-none hover:bg-muted/50 transition-colors"
+                      onClick={handleSortModule}
+                      title="点击按 MODULE 排序"
+                    >
+                      <div className="flex items-center gap-1">
+                        MODULE
+                        {moduleSort === "asc" && (
+                          <ChevronUp className="h-3.5 w-3.5 text-primary" />
+                        )}
+                        {moduleSort === "desc" && (
+                          <ChevronDown className="h-3.5 w-3.5 text-primary" />
+                        )}
+                        {moduleSort === null && (
+                          <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground" />
+                        )}
+                      </div>
+                    </th>
                     <th className="w-40 p-3">用例编号</th>
                     <th className="p-3">TITLE</th>
                     <th className="w-28 p-3">PRIORITY</th>
