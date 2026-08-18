@@ -3,6 +3,8 @@
 > 调研日期：2026-08-13。关联：多项目隔离模块 C（一期已落地工具层 space_id 强制映射）。
 >
 > **⚠️ 修正（同日 gh 核实后）**：本文初稿采信搜索摘要"PR #2445 已实现全端点路由"，经 `gh api` 核实——**PR #2445 于 2026-03-06 关闭未合并**，上游 main（含 v1.5.6）`get_workspace_from_request` 仍仅 /health 一个调用点；#2698 消毒修复已含于 1.5.5；#2904 仍 open。**二期已改为 vendored 1.5.5 自研 backport 并完成**（commit `1dc080b`，diff 存档 `LightRAG/local-patches/`）。下文保留调研过程与上游事实供参考。
+>
+> **📌 2026-08-18 复核（部署缺口 + 生产故障，详见文末「8-18 复核」）**：补丁目前**仅本机开发实例（127.0.0.1:9621）加载生效**；平台真实链路（Agent → 103 rag-server → 103 lightrag 容器）的 LightRAG 仍是**补丁前旧镜像**——一期注入的 workspace 头在服务端被忽略（假隔离依旧），且 103 容器 authenticated /health 当前恒 500，rag_health 全链路不可用。**待办：103 上重跑 deploy.sh 重建镜像 + 存量数据归属决策。**
 
 ## 现状
 
@@ -10,7 +12,8 @@
 |---|---|
 | Agent 工具层（本仓库 rag_server.py + document_tools.py） | ✅ 一期完成：`space_id` 缺省自动取会话项目，模型显式传冲突值被覆盖（`_wrap_rag_tools_with_session_space`） |
 | 自研 MCP 中间层（rag_server.py） | ✅ 已把 space_id 写入 `LIGHTRAG-WORKSPACE` 请求头（连接级 + 请求级），缓存 key 含 space |
-| LightRAG 服务端（vendored 1.5.5） | ❌ **假隔离**：`get_workspace_from_request` 仅 `/health` 一个调用点（lightrag_server.py:1420 定义、:2292 调用），`/query`、`/documents` 等端点全部使用启动时单例 workspace |
+| LightRAG 服务端·本机开发实例（127.0.0.1:9621，vendored 源码直跑） | ✅ 二期补丁已生效：进程 8-13 16:01 启动（晚于 1dc080b 提交），懒加载日志与探测请求双重实证 |
+| LightRAG 服务端·103 生产容器（192.168.60.103:9621，docker-compose 构建） | ❌ **旧镜像（补丁前构建）**：带新 workspace 头调 /health 报 `Pipeline namespace '<ws>:pipeline_status' not found`（1.5.5 原版半路由行为）；其余端点忽略头 = 假隔离依旧 |
 | LightRAG 核心库（vendored 1.5.5） | ✅ 实例级 `workspace` 字段（lightrag.py:290），存储命名空间按 workspace 隔离（Neo4j/Milvus 均支持） |
 
 **结论：瓶颈只在 API server 层的路由，核心库能力已具备。**
@@ -23,23 +26,57 @@
 - **Discussion #2745**：高规模多租户架构提案（RAGInstanceManager + LRU/TTL 实例管理）——workspace 数量大时的内存对策，企业规模下暂不需要。
 - **RFC #3516**（2026-07）：workspace 级授权（阶段 2 多租户路线），含 `Vary: LIGHTRAG-WORKSPACE` 缓存安全要求。
 
-## 二期方案（推荐）
+## 二期方案（已实施：自研 backport）
 
-**升级 vendored LightRAG 到包含 #2445 + #2904 修复的上游版本**，而非自行 backport：
+~~升级 vendored LightRAG 到包含 #2445 + #2904 修复的上游版本~~ → **实际执行：vendored 1.5.5 自研 backport**（commit `1dc080b`）。上游 #2445 关闭未合并、main/v1.5.6 均无全端点路由，"等上游"不成立。
 
-1. 升级前在 LightRAG/.venv 跑通其自带回归（workspace 隔离测试：tests/workspace/ 已有 README_WORKSPACE_ISOLATION_TESTS.md）
-2. 部署侧：RAG 实例仍单进程（192.168.60.103 或本机 9621），per-workspace 实例由服务端内存缓存管理
-3. 验证清单：
-   - 两 workspace 分别入库不同文档，/query 互不可见（对齐平台侧跨项目串扰 E2E）
-   - workspace 头消毒（中文项目标识符会被转为 `_` 前缀+需确认唯一性——必要时平台侧先做 `_sanitize_config_key` 同款 hash 后缀）
-4. 平台侧零改动：一期管道（space_id=project_identifier → LIGHTRAG-WORKSPACE 头）自动生效
+实施方案（lightrag_server.py 单文件 +204/-24，详见 `LightRAG/local-patches/README.md`）：
 
-**Fallback（不升级时）**：backport 工作量集中在 lightrag_server.py——实例注册表（workspace → LightRAG 懒加载缓存）+ 各端点 Depends 注入，预估 2~3 天 + 自测覆盖。
+1. `WorkspaceContextMiddleware`：ASGI 层解析 workspace 头 → 请求级 contextvar，endpoint 前完成实例懒加载（失败 fail-open 回退默认）
+2. 实例注册表：懒加载 + per-workspace 锁防并发首请求；默认 workspace 走全局单例零开销；lifespan 统一 finalize
+3. `WorkspaceRAGProxy` / `WorkspaceDocManagerProxy`：router 闭包内的 rag/doc_manager 为代理，属性访问按 contextvar 透明路由——router 三个文件零改动
+4. `_build_rag_kwargs` 工厂：默认与懒加载实例共用构造配置
+
+验证：tests/workspace/e2e_request_routing_isolation.py（真实入库+查询）6/6 PASS；8-13 当天对本机 9621 复测 ws_alpha/ws_beta 通过（lightrag.log 懒加载记录佐证）。
+
+**Fallback 段落已失效**（backport 已完成，无需再做）。
 
 ## 风险
 
 - 内存：per-workspace 实例缓存（每实例含 embedding 模型句柄等）。项目数 <20 时可控；超出参考 #2745 加 LRU。
 - 升级回归面：LightRAG 是本平台 RAG 核心依赖，升级需在 root venv 全量验证（rag_* 7 个工具 + 入库管道）。
+
+## 8-18 复核：拓扑真相、部署缺口与生产故障
+
+### 平台真实链路（实证）
+
+```
+Agent (LangGraph) ──SSE──> 103 rag-server:8008 ──HTTP──> 103 lightrag 容器:9621（docker 服务名 lightrag）
+                              ↑ 新版中间层已在线              ↑ 补丁前旧镜像（1.5.5 原版行为）
+                              （7 个工具均带 space_id 参数）
+```
+
+- **本机 127.0.0.1:9621 是开发实例**（uv cpython 直跑 vendored 源码）：补丁已加载生效——进程 8-13 16:01 启动晚于 1dc080b 提交（15:20）；全局环境无 lightrag 包，仅 vendored 目录可解析；lightrag.log 有 ws_alpha/ws_beta（8-13 E2E）与 probe_ws_routing_check（8-18 探测）懒加载记录；带新头 /health 正常、/documents 返回空，默认库不受影响。
+- **平台流量从未到达本机 9621**：lightrag.log 无任何 `workspace=PR_*` 懒加载记录。
+- 103 部署形态：docker-compose（`deploy/docker-compose.yml:344` 注释明确"本地 fork（含空间管理），必须从源码构建，勿换上游镜像"），build context 即 vendored `LightRAG/`。旧镜像是补丁合入前构建的——**补丁已在 GitHub main 上，103 重跑 deploy.sh 即可拿到**。
+
+### ⚠️ 生产故障：103 authenticated /health 恒 500
+
+8-18 探测：经 103 中间层调 `rag_health`（带/不带 space_id 均然）返回 502——上游 `http://lightrag:9621/health` 3 次重试恒 500。而同地址 guest 访问（无认证或假 token）返回 healthy；login 接口正常。结论：**1.5.5 原版 /health 的 authenticated 分支在 103 容器内恒炸**（补丁不动 /health 端点主体，重部署后大概率仍在，需查 `docker logs lightrag` 确诊）。影响面：rag_health 工具不可用；query/graph/documents 等非 /health 端点不受此故障直接影响，但 workspace 头被旧镜像忽略 → 全部落默认 workspace（假隔离）。
+
+### 消毒冲突评估（原验证清单第 3 条第 2 项 → 已闭环）
+
+一期管道注入的是项目 **identifier**（`PR-<n>`，DB 实证 PR-1/PR-2/PR-3），非中文项目名。消毒规则 `[^a-zA-Z0-9_]→_` 下 `PR-1→PR_1` 为双射，**无冲突，平台侧无需 `_sanitize_config_key` 同款 hash 后缀**。前提：identifier 生成规则保持 `PR-<n>` 统一格式；若未来开放自定义 identifier 且 `-`/`_` 混用（如同时存在 `PR-1` 与 `PR_1`），需重估。
+
+### 推进清单（需 103 操作权限，本机无 SSH）
+
+1. **103 重部署**：`cd <repo> && bash deploy/deploy.sh`（git pull 拿到 1dc080b → 重建 lightrag 镜像 → up）。部署后容器内即补丁版。
+2. **部署后验证**：
+   - `rag_health` 带 `space_id=PR-1` 不再 500（若仍 500 → 查 `docker logs lightrag`，authenticated /health 故障与补丁无关、需单独修）；
+   - 双 workspace 隔离 E2E：经 103 中间层以 PR-1/PR-2 分别入库不同文档、交叉查询互不可见（复用 tests/workspace/e2e_request_routing_isolation.py 思路，目标改 103）；
+   - 不携带头的请求仍落默认 workspace（回归）。
+3. **存量数据归属决策**：103 默认 workspace 现有文档（含 rag-server 默认 `RAG_SPACE_ID=cmp_space` 期间入库的数据）——留在默认库共享，还是按项目重入库到 PR_n workspace？（一期上线至 103 重部署之间的所有入库都在默认库。）
+4. **内存观察**：103 重部署后关注 `_ws_instances` 增长（项目数 <20 可控；超出参考 #2745 加 LRU）。
 
 ## Sources
 
