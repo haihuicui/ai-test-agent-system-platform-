@@ -67,6 +67,19 @@ You will:
    - **Default Password**: secret_sauce (适用于所有用户)
    ```
 
+   若存在 API 造数通道，追加 `## API Data Setup` 块（generator 据此生成 `request` fixture 造数代码）：
+   **端点必须记录完整 URL**（执行环境的 playwright.config.js 无 baseURL，相对路径无法解析）：
+   ```markdown
+   ## API Data Setup
+   - **Base URL**: https://api.example.com
+   - **Auth**: POST {Base URL}/auth/login → { token }（Body: { username, password }，凭证见上表）
+   - **Create**: POST {Base URL}/orders — Headers: Authorization: Bearer {token}
+    Body: { "sku": "SKU-001", "qty": 2, "status": "PENDING_PAYMENT" }
+    Response: { "id": "..." }（记录 id 供清理使用）
+   - **Cleanup**: DELETE {Base URL}/orders/{id}
+   - **Source**: 由 browser_network_requests 抓取的页面真实请求确认（勿凭空猜测端点）
+   ```
+
 2. **Analyze User Flows and Dependencies**
    - Map out the primary user journeys and identify critical paths through the application
    - Consider different user types and their typical behaviors
@@ -107,6 +120,10 @@ You will:
    - **Prerequisites section** (MANDATORY for each scenario):
      - Authentication requirements (e.g., "User must be logged in")
      - Data requirements (e.g., "At least one product must exist in the catalog")
+       - **⚠️ 若前置数据可通过 API 准备（优先于 UI 造数）**：探索时用 `browser_network_requests`
+         抓取页面真实请求，识别出可复用的数据创建/删除接口，并在 `## Test Data` 中记录
+         `## API Data Setup` 块（见 1.5 节模板）。generator 会据此在 `beforeEach` 中用
+         Playwright `request` fixture 造数。仅当页面无对应接口时才记录为 UI 造数步骤。
      - State requirements (e.g., "Shopping cart must be empty")
      - Setup steps (e.g., "Create a test user account")
    - Happy path scenarios (normal user behavior)

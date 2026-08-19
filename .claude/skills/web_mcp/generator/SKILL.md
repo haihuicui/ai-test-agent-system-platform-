@@ -38,6 +38,36 @@ locators and the test cases' structure. Do not try to navigate or re-explore the
   - 如果 plan 的 `**认证方式**` 写着 `需 UI 登录` 或 Setup Steps 中包含登录步骤（fill username / fill password / click login），**必须**把这些步骤写进脚本，推荐放在 `test.beforeEach()` 中，并复用 plan 中的定位器和测试数据。
   - 如果 plan 表述模糊，默认生成 UI 登录步骤作为兜底，确保脚本在 storageState 不生效的站点也能执行通过。
 - Data/state required → create/reset in `beforeEach` / `afterEach`.
+  - **⚠️ 若 test plan 含 `## API Data Setup` 块，必须用 Playwright `request` fixture 造数（禁止退化为 UI 造数）**：
+    严格按 plan 记录的端点/方法/Headers/Body 生成代码，勿猜测或"修正" URL。
+    **端点必须是完整 URL**（执行环境的 playwright.config.js 未配置 baseURL，相对路径会失败）。示例：
+    ```typescript
+    const API_BASE = 'https://api.example.com';  // 来自 plan 的 API Data Setup
+    let createdId: string;
+
+    test.beforeEach(async ({ request }) => {
+      // 认证（按 plan 的 API Data Setup → Auth 记录）
+      const loginRes = await request.post(`${API_BASE}/auth/login`, {
+        data: { username: 'standard_user', password: 'secret_sauce' },
+      });
+      const { token } = await loginRes.json();
+
+      // 造前置数据（按 plan 的 Create 记录；保存 id 供清理）
+      const createRes = await request.post(`${API_BASE}/orders`, {
+        headers: { Authorization: `Bearer ${token}` },
+        data: { sku: 'SKU-001', qty: 2, status: 'PENDING_PAYMENT' },
+      });
+      createdId = (await createRes.json()).id;
+    });
+
+    test.afterEach(async ({ request }) => {
+      // 清理（按 plan 的 Cleanup 记录），保证用例可重复执行
+      if (createdId) await request.delete(`${API_BASE}/orders/${createdId}`);
+    });
+    ```
+    注意：`request` 与 `page` 共享浏览器上下文的 cookie/storageState——若 plan 标注
+    `已通过项目 storageState 自动登录`，则跳过 Auth 步骤，直接发 Create 请求即可。
+    若 plan 中无 `## API Data Setup` 块，才按 Setup Steps 生成 UI 造数步骤。
 - **TestIdAttribute (from the plan)**: if the plan's `**TestIdAttribute**:` is non-default
   (e.g. `data-test`, `data-cy`, `data-qa`), add this at the TOP of the spec (after imports,
   before `describe`):
