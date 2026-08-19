@@ -11,6 +11,10 @@
 
 与 lint_cases.py 的分工：lint 查单条用例的规范，本工具查项目级的需求遗漏。
 
+REQ 需求级对齐（2026-08-19 起，与 judge_coverage 同一规则）：FP 编号是需求级
+的（各需求都从 FP-001 起编），同项目多需求并存时编号撞车——跨 REQ 主题用例
+的"显式引用"是假阳性，先从匹配池剔除再算覆盖，防覆盖率虚高。
+
 用法（cwd = backend）：
     ./.venv/Scripts/python.exe -m tests.eval.coverage_audit              # 全项目审计
     ./.venv/Scripts/python.exe -m tests.eval.coverage_audit --project PR-1
@@ -30,13 +34,16 @@ from app.agents.tools.testcase.coverage_tools import (
     _case_text,
     _looks_like_case,
     compute_coverage,
+    req_themes,
 )
 
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 WORKSPACE = BACKEND_ROOT / "workspace" / "testcase"
 
-# 与 harvest/lint 同一口径：非用例文件不扫
-SKIP_PATTERNS = ("feature_matrix", "expected_result", "manifest", "conversation")
+# 与 lint 同一口径：非用例文件不扫（adversarial_review 是评审报告，
+# 引用的缺陷用例是反面教材证据，不是覆盖贡献）
+SKIP_PATTERNS = ("feature_matrix", "expected_result", "manifest", "conversation",
+                 "adversarial_review")
 
 
 def iter_project_cases(project_dir: Path):
@@ -77,31 +84,50 @@ def audit_project(project: str) -> dict | None:
 
     features = load_matrix(matrix_path)
     all_fp_ids = {str(fp.get("id") or "").upper() for fp in features if fp.get("id")}
+    # REQ 需求级对齐（与 judge_coverage 同一规则）：FP 编号需求级起编，同项目
+    # 多需求并存时编号撞车——跨需求用例的"显式引用"是假阳性，必须剔除后再匹配，
+    # 否则覆盖率虚高。矩阵无 source 主题时退化为不过滤。
+    matrix_themes = set()
+    for fp in features:
+        matrix_themes |= req_themes(str(fp.get("source") or ""))
 
     cases: list[dict] = []
+    aligned_cases: list[dict] = []  # REQ 对齐后的匹配池（显式/疑似匹配都只用它）
     per_file: Counter = Counter()
     file_has_ref: set[str] = set()
     outside_ref_files: set[str] = set()  # 引用了矩阵外 FP（属同项目其他需求的文件）
+    cross_req_files: set[str] = set()    # 矩阵内 FP 引用但 REQ 主题错位（编号撞车污染源）
     fp_ref_files: dict[str, set[str]] = {fid: set() for fid in all_fp_ids}
     for fname, case in iter_project_cases(project_dir):
         cases.append(case)
         per_file[fname] += 1
-        refs = {m.upper() for m in _FP_ID_RE.findall(_case_text(case))}
+        text = _case_text(case)
+        aligned = not matrix_themes or bool(req_themes(text) & matrix_themes)
+        if aligned:
+            aligned_cases.append(case)
+        refs = {m.upper() for m in _FP_ID_RE.findall(text)}
         if refs & all_fp_ids:
-            file_has_ref.add(fname)
-            for r in refs & all_fp_ids:
-                fp_ref_files[r].add(fname)
+            if aligned:
+                file_has_ref.add(fname)
+                for r in refs & all_fp_ids:
+                    fp_ref_files[r].add(fname)
+            else:
+                cross_req_files.add(fname)
         if refs - all_fp_ids:
             outside_ref_files.add(fname)
 
-    rows = compute_coverage(features, cases)
+    rows = compute_coverage(features, aligned_cases)
 
     covered = [r for r in rows if r["covered"]]
     uncovered = [r for r in rows if not r["covered"]]
     explicit = [r for r in covered if r["match_type"] == "explicit"]
     fuzzy = [r for r in covered if r["match_type"] == "fuzzy"]
     uncovered_p0 = [r for r in uncovered if r["priority"] == "P0"]
-    files_without_ref = [f for f in per_file if f not in file_has_ref]
+    # 未声明矩阵内引用的文件里，REQ 错位引用（编号撞车）单独成类报告，
+    # 不混进"无追溯习惯"清单
+    files_without_ref = [
+        f for f in per_file if f not in file_has_ref and f not in cross_req_files
+    ]
     # 无矩阵内引用的文件里，有些引用了矩阵外 FP——属多需求混杂而非无追溯习惯
     files_only_outside_ref = sorted(set(files_without_ref) & outside_ref_files)
 
@@ -125,6 +151,7 @@ def audit_project(project: str) -> dict | None:
         "project": project,
         "total_features": len(rows),
         "total_cases": len(cases),
+        "aligned_cases": len(aligned_cases),
         "total_files": len(per_file),
         "coverage_rate": round(len(covered) / len(rows) * 100, 1) if rows else 0.0,
         "explicit_rate": round(len(explicit) / len(rows) * 100, 1) if rows else 0.0,
@@ -137,6 +164,7 @@ def audit_project(project: str) -> dict | None:
         "fuzzy_features": [r["id"] for r in fuzzy],
         "files_without_fp_ref": files_without_ref,
         "files_only_outside_ref": files_only_outside_ref,
+        "cross_req_ref_files": sorted(cross_req_files),
         "thin_coverage": thin_coverage,
         "stale_matrix_suspected": stale_suspected,
         "rows": rows,
@@ -150,8 +178,15 @@ def render_text(report: dict) -> str:
         f"（{report['total_files']} 文件）",
         f"覆盖率 {report['coverage_rate']}%"
         f"（显式 {report['explicit_rate']}% / 疑似 {report['fuzzy_rate']}%）"
-        "　※ 累积视角：历史全部用例合并，非单次生成质量",
+        f"　※ 累积视角 + REQ 需求级对齐（{report['aligned_cases']}/{report['total_cases']} 条参与匹配）",
     ]
+    if report["cross_req_ref_files"]:
+        lines.append(
+            f"⚠️ REQ 主题错位的矩阵内引用（{len(report['cross_req_ref_files'])} 文件）："
+            "FP 编号需求级撞车，这些文件的显式声明不计入覆盖——"
+            + ", ".join(report["cross_req_ref_files"][:5])
+            + (" …" if len(report["cross_req_ref_files"]) > 5 else "")
+        )
     if report["stale_matrix_suspected"]:
         lines.append("⚠️ 疑似历史遗留矩阵：零覆盖且模块零交集——本报告覆盖率不可信，"
                      "矩阵可能属于同项目其他需求")

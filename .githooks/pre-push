@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# pre-push：TestCase Agent 产出质量本地门禁（零 token，秒级）
+#
+# 为什么不在云端 CI：workspace 用例数据是 .gitignore 的本地资产，
+# GitHub Actions 上没有数据可扫——数据质量门禁只能装在本地 hook。
+#
+# 两道闸：
+#   1. lint --baseline   新增 error 级违规 = 阻断（存量 1615 条已冻结 2026-08-19）
+#   2. coverage_audit    P0 功能点未覆盖 = 阻断（REQ 需求级对齐后口径）
+set -uo pipefail
+cd "$(git rev-parse --show-toplevel)/backend" || exit 1
+
+# hook 环境默认 GBK 控制台，报告里的 ✅/❌ 会炸 UnicodeEncodeError
+export PYTHONIOENCODING=utf-8
+
+echo "[pre-push] 用例规范 lint（baseline 模式，只拦新增 error）…"
+./.venv/Scripts/python.exe -m tests.eval.lint_cases --baseline
+lint_rc=$?
+if [ "$lint_rc" -ne 0 ]; then
+  echo "[pre-push] ❌ lint 发现新增 error 级违规，push 已阻断。"
+  echo "          修复新产出用例，或确认不修后 git push --no-verify。"
+  exit 1
+fi
+
+echo "[pre-push] 功能点覆盖审计（P0 未覆盖阻断）…"
+./.venv/Scripts/python.exe -m tests.eval.coverage_audit > /dev/null 2>&1
+audit_rc=$?
+if [ "$audit_rc" -ne 0 ]; then
+  ./.venv/Scripts/python.exe -m tests.eval.coverage_audit
+  echo "[pre-push] ❌ 存在 P0 功能点未覆盖，push 已阻断（--no-verify 可跳过）。"
+  exit 1
+fi
+
+echo "[pre-push] ✅ 质量门禁通过"
+exit 0

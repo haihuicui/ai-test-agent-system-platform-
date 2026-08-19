@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING, Any
 from langchain.agents.middleware import AgentMiddleware
 from langchain_core.messages import ToolMessage
 
+from app.agents.tools.testcase.excel_tools import _load_test_cases_from_file
 from app.utils.testcase_validation import _is_fuzzy_result, _validate_case, validate_case_hygiene
 
 if TYPE_CHECKING:
@@ -135,8 +136,17 @@ def _hygiene_note(request: ToolCallRequest) -> str:
         return f"\n\n[系统提示] 本条用例规范提示（不影响本次创建）：{items}。"
 
     if tool_name == _BATCH_TOOL:
+        cases = args.get("test_cases")
+        if cases is None and args.get("input_file") is not None:
+            # 主链路（Phase 4 统一入库）走 input_file 文件路径，用例不在 args 里——
+            # 用工具侧同一加载器解析，否则 warning 通道永远拿不到用例（空转）。
+            # 文件读取失败时工具自身会报错，warning 通道静默弃权即可。
+            try:
+                cases = _load_test_cases_from_file(args["input_file"], dedup=True)
+            except (FileNotFoundError, ValueError):
+                return ""
         counter: Counter[str] = Counter()
-        for case in args.get("test_cases") or []:
+        for case in cases or []:
             if not isinstance(case, dict):
                 continue
             for h in validate_case_hygiene(case):

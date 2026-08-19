@@ -33,7 +33,10 @@ BACKEND_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_SCAN = BACKEND_ROOT / "workspace" / "testcase"
 BASELINE_PATH = Path(__file__).parent / "dataset" / "lint_baseline.json"
 
-SKIP_PATTERNS = ("feature_matrix", "expected_result", "manifest", "conversation")
+# adversarial_review：评审报告（severity/defect_type/quote 结构）会逐字引用
+# 缺陷用例作证据，lint 这些"被展示的反面教材"是纯假阳性，不是用例数据文件
+SKIP_PATTERNS = ("feature_matrix", "expected_result", "manifest", "conversation",
+                 "adversarial_review")
 
 # ── 合法取值（大小写不敏感比较，报告里提示规范写法）─────────────────────
 VALID_CASE_TYPES = {"functional", "security", "boundary", "exception",

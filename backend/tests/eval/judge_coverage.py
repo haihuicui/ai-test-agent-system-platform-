@@ -26,14 +26,17 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 import sys
 import time
 from pathlib import Path
 
 from deepeval.test_case import LLMTestCase
 
-from app.agents.tools.testcase.coverage_tools import _FP_ID_RE, _case_text
+from app.agents.tools.testcase.coverage_tools import (
+    _FP_ID_RE,
+    _case_text,
+    req_themes as _req_themes,
+)
 from tests.eval.coverage_audit import WORKSPACE, iter_project_cases, load_matrix
 from tests.eval.metrics import coverage_faithfulness_metric
 
@@ -46,14 +49,7 @@ MAX_RELEVANT_CASES = 15
 _CASE_FIELDS = ("case_number", "name", "case_type", "priority",
                 "preconditions", "test_data", "test_case_steps", "remarks")
 
-# REQ 主题前缀（"REQ-变更②"→"REQ-变更"、"REQ-LOGIN-001"→"REQ-LOGIN"）：
-# FP 编号是需求级的（各需求都从 FP-001 起编），同项目多需求并存时编号会撞车，
-# 必须先用 REQ 主题做需求级对齐，否则登录用例会被误配给地点需求的 FP-001。
-_REQ_RE = re.compile(r"REQ-[一-鿿A-Za-z]+")
-
-
-def _req_themes(text: str) -> set[str]:
-    return {m.rstrip("0-9①②③④⑤⑥⑦⑧⑨") for m in _REQ_RE.findall(text)}
+# REQ 主题对齐的说明见 coverage_tools.req_themes；本地别名仅为兼容既有代码。
 
 
 def load_projects() -> dict[str, dict]:
