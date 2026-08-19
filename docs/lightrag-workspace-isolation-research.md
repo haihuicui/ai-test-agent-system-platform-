@@ -4,7 +4,9 @@
 >
 > **⚠️ 修正（同日 gh 核实后）**：本文初稿采信搜索摘要"PR #2445 已实现全端点路由"，经 `gh api` 核实——**PR #2445 于 2026-03-06 关闭未合并**，上游 main（含 v1.5.6）`get_workspace_from_request` 仍仅 /health 一个调用点；#2698 消毒修复已含于 1.5.5；#2904 仍 open。**二期已改为 vendored 1.5.5 自研 backport 并完成**（commit `1dc080b`，diff 存档 `LightRAG/local-patches/`）。下文保留调研过程与上游事实供参考。
 >
-> **📌 2026-08-18 复核（部署缺口 + 生产故障，详见文末「8-18 复核」）**：补丁目前**仅本机开发实例（127.0.0.1:9621）加载生效**；平台真实链路（Agent → 103 rag-server → 103 lightrag 容器）的 LightRAG 仍是**补丁前旧镜像**——一期注入的 workspace 头在服务端被忽略（假隔离依旧），且 103 容器 authenticated /health 当前恒 500，rag_health 全链路不可用。**待办：103 上重跑 deploy.sh 重建镜像 + 存量数据归属决策。**
+> **📌 2026-08-18 复核（部署缺口 + 生产故障，详见文末「8-18 复核」）**：补丁当时**仅本机开发实例（127.0.0.1:9621）加载生效**；平台真实链路（Agent → 103 rag-server → 103 lightrag 容器）的 LightRAG 仍是补丁前旧镜像。
+>
+> **✅ 2026-08-19 闭环**：103 已重部署补丁版镜像，authenticated /health 500 故障随重部署自愈；经中间层的生产链路隔离验证**全通过**（图谱搜索层 6/6 + LLM 查询层交叉验证，详见文末「8-19 验证」）。存量数据决策同步闭环：重部署前 103 各库为空，无迁移需求。**二期全链路上线完成。**
 
 ## 现状
 
@@ -70,13 +72,25 @@ Agent (LangGraph) ──SSE──> 103 rag-server:8008 ──HTTP──> 103 lig
 
 ### 推进清单（需 103 操作权限，本机无 SSH）
 
-1. **103 重部署**：`cd <repo> && bash deploy/deploy.sh`（git pull 拿到 1dc080b → 重建 lightrag 镜像 → up）。部署后容器内即补丁版。
-2. **部署后验证**：
-   - `rag_health` 带 `space_id=PR-1` 不再 500（若仍 500 → 查 `docker logs lightrag`，authenticated /health 故障与补丁无关、需单独修）；
-   - 双 workspace 隔离 E2E：经 103 中间层以 PR-1/PR-2 分别入库不同文档、交叉查询互不可见（复用 tests/workspace/e2e_request_routing_isolation.py 思路，目标改 103）；
-   - 不携带头的请求仍落默认 workspace（回归）。
-3. **存量数据归属决策**：103 默认 workspace 现有文档（含 rag-server 默认 `RAG_SPACE_ID=cmp_space` 期间入库的数据）——留在默认库共享，还是按项目重入库到 PR_n workspace？（一期上线至 103 重部署之间的所有入库都在默认库。）
-4. **内存观察**：103 重部署后关注 `_ws_instances` 增长（项目数 <20 可控；超出参考 #2745 加 LRU）。
+1. **103 重部署**：`cd <repo> && bash deploy/deploy.sh`（git pull 拿到 1dc080b → 重建 lightrag 镜像 → up）。部署后容器内即补丁版。 ✅ 8-19 已完成
+2. **部署后验证**：✅ 8-19 全部通过，见下节
+3. **存量数据归属决策**：✅ 闭环——重部署前 103 默认库与各 workspace 均为空（docs=0），无迁移需求
+4. **内存观察**：103 重部署后关注 `_ws_instances` 增长（项目数 <20 可控；超出参考 #2745 加 LRU）。持续观察项
+
+## 8-19 验证：生产链路隔离全通过
+
+103 重部署补丁版镜像后，经 rag-server 中间层（authenticated 全链路）实测：
+
+| 验证项 | 结果 |
+|---|---|
+| /health 带新 workspace 头 | ✅ 正常返回（懒加载生效，旧版报 pipeline namespace 错） |
+| `rag_health` 带/不带 space_id | ✅ healthy——**authenticated /health 500 故障随重部署自愈** |
+| 多 workspace 实例注册表 | ✅ PR-1/PR-2/PR-3/cmp_space 全部独立懒加载、healthy |
+| 图谱搜索层交叉隔离（6 组） | ✅ 6/6 PASS：PR-1 知「登录按钮」不知「购物车」；PR-2 知「退款」不知「登录按钮」；默认库均不知 |
+| LLM 查询层交叉（rag_query hybrid） | ✅ PR-1 答出登录流程（引用 pr1-login-doc.txt）；PR-2 明确「没有足够信息」，仅自述支付流程内容 |
+| 默认库回归 | ✅ docs=0，未被项目数据污染 |
+
+验证素材为部署后真实业务流量自然形成（PR-1 登录流程测试文档、PR-2 支付流程测试文档各 1 篇）——证明一期管道（会话项目 → space_id → LIGHTRAG-WORKSPACE 头）与二期服务端路由已在生产链路无缝衔接，平台侧零改动生效。
 
 ## Sources
 
