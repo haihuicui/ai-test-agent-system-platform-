@@ -264,10 +264,36 @@ def parse_mcp_tool_whitelist(raw: str | None) -> frozenset[str] | None:
 def build_web_agent_model():
     """构建 web_agent 专用模型。
 
-    默认关闭 DeepSeek thinking（WEB_AGENT_DISABLE_THINKING=true）：逐步浏览器决策
-    无需深度推理，实测复杂单步 13s→3s。thinking 是请求级参数（extra_body），
-    因此不能复用共享 text_model 单例，需独立实例；开关关闭时直接返回共享单例。
+    提供方由 settings.web_llm_provider 切换：
+    - deepseek（默认）：ChatDeepSeek。WEB_AGENT_DISABLE_THINKING=true 时通过
+      extra_body 关闭 thinking（逐步浏览器决策无需深度推理，实测复杂单步
+      13s→3s）。thinking 是请求级参数，不能复用共享 text_model 单例，
+      需独立实例；开关关闭时直接返回共享单例。
+    - qwen：自部署 vLLM 网关（数据不出网），ChatOpenAI 独立实例。
+      关闭 thinking 走 chat_template_kwargs.enable_thinking=false。
     """
+    if settings.web_llm_provider == "qwen":
+        from langchain_openai import ChatOpenAI
+
+        qwen_model = ChatOpenAI(
+            base_url=settings.qwen_api_base,
+            api_key=settings.qwen_api_key,
+            model=settings.qwen_model,
+            temperature=0.3,
+            max_retries=settings.llm_max_retries,
+            timeout=settings.llm_timeout,
+            max_tokens=settings.llm_max_tokens,
+            stream_chunk_timeout=settings.llm_stream_chunk_timeout,
+            extra_body=(
+                {"chat_template_kwargs": {"enable_thinking": False}}
+                if settings.web_agent_disable_thinking
+                else None
+            ),
+        )
+        # vLLM 侧 max_model_len=262144，预留 16K 输出配额后的可用输入上限
+        qwen_model.profile = ModelProfile(max_input_tokens=245760)
+        return qwen_model
+
     if not settings.web_agent_disable_thinking:
         return model
     from langchain_deepseek import ChatDeepSeek

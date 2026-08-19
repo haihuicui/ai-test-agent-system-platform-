@@ -120,7 +120,7 @@ def get_qwen_model():
     """创建自部署千问文本模型（OpenAI 兼容接口）。
 
     适用于 DeepSeek 不可用时的备选文本模型，或需要本地数据不出网的场景。
-    通过 ChatOpenAI 对接 vLLM 网关（10.1.0.29:8001）上的 Qwen3.6-35B。
+    通过 ChatOpenAI 对接 vLLM 网关（10.1.0.29:8001）上的 qwen3.8-27b。
 
     Returns:
         配置好 ModelProfile 的 ChatOpenAI 实例
@@ -157,7 +157,7 @@ def get_qwen_model_with_temperature(temperature: float = 0.3, max_tokens: int | 
     """创建指定 temperature 的自部署千问模型。
 
     与 get_text_model_with_temperature 同契约，供 testcase Agent 按阶段调温。
-    qwen3.6 同为推理模型，reasoning 与正文共享 max_tokens 配额——
+    qwen3.8 同为推理模型，reasoning 与正文共享 max_tokens 配额——
     长评审场景需显式调大 max_tokens，否则正文静默为空（finish_reason=length）。
 
     注意：此函数不使用 lru_cache，每次调用都新建实例。

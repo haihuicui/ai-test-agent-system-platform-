@@ -11,9 +11,12 @@ import pytest
 from app.agents.web_mcp import agent as agent_module
 from app.agents.web_mcp.agent import (
     CORE_MCP_TOOLS,
-    _login_state_cache,
-    _resolve_project_login_state,
     parse_mcp_tool_whitelist,
+)
+from app.utils import web_mcp_storage_state as storage_state_module
+from app.utils.web_mcp_storage_state import (
+    _login_state_cache,
+    resolve_project_login_state,
 )
 
 
@@ -53,6 +56,7 @@ class TestParseMcpToolWhitelist:
 
 class TestBuildWebAgentModel:
     def test_thinking_disabled_by_default(self, monkeypatch):
+        monkeypatch.setattr(agent_module.settings, "web_llm_provider", "deepseek")
         monkeypatch.setattr(agent_module.settings, "web_agent_disable_thinking", True)
         m = agent_module.build_web_agent_model()
         assert m.extra_body == {"thinking": {"type": "disabled"}}
@@ -60,8 +64,27 @@ class TestBuildWebAgentModel:
         assert m is not agent_module.model
 
     def test_thinking_enabled_returns_shared_singleton(self, monkeypatch):
+        monkeypatch.setattr(agent_module.settings, "web_llm_provider", "deepseek")
         monkeypatch.setattr(agent_module.settings, "web_agent_disable_thinking", False)
         assert agent_module.build_web_agent_model() is agent_module.model
+
+    def test_qwen_provider_disables_thinking_via_chat_template(self, monkeypatch):
+        monkeypatch.setattr(agent_module.settings, "web_llm_provider", "qwen")
+        monkeypatch.setattr(agent_module.settings, "web_agent_disable_thinking", True)
+        m = agent_module.build_web_agent_model()
+        assert m.model_name == agent_module.settings.qwen_model
+        assert m.extra_body == {"chat_template_kwargs": {"enable_thinking": False}}
+        profile = m.profile
+        if isinstance(profile, dict):
+            assert profile.get("max_input_tokens") == 245760
+        else:
+            assert profile.max_input_tokens == 245760
+
+    def test_qwen_provider_thinking_enabled_no_extra_body(self, monkeypatch):
+        monkeypatch.setattr(agent_module.settings, "web_llm_provider", "qwen")
+        monkeypatch.setattr(agent_module.settings, "web_agent_disable_thinking", False)
+        m = agent_module.build_web_agent_model()
+        assert not (m.extra_body or {}).get("chat_template_kwargs")
 
 
 class TestResolveProjectLoginStateCache:
@@ -81,8 +104,8 @@ class TestResolveProjectLoginStateCache:
         def _boom():
             raise AssertionError("缓存命中时不应触碰 DB")
 
-        monkeypatch.setattr(agent_module, "async_session_factory", _boom)
-        has_login, ss = await _resolve_project_login_state("PR-1")
+        monkeypatch.setattr(storage_state_module, "async_session_factory", _boom)
+        has_login, ss = await resolve_project_login_state("PR-1")
         assert (has_login, ss) == (True, "/tmp/ss.json")
 
     @pytest.mark.asyncio
@@ -90,7 +113,7 @@ class TestResolveProjectLoginStateCache:
         def _boom():
             raise RuntimeError("db down")
 
-        monkeypatch.setattr(agent_module, "async_session_factory", _boom)
-        has_login, ss = await _resolve_project_login_state("PR-9")
+        monkeypatch.setattr(storage_state_module, "async_session_factory", _boom)
+        has_login, ss = await resolve_project_login_state("PR-9")
         assert (has_login, ss) == (False, None)
         assert "PR-9" not in _login_state_cache
