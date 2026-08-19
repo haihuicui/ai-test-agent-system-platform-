@@ -13,6 +13,7 @@ tests/eval/
 ├── lint_cases.py             # 用例规范 lint（代码规则，零 token，可直接接 CI）
 ├── coverage_audit.py         # 覆盖漏测审计（复用运行时 compute_coverage，项目级全景）
 ├── judge_coverage.py         # 需求覆盖语义裁判（FP 级 G-Eval，抓虚假声明/真漏测）
+├── judge_faithfulness.py     # 需求忠实度裁判（文件级 G-Eval，抓幻觉用例，会话目录配对基准）
 ├── defense_stats.py          # 防线有效性统计（拦截率/评审发现/信任度，零 token）
 ├── compare_runs.py           # 模型 A/B 对比（同需求两版产出三维对比，裁判 3 次采样取中位）
 ├── judge_model.py            # DeepSeek 裁判封装（DeepEvalBaseLLM 协议）
@@ -63,6 +64,10 @@ cd backend
 # 会话目录级 / 跨矩阵评估（模型 A/B 对比用）：
 ./.venv/Scripts/python.exe -m tests.eval.judge_coverage \
     --cases-dir workspace/testcase/PR-1/<thread_id> --source-tag qwen
+
+# 需求忠实度裁判（幻觉用例：用例验证的功能矩阵里根本不存在；会话目录配对基准，
+# 项目级散置文件需 REQ 主题举证防冤案，断点续跑）
+./.venv/Scripts/python.exe -m tests.eval.judge_faithfulness --project PR-1
 
 # 防线有效性统计（中间件拦截率、对抗评审发现、信任度分布——过程质量量化）
 ./.venv/Scripts/python.exe -m tests.eval.defense_stats
@@ -129,6 +134,7 @@ cd backend
 | 预期结果可断言性 | 模糊词扣分、因果断裂扣分（质量红线第 2 条） | 初始阈值 0.8，未校准（校准轨道冻结，见下） |
 | 异常与安全覆盖 | 异常流密度、安全用例、边界值（红线第 4/6/7 条） | 初始阈值 0.7，未校准；A/B 对比中作相对分用 |
 | 需求覆盖完整性 | FP 级：相关用例是否真语义覆盖每个 test_point | ✅ 实战主力，judge_coverage.py 专用 |
+| 需求忠实度 | 文件级：幻觉用例（验证的功能矩阵里不存在） | ✅ 已上线，judge_faithfulness.py 专用；基准必须会话目录配对（项目级矩阵会冤杀，首跑实证） |
 
 ## A/B 实战首份结论（2026-08-17，compare_runs + judge_coverage）
 

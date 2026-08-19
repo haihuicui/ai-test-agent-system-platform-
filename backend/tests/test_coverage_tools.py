@@ -193,6 +193,59 @@ class TestComputeCoverageReportTool:
         assert result["success"] is False
         assert "无结构化矩阵" in result["message"]
 
+    def test_auto_scan_req_alignment_filters_cross_req_fp_refs(self, tmp_workspace):
+        """自动扫描：跨 REQ 用例的 FP 编号撞车引用不计入覆盖（防虚高）。
+
+        FP 编号是需求级的（各需求都从 FP-001 起编），自动扫描池混入其他需求
+        的遗留用例时，其"显式引用"是假阳性——REQ 主题错位的一律剔除。
+        """
+        proj_dir = tmp_workspace / "PROJ-1"
+        feature = _feature()
+        feature["source"] = "REQ-LOGIN-001 登录需求"
+        self._write_jsonl(proj_dir / "feature_matrix.jsonl", [feature])
+        # 本需求用例（主题对齐，但内容未覆盖 FP-001）
+        aligned_case = _case(name="权限不足提示", remarks="关联 REQ-LOGIN-002")
+        aligned_case["test_case_steps"] = [
+            {"step": "以只读账号访问后台地址", "result": "页面提示无访问权限"}
+        ]
+        # 其他需求遗留用例：文本恰好也引用 FP-001（编号撞车）
+        cross_case = _case(
+            number="TC-PROJ-PLACE-001",
+            name="新增地点-合法提交",
+            module="地点管理",
+            remarks="关联 REQ-PLACE-001 / FP-001",
+        )
+        self._write_jsonl(proj_dir / "test_cases_module_01.jsonl", [aligned_case])
+        self._write_jsonl(proj_dir / "test_cases_place_legacy.jsonl", [cross_case])
+
+        result = _call(compute_coverage_report, project_identifier="PROJ-1")
+
+        assert result["success"] is True
+        assert result["total_cases"] == 1  # 跨 REQ 用例已被剔除
+        assert result["covered"] == 0      # 撞车引用不计入覆盖
+        assert any("REQ 需求级对齐" in w for w in result["warnings"])
+
+    def test_explicit_case_files_skip_req_alignment(self, tmp_workspace):
+        """显式 case_files 模式不做 REQ 过滤：文件由模型明确指定为本次产出，
+        无 REQ 引用的用例（W6 违规但合法存在）不得被误杀。"""
+        proj_dir = tmp_workspace / "PROJ-1"
+        feature = _feature()
+        feature["source"] = "REQ-LOGIN-001 登录需求"
+        self._write_jsonl(proj_dir / "feature_matrix.jsonl", [feature])
+        case_file = proj_dir / "test_cases_module_01.jsonl"
+        self._write_jsonl(case_file, [_case()])
+
+        result = _call(
+            compute_coverage_report,
+            project_identifier="PROJ-1",
+            case_files=[str(case_file)],
+        )
+
+        assert result["success"] is True
+        assert result["total_cases"] == 1
+        assert result["covered"] == 1
+        assert not any("REQ 需求级对齐" in w for w in result["warnings"])
+
     def test_stale_matrix_detected_when_modules_disjoint(self, tmp_workspace):
         """矩阵与用例模块零交集且零覆盖 → 疑似其他需求的遗留矩阵，给出降级指引。
 

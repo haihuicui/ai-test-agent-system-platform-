@@ -67,6 +67,25 @@ coverage_faithfulness_metric = GEval(
     async_mode=False,
 )
 
+# ── 裁判 4：需求忠实度（幻觉用例，v2 带矩阵样本专用）────────────────
+# 覆盖不完整只是漏，幻觉用例是错——用例验证的功能点在需求里根本不存在。
+# 与裁判 3 互补：裁判 3 以 FP 为单位查「该有的有没有」，本裁判以文件为单位
+# 查「不该有的有没有」。评估单位为单个产出文件（judge_faithfulness.py 组装）。
+requirement_faithfulness_metric = GEval(
+    name="需求忠实度",
+    evaluation_steps=[
+        "input 是需求功能矩阵（功能点清单：模块/名称/test_points 测试要点），actual_output 是为该需求生成的一份测试用例文件",
+        "逐条判定用例的核心验证对象：其验证的功能能否归属于矩阵中某个功能点——对已有功能点的异常/边界/安全/负面变体属于合理衍生，不算幻觉",
+        "幻觉用例 = 核心验证的功能在矩阵中完全不存在（AI 自由发挥编造的需求）；每条幻觉用例扣 0.2 分",
+        "前置条件/测试数据中提及但未在步骤中实际验证的功能不算幻觉，只有被步骤实际验证的对象才参与判定",
+        "reason 中必须列出每条幻觉用例的 case_number、其验证的功能，以及它与矩阵中最近功能点的差异",
+    ],
+    evaluation_params=[LLMTestCaseParams.INPUT, LLMTestCaseParams.ACTUAL_OUTPUT],
+    threshold=0.8,
+    model=_judge,
+    async_mode=False,
+)
+
 # (维度 key, metric) —— run_judges 落盘与 calibrate_report 对比共用此 key
 JUDGES = (
     ("assertability", assertability_metric),

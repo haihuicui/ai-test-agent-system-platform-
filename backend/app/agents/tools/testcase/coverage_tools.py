@@ -433,6 +433,27 @@ async def compute_coverage_report(
             "warnings": warnings,
         }
 
+    if not case_files and cases:
+        # REQ 需求级对齐（仅自动扫描模式）：FP 编号是需求级的（各需求都从
+        # FP-001 起编），扫描池混入同项目其他需求的用例时编号撞车，跨需求
+        # 用例的"显式引用"是假阳性。显式 case_files 模式不过滤——文件由模型
+        # 明确指定为本次产出，且用例可能合法地不带 REQ 引用（W6 违规但存在），
+        # 过滤会误杀。矩阵无 source 主题时退化为不过滤。
+        matrix_themes: set[str] = set()
+        for fp in matrix["features"]:
+            matrix_themes |= req_themes(str(fp.get("source") or ""))
+        if matrix_themes:
+            aligned = [c for c in cases if req_themes(_case_text(c)) & matrix_themes]
+            dropped = len(cases) - len(aligned)
+            if dropped:
+                warnings.append(
+                    f"REQ 需求级对齐：{dropped}/{len(cases)} 条自动扫描用例的 REQ 主题"
+                    f"与矩阵（{sorted(matrix_themes)}）不符，已剔除出覆盖匹配"
+                    "（FP 编号需求级撞车防护）。若误伤本次生成的用例，"
+                    "请通过 case_files 显式传入本次模块文件清单后重新调用。"
+                )
+            cases = aligned
+
     rows = compute_coverage(matrix["features"], cases)
     covered = sum(1 for r in rows if r["covered"])
     total = len(rows)
