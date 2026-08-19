@@ -497,11 +497,13 @@
     "current": "현재",
     "inputPlaceholder": "워크스페이스 이름(영문자, 숫자, _)",
     "apply": "전환",
-    "history": "최근 워크스페이스",
     "sanitizedPreview": "라우팅 대상: {{sanitized}}",
     "sanitizeCollisionWarning": "비 ASCII 이름은 밑줄로 대체되어 충돌할 수 있습니다",
     "switched": "워크스페이스 {{workspace}}(으)로 전환했습니다",
     "switchedToDefault": "기본 워크스페이스로 전환했습니다",
-    "tooltip": "문서, 그래프, 검색은 워크스페이스별로 격리됩니다"
+    "tooltip": "문서, 그래프, 검색은 워크스페이스별로 격리됩니다",
+    "existing": "사용 가능한 워크스페이스",
+    "createNotice": "첫 사용 시 자동 생성됩니다: {{workspace}}",
+    "createAndSwitch": "생성 후 전환"
   }
 }

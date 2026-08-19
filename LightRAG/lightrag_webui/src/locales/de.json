@@ -497,11 +497,13 @@
     "current": "Aktuell",
     "inputPlaceholder": "Name des Arbeitsbereichs (Buchstaben, Ziffern, _)",
     "apply": "Wechseln",
-    "history": "Zuletzt verwendet",
     "sanitizedPreview": "Wird geroutet zu: {{sanitized}}",
     "sanitizeCollisionWarning": "Nicht-ASCII-Namen werden zu Unterstrichen und können kollidieren",
     "switched": "Gewechselt zu Arbeitsbereich {{workspace}}",
     "switchedToDefault": "Zum Standard-Arbeitsbereich gewechselt",
-    "tooltip": "Dokumente, Graphen und Abfragen sind pro Arbeitsbereich isoliert"
+    "tooltip": "Dokumente, Graphen und Abfragen sind pro Arbeitsbereich isoliert",
+    "existing": "Verfügbare Arbeitsbereiche",
+    "createNotice": "Wird bei erster Verwendung erstellt: {{workspace}}",
+    "createAndSwitch": "Erstellen und wechseln"
   }
 }

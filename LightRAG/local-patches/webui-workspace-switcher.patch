@@ -180,7 +180,7 @@ index db40415..f4fd36a 100644
 +  })
 +})
 diff --git a/LightRAG/lightrag_webui/src/api/lightrag.ts b/LightRAG/lightrag_webui/src/api/lightrag.ts
-index a34950f..04da554 100644
+index a34950f..f1dc8e5 100644
 --- a/LightRAG/lightrag_webui/src/api/lightrag.ts
 +++ b/LightRAG/lightrag_webui/src/api/lightrag.ts
 @@ -383,6 +383,10 @@ const silentRefreshGuestToken = async (): Promise<string> => {
@@ -233,7 +233,25 @@ index a34950f..04da554 100644
    return headers;
  }
  
-@@ -1100,8 +1115,10 @@ type InFlightPaginatedDocumentRequest = {
+@@ -1094,14 +1109,28 @@ export const getTrackStatus = async (trackId: string): Promise<TrackStatusRespon
+   return response.data
+ }
+ 
++/**
++ * List known workspaces (server-side registry, populated on lazy-load).
++ * Used by the workspace switcher to show existing workspaces beyond the
++ * browser-local history. Returns only named workspaces — the default
++ * workspace is always offered by the UI itself.
++ */
++export const getWorkspaces = async (): Promise<string[]> => {
++  const response = await axiosInstance.get('/workspaces')
++  const list = response.data?.workspaces
++  return Array.isArray(list) ? list.filter((w: unknown) => typeof w === 'string' && w) : []
++}
++
+ type InFlightPaginatedDocumentRequest = {
+   controller: AbortController
+   promise: Promise<PaginatedDocsResponse>
    subscriberCount: number
  }
  
@@ -245,7 +263,7 @@ index a34950f..04da554 100644
  
  // Deduplicate in-flight paginated document requests with identical parameters.
  // This prevents duplicate backend calls caused by overlapping timers/effects or
-@@ -1202,6 +1219,18 @@ export const abortDocumentsPaginated = (request: DocumentsRequest): void => {
+@@ -1202,6 +1231,18 @@ export const abortDocumentsPaginated = (request: DocumentsRequest): void => {
    inFlightRequest.controller.abort()
  }
  
@@ -266,11 +284,11 @@ index a34950f..04da554 100644
      controller.abort()
 diff --git a/LightRAG/lightrag_webui/src/components/WorkspaceSwitcher.tsx b/LightRAG/lightrag_webui/src/components/WorkspaceSwitcher.tsx
 new file mode 100644
-index 0000000..13696bf
+index 0000000..a424467
 --- /dev/null
 +++ b/LightRAG/lightrag_webui/src/components/WorkspaceSwitcher.tsx
-@@ -0,0 +1,121 @@
-+import { useState, useCallback } from 'react'
+@@ -0,0 +1,165 @@
++import { useState, useCallback, useEffect } from 'react'
 +import Button from '@/components/ui/Button'
 +import Input from '@/components/ui/Input'
 +import Badge from '@/components/ui/Badge'
@@ -278,17 +296,22 @@ index 0000000..13696bf
 +import { Command, CommandGroup, CommandItem, CommandList } from '@/components/ui/Command'
 +import { useSettingsStore } from '@/stores/settings'
 +import { sanitizeWorkspace, switchWorkspace } from '@/services/workspace'
++import { getWorkspaces } from '@/api/lightrag'
 +import { toast } from 'sonner'
 +
-+import { DatabaseIcon, ChevronsUpDownIcon } from 'lucide-react'
++import { DatabaseIcon, ChevronsUpDownIcon, PlusIcon } from 'lucide-react'
 +import { useTranslation } from 'react-i18next'
 +
 +/**
 + * Always-visible workspace switcher. The current workspace is shown on the
 + * trigger button so users can tell at a glance which workspace uploads,
-+ * graph browsing and retrieval will hit. Free-text input (the server has no
-+ * "list workspaces" API) with a live preview of the server-side sanitization
-+ * result and a collision warning when a name collapses to all underscores.
++ * graph browsing and retrieval will hit.
++ *
++ * The dropdown lists every workspace known to the server (registry populated
++ * on lazy-load) merged with the browser-local history. Typing a name that
++ * matches no existing workspace shows a "will be created on first use"
++ * notice — workspaces are created lazily by the server, no separate create
++ * step exists.
 + */
 +export default function WorkspaceSwitcher() {
 +  const { t } = useTranslation()
@@ -296,6 +319,31 @@ index 0000000..13696bf
 +  const workspaceHistory = useSettingsStore.use.workspaceHistory()
 +  const [open, setOpen] = useState(false)
 +  const [input, setInput] = useState('')
++  const [serverWorkspaces, setServerWorkspaces] = useState<string[]>([])
++
++  // Fetch the server-side workspace registry each time the popover opens, so
++  // the list reflects workspaces created from other browsers / sessions.
++  useEffect(() => {
++    if (!open) return
++    let cancelled = false
++    getWorkspaces()
++      .then((list) => {
++        if (!cancelled) setServerWorkspaces(list)
++      })
++      .catch(() => {
++        // Registry unavailable (older server) — fall back to local history only
++      })
++    return () => {
++      cancelled = true
++    }
++  }, [open])
++
++  // Server registry first (source of truth), then local history entries the
++  // server doesn't know about (e.g. created before the registry existed)
++  const knownWorkspaces = [
++    ...serverWorkspaces,
++    ...workspaceHistory.filter((ws) => !serverWorkspaces.includes(ws))
++  ]
 +
 +  const sanitized = sanitizeWorkspace(input)
 +  const trimmed = input.trim()
@@ -304,6 +352,9 @@ index 0000000..13696bf
 +  // Non-ASCII names (e.g. Chinese) collapse entirely to underscores and
 +  // different names can collide on the same workspace — warn about it
 +  const allUnderscores = sanitized !== '' && /^_+$/.test(sanitized)
++  // A non-empty sanitized name unknown to both lists will be created lazily
++  const isNewWorkspace =
++    sanitized !== '' && !knownWorkspaces.includes(sanitized)
 +
 +  const apply = useCallback(
 +    (raw: string) => {
@@ -359,9 +410,15 @@ index 0000000..13696bf
 +              {t('workspace.sanitizeCollisionWarning')}
 +            </p>
 +          )}
++          {isNewWorkspace && (
++            <p className="text-muted-foreground flex items-center gap-1 px-1 text-xs">
++              <PlusIcon className="size-3 shrink-0" />
++              {t('workspace.createNotice', { workspace: sanitized })}
++            </p>
++          )}
 +          <Command>
 +            <CommandList>
-+              <CommandGroup heading={t('workspace.history')}>
++              <CommandGroup heading={t('workspace.existing')}>
 +                <CommandItem onSelect={() => apply('')}>
 +                  <span className="truncate">{t('workspace.default')}</span>
 +                  {!workspace && (
@@ -370,7 +427,7 @@ index 0000000..13696bf
 +                    </Badge>
 +                  )}
 +                </CommandItem>
-+                {workspaceHistory.map((ws) => (
++                {knownWorkspaces.map((ws) => (
 +                  <CommandItem key={ws} onSelect={() => apply(ws)}>
 +                    <span className="truncate">{ws}</span>
 +                    {workspace === ws && (
@@ -383,8 +440,13 @@ index 0000000..13696bf
 +              </CommandGroup>
 +            </CommandList>
 +          </Command>
-+          <Button size="sm" className="w-full" onClick={() => apply(input)}>
-+            {t('workspace.apply')}
++          <Button
++            size="sm"
++            className="w-full"
++            disabled={trimmed === ''}
++            onClick={() => apply(input)}
++          >
++            {isNewWorkspace ? t('workspace.createAndSwitch') : t('workspace.apply')}
 +          </Button>
 +        </div>
 +      </PopoverContent>
@@ -503,7 +565,7 @@ index edc3786..07d4e30 100644
            <AppSettings />
          </div>
 diff --git a/LightRAG/lightrag_webui/src/locales/ar.json b/LightRAG/lightrag_webui/src/locales/ar.json
-index 332f51f..5ad5637 100644
+index 332f51f..96094f5 100644
 --- a/LightRAG/lightrag_webui/src/locales/ar.json
 +++ b/LightRAG/lightrag_webui/src/locales/ar.json
 @@ -111,7 +111,8 @@
@@ -516,7 +578,7 @@ index 332f51f..5ad5637 100644
      },
      "documentManager": {
        "title": "إدارة المستندات",
-@@ -489,5 +490,18 @@
+@@ -489,5 +490,20 @@
      "prevPage": "الصفحة السابقة",
      "nextPage": "الصفحة التالية",
      "lastPage": "الصفحة الأخيرة"
@@ -527,16 +589,18 @@ index 332f51f..5ad5637 100644
 +    "current": "الحالية",
 +    "inputPlaceholder": "اسم مساحة العمل (أحرف، أرقام، _)",
 +    "apply": "تبديل",
-+    "history": "مساحات العمل الأخيرة",
 +    "sanitizedPreview": "سيتم التوجيه إلى: {{sanitized}}",
 +    "sanitizeCollisionWarning": "الأسماء غير ASCII تتحول إلى شرطات سفلية وقد تتعارض",
 +    "switched": "تم التبديل إلى مساحة العمل {{workspace}}",
 +    "switchedToDefault": "تم التبديل إلى مساحة العمل الافتراضية",
-+    "tooltip": "المستندات والرسوم البيانية والاستعلامات معزولة حسب مساحة العمل"
++    "tooltip": "المستندات والرسوم البيانية والاستعلامات معزولة حسب مساحة العمل",
++    "existing": "مساحات العمل المتاحة",
++    "createNotice": "سيتم إنشاؤه عند أول استخدام: {{workspace}}",
++    "createAndSwitch": "إنشاء وتبديل"
    }
  }
 diff --git a/LightRAG/lightrag_webui/src/locales/de.json b/LightRAG/lightrag_webui/src/locales/de.json
-index ea68b1f..f021217 100644
+index ea68b1f..f50b39d 100644
 --- a/LightRAG/lightrag_webui/src/locales/de.json
 +++ b/LightRAG/lightrag_webui/src/locales/de.json
 @@ -111,7 +111,8 @@
@@ -549,7 +613,7 @@ index ea68b1f..f021217 100644
      },
      "documentManager": {
        "title": "Dokumentenverwaltung",
-@@ -489,5 +490,18 @@
+@@ -489,5 +490,20 @@
      "prevPage": "Vorherige Seite",
      "nextPage": "Nächste Seite",
      "lastPage": "Letzte Seite"
@@ -560,16 +624,18 @@ index ea68b1f..f021217 100644
 +    "current": "Aktuell",
 +    "inputPlaceholder": "Name des Arbeitsbereichs (Buchstaben, Ziffern, _)",
 +    "apply": "Wechseln",
-+    "history": "Zuletzt verwendet",
 +    "sanitizedPreview": "Wird geroutet zu: {{sanitized}}",
 +    "sanitizeCollisionWarning": "Nicht-ASCII-Namen werden zu Unterstrichen und können kollidieren",
 +    "switched": "Gewechselt zu Arbeitsbereich {{workspace}}",
 +    "switchedToDefault": "Zum Standard-Arbeitsbereich gewechselt",
-+    "tooltip": "Dokumente, Graphen und Abfragen sind pro Arbeitsbereich isoliert"
++    "tooltip": "Dokumente, Graphen und Abfragen sind pro Arbeitsbereich isoliert",
++    "existing": "Verfügbare Arbeitsbereiche",
++    "createNotice": "Wird bei erster Verwendung erstellt: {{workspace}}",
++    "createAndSwitch": "Erstellen und wechseln"
    }
  }
 diff --git a/LightRAG/lightrag_webui/src/locales/en.json b/LightRAG/lightrag_webui/src/locales/en.json
-index 99c84c6..986fa23 100644
+index 99c84c6..bddbd41 100644
 --- a/LightRAG/lightrag_webui/src/locales/en.json
 +++ b/LightRAG/lightrag_webui/src/locales/en.json
 @@ -113,7 +113,8 @@
@@ -582,7 +648,7 @@ index 99c84c6..986fa23 100644
      },
      "documentManager": {
        "title": "Document Management",
-@@ -491,5 +492,18 @@
+@@ -491,5 +492,20 @@
      "prevPage": "Previous Page",
      "nextPage": "Next Page",
      "lastPage": "Last Page"
@@ -593,16 +659,18 @@ index 99c84c6..986fa23 100644
 +    "current": "Current",
 +    "inputPlaceholder": "Workspace name (letters, digits, _)",
 +    "apply": "Switch",
-+    "history": "Recent workspaces",
 +    "sanitizedPreview": "Will route to: {{sanitized}}",
 +    "sanitizeCollisionWarning": "Non-ASCII names collapse to underscores and may collide",
 +    "switched": "Switched to workspace {{workspace}}",
 +    "switchedToDefault": "Switched to default workspace",
-+    "tooltip": "Documents, graphs and queries are isolated per workspace"
++    "tooltip": "Documents, graphs and queries are isolated per workspace",
++    "existing": "Available workspaces",
++    "createNotice": "Will be created on first use: {{workspace}}",
++    "createAndSwitch": "Create and switch"
    }
  }
 diff --git a/LightRAG/lightrag_webui/src/locales/fr.json b/LightRAG/lightrag_webui/src/locales/fr.json
-index c9d1ce3..ce9de6b 100644
+index c9d1ce3..5b9e9ed 100644
 --- a/LightRAG/lightrag_webui/src/locales/fr.json
 +++ b/LightRAG/lightrag_webui/src/locales/fr.json
 @@ -111,7 +111,8 @@
@@ -615,7 +683,7 @@ index c9d1ce3..ce9de6b 100644
      },
      "documentManager": {
        "title": "Gestion des documents",
-@@ -489,5 +490,18 @@
+@@ -489,5 +490,20 @@
      "prevPage": "Page précédente",
      "nextPage": "Page suivante",
      "lastPage": "Dernière page"
@@ -626,16 +694,18 @@ index c9d1ce3..ce9de6b 100644
 +    "current": "Actuel",
 +    "inputPlaceholder": "Nom de l'espace (lettres, chiffres, _)",
 +    "apply": "Changer",
-+    "history": "Espaces récents",
 +    "sanitizedPreview": "Sera routé vers : {{sanitized}}",
 +    "sanitizeCollisionWarning": "Les noms non ASCII sont remplacés par des tirets bas et peuvent entrer en collision",
 +    "switched": "Espace de travail changé : {{workspace}}",
 +    "switchedToDefault": "Espace par défaut activé",
-+    "tooltip": "Documents, graphes et recherches sont isolés par espace de travail"
++    "tooltip": "Documents, graphes et recherches sont isolés par espace de travail",
++    "existing": "Espaces disponibles",
++    "createNotice": "Sera créé à la première utilisation : {{workspace}}",
++    "createAndSwitch": "Créer et changer"
    }
  }
 diff --git a/LightRAG/lightrag_webui/src/locales/ja.json b/LightRAG/lightrag_webui/src/locales/ja.json
-index bec5d08..d565e26 100644
+index bec5d08..424eb54 100644
 --- a/LightRAG/lightrag_webui/src/locales/ja.json
 +++ b/LightRAG/lightrag_webui/src/locales/ja.json
 @@ -111,7 +111,8 @@
@@ -648,7 +718,7 @@ index bec5d08..d565e26 100644
      },
      "documentManager": {
        "title": "ドキュメント管理",
-@@ -489,5 +490,18 @@
+@@ -489,5 +490,20 @@
      "prevPage": "前のページ",
      "nextPage": "次のページ",
      "lastPage": "最後のページ"
@@ -659,16 +729,18 @@ index bec5d08..d565e26 100644
 +    "current": "現在",
 +    "inputPlaceholder": "ワークスペース名（英数字と _）",
 +    "apply": "切り替え",
-+    "history": "最近のワークスペース",
 +    "sanitizedPreview": "ルーティング先: {{sanitized}}",
 +    "sanitizeCollisionWarning": "非 ASCII 名はアンダースコアに置き換わり、衝突する可能性があります",
 +    "switched": "ワークスペース {{workspace}} に切り替えました",
 +    "switchedToDefault": "デフォルトワークスペースに切り替えました",
-+    "tooltip": "ドキュメント・グラフ・検索はワークスペースごとに分離されます"
++    "tooltip": "ドキュメント・グラフ・検索はワークスペースごとに分離されます",
++    "existing": "利用可能なワークスペース",
++    "createNotice": "初回使用時に自動作成されます: {{workspace}}",
++    "createAndSwitch": "作成して切り替え"
    }
  }
 diff --git a/LightRAG/lightrag_webui/src/locales/ko.json b/LightRAG/lightrag_webui/src/locales/ko.json
-index 25254fa..a988797 100644
+index 25254fa..69a9a97 100644
 --- a/LightRAG/lightrag_webui/src/locales/ko.json
 +++ b/LightRAG/lightrag_webui/src/locales/ko.json
 @@ -111,7 +111,8 @@
@@ -681,7 +753,7 @@ index 25254fa..a988797 100644
      },
      "documentManager": {
        "title": "문서 관리",
-@@ -489,5 +490,18 @@
+@@ -489,5 +490,20 @@
      "prevPage": "이전 페이지",
      "nextPage": "다음 페이지",
      "lastPage": "마지막 페이지"
@@ -692,16 +764,18 @@ index 25254fa..a988797 100644
 +    "current": "현재",
 +    "inputPlaceholder": "워크스페이스 이름(영문자, 숫자, _)",
 +    "apply": "전환",
-+    "history": "최근 워크스페이스",
 +    "sanitizedPreview": "라우팅 대상: {{sanitized}}",
 +    "sanitizeCollisionWarning": "비 ASCII 이름은 밑줄로 대체되어 충돌할 수 있습니다",
 +    "switched": "워크스페이스 {{workspace}}(으)로 전환했습니다",
 +    "switchedToDefault": "기본 워크스페이스로 전환했습니다",
-+    "tooltip": "문서, 그래프, 검색은 워크스페이스별로 격리됩니다"
++    "tooltip": "문서, 그래프, 검색은 워크스페이스별로 격리됩니다",
++    "existing": "사용 가능한 워크스페이스",
++    "createNotice": "첫 사용 시 자동 생성됩니다: {{workspace}}",
++    "createAndSwitch": "생성 후 전환"
    }
  }
 diff --git a/LightRAG/lightrag_webui/src/locales/ru.json b/LightRAG/lightrag_webui/src/locales/ru.json
-index 11e0f57..0ababd5 100644
+index 11e0f57..c586905 100644
 --- a/LightRAG/lightrag_webui/src/locales/ru.json
 +++ b/LightRAG/lightrag_webui/src/locales/ru.json
 @@ -111,7 +111,8 @@
@@ -714,7 +788,7 @@ index 11e0f57..0ababd5 100644
      },
      "documentManager": {
        "title": "Управление документами",
-@@ -489,5 +490,18 @@
+@@ -489,5 +490,20 @@
      "prevPage": "Предыдущая страница",
      "nextPage": "Следующая страница",
      "lastPage": "Последняя страница"
@@ -725,16 +799,18 @@ index 11e0f57..0ababd5 100644
 +    "current": "Текущая",
 +    "inputPlaceholder": "Имя области (буквы, цифры, _)",
 +    "apply": "Переключить",
-+    "history": "Недавние области",
 +    "sanitizedPreview": "Будет направлено в: {{sanitized}}",
 +    "sanitizeCollisionWarning": "Не-ASCII имена заменяются подчёркиваниями и могут совпасть",
 +    "switched": "Переключено на область {{workspace}}",
 +    "switchedToDefault": "Переключено на область по умолчанию",
-+    "tooltip": "Документы, графы и запросы изолированы по рабочим областям"
++    "tooltip": "Документы, графы и запросы изолированы по рабочим областям",
++    "existing": "Доступные области",
++    "createNotice": "Будет создана при первом использовании: {{workspace}}",
++    "createAndSwitch": "Создать и переключить"
    }
  }
 diff --git a/LightRAG/lightrag_webui/src/locales/uk.json b/LightRAG/lightrag_webui/src/locales/uk.json
-index d1e61d0..d92967c 100644
+index d1e61d0..c1c730a 100644
 --- a/LightRAG/lightrag_webui/src/locales/uk.json
 +++ b/LightRAG/lightrag_webui/src/locales/uk.json
 @@ -111,7 +111,8 @@
@@ -747,7 +823,7 @@ index d1e61d0..d92967c 100644
      },
      "documentManager": {
        "title": "Управління документами",
-@@ -489,5 +490,18 @@
+@@ -489,5 +490,20 @@
      "prevPage": "Попередня сторінка",
      "nextPage": "Наступна сторінка",
      "lastPage": "Остання сторінка"
@@ -758,16 +834,18 @@ index d1e61d0..d92967c 100644
 +    "current": "Поточна",
 +    "inputPlaceholder": "Назва області (літери, цифри, _)",
 +    "apply": "Перемкнути",
-+    "history": "Нещодавні області",
 +    "sanitizedPreview": "Буде спрямовано до: {{sanitized}}",
 +    "sanitizeCollisionWarning": "Не-ASCII назви замінюються підкресленнями і можуть збігтися",
 +    "switched": "Перемкнено на область {{workspace}}",
 +    "switchedToDefault": "Перемкнено на область за замовчуванням",
-+    "tooltip": "Документи, графи та запити ізольовані за робочими областями"
++    "tooltip": "Документи, графи та запити ізольовані за робочими областями",
++    "existing": "Доступні області",
++    "createNotice": "Буде створено при першому використанні: {{workspace}}",
++    "createAndSwitch": "Створити й перемкнути"
    }
  }
 diff --git a/LightRAG/lightrag_webui/src/locales/vi.json b/LightRAG/lightrag_webui/src/locales/vi.json
-index e783c29..5fa9c5d 100644
+index e783c29..8d6ebad 100644
 --- a/LightRAG/lightrag_webui/src/locales/vi.json
 +++ b/LightRAG/lightrag_webui/src/locales/vi.json
 @@ -111,7 +111,8 @@
@@ -780,7 +858,7 @@ index e783c29..5fa9c5d 100644
      },
      "documentManager": {
        "title": "Quản Lý Tài Liệu",
-@@ -489,5 +490,18 @@
+@@ -489,5 +490,20 @@
      "prevPage": "Trang Trước",
      "nextPage": "Trang Tiếp",
      "lastPage": "Trang Cuối"
@@ -791,16 +869,18 @@ index e783c29..5fa9c5d 100644
 +    "current": "Hiện tại",
 +    "inputPlaceholder": "Tên không gian (chữ, số, _)",
 +    "apply": "Chuyển",
-+    "history": "Không gian gần đây",
 +    "sanitizedPreview": "Sẽ định tuyến tới: {{sanitized}}",
 +    "sanitizeCollisionWarning": "Tên không phải ASCII sẽ bị thay bằng dấu gạch dưới và có thể trùng nhau",
 +    "switched": "Đã chuyển sang không gian {{workspace}}",
 +    "switchedToDefault": "Đã chuyển sang không gian mặc định",
-+    "tooltip": "Tài liệu, đồ thị và truy vấn được tách biệt theo không gian làm việc"
++    "tooltip": "Tài liệu, đồ thị và truy vấn được tách biệt theo không gian làm việc",
++    "existing": "Không gian khả dụng",
++    "createNotice": "Sẽ được tạo khi dùng lần đầu: {{workspace}}",
++    "createAndSwitch": "Tạo và chuyển"
    }
  }
 diff --git a/LightRAG/lightrag_webui/src/locales/zh.json b/LightRAG/lightrag_webui/src/locales/zh.json
-index 7c3c38c..1db3697 100644
+index 7c3c38c..2b118e7 100644
 --- a/LightRAG/lightrag_webui/src/locales/zh.json
 +++ b/LightRAG/lightrag_webui/src/locales/zh.json
 @@ -113,7 +113,8 @@
@@ -813,7 +893,7 @@ index 7c3c38c..1db3697 100644
      },
      "documentManager": {
        "title": "文档管理",
-@@ -491,5 +492,18 @@
+@@ -491,5 +492,20 @@
      "prevPage": "上一页",
      "nextPage": "下一页",
      "lastPage": "末页"
@@ -824,16 +904,18 @@ index 7c3c38c..1db3697 100644
 +    "current": "当前",
 +    "inputPlaceholder": "工作空间名称（字母、数字、下划线）",
 +    "apply": "切换",
-+    "history": "最近使用",
 +    "sanitizedPreview": "将路由到：{{sanitized}}",
 +    "sanitizeCollisionWarning": "非 ASCII 名称（如中文）会被全部转为下划线，不同名称可能撞到同一空间",
 +    "switched": "已切换到工作空间 {{workspace}}",
 +    "switchedToDefault": "已切换到默认空间",
-+    "tooltip": "文档、图谱与检索按工作空间隔离"
++    "tooltip": "文档、图谱与检索按工作空间隔离",
++    "existing": "已有工作空间",
++    "createNotice": "首次使用时将自动创建：{{workspace}}",
++    "createAndSwitch": "创建并切换"
    }
  }
 diff --git a/LightRAG/lightrag_webui/src/locales/zh_TW.json b/LightRAG/lightrag_webui/src/locales/zh_TW.json
-index 65e16ca..ff2392c 100644
+index 65e16ca..5304986 100644
 --- a/LightRAG/lightrag_webui/src/locales/zh_TW.json
 +++ b/LightRAG/lightrag_webui/src/locales/zh_TW.json
 @@ -113,7 +113,8 @@
@@ -846,7 +928,7 @@ index 65e16ca..ff2392c 100644
      },
      "documentManager": {
        "title": "文件管理",
-@@ -491,5 +492,18 @@
+@@ -491,5 +492,20 @@
      "prevPage": "上一頁",
      "nextPage": "下一頁",
      "lastPage": "最後一頁"
@@ -857,12 +939,14 @@ index 65e16ca..ff2392c 100644
 +    "current": "目前",
 +    "inputPlaceholder": "工作空間名稱（字母、數字、底線）",
 +    "apply": "切換",
-+    "history": "最近使用",
 +    "sanitizedPreview": "將路由到：{{sanitized}}",
 +    "sanitizeCollisionWarning": "非 ASCII 名稱（如中文）會全部轉為底線，不同名稱可能撞到同一空間",
 +    "switched": "已切換到工作空間 {{workspace}}",
 +    "switchedToDefault": "已切換到預設空間",
-+    "tooltip": "文件、圖譜與檢索按工作空間隔離"
++    "tooltip": "文件、圖譜與檢索按工作空間隔離",
++    "existing": "已有工作空間",
++    "createNotice": "首次使用時將自動建立：{{workspace}}",
++    "createAndSwitch": "建立並切換"
    }
  }
 diff --git a/LightRAG/lightrag_webui/src/services/workspace.ts b/LightRAG/lightrag_webui/src/services/workspace.ts

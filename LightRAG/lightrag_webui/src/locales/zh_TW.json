@@ -499,11 +499,13 @@
     "current": "目前",
     "inputPlaceholder": "工作空間名稱（字母、數字、底線）",
     "apply": "切換",
-    "history": "最近使用",
     "sanitizedPreview": "將路由到：{{sanitized}}",
     "sanitizeCollisionWarning": "非 ASCII 名稱（如中文）會全部轉為底線，不同名稱可能撞到同一空間",
     "switched": "已切換到工作空間 {{workspace}}",
     "switchedToDefault": "已切換到預設空間",
-    "tooltip": "文件、圖譜與檢索按工作空間隔離"
+    "tooltip": "文件、圖譜與檢索按工作空間隔離",
+    "existing": "已有工作空間",
+    "createNotice": "首次使用時將自動建立：{{workspace}}",
+    "createAndSwitch": "建立並切換"
   }
 }

@@ -1109,6 +1109,18 @@ export const getTrackStatus = async (trackId: string): Promise<TrackStatusRespon
   return response.data
 }
 
+/**
+ * List known workspaces (server-side registry, populated on lazy-load).
+ * Used by the workspace switcher to show existing workspaces beyond the
+ * browser-local history. Returns only named workspaces — the default
+ * workspace is always offered by the UI itself.
+ */
+export const getWorkspaces = async (): Promise<string[]> => {
+  const response = await axiosInstance.get('/workspaces')
+  const list = response.data?.workspaces
+  return Array.isArray(list) ? list.filter((w: unknown) => typeof w === 'string' && w) : []
+}
+
 type InFlightPaginatedDocumentRequest = {
   controller: AbortController
   promise: Promise<PaginatedDocsResponse>

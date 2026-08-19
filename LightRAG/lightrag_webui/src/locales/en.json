@@ -499,11 +499,13 @@
     "current": "Current",
     "inputPlaceholder": "Workspace name (letters, digits, _)",
     "apply": "Switch",
-    "history": "Recent workspaces",
     "sanitizedPreview": "Will route to: {{sanitized}}",
     "sanitizeCollisionWarning": "Non-ASCII names collapse to underscores and may collide",
     "switched": "Switched to workspace {{workspace}}",
     "switchedToDefault": "Switched to default workspace",
-    "tooltip": "Documents, graphs and queries are isolated per workspace"
+    "tooltip": "Documents, graphs and queries are isolated per workspace",
+    "existing": "Available workspaces",
+    "createNotice": "Will be created on first use: {{workspace}}",
+    "createAndSwitch": "Create and switch"
   }
 }

@@ -1,12 +1,12 @@
 # Vendored LightRAG 本地补丁存档
 
-## workspace-request-routing.patch（2026-08-13，基于 vendored v1.5.5）
+## workspace-request-routing.patch（2026-08-13，基于 vendored v1.5.5；8-19 扩展注册表）
 
 **背景**：上游 PR #2445（全端点 per-request workspace 路由）2026-03 关闭未合并，
 main 分支（含 v1.5.6）均仅 /health 支持 LIGHTRAG-WORKSPACE 头。本补丁在
 vendored 1.5.5 上自研实现同等能力。
 
-**内容**（lightrag/api/lightrag_server.py 单文件，+204/-24）：
+**内容**（lightrag/api/lightrag_server.py 单文件）：
 - `WorkspaceContextMiddleware`：ASGI 层解析 LIGHTRAG-WORKSPACE 头 →
   请求级 contextvar，并在进入 endpoint 前完成实例懒加载
 - workspace 实例注册表：懒加载 + per-workspace asyncio.Lock 防并发首请求；
@@ -15,14 +15,20 @@ vendored 1.5.5 上自研实现同等能力。
   doc_manager 为代理，属性访问按 contextvar 透明路由——**router 代码零改动**
 - lifespan 关闭时 finalize 全部懒加载实例
 - kwargs 函数化 `_build_rag_kwargs(workspace)`：默认与懒加载实例共用构造配置
+- **（8-19 新增）workspace 目录注册表**：懒加载成功即把 workspace 名登记到
+  `{working_dir}/_workspaces.json`（asyncio.Lock 串行 + tmp 原子替换），
+  配套 `GET /workspaces` 端点供 WebUI 切换器列举已有空间——服务端各存储
+  后端命名空间布局不同，反向扫描不可靠，显式注册表与后端无关
 
 **验证**：tests/workspace/e2e_request_routing_isolation.py（真实入库+查询）
 6/6 PASS——alpha 知 A 不知 B、beta 知 B 不知 A、默认库均不知。
 复跑方式：先 `python tests/workspace/e2e_request_routing_server.py`（本地轻量
 存储，9622 端口），再 `python tests/workspace/e2e_request_routing_isolation.py`。
+8-19 生产（103）全链路验证通过，见 docs/lightrag-workspace-isolation-research.md。
 
 **重放**（vendored 升级后若改动被覆盖）：
 ```bash
+# 基线为 1dc080b^（vendored 1.5.5 原版）：
 git apply LightRAG/local-patches/workspace-request-routing.patch
 # 冲突时手工参照本说明合入；上游若正式合入路由功能则废弃本补丁
 ```
@@ -30,25 +36,28 @@ git apply LightRAG/local-patches/workspace-request-routing.patch
 **注意**：上游正在演进 pipeline ingress 新架构（#3458/#3467），未来升级
 vendored 时需重新评估本补丁与上游的兼容性。
 
-## webui-workspace-switcher.patch（2026-08-19，基于 vendored v1.5.5）
+## webui-workspace-switcher.patch（2026-08-19，基于 vendored v1.5.5；同日扩展列表/创建引导）
 
 **背景**：与 workspace-request-routing.patch 配套的前端半区。服务端按
 LIGHTRAG-WORKSPACE 头路由后，WebUI 所有请求仍不带头——管理员经 WebUI
 上传的文档全部落默认 workspace，与各项目知识库脱节。本补丁给 WebUI 加
 workspace 切换能力。
 
-**内容**（lightrag_webui/src，2 个新文件 + 8 处存量小改）：
+**内容**（lightrag_webui/src，2 个新文件 + 存量小改）：
 - `stores/settings.ts`：`workspace`（存消毒后值，''=默认库）+
   `workspaceHistory`（≤8）字段，persist version 20→21 迁移
 - `api/lightrag.ts`：axios 拦截器 + `_buildStreamHeaders`（流式检索的原生
   fetch 路径）统一注头；分页请求 dedup key 加 workspace 命名空间；
-  新增 `abortAllDocumentsPaginated()`；`silentRefreshGuestToken` 刻意不注
-  （/auth-status 是全局端点，注头只会无谓触发服务端实例懒加载）
+  新增 `abortAllDocumentsPaginated()`；新增 `getWorkspaces()`（读服务端
+  注册表）；`silentRefreshGuestToken` 刻意不注（/auth-status 是全局端点，
+  注头只会无谓触发服务端实例懒加载）
 - `services/workspace.ts`（新）：`sanitizeWorkspace`（与服务端同规则）+
   `switchWorkspace` 统一切换入口（图谱 reset/version bump、检索历史清空、
   分页 in-flight abort、标签下拉刷新、/health 重查）
-- `components/WorkspaceSwitcher.tsx`（新）：Sidebar footer 常显切换器，
-  自由文本输入 + 消毒预览 + 全下划线撞库警告 + 历史下拉
+- `components/WorkspaceSwitcher.tsx`（新）：Sidebar footer 常显切换器。
+  下拉列表 = 服务端 /workspaces 注册表 ∪ 本地历史；输入未知名称时显示
+  "首次使用时将自动创建"引导（创建即懒加载，无独立创建步骤）；
+  消毒预览 + 全下划线撞库警告
 - `Sidebar.tsx` footer 接入；`App.tsx` `<DocumentManager key={workspace}>`
   remount；`RetrievalView.tsx` 检索历史写入加 workspace 守卫（防进行中的
   流写回新 workspace）；`UploadDocumentsDialog.tsx` 显示目标 workspace 防呆
@@ -56,14 +65,16 @@ workspace 切换能力。
 
 **验证**：`bun test` 45/45（含新增 workspace 头注入/缺省断言、跨 workspace
 不 dedup、abortAll）；`bunx tsc --noEmit` 干净；本机 9621 补丁版实例 E2E
-7/7（`ui/scripts/e2e_webui_workspace_switcher.mjs`，Playwright）——切换器
-渲染、消毒预览、localStorage 持久化、刷新后 /health 带头、切回默认库头消失。
+10/10（`ui/scripts/e2e_webui_workspace_switcher.mjs`，Playwright）——切换器
+渲染、消毒预览、创建引导、注册表登记、localStorage 持久化、刷新后 /health
+带头、切回默认库头消失。
 
 **重放**：
 ```bash
+# 基线为 91e3434^（vendored 原版 WebUI）：
 git apply LightRAG/local-patches/webui-workspace-switcher.patch
-# settings.ts migrate 链（version 21）与 locales 为上游高频改动区：
-# 冲突时保留双方、迁移版本号顺延
+# settings.ts migrate 链与 locales 为上游高频改动区：冲突时保留双方，
+# persist 迁移版本号顺延
 ```
 
 **注意**：WebUI 构建产物进 `lightrag/api/webui/`（gitignored），Docker 镜像

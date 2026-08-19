@@ -38,30 +38,40 @@ try {
   const triggerText = await trigger.first().innerText()
   check(/默认空间|Default workspace/.test(triggerText), '默认显示默认空间', `got "${triggerText}"`)
 
-  // 2. 打开 Popover 输入 PR-1，出现消毒预览 PR_1
+  // 2. 打开 Popover：列表应含服务端注册表的 PR_1；输入新名字显示创建引导
   await trigger.first().click()
-  await page.waitForTimeout(400)
+  await page.waitForTimeout(1200) // 等 /workspaces 拉取
+  let bodyText = await page.innerText('body')
+  check(/PR_1/.test(bodyText), '列表展示服务端注册表中的 PR_1')
+
   const input = page.locator('[data-slot="popover-content"] input, .popover-content input, input').last()
-  await input.fill('PR-1')
+  await input.fill('E2E-NewSpace')
   await page.waitForTimeout(300)
-  const bodyText = await page.innerText('body')
-  check(/PR_1/.test(bodyText), '消毒预览显示 PR_1')
+  bodyText = await page.innerText('body')
+  check(/E2E_NewSpace/.test(bodyText), '消毒预览显示 E2E_NewSpace')
+  check(/将自动创建|created on first use/i.test(bodyText), '显示"将创建新空间"引导')
 
   // 3. 应用切换（Enter 键）
   await input.press('Enter')
-  await page.waitForTimeout(800)
+  await page.waitForTimeout(1500) // 懒加载新实例需几秒
   const stored = await page.evaluate(
     () => JSON.parse(localStorage.getItem('settings-storage')).state.workspace
   )
-  check(stored === 'PR_1', 'localStorage 持久化 workspace=PR_1', `got ${stored}`)
+  check(stored === 'E2E_NewSpace', 'localStorage 持久化 workspace=E2E_NewSpace', `got ${stored}`)
 
-  // 4. 刷新后请求带头
+  // 4. 刷新后请求带头；服务端注册表应已登记新 workspace
   captured.length = 0
   await page.reload({ waitUntil: 'networkidle' })
   await page.waitForTimeout(2000)
-  const healthWithWs = captured.filter(([u, h]) => u.includes('health') && h === 'PR_1')
-  check(healthWithWs.length > 0, '刷新后 /health 携带 LIGHTRAG-WORKSPACE: PR_1',
+  const healthWithWs = captured.filter(([u, h]) => u.includes('health') && h === 'E2E_NewSpace')
+  check(healthWithWs.length > 0, '刷新后 /health 携带 LIGHTRAG-WORKSPACE: E2E_NewSpace',
     `captured=${JSON.stringify(captured.slice(0, 6))}`)
+
+  const registry = await page.evaluate(async () => {
+    const r = await fetch('/workspaces')
+    return (await r.json()).workspaces
+  })
+  check(registry.includes('E2E_NewSpace'), '服务端注册表登记 E2E_NewSpace', `got ${JSON.stringify(registry)}`)
 
   // 5. 切回默认空间
   const trigger2 = page.getByRole('button', { name: /^(Workspace|工作空间)$/ })

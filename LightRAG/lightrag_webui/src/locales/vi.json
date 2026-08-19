@@ -497,11 +497,13 @@
     "current": "Hiện tại",
     "inputPlaceholder": "Tên không gian (chữ, số, _)",
     "apply": "Chuyển",
-    "history": "Không gian gần đây",
     "sanitizedPreview": "Sẽ định tuyến tới: {{sanitized}}",
     "sanitizeCollisionWarning": "Tên không phải ASCII sẽ bị thay bằng dấu gạch dưới và có thể trùng nhau",
     "switched": "Đã chuyển sang không gian {{workspace}}",
     "switchedToDefault": "Đã chuyển sang không gian mặc định",
-    "tooltip": "Tài liệu, đồ thị và truy vấn được tách biệt theo không gian làm việc"
+    "tooltip": "Tài liệu, đồ thị và truy vấn được tách biệt theo không gian làm việc",
+    "existing": "Không gian khả dụng",
+    "createNotice": "Sẽ được tạo khi dùng lần đầu: {{workspace}}",
+    "createAndSwitch": "Tạo và chuyển"
   }
 }

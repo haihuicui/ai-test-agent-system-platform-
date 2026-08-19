@@ -159,6 +159,50 @@ class WorkspaceContextMiddleware:
             await self.app(scope, receive, send)
         finally:
             _request_workspace_ctx.reset(token)
+
+
+# =============================================================================
+# Workspace 注册表（/workspaces 端点的数据来源）
+# =============================================================================
+# 懒加载创建实例时把 workspace 名登记到 working_dir 下的 _workspaces.json，
+# 解决"服务端无从列举已有 workspace"的问题（各存储后端的命名空间布局不同，
+# 反向扫描不可靠；显式注册表与存储后端无关）。单 worker 部署下用 asyncio.Lock
+# 串行化读-改-写；文件原子替换（tmp + os.replace）防半写。
+
+
+def _workspace_catalog_path(working_dir: str) -> str:
+    return os.path.join(working_dir, "_workspaces.json")
+
+
+def _read_workspace_catalog(path: str) -> list:
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        names = data.get("workspaces")
+        return sorted({n for n in names if isinstance(n, str) and n}) if isinstance(names, list) else []
+    except Exception:
+        return []
+
+
+async def _record_workspace_in_catalog(path: str, workspace: str, lock: asyncio.Lock) -> None:
+    """登记 workspace 到注册表（幂等）。失败仅记日志，不影响请求链路。"""
+    if not workspace:
+        return
+    try:
+        async with lock:
+            names = _read_workspace_catalog(path)
+            if workspace in names:
+                return
+            names.append(workspace)
+            names.sort()
+            tmp_path = path + ".tmp"
+            with open(tmp_path, "w", encoding="utf-8") as f:
+                json.dump({"workspaces": names}, f, ensure_ascii=False, indent=2)
+            os.replace(tmp_path, path)
+    except Exception:
+        logger.warning(f"[Workspace] 注册表登记失败 workspace={workspace}", exc_info=True)
+
+
 auth_configured = bool(auth_handler.accounts)
 
 
@@ -2194,6 +2238,8 @@ def create_app(args):
     _ws_instances: dict = {}  # workspace -> LightRAG（默认 workspace 用 rag，不入表）
     _ws_locks: dict = {}      # workspace -> asyncio.Lock（防首请求并发重复创建）
     _ws_registry_lock = asyncio.Lock()
+    _ws_catalog = _workspace_catalog_path(args.working_dir)
+    _ws_catalog_lock = asyncio.Lock()
 
     async def get_rag_for_workspace(workspace):
         """按 workspace 获取 LightRAG 实例（懒加载 + per-workspace 锁）。
@@ -2225,6 +2271,7 @@ def create_app(args):
             await instance.check_and_migrate_data()
             _ws_instances[workspace] = instance
             logger.info(f"[Workspace] 实例就绪: workspace={workspace}")
+            await _record_workspace_in_catalog(_ws_catalog, workspace, _ws_catalog_lock)
             return instance
 
     def _resolve_rag_for_current_request():
@@ -2334,6 +2381,16 @@ def create_app(args):
             return RedirectResponse(url=f"{root}{webui_path}/")
         else:
             return RedirectResponse(url=f"{root}/docs")
+
+    @app.get("/workspaces")
+    async def list_workspaces():
+        """列出已知 workspace（供 WebUI 切换器展示）。
+
+        数据来源是注册表文件 _workspaces.json（懒加载创建实例时登记），
+        与存储后端无关。空字符串代表默认 workspace（不放行——默认库由
+        前端固定展示，此处只返回命名 workspace 列表）。
+        """
+        return {"workspaces": _read_workspace_catalog(_ws_catalog)}
 
     @app.get("/auth-status")
     async def get_auth_status():

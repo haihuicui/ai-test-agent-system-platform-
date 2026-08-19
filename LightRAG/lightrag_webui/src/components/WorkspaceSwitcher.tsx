@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Badge from '@/components/ui/Badge'
@@ -6,17 +6,22 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/Popover
 import { Command, CommandGroup, CommandItem, CommandList } from '@/components/ui/Command'
 import { useSettingsStore } from '@/stores/settings'
 import { sanitizeWorkspace, switchWorkspace } from '@/services/workspace'
+import { getWorkspaces } from '@/api/lightrag'
 import { toast } from 'sonner'
 
-import { DatabaseIcon, ChevronsUpDownIcon } from 'lucide-react'
+import { DatabaseIcon, ChevronsUpDownIcon, PlusIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 /**
  * Always-visible workspace switcher. The current workspace is shown on the
  * trigger button so users can tell at a glance which workspace uploads,
- * graph browsing and retrieval will hit. Free-text input (the server has no
- * "list workspaces" API) with a live preview of the server-side sanitization
- * result and a collision warning when a name collapses to all underscores.
+ * graph browsing and retrieval will hit.
+ *
+ * The dropdown lists every workspace known to the server (registry populated
+ * on lazy-load) merged with the browser-local history. Typing a name that
+ * matches no existing workspace shows a "will be created on first use"
+ * notice — workspaces are created lazily by the server, no separate create
+ * step exists.
  */
 export default function WorkspaceSwitcher() {
   const { t } = useTranslation()
@@ -24,6 +29,31 @@ export default function WorkspaceSwitcher() {
   const workspaceHistory = useSettingsStore.use.workspaceHistory()
   const [open, setOpen] = useState(false)
   const [input, setInput] = useState('')
+  const [serverWorkspaces, setServerWorkspaces] = useState<string[]>([])
+
+  // Fetch the server-side workspace registry each time the popover opens, so
+  // the list reflects workspaces created from other browsers / sessions.
+  useEffect(() => {
+    if (!open) return
+    let cancelled = false
+    getWorkspaces()
+      .then((list) => {
+        if (!cancelled) setServerWorkspaces(list)
+      })
+      .catch(() => {
+        // Registry unavailable (older server) — fall back to local history only
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [open])
+
+  // Server registry first (source of truth), then local history entries the
+  // server doesn't know about (e.g. created before the registry existed)
+  const knownWorkspaces = [
+    ...serverWorkspaces,
+    ...workspaceHistory.filter((ws) => !serverWorkspaces.includes(ws))
+  ]
 
   const sanitized = sanitizeWorkspace(input)
   const trimmed = input.trim()
@@ -32,6 +62,9 @@ export default function WorkspaceSwitcher() {
   // Non-ASCII names (e.g. Chinese) collapse entirely to underscores and
   // different names can collide on the same workspace — warn about it
   const allUnderscores = sanitized !== '' && /^_+$/.test(sanitized)
+  // A non-empty sanitized name unknown to both lists will be created lazily
+  const isNewWorkspace =
+    sanitized !== '' && !knownWorkspaces.includes(sanitized)
 
   const apply = useCallback(
     (raw: string) => {
@@ -87,9 +120,15 @@ export default function WorkspaceSwitcher() {
               {t('workspace.sanitizeCollisionWarning')}
             </p>
           )}
+          {isNewWorkspace && (
+            <p className="text-muted-foreground flex items-center gap-1 px-1 text-xs">
+              <PlusIcon className="size-3 shrink-0" />
+              {t('workspace.createNotice', { workspace: sanitized })}
+            </p>
+          )}
           <Command>
             <CommandList>
-              <CommandGroup heading={t('workspace.history')}>
+              <CommandGroup heading={t('workspace.existing')}>
                 <CommandItem onSelect={() => apply('')}>
                   <span className="truncate">{t('workspace.default')}</span>
                   {!workspace && (
@@ -98,7 +137,7 @@ export default function WorkspaceSwitcher() {
                     </Badge>
                   )}
                 </CommandItem>
-                {workspaceHistory.map((ws) => (
+                {knownWorkspaces.map((ws) => (
                   <CommandItem key={ws} onSelect={() => apply(ws)}>
                     <span className="truncate">{ws}</span>
                     {workspace === ws && (
@@ -111,8 +150,13 @@ export default function WorkspaceSwitcher() {
               </CommandGroup>
             </CommandList>
           </Command>
-          <Button size="sm" className="w-full" onClick={() => apply(input)}>
-            {t('workspace.apply')}
+          <Button
+            size="sm"
+            className="w-full"
+            disabled={trimmed === ''}
+            onClick={() => apply(input)}
+          >
+            {isNewWorkspace ? t('workspace.createAndSwitch') : t('workspace.apply')}
           </Button>
         </div>
       </PopoverContent>
