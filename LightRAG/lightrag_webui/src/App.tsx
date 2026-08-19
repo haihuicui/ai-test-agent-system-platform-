@@ -22,6 +22,9 @@ function App() {
   const message = useBackendState.use.message()
   const enableHealthCheck = useSettingsStore.use.enableHealthCheck()
   const currentTab = useSettingsStore.use.currentTab()
+  // Remounting DocumentManager on workspace change resets its local state
+  // (pagination, filters, selections, throttle refs) atomically.
+  const workspace = useSettingsStore.use.workspace()
   const [apiKeyAlertOpen, setApiKeyAlertOpen] = useState(false)
   const [initializing, setInitializing] = useState(true) // Add initializing state
   const versionCheckRef = useRef(false); // Prevent duplicate calls in Vite dev mode
@@ -195,7 +198,7 @@ function App() {
                   currentTab === 'documents' ? 'visible' : 'invisible'
                 )}
               >
-                <DocumentManager />
+                <DocumentManager key={workspace} />
               </div>
               <div
                 className={cn(

@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/Dialog'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/Tooltip'
 import { SiteInfo, webuiPrefix } from '@/lib/constants'
 import AppSettings from '@/components/AppSettings'
+import WorkspaceSwitcher from '@/components/WorkspaceSwitcher'
 import { useSettingsStore } from '@/stores/settings'
 import { useAuthStore } from '@/stores/state'
 import { navigationService } from '@/services/navigation'
@@ -87,6 +88,9 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
       {/* Footer */}
       <div className="border-t p-3 dark:border-white/10 dark:bg-black/30">
+        <div className="mb-2">
+          <WorkspaceSwitcher />
+        </div>
         <div className="flex items-center">
           <AppSettings />
         </div>

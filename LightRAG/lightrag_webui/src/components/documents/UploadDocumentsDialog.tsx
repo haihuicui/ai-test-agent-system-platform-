@@ -10,9 +10,11 @@ import {
   DialogTrigger
 } from '@/components/ui/Dialog'
 import FileUploader from '@/components/ui/FileUploader'
+import Badge from '@/components/ui/Badge'
 import { toast } from 'sonner'
 import { errorMessage } from '@/lib/utils'
 import { uploadDocument } from '@/api/lightrag'
+import { useSettingsStore } from '@/stores/settings'
 
 import { UploadIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -32,6 +34,7 @@ export default function UploadDocumentsDialog({
   onUploadBatchAccepted
 }: UploadDocumentsDialogProps) {
   const { t } = useTranslation()
+  const workspace = useSettingsStore.use.workspace()
   const [open, setOpen] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [progresses, setProgresses] = useState<Record<string, number>>({})
@@ -228,6 +231,10 @@ export default function UploadDocumentsDialog({
           <DialogDescription>
             {t('documentPanel.uploadDocuments.description')}
           </DialogDescription>
+          <div className="text-muted-foreground flex items-center gap-1 text-xs">
+            {t('documentPanel.uploadDocuments.targetWorkspace')}:
+            <Badge variant="secondary">{workspace || t('workspace.default')}</Badge>
+          </div>
         </DialogHeader>
         <FileUploader
           maxFileCount={Infinity}

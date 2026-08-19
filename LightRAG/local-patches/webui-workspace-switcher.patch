@@ -1,0 +1,1011 @@
+diff --git a/LightRAG/lightrag_webui/src/App.tsx b/LightRAG/lightrag_webui/src/App.tsx
+index e78af2b..9b3369e 100644
+--- a/LightRAG/lightrag_webui/src/App.tsx
++++ b/LightRAG/lightrag_webui/src/App.tsx
+@@ -22,6 +22,9 @@ function App() {
+   const message = useBackendState.use.message()
+   const enableHealthCheck = useSettingsStore.use.enableHealthCheck()
+   const currentTab = useSettingsStore.use.currentTab()
++  // Remounting DocumentManager on workspace change resets its local state
++  // (pagination, filters, selections, throttle refs) atomically.
++  const workspace = useSettingsStore.use.workspace()
+   const [apiKeyAlertOpen, setApiKeyAlertOpen] = useState(false)
+   const [initializing, setInitializing] = useState(true) // Add initializing state
+   const versionCheckRef = useRef(false); // Prevent duplicate calls in Vite dev mode
+@@ -195,7 +198,7 @@ function App() {
+                   currentTab === 'documents' ? 'visible' : 'invisible'
+                 )}
+               >
+-                <DocumentManager />
++                <DocumentManager key={workspace} />
+               </div>
+               <div
+                 className={cn(
+diff --git a/LightRAG/lightrag_webui/src/api/lightrag-stream.test.ts b/LightRAG/lightrag_webui/src/api/lightrag-stream.test.ts
+index db40415..f4fd36a 100644
+--- a/LightRAG/lightrag_webui/src/api/lightrag-stream.test.ts
++++ b/LightRAG/lightrag_webui/src/api/lightrag-stream.test.ts
+@@ -24,7 +24,10 @@ Object.defineProperty(globalThis, 'sessionStorage', {
+ // Mock zustand stores — both return a vanilla store-like object with getState()
+ let storeApiKey: string | null = null
+ let storeIsGuestMode = false
+-const fakeSettingsStore = { getState: () => ({ apiKey: storeApiKey }) }
++let storeWorkspace = ''
++const fakeSettingsStore = {
++  getState: () => ({ apiKey: storeApiKey, workspace: storeWorkspace }),
++}
+ const fakeAuthStore = {
+   getState: () => ({
+     isGuestMode: storeIsGuestMode,
+@@ -138,6 +141,7 @@ afterEach(() => {
+   storageData.clear()
+   storeApiKey = null
+   storeIsGuestMode = false
++  storeWorkspace = ''
+ })
+ 
+ describe('queryTextStream — normal path', () => {
+@@ -438,6 +442,42 @@ describe('queryTextStream — auth headers', () => {
+     expect(sentHeaders['Authorization']).toBeUndefined()
+   })
+ 
++  test('includes LIGHTRAG-WORKSPACE header when a workspace is selected', async () => {
++    storeWorkspace = 'PR_1'
++
++    let capturedHeaders: HeadersInit | undefined
++    installFetchMock((_url: string, init?: RequestInit) => {
++      capturedHeaders = init?.headers
++      return makeNdjsonResponse(['{"response": "ok"}'])
++    })
++
++    await apiModule.queryTextStream(
++      makeQueryRequest(),
++      () => {},
++      () => {}
++    )
++
++    const sentHeaders = capturedHeaders as Record<string, string>
++    expect(sentHeaders['LIGHTRAG-WORKSPACE']).toBe('PR_1')
++  })
++
++  test('omits LIGHTRAG-WORKSPACE header for the default workspace', async () => {
++    let capturedHeaders: HeadersInit | undefined
++    installFetchMock((_url: string, init?: RequestInit) => {
++      capturedHeaders = init?.headers
++      return makeNdjsonResponse(['{"response": "ok"}'])
++    })
++
++    await apiModule.queryTextStream(
++      makeQueryRequest(),
++      () => {},
++      () => {}
++    )
++
++    const sentHeaders = capturedHeaders as Record<string, string>
++    expect(sentHeaders['LIGHTRAG-WORKSPACE']).toBeUndefined()
++  })
++
+   test('calls /query/stream endpoint', async () => {
+     let capturedUrl = ''
+     installFetchMock((url: string) => {
+@@ -513,3 +553,90 @@ describe('queryTextStream — guest-token 401 retry', () => {
+     )
+   })
+ })
++
++describe('workspace namespacing of paginated document requests', () => {
++  // The dedup key of in-flight paginated document requests is namespaced by
++  // the active workspace: identical parameters under different workspaces
++  // must NOT share a promise. The settings store is mocked in this file, so
++  // the workspace is controlled via the `storeWorkspace` variable.
++  const makeDocsRequest = (page = 1) => ({
++    status_filter: null,
++    page,
++    page_size: 20,
++    sort_field: 'updated_at' as const,
++    sort_direction: 'desc' as const
++  })
++
++  const emptyPage = {
++    documents: [],
++    pagination: { page: 1, page_size: 20, total_count: 0, total_pages: 0, has_next: false, has_prev: false },
++    status_counts: { all: 0 }
++  }
++
++  test('does not dedupe identical requests across workspaces', async () => {
++    const request = makeDocsRequest()
++
++    let callCount = 0
++    const resolvers: Array<(value: any) => void> = []
++    apiModule.__setPaginatedDocumentsPostForTests((_request, controller) => {
++      callCount += 1
++      return new Promise((resolve, reject) => {
++        resolvers.push(resolve)
++        controller.signal.addEventListener(
++          'abort',
++          () => reject(new DOMException('Aborted', 'AbortError')),
++          { once: true }
++        )
++      })
++    })
++
++    storeWorkspace = 'ws_a'
++    const reqA = apiModule.getDocumentsPaginated(request)
++    storeWorkspace = 'ws_b'
++    const reqB = apiModule.getDocumentsPaginated(request)
++
++    expect(callCount).toBe(2)
++
++    resolvers[0](emptyPage)
++    resolvers[1](emptyPage)
++    await expect(reqA).resolves.toEqual(emptyPage)
++    await expect(reqB).resolves.toEqual(emptyPage)
++
++    // Same workspace + same parameters still dedupes
++    const reqB1 = apiModule.getDocumentsPaginated(request)
++    const reqB2 = apiModule.getDocumentsPaginated(request)
++    expect(callCount).toBe(3)
++    resolvers[2](emptyPage)
++    await expect(reqB1).resolves.toEqual(emptyPage)
++    await expect(reqB2).resolves.toEqual(emptyPage)
++
++    storeWorkspace = ''
++    apiModule.__resetPaginatedDocumentRequestsForTests()
++  })
++
++  test('abortAllDocumentsPaginated aborts every in-flight request', async () => {
++    let callCount = 0
++    apiModule.__setPaginatedDocumentsPostForTests((_request, controller) => {
++      callCount += 1
++      return new Promise((_resolve, reject) => {
++        controller.signal.addEventListener(
++          'abort',
++          () => reject(new DOMException('Aborted', 'AbortError')),
++          { once: true }
++        )
++      })
++    })
++
++    const first = apiModule.getDocumentsPaginated(makeDocsRequest())
++    const second = apiModule.getDocumentsPaginated(makeDocsRequest(2))
++    expect(callCount).toBe(2)
++
++    apiModule.abortAllDocumentsPaginated()
++
++    const [r1, r2] = await Promise.allSettled([first, second])
++    expect(r1.status).toBe('rejected')
++    expect(r2.status).toBe('rejected')
++
++    apiModule.__resetPaginatedDocumentRequestsForTests()
++  })
++})
+diff --git a/LightRAG/lightrag_webui/src/api/lightrag.ts b/LightRAG/lightrag_webui/src/api/lightrag.ts
+index a34950f..04da554 100644
+--- a/LightRAG/lightrag_webui/src/api/lightrag.ts
++++ b/LightRAG/lightrag_webui/src/api/lightrag.ts
+@@ -383,6 +383,10 @@ const silentRefreshGuestToken = async (): Promise<string> => {
+   refreshTokenPromise = (async () => {
+     try {
+       // Call /auth-status to get new guest token
++      // NOTE: intentionally NOT sending LIGHTRAG-WORKSPACE here — /auth-status
++      // is a global endpoint; attaching the header would only trigger a
++      // pointless lazy-load of the workspace instance on the server
++      // (see local-patches/workspace-request-routing.patch middleware).
+       const response = await axios.get('/auth-status', {
+         baseURL: backendBaseUrl,
+         // This request must skip the interceptor to avoid adding expired token
+@@ -425,6 +429,7 @@ axiosInstance.interceptors.request.use((config) => {
+ 
+   const apiKey = useSettingsStore.getState().apiKey
+   const token = localStorage.getItem('LIGHTRAG-API-TOKEN');
++  const workspace = useSettingsStore.getState().workspace
+ 
+   // Always include token if it exists, regardless of path
+   if (token) {
+@@ -433,6 +438,11 @@ axiosInstance.interceptors.request.use((config) => {
+   if (apiKey) {
+     config.headers['X-API-Key'] = apiKey
+   }
++  if (workspace) {
++    // Server routes the request to the per-workspace LightRAG instance
++    // (see local-patches/workspace-request-routing.patch)
++    config.headers['LIGHTRAG-WORKSPACE'] = workspace
++  }
+   return config
+ })
+ 
+@@ -691,6 +701,7 @@ async function _readNdjsonStream(
+ function _buildStreamHeaders(): HeadersInit {
+   const apiKey = useSettingsStore.getState().apiKey;
+   const token = localStorage.getItem('LIGHTRAG-API-TOKEN');
++  const workspace = useSettingsStore.getState().workspace;
+   const headers: HeadersInit = {
+     'Content-Type': 'application/json',
+     Accept: 'application/x-ndjson',
+@@ -701,6 +712,10 @@ function _buildStreamHeaders(): HeadersInit {
+   if (apiKey) {
+     headers['X-API-Key'] = apiKey;
+   }
++  if (workspace) {
++    // Streaming queries must route to the selected workspace instance too
++    headers['LIGHTRAG-WORKSPACE'] = workspace;
++  }
+   return headers;
+ }
+ 
+@@ -1100,8 +1115,10 @@ type InFlightPaginatedDocumentRequest = {
+   subscriberCount: number
+ }
+ 
++// Dedup key must include the workspace: identical requests targeting
++// different workspaces must never share an in-flight promise.
+ const getPaginatedDocumentsRequestKey = (request: DocumentsRequest): string =>
+-  JSON.stringify(request)
++  `${useSettingsStore.getState().workspace}\n${JSON.stringify(request)}`
+ 
+ // Deduplicate in-flight paginated document requests with identical parameters.
+ // This prevents duplicate backend calls caused by overlapping timers/effects or
+@@ -1202,6 +1219,18 @@ export const abortDocumentsPaginated = (request: DocumentsRequest): void => {
+   inFlightRequest.controller.abort()
+ }
+ 
++/**
++ * Abort ALL in-flight paginated document requests regardless of parameters.
++ * Used on workspace switch so stale responses from the previous workspace
++ * can never land in the new workspace's document list.
++ */
++export const abortAllDocumentsPaginated = (): void => {
++  for (const { controller } of inFlightPaginatedDocumentRequests.values()) {
++    controller.abort()
++  }
++  inFlightPaginatedDocumentRequests.clear()
++}
++
+ export const __resetPaginatedDocumentRequestsForTests = (): void => {
+   for (const { controller } of inFlightPaginatedDocumentRequests.values()) {
+     controller.abort()
+diff --git a/LightRAG/lightrag_webui/src/components/WorkspaceSwitcher.tsx b/LightRAG/lightrag_webui/src/components/WorkspaceSwitcher.tsx
+new file mode 100644
+index 0000000..13696bf
+--- /dev/null
++++ b/LightRAG/lightrag_webui/src/components/WorkspaceSwitcher.tsx
+@@ -0,0 +1,121 @@
++import { useState, useCallback } from 'react'
++import Button from '@/components/ui/Button'
++import Input from '@/components/ui/Input'
++import Badge from '@/components/ui/Badge'
++import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/Popover'
++import { Command, CommandGroup, CommandItem, CommandList } from '@/components/ui/Command'
++import { useSettingsStore } from '@/stores/settings'
++import { sanitizeWorkspace, switchWorkspace } from '@/services/workspace'
++import { toast } from 'sonner'
++
++import { DatabaseIcon, ChevronsUpDownIcon } from 'lucide-react'
++import { useTranslation } from 'react-i18next'
++
++/**
++ * Always-visible workspace switcher. The current workspace is shown on the
++ * trigger button so users can tell at a glance which workspace uploads,
++ * graph browsing and retrieval will hit. Free-text input (the server has no
++ * "list workspaces" API) with a live preview of the server-side sanitization
++ * result and a collision warning when a name collapses to all underscores.
++ */
++export default function WorkspaceSwitcher() {
++  const { t } = useTranslation()
++  const workspace = useSettingsStore.use.workspace()
++  const workspaceHistory = useSettingsStore.use.workspaceHistory()
++  const [open, setOpen] = useState(false)
++  const [input, setInput] = useState('')
++
++  const sanitized = sanitizeWorkspace(input)
++  const trimmed = input.trim()
++  // Show routing preview only when sanitization would change the input
++  const showPreview = trimmed !== '' && sanitized !== trimmed
++  // Non-ASCII names (e.g. Chinese) collapse entirely to underscores and
++  // different names can collide on the same workspace — warn about it
++  const allUnderscores = sanitized !== '' && /^_+$/.test(sanitized)
++
++  const apply = useCallback(
++    (raw: string) => {
++      const next = sanitizeWorkspace(raw)
++      switchWorkspace(raw)
++      setOpen(false)
++      setInput('')
++      toast.success(
++        next
++          ? t('workspace.switched', { workspace: next })
++          : t('workspace.switchedToDefault')
++      )
++    },
++    [t]
++  )
++
++  return (
++    <Popover open={open} onOpenChange={setOpen}>
++      <PopoverTrigger asChild>
++        <Button
++          variant="outline"
++          size="sm"
++          className="w-full justify-start"
++          aria-label={t('workspace.label')}
++        >
++          <DatabaseIcon className="mr-2 shrink-0" />
++          <span className="truncate">{workspace || t('workspace.default')}</span>
++          <ChevronsUpDownIcon className="ml-auto size-3 opacity-50" />
++        </Button>
++      </PopoverTrigger>
++      <PopoverContent side="top" align="start" className="w-64 p-2">
++        <div className="flex flex-col gap-2">
++          <Input
++            value={input}
++            placeholder={t('workspace.inputPlaceholder')}
++            onChange={(e) => setInput(e.target.value)}
++            onKeyDown={(e) => {
++              if (e.key === 'Enter') {
++                e.preventDefault()
++                apply(input)
++              }
++            }}
++          />
++          {showPreview && (
++            <p className="text-muted-foreground px-1 text-xs">
++              {t('workspace.sanitizedPreview', {
++                sanitized: sanitized || t('workspace.default')
++              })}
++            </p>
++          )}
++          {allUnderscores && (
++            <p className="px-1 text-xs text-amber-500">
++              {t('workspace.sanitizeCollisionWarning')}
++            </p>
++          )}
++          <Command>
++            <CommandList>
++              <CommandGroup heading={t('workspace.history')}>
++                <CommandItem onSelect={() => apply('')}>
++                  <span className="truncate">{t('workspace.default')}</span>
++                  {!workspace && (
++                    <Badge variant="secondary" className="ml-auto">
++                      {t('workspace.current')}
++                    </Badge>
++                  )}
++                </CommandItem>
++                {workspaceHistory.map((ws) => (
++                  <CommandItem key={ws} onSelect={() => apply(ws)}>
++                    <span className="truncate">{ws}</span>
++                    {workspace === ws && (
++                      <Badge variant="secondary" className="ml-auto">
++                        {t('workspace.current')}
++                      </Badge>
++                    )}
++                  </CommandItem>
++                ))}
++              </CommandGroup>
++            </CommandList>
++          </Command>
++          <Button size="sm" className="w-full" onClick={() => apply(input)}>
++            {t('workspace.apply')}
++          </Button>
++        </div>
++      </PopoverContent>
++    </Popover>
++  )
++}
+diff --git a/LightRAG/lightrag_webui/src/components/documents/UploadDocumentsDialog.tsx b/LightRAG/lightrag_webui/src/components/documents/UploadDocumentsDialog.tsx
+index 251af62..c093b61 100644
+--- a/LightRAG/lightrag_webui/src/components/documents/UploadDocumentsDialog.tsx
++++ b/LightRAG/lightrag_webui/src/components/documents/UploadDocumentsDialog.tsx
+@@ -10,9 +10,11 @@ import {
+   DialogTrigger
+ } from '@/components/ui/Dialog'
+ import FileUploader from '@/components/ui/FileUploader'
++import Badge from '@/components/ui/Badge'
+ import { toast } from 'sonner'
+ import { errorMessage } from '@/lib/utils'
+ import { uploadDocument } from '@/api/lightrag'
++import { useSettingsStore } from '@/stores/settings'
+ 
+ import { UploadIcon } from 'lucide-react'
+ import { useTranslation } from 'react-i18next'
+@@ -32,6 +34,7 @@ export default function UploadDocumentsDialog({
+   onUploadBatchAccepted
+ }: UploadDocumentsDialogProps) {
+   const { t } = useTranslation()
++  const workspace = useSettingsStore.use.workspace()
+   const [open, setOpen] = useState(false)
+   const [isUploading, setIsUploading] = useState(false)
+   const [progresses, setProgresses] = useState<Record<string, number>>({})
+@@ -228,6 +231,10 @@ export default function UploadDocumentsDialog({
+           <DialogDescription>
+             {t('documentPanel.uploadDocuments.description')}
+           </DialogDescription>
++          <div className="text-muted-foreground flex items-center gap-1 text-xs">
++            {t('documentPanel.uploadDocuments.targetWorkspace')}:
++            <Badge variant="secondary">{workspace || t('workspace.default')}</Badge>
++          </div>
+         </DialogHeader>
+         <FileUploader
+           maxFileCount={Infinity}
+diff --git a/LightRAG/lightrag_webui/src/features/RetrievalView.tsx b/LightRAG/lightrag_webui/src/features/RetrievalView.tsx
+index 502125b..7290405 100644
+--- a/LightRAG/lightrag_webui/src/features/RetrievalView.tsx
++++ b/LightRAG/lightrag_webui/src/features/RetrievalView.tsx
+@@ -243,6 +243,7 @@ export default function RetrievalView() {
+       const controller = new AbortController()
+       abortControllerRef.current = controller
+       activeAssistantIdRef.current = assistantMessage.id
++      workspaceAtStartRef.current = useSettingsStore.getState().workspace
+ 
+       // Add messages to chatbox
+       setMessages([...prevMessages, userMessage, assistantMessage])
+@@ -451,9 +452,14 @@ export default function RetrievalView() {
+ 
+           // Save history with error handling
+           try {
+-            useSettingsStore
+-              .getState()
+-              .setRetrievalHistory([...prevMessages, userMessage, assistantMessage])
++            // Workspace switched while this query was in flight — the result
++            // belongs to the old workspace; drop it instead of writing it
++            // into the new workspace's history.
++            if (useSettingsStore.getState().workspace === workspaceAtStartRef.current) {
++              useSettingsStore
++                .getState()
++                .setRetrievalHistory([...prevMessages, userMessage, assistantMessage])
++            }
+           } catch (error) {
+             console.error('Error saving retrieval history:', error)
+           }
+@@ -553,6 +559,10 @@ export default function RetrievalView() {
+   const abortControllerRef = useRef<AbortController | null>(null)
+   // Id of the assistant message currently receiving a response
+   const activeAssistantIdRef = useRef<string | null>(null)
++  // Workspace the in-flight query was submitted under — results of a query
++  // started in workspace A must not be written to history after the user
++  // switched to workspace B mid-flight.
++  const workspaceAtStartRef = useRef<string>('')
+   // Reference to track if user interaction is from the form area
+   const isFormInteractionRef = useRef(false)
+   // Reference to track if scroll was triggered programmatically
+@@ -692,7 +702,11 @@ export default function RetrievalView() {
+     })
+     setMessages(finalizedMessages)
+     try {
+-      useSettingsStore.getState().setRetrievalHistory(finalizedMessages)
++      // Workspace switched while this query was in flight — do not persist
++      // the terminated old-workspace exchange into the new history.
++      if (useSettingsStore.getState().workspace === workspaceAtStartRef.current) {
++        useSettingsStore.getState().setRetrievalHistory(finalizedMessages)
++      }
+     } catch (error) {
+       console.error('Error saving retrieval history:', error)
+     }
+diff --git a/LightRAG/lightrag_webui/src/features/Sidebar.tsx b/LightRAG/lightrag_webui/src/features/Sidebar.tsx
+index edc3786..07d4e30 100644
+--- a/LightRAG/lightrag_webui/src/features/Sidebar.tsx
++++ b/LightRAG/lightrag_webui/src/features/Sidebar.tsx
+@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/Dialog'
+ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/Tooltip'
+ import { SiteInfo, webuiPrefix } from '@/lib/constants'
+ import AppSettings from '@/components/AppSettings'
++import WorkspaceSwitcher from '@/components/WorkspaceSwitcher'
+ import { useSettingsStore } from '@/stores/settings'
+ import { useAuthStore } from '@/stores/state'
+ import { navigationService } from '@/services/navigation'
+@@ -87,6 +88,9 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
+ 
+       {/* Footer */}
+       <div className="border-t p-3 dark:border-white/10 dark:bg-black/30">
++        <div className="mb-2">
++          <WorkspaceSwitcher />
++        </div>
+         <div className="flex items-center">
+           <AppSettings />
+         </div>
+diff --git a/LightRAG/lightrag_webui/src/locales/ar.json b/LightRAG/lightrag_webui/src/locales/ar.json
+index 332f51f..5ad5637 100644
+--- a/LightRAG/lightrag_webui/src/locales/ar.json
++++ b/LightRAG/lightrag_webui/src/locales/ar.json
+@@ -111,7 +111,8 @@
+         "removeFile": "إزالة الملف",
+         "uploadDescription": "يمكنك رفع {{isMultiple ? 'عدة' : count}} ملفات (حتى {{maxSize}} لكل منها)",
+         "duplicateFile": "اسم الملف موجود بالفعل في ذاكرة التخزين المؤقت للخادم"
+-      }
++      },
++      "targetWorkspace": "مساحة العمل المستهدفة"
+     },
+     "documentManager": {
+       "title": "إدارة المستندات",
+@@ -489,5 +490,18 @@
+     "prevPage": "الصفحة السابقة",
+     "nextPage": "الصفحة التالية",
+     "lastPage": "الصفحة الأخيرة"
++  },
++  "workspace": {
++    "label": "مساحة العمل",
++    "default": "مساحة العمل الافتراضية",
++    "current": "الحالية",
++    "inputPlaceholder": "اسم مساحة العمل (أحرف، أرقام، _)",
++    "apply": "تبديل",
++    "history": "مساحات العمل الأخيرة",
++    "sanitizedPreview": "سيتم التوجيه إلى: {{sanitized}}",
++    "sanitizeCollisionWarning": "الأسماء غير ASCII تتحول إلى شرطات سفلية وقد تتعارض",
++    "switched": "تم التبديل إلى مساحة العمل {{workspace}}",
++    "switchedToDefault": "تم التبديل إلى مساحة العمل الافتراضية",
++    "tooltip": "المستندات والرسوم البيانية والاستعلامات معزولة حسب مساحة العمل"
+   }
+ }
+diff --git a/LightRAG/lightrag_webui/src/locales/de.json b/LightRAG/lightrag_webui/src/locales/de.json
+index ea68b1f..f021217 100644
+--- a/LightRAG/lightrag_webui/src/locales/de.json
++++ b/LightRAG/lightrag_webui/src/locales/de.json
+@@ -111,7 +111,8 @@
+         "removeFile": "Datei entfernen",
+         "uploadDescription": "Sie können {{isMultiple ? 'mehrere' : count}} Dateien hochladen (bis zu {{maxSize}} pro Datei)",
+         "duplicateFile": "Dateiname existiert bereits im Server-Cache"
+-      }
++      },
++      "targetWorkspace": "Ziel-Arbeitsbereich"
+     },
+     "documentManager": {
+       "title": "Dokumentenverwaltung",
+@@ -489,5 +490,18 @@
+     "prevPage": "Vorherige Seite",
+     "nextPage": "Nächste Seite",
+     "lastPage": "Letzte Seite"
++  },
++  "workspace": {
++    "label": "Arbeitsbereich",
++    "default": "Standard-Arbeitsbereich",
++    "current": "Aktuell",
++    "inputPlaceholder": "Name des Arbeitsbereichs (Buchstaben, Ziffern, _)",
++    "apply": "Wechseln",
++    "history": "Zuletzt verwendet",
++    "sanitizedPreview": "Wird geroutet zu: {{sanitized}}",
++    "sanitizeCollisionWarning": "Nicht-ASCII-Namen werden zu Unterstrichen und können kollidieren",
++    "switched": "Gewechselt zu Arbeitsbereich {{workspace}}",
++    "switchedToDefault": "Zum Standard-Arbeitsbereich gewechselt",
++    "tooltip": "Dokumente, Graphen und Abfragen sind pro Arbeitsbereich isoliert"
+   }
+ }
+diff --git a/LightRAG/lightrag_webui/src/locales/en.json b/LightRAG/lightrag_webui/src/locales/en.json
+index 99c84c6..986fa23 100644
+--- a/LightRAG/lightrag_webui/src/locales/en.json
++++ b/LightRAG/lightrag_webui/src/locales/en.json
+@@ -113,7 +113,8 @@
+         "removeFile": "Remove file",
+         "uploadDescription": "You can upload {{isMultiple ? 'multiple' : count}} files (up to {{maxSize}} each)",
+         "duplicateFile": "File name already exists in server cache"
+-      }
++      },
++      "targetWorkspace": "Target workspace"
+     },
+     "documentManager": {
+       "title": "Document Management",
+@@ -491,5 +492,18 @@
+     "prevPage": "Previous Page",
+     "nextPage": "Next Page",
+     "lastPage": "Last Page"
++  },
++  "workspace": {
++    "label": "Workspace",
++    "default": "Default workspace",
++    "current": "Current",
++    "inputPlaceholder": "Workspace name (letters, digits, _)",
++    "apply": "Switch",
++    "history": "Recent workspaces",
++    "sanitizedPreview": "Will route to: {{sanitized}}",
++    "sanitizeCollisionWarning": "Non-ASCII names collapse to underscores and may collide",
++    "switched": "Switched to workspace {{workspace}}",
++    "switchedToDefault": "Switched to default workspace",
++    "tooltip": "Documents, graphs and queries are isolated per workspace"
+   }
+ }
+diff --git a/LightRAG/lightrag_webui/src/locales/fr.json b/LightRAG/lightrag_webui/src/locales/fr.json
+index c9d1ce3..ce9de6b 100644
+--- a/LightRAG/lightrag_webui/src/locales/fr.json
++++ b/LightRAG/lightrag_webui/src/locales/fr.json
+@@ -111,7 +111,8 @@
+         "removeFile": "Supprimer le fichier",
+         "uploadDescription": "Vous pouvez télécharger {{isMultiple ? 'plusieurs' : count}} fichiers (jusqu'à {{maxSize}} chacun)",
+         "duplicateFile": "Le nom du fichier existe déjà dans le cache du serveur"
+-      }
++      },
++      "targetWorkspace": "Espace cible"
+     },
+     "documentManager": {
+       "title": "Gestion des documents",
+@@ -489,5 +490,18 @@
+     "prevPage": "Page précédente",
+     "nextPage": "Page suivante",
+     "lastPage": "Dernière page"
++  },
++  "workspace": {
++    "label": "Espace de travail",
++    "default": "Espace par défaut",
++    "current": "Actuel",
++    "inputPlaceholder": "Nom de l'espace (lettres, chiffres, _)",
++    "apply": "Changer",
++    "history": "Espaces récents",
++    "sanitizedPreview": "Sera routé vers : {{sanitized}}",
++    "sanitizeCollisionWarning": "Les noms non ASCII sont remplacés par des tirets bas et peuvent entrer en collision",
++    "switched": "Espace de travail changé : {{workspace}}",
++    "switchedToDefault": "Espace par défaut activé",
++    "tooltip": "Documents, graphes et recherches sont isolés par espace de travail"
+   }
+ }
+diff --git a/LightRAG/lightrag_webui/src/locales/ja.json b/LightRAG/lightrag_webui/src/locales/ja.json
+index bec5d08..d565e26 100644
+--- a/LightRAG/lightrag_webui/src/locales/ja.json
++++ b/LightRAG/lightrag_webui/src/locales/ja.json
+@@ -111,7 +111,8 @@
+         "removeFile": "ファイルを削除",
+         "uploadDescription": "{{isMultiple ? '複数' : count}}個のファイルをアップロードできます（それぞれ最大{{maxSize}}まで）",
+         "duplicateFile": "ファイル名がサーバーキャッシュに既に存在します"
+-      }
++      },
++      "targetWorkspace": "対象ワークスペース"
+     },
+     "documentManager": {
+       "title": "ドキュメント管理",
+@@ -489,5 +490,18 @@
+     "prevPage": "前のページ",
+     "nextPage": "次のページ",
+     "lastPage": "最後のページ"
++  },
++  "workspace": {
++    "label": "ワークスペース",
++    "default": "デフォルトワークスペース",
++    "current": "現在",
++    "inputPlaceholder": "ワークスペース名（英数字と _）",
++    "apply": "切り替え",
++    "history": "最近のワークスペース",
++    "sanitizedPreview": "ルーティング先: {{sanitized}}",
++    "sanitizeCollisionWarning": "非 ASCII 名はアンダースコアに置き換わり、衝突する可能性があります",
++    "switched": "ワークスペース {{workspace}} に切り替えました",
++    "switchedToDefault": "デフォルトワークスペースに切り替えました",
++    "tooltip": "ドキュメント・グラフ・検索はワークスペースごとに分離されます"
+   }
+ }
+diff --git a/LightRAG/lightrag_webui/src/locales/ko.json b/LightRAG/lightrag_webui/src/locales/ko.json
+index 25254fa..a988797 100644
+--- a/LightRAG/lightrag_webui/src/locales/ko.json
++++ b/LightRAG/lightrag_webui/src/locales/ko.json
+@@ -111,7 +111,8 @@
+         "removeFile": "파일 제거",
+         "uploadDescription": "{{isMultiple ? '여러' : count}}개의 파일을 업로드할 수 있습니다 (각 최대 {{maxSize}})",
+         "duplicateFile": "파일 이름이 서버 캐시에 이미 존재합니다"
+-      }
++      },
++      "targetWorkspace": "대상 워크스페이스"
+     },
+     "documentManager": {
+       "title": "문서 관리",
+@@ -489,5 +490,18 @@
+     "prevPage": "이전 페이지",
+     "nextPage": "다음 페이지",
+     "lastPage": "마지막 페이지"
++  },
++  "workspace": {
++    "label": "워크스페이스",
++    "default": "기본 워크스페이스",
++    "current": "현재",
++    "inputPlaceholder": "워크스페이스 이름(영문자, 숫자, _)",
++    "apply": "전환",
++    "history": "최근 워크스페이스",
++    "sanitizedPreview": "라우팅 대상: {{sanitized}}",
++    "sanitizeCollisionWarning": "비 ASCII 이름은 밑줄로 대체되어 충돌할 수 있습니다",
++    "switched": "워크스페이스 {{workspace}}(으)로 전환했습니다",
++    "switchedToDefault": "기본 워크스페이스로 전환했습니다",
++    "tooltip": "문서, 그래프, 검색은 워크스페이스별로 격리됩니다"
+   }
+ }
+diff --git a/LightRAG/lightrag_webui/src/locales/ru.json b/LightRAG/lightrag_webui/src/locales/ru.json
+index 11e0f57..0ababd5 100644
+--- a/LightRAG/lightrag_webui/src/locales/ru.json
++++ b/LightRAG/lightrag_webui/src/locales/ru.json
+@@ -111,7 +111,8 @@
+         "removeFile": "Удалить файл",
+         "uploadDescription": "Вы можете загрузить {{isMultiple ? 'несколько' : count}} файлов (до {{maxSize}} каждый)",
+         "duplicateFile": "Имя файла уже существует в кэше сервера"
+-      }
++      },
++      "targetWorkspace": "Целевая область"
+     },
+     "documentManager": {
+       "title": "Управление документами",
+@@ -489,5 +490,18 @@
+     "prevPage": "Предыдущая страница",
+     "nextPage": "Следующая страница",
+     "lastPage": "Последняя страница"
++  },
++  "workspace": {
++    "label": "Рабочая область",
++    "default": "Область по умолчанию",
++    "current": "Текущая",
++    "inputPlaceholder": "Имя области (буквы, цифры, _)",
++    "apply": "Переключить",
++    "history": "Недавние области",
++    "sanitizedPreview": "Будет направлено в: {{sanitized}}",
++    "sanitizeCollisionWarning": "Не-ASCII имена заменяются подчёркиваниями и могут совпасть",
++    "switched": "Переключено на область {{workspace}}",
++    "switchedToDefault": "Переключено на область по умолчанию",
++    "tooltip": "Документы, графы и запросы изолированы по рабочим областям"
+   }
+ }
+diff --git a/LightRAG/lightrag_webui/src/locales/uk.json b/LightRAG/lightrag_webui/src/locales/uk.json
+index d1e61d0..d92967c 100644
+--- a/LightRAG/lightrag_webui/src/locales/uk.json
++++ b/LightRAG/lightrag_webui/src/locales/uk.json
+@@ -111,7 +111,8 @@
+         "removeFile": "Видалити файл",
+         "uploadDescription": "Ви можете завантажити {{isMultiple ? 'кілька' : count}} файлів (до {{maxSize}} кожен)",
+         "duplicateFile": "Ім'я файлу вже існує в кеші сервера"
+-      }
++      },
++      "targetWorkspace": "Цільова область"
+     },
+     "documentManager": {
+       "title": "Управління документами",
+@@ -489,5 +490,18 @@
+     "prevPage": "Попередня сторінка",
+     "nextPage": "Наступна сторінка",
+     "lastPage": "Остання сторінка"
++  },
++  "workspace": {
++    "label": "Робоча область",
++    "default": "Область за замовчуванням",
++    "current": "Поточна",
++    "inputPlaceholder": "Назва області (літери, цифри, _)",
++    "apply": "Перемкнути",
++    "history": "Нещодавні області",
++    "sanitizedPreview": "Буде спрямовано до: {{sanitized}}",
++    "sanitizeCollisionWarning": "Не-ASCII назви замінюються підкресленнями і можуть збігтися",
++    "switched": "Перемкнено на область {{workspace}}",
++    "switchedToDefault": "Перемкнено на область за замовчуванням",
++    "tooltip": "Документи, графи та запити ізольовані за робочими областями"
+   }
+ }
+diff --git a/LightRAG/lightrag_webui/src/locales/vi.json b/LightRAG/lightrag_webui/src/locales/vi.json
+index e783c29..5fa9c5d 100644
+--- a/LightRAG/lightrag_webui/src/locales/vi.json
++++ b/LightRAG/lightrag_webui/src/locales/vi.json
+@@ -111,7 +111,8 @@
+         "removeFile": "Xóa tệp",
+         "uploadDescription": "Bạn có thể tải lên {{isMultiple ? 'nhiều' : count}} tệp (tối đa {{maxSize}} mỗi tệp)",
+         "duplicateFile": "Tên tệp đã tồn tại trong bộ nhớ cache của máy chủ"
+-      }
++      },
++      "targetWorkspace": "Không gian đích"
+     },
+     "documentManager": {
+       "title": "Quản Lý Tài Liệu",
+@@ -489,5 +490,18 @@
+     "prevPage": "Trang Trước",
+     "nextPage": "Trang Tiếp",
+     "lastPage": "Trang Cuối"
++  },
++  "workspace": {
++    "label": "Không gian làm việc",
++    "default": "Không gian mặc định",
++    "current": "Hiện tại",
++    "inputPlaceholder": "Tên không gian (chữ, số, _)",
++    "apply": "Chuyển",
++    "history": "Không gian gần đây",
++    "sanitizedPreview": "Sẽ định tuyến tới: {{sanitized}}",
++    "sanitizeCollisionWarning": "Tên không phải ASCII sẽ bị thay bằng dấu gạch dưới và có thể trùng nhau",
++    "switched": "Đã chuyển sang không gian {{workspace}}",
++    "switchedToDefault": "Đã chuyển sang không gian mặc định",
++    "tooltip": "Tài liệu, đồ thị và truy vấn được tách biệt theo không gian làm việc"
+   }
+ }
+diff --git a/LightRAG/lightrag_webui/src/locales/zh.json b/LightRAG/lightrag_webui/src/locales/zh.json
+index 7c3c38c..1db3697 100644
+--- a/LightRAG/lightrag_webui/src/locales/zh.json
++++ b/LightRAG/lightrag_webui/src/locales/zh.json
+@@ -113,7 +113,8 @@
+         "removeFile": "移除文件",
+         "uploadDescription": "您可以上传{{isMultiple ? '多个' : count}}个文件（每个文件最大{{maxSize}}）",
+         "duplicateFile": "文件名与服务器上的缓存重复"
+-      }
++      },
++      "targetWorkspace": "目标工作空间"
+     },
+     "documentManager": {
+       "title": "文档管理",
+@@ -491,5 +492,18 @@
+     "prevPage": "上一页",
+     "nextPage": "下一页",
+     "lastPage": "末页"
++  },
++  "workspace": {
++    "label": "工作空间",
++    "default": "默认空间",
++    "current": "当前",
++    "inputPlaceholder": "工作空间名称（字母、数字、下划线）",
++    "apply": "切换",
++    "history": "最近使用",
++    "sanitizedPreview": "将路由到：{{sanitized}}",
++    "sanitizeCollisionWarning": "非 ASCII 名称（如中文）会被全部转为下划线，不同名称可能撞到同一空间",
++    "switched": "已切换到工作空间 {{workspace}}",
++    "switchedToDefault": "已切换到默认空间",
++    "tooltip": "文档、图谱与检索按工作空间隔离"
+   }
+ }
+diff --git a/LightRAG/lightrag_webui/src/locales/zh_TW.json b/LightRAG/lightrag_webui/src/locales/zh_TW.json
+index 65e16ca..ff2392c 100644
+--- a/LightRAG/lightrag_webui/src/locales/zh_TW.json
++++ b/LightRAG/lightrag_webui/src/locales/zh_TW.json
+@@ -113,7 +113,8 @@
+         "removeFile": "移除檔案",
+         "uploadDescription": "您可以上傳{{isMultiple ? '多個' : count}}個檔案（每個檔案最大{{maxSize}}）",
+         "duplicateFile": "檔案名稱與伺服器上的快取重複"
+-      }
++      },
++      "targetWorkspace": "目標工作空間"
+     },
+     "documentManager": {
+       "title": "文件管理",
+@@ -491,5 +492,18 @@
+     "prevPage": "上一頁",
+     "nextPage": "下一頁",
+     "lastPage": "最後一頁"
++  },
++  "workspace": {
++    "label": "工作空間",
++    "default": "預設空間",
++    "current": "目前",
++    "inputPlaceholder": "工作空間名稱（字母、數字、底線）",
++    "apply": "切換",
++    "history": "最近使用",
++    "sanitizedPreview": "將路由到：{{sanitized}}",
++    "sanitizeCollisionWarning": "非 ASCII 名稱（如中文）會全部轉為底線，不同名稱可能撞到同一空間",
++    "switched": "已切換到工作空間 {{workspace}}",
++    "switchedToDefault": "已切換到預設空間",
++    "tooltip": "文件、圖譜與檢索按工作空間隔離"
+   }
+ }
+diff --git a/LightRAG/lightrag_webui/src/services/workspace.ts b/LightRAG/lightrag_webui/src/services/workspace.ts
+new file mode 100644
+index 0000000..f726846
+--- /dev/null
++++ b/LightRAG/lightrag_webui/src/services/workspace.ts
+@@ -0,0 +1,55 @@
++import { useSettingsStore } from '@/stores/settings'
++import { useGraphStore } from '@/stores/graph'
++import { useBackendState } from '@/stores/state'
++import { abortAllDocumentsPaginated } from '@/api/lightrag'
++
++/**
++ * Sanitize a workspace identifier with the exact same rule as the
++ * server-side _sanitize_workspace_header (see
++ * local-patches/workspace-request-routing.patch): trim, then replace every
++ * character outside [a-zA-Z0-9_] with '_'. Empty result = default workspace.
++ */
++export const sanitizeWorkspace = (value: string): string =>
++  (value ?? '').trim().replace(/[^a-zA-Z0-9_]/g, '_')
++
++/**
++ * Single entry point for switching the active workspace.
++ *
++ * Invalidation chain, in order:
++ * 1) persist the new value — every new request (axios interceptor and
++ *    streaming headers) picks up the new header automatically
++ * 2) abort in-flight paginated document requests — responses from the old
++ *    workspace must never land in the new list
++ * 3) graph store reset + version bump — fetch signature changes so the graph
++ *    is re-queried under the new workspace
++ * 4) clear retrieval history (an in-flight stream is blocked from writing
++ *    back by the workspace guard in RetrievalView)
++ * 5) refresh the graph label dropdown (labels are per-workspace)
++ * 6) re-check /health under the new workspace (pipelineBusy/pipelineActive
++ *    drive the document page polling cadence)
++ *
++ * DocumentManager remounts via key={workspace} in App.tsx and refetches on
++ * mount, so it is intentionally not touched here.
++ */
++export const switchWorkspace = (rawInput: string): void => {
++  const next = sanitizeWorkspace(rawInput)
++  const settings = useSettingsStore.getState()
++  if (next === settings.workspace) return
++
++  settings.setWorkspace(next)
++  if (next) settings.addWorkspaceToHistory(next)
++
++  abortAllDocumentsPaginated()
++
++  const graph = useGraphStore.getState()
++  graph.reset()
++  graph.setGraphDataFetchAttempted(false)
++  graph.setLabelsFetchAttempted(false)
++  graph.setLastSuccessfulQueryLabel('')
++  graph.incrementGraphDataVersion()
++
++  settings.setRetrievalHistory([])
++  settings.triggerSearchLabelDropdownRefresh()
++
++  useBackendState.getState().check().catch(() => undefined)
++}
+diff --git a/LightRAG/lightrag_webui/src/stores/settings.ts b/LightRAG/lightrag_webui/src/stores/settings.ts
+index 3344110..048c41e 100644
+--- a/LightRAG/lightrag_webui/src/stores/settings.ts
++++ b/LightRAG/lightrag_webui/src/stores/settings.ts
+@@ -63,6 +63,14 @@ interface SettingsState {
+   apiKey: string | null
+   setApiKey: (key: string | null) => void
+ 
++  // Workspace routing (LIGHTRAG-WORKSPACE header)
++  // Stores the sanitized value (same rule as server-side
++  // _sanitize_workspace_header); '' = default workspace (header not sent).
++  workspace: string
++  setWorkspace: (workspace: string) => void
++  workspaceHistory: string[]
++  addWorkspaceToHistory: (workspace: string) => void
++
+   // App settings
+   theme: Theme
+   setTheme: (theme: Theme) => void
+@@ -110,6 +118,9 @@ const useSettingsStoreBase = create<SettingsState>()(
+ 
+       apiKey: null,
+ 
++      workspace: '',
++      workspaceHistory: [],
++
+       currentTab: 'documents',
+       showFileName: false,
+       documentsPageSize: 10,
+@@ -175,6 +186,32 @@ const useSettingsStoreBase = create<SettingsState>()(
+ 
+       setApiKey: (apiKey: string | null) => set({ apiKey }),
+ 
++      setWorkspace: (workspace: string) => set({ workspace }),
++
++      // Workspace history (sanitized values, most recent first, max 8;
++      // same de-dup pattern as addUserPromptToHistory; default workspace
++      // '' is never recorded)
++      addWorkspaceToHistory: (workspace: string) => {
++        if (!workspace) return
++
++        set((state) => {
++          const newHistory = [...state.workspaceHistory]
++
++          const existingIndex = newHistory.indexOf(workspace)
++          if (existingIndex !== -1) {
++            newHistory.splice(existingIndex, 1)
++          }
++
++          newHistory.unshift(workspace)
++
++          if (newHistory.length > 8) {
++            newHistory.splice(8)
++          }
++
++          return { workspaceHistory: newHistory }
++        })
++      },
++
+       setCurrentTab: (tab: Tab) => set({ currentTab: tab }),
+ 
+       setRetrievalHistory: (history: Message[]) => set({ retrievalHistory: history }),
+@@ -229,7 +266,7 @@ const useSettingsStoreBase = create<SettingsState>()(
+     {
+       name: 'settings-storage',
+       storage: createJSONStorage(() => localStorage),
+-      version: 20,
++      version: 21,
+       migrate: (state: any, version: number) => {
+         if (version < 2) {
+           state.showEdgeLabel = false
+@@ -342,6 +379,11 @@ const useSettingsStoreBase = create<SettingsState>()(
+             ...suggestedUserPrompts.filter((p: string) => !existing.includes(p))
+           ]
+         }
++        if (version < 21) {
++          // Add workspace routing fields (empty string = server default workspace)
++          state.workspace = ''
++          state.workspaceHistory = []
++        }
+         return state
+       }
+     }

@@ -92,6 +92,18 @@ Agent (LangGraph) ──SSE──> 103 rag-server:8008 ──HTTP──> 103 lig
 
 验证素材为部署后真实业务流量自然形成（PR-1 登录流程测试文档、PR-2 支付流程测试文档各 1 篇）——证明一期管道（会话项目 → space_id → LIGHTRAG-WORKSPACE 头）与二期服务端路由已在生产链路无缝衔接，平台侧零改动生效。
 
+## 8-19 补充：WebUI 管理端 workspace 切换（隔离链路最后一环）
+
+**问题**：管理员经 LightRAG 自带 WebUI（103:9621）上传文档时，WebUI 所有请求不携带 workspace 头 → 全部落默认 workspace，与各项目库脱节（用户 8-19 反馈）。
+
+**方案**（vendored WebUI 自研，diff 存档 `local-patches/webui-workspace-switcher.patch`）：
+- Sidebar footer 常显切换器：自由文本输入（服务端无 workspace 列表 API）+ 消毒预览（`PR-1`→`PR_1` 实时提示）+ 全下划线撞库警告 + 历史下拉（≤8）；localStorage 持久化
+- axios 拦截器 + 流式检索 `_buildStreamHeaders` 统一注头（`/auth-status` 刻意豁免——全局端点，注头只会无谓触发服务端实例懒加载）
+- 切换失效链：分页 in-flight abort（dedup key 加 workspace 命名空间根治复用）+ DocumentManager `key={workspace}` remount + 图谱 reset/version bump + 检索历史清空（含进行中流的写入守卫）+ /health 重查
+- 上传对话框常显目标 workspace 防呆；i18n 11 语言全量
+
+**验证**：bun test 45/45；tsc 干净；本机 9621 补丁版实例 Playwright E2E 7/7（`ui/scripts/e2e_webui_workspace_switcher.mjs` 可复跑）——切换器渲染、消毒预览、持久化、刷新后请求带头、切回默认库头消失。**103 重跑 deploy.sh 后生效。**
+
 ## Sources
 
 - [PR #2445: workspace isolation in lightrag_server](https://github.com/HKUDS/LightRAG/pull/2445)

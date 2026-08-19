@@ -63,6 +63,14 @@ interface SettingsState {
   apiKey: string | null
   setApiKey: (key: string | null) => void
 
+  // Workspace routing (LIGHTRAG-WORKSPACE header)
+  // Stores the sanitized value (same rule as server-side
+  // _sanitize_workspace_header); '' = default workspace (header not sent).
+  workspace: string
+  setWorkspace: (workspace: string) => void
+  workspaceHistory: string[]
+  addWorkspaceToHistory: (workspace: string) => void
+
   // App settings
   theme: Theme
   setTheme: (theme: Theme) => void
@@ -109,6 +117,9 @@ const useSettingsStoreBase = create<SettingsState>()(
       enableHealthCheck: true,
 
       apiKey: null,
+
+      workspace: '',
+      workspaceHistory: [],
 
       currentTab: 'documents',
       showFileName: false,
@@ -175,6 +186,32 @@ const useSettingsStoreBase = create<SettingsState>()(
 
       setApiKey: (apiKey: string | null) => set({ apiKey }),
 
+      setWorkspace: (workspace: string) => set({ workspace }),
+
+      // Workspace history (sanitized values, most recent first, max 8;
+      // same de-dup pattern as addUserPromptToHistory; default workspace
+      // '' is never recorded)
+      addWorkspaceToHistory: (workspace: string) => {
+        if (!workspace) return
+
+        set((state) => {
+          const newHistory = [...state.workspaceHistory]
+
+          const existingIndex = newHistory.indexOf(workspace)
+          if (existingIndex !== -1) {
+            newHistory.splice(existingIndex, 1)
+          }
+
+          newHistory.unshift(workspace)
+
+          if (newHistory.length > 8) {
+            newHistory.splice(8)
+          }
+
+          return { workspaceHistory: newHistory }
+        })
+      },
+
       setCurrentTab: (tab: Tab) => set({ currentTab: tab }),
 
       setRetrievalHistory: (history: Message[]) => set({ retrievalHistory: history }),
@@ -229,7 +266,7 @@ const useSettingsStoreBase = create<SettingsState>()(
     {
       name: 'settings-storage',
       storage: createJSONStorage(() => localStorage),
-      version: 20,
+      version: 21,
       migrate: (state: any, version: number) => {
         if (version < 2) {
           state.showEdgeLabel = false
@@ -341,6 +378,11 @@ const useSettingsStoreBase = create<SettingsState>()(
             ...existing,
             ...suggestedUserPrompts.filter((p: string) => !existing.includes(p))
           ]
+        }
+        if (version < 21) {
+          // Add workspace routing fields (empty string = server default workspace)
+          state.workspace = ''
+          state.workspaceHistory = []
         }
         return state
       }

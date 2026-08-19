@@ -111,7 +111,8 @@
         "removeFile": "ファイルを削除",
         "uploadDescription": "{{isMultiple ? '複数' : count}}個のファイルをアップロードできます（それぞれ最大{{maxSize}}まで）",
         "duplicateFile": "ファイル名がサーバーキャッシュに既に存在します"
-      }
+      },
+      "targetWorkspace": "対象ワークスペース"
     },
     "documentManager": {
       "title": "ドキュメント管理",
@@ -489,5 +490,18 @@
     "prevPage": "前のページ",
     "nextPage": "次のページ",
     "lastPage": "最後のページ"
+  },
+  "workspace": {
+    "label": "ワークスペース",
+    "default": "デフォルトワークスペース",
+    "current": "現在",
+    "inputPlaceholder": "ワークスペース名（英数字と _）",
+    "apply": "切り替え",
+    "history": "最近のワークスペース",
+    "sanitizedPreview": "ルーティング先: {{sanitized}}",
+    "sanitizeCollisionWarning": "非 ASCII 名はアンダースコアに置き換わり、衝突する可能性があります",
+    "switched": "ワークスペース {{workspace}} に切り替えました",
+    "switchedToDefault": "デフォルトワークスペースに切り替えました",
+    "tooltip": "ドキュメント・グラフ・検索はワークスペースごとに分離されます"
   }
 }

@@ -243,6 +243,7 @@ export default function RetrievalView() {
       const controller = new AbortController()
       abortControllerRef.current = controller
       activeAssistantIdRef.current = assistantMessage.id
+      workspaceAtStartRef.current = useSettingsStore.getState().workspace
 
       // Add messages to chatbox
       setMessages([...prevMessages, userMessage, assistantMessage])
@@ -451,9 +452,14 @@ export default function RetrievalView() {
 
           // Save history with error handling
           try {
-            useSettingsStore
-              .getState()
-              .setRetrievalHistory([...prevMessages, userMessage, assistantMessage])
+            // Workspace switched while this query was in flight — the result
+            // belongs to the old workspace; drop it instead of writing it
+            // into the new workspace's history.
+            if (useSettingsStore.getState().workspace === workspaceAtStartRef.current) {
+              useSettingsStore
+                .getState()
+                .setRetrievalHistory([...prevMessages, userMessage, assistantMessage])
+            }
           } catch (error) {
             console.error('Error saving retrieval history:', error)
           }
@@ -553,6 +559,10 @@ export default function RetrievalView() {
   const abortControllerRef = useRef<AbortController | null>(null)
   // Id of the assistant message currently receiving a response
   const activeAssistantIdRef = useRef<string | null>(null)
+  // Workspace the in-flight query was submitted under — results of a query
+  // started in workspace A must not be written to history after the user
+  // switched to workspace B mid-flight.
+  const workspaceAtStartRef = useRef<string>('')
   // Reference to track if user interaction is from the form area
   const isFormInteractionRef = useRef(false)
   // Reference to track if scroll was triggered programmatically
@@ -692,7 +702,11 @@ export default function RetrievalView() {
     })
     setMessages(finalizedMessages)
     try {
-      useSettingsStore.getState().setRetrievalHistory(finalizedMessages)
+      // Workspace switched while this query was in flight — do not persist
+      // the terminated old-workspace exchange into the new history.
+      if (useSettingsStore.getState().workspace === workspaceAtStartRef.current) {
+        useSettingsStore.getState().setRetrievalHistory(finalizedMessages)
+      }
     } catch (error) {
       console.error('Error saving retrieval history:', error)
     }

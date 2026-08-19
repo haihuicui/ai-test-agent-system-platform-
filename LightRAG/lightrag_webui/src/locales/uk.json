@@ -111,7 +111,8 @@
         "removeFile": "Видалити файл",
         "uploadDescription": "Ви можете завантажити {{isMultiple ? 'кілька' : count}} файлів (до {{maxSize}} кожен)",
         "duplicateFile": "Ім'я файлу вже існує в кеші сервера"
-      }
+      },
+      "targetWorkspace": "Цільова область"
     },
     "documentManager": {
       "title": "Управління документами",
@@ -489,5 +490,18 @@
     "prevPage": "Попередня сторінка",
     "nextPage": "Наступна сторінка",
     "lastPage": "Остання сторінка"
+  },
+  "workspace": {
+    "label": "Робоча область",
+    "default": "Область за замовчуванням",
+    "current": "Поточна",
+    "inputPlaceholder": "Назва області (літери, цифри, _)",
+    "apply": "Перемкнути",
+    "history": "Нещодавні області",
+    "sanitizedPreview": "Буде спрямовано до: {{sanitized}}",
+    "sanitizeCollisionWarning": "Не-ASCII назви замінюються підкресленнями і можуть збігтися",
+    "switched": "Перемкнено на область {{workspace}}",
+    "switchedToDefault": "Перемкнено на область за замовчуванням",
+    "tooltip": "Документи, графи та запити ізольовані за робочими областями"
   }
 }

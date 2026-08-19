@@ -24,7 +24,10 @@ Object.defineProperty(globalThis, 'sessionStorage', {
 // Mock zustand stores — both return a vanilla store-like object with getState()
 let storeApiKey: string | null = null
 let storeIsGuestMode = false
-const fakeSettingsStore = { getState: () => ({ apiKey: storeApiKey }) }
+let storeWorkspace = ''
+const fakeSettingsStore = {
+  getState: () => ({ apiKey: storeApiKey, workspace: storeWorkspace }),
+}
 const fakeAuthStore = {
   getState: () => ({
     isGuestMode: storeIsGuestMode,
@@ -138,6 +141,7 @@ afterEach(() => {
   storageData.clear()
   storeApiKey = null
   storeIsGuestMode = false
+  storeWorkspace = ''
 })
 
 describe('queryTextStream — normal path', () => {
@@ -438,6 +442,42 @@ describe('queryTextStream — auth headers', () => {
     expect(sentHeaders['Authorization']).toBeUndefined()
   })
 
+  test('includes LIGHTRAG-WORKSPACE header when a workspace is selected', async () => {
+    storeWorkspace = 'PR_1'
+
+    let capturedHeaders: HeadersInit | undefined
+    installFetchMock((_url: string, init?: RequestInit) => {
+      capturedHeaders = init?.headers
+      return makeNdjsonResponse(['{"response": "ok"}'])
+    })
+
+    await apiModule.queryTextStream(
+      makeQueryRequest(),
+      () => {},
+      () => {}
+    )
+
+    const sentHeaders = capturedHeaders as Record<string, string>
+    expect(sentHeaders['LIGHTRAG-WORKSPACE']).toBe('PR_1')
+  })
+
+  test('omits LIGHTRAG-WORKSPACE header for the default workspace', async () => {
+    let capturedHeaders: HeadersInit | undefined
+    installFetchMock((_url: string, init?: RequestInit) => {
+      capturedHeaders = init?.headers
+      return makeNdjsonResponse(['{"response": "ok"}'])
+    })
+
+    await apiModule.queryTextStream(
+      makeQueryRequest(),
+      () => {},
+      () => {}
+    )
+
+    const sentHeaders = capturedHeaders as Record<string, string>
+    expect(sentHeaders['LIGHTRAG-WORKSPACE']).toBeUndefined()
+  })
+
   test('calls /query/stream endpoint', async () => {
     let capturedUrl = ''
     installFetchMock((url: string) => {
@@ -511,5 +551,92 @@ describe('queryTextStream — guest-token 401 retry', () => {
     expect(capturedError).toBe(
       'Too many requests, please try again later (429 Too Many Requests)'
     )
+  })
+})
+
+describe('workspace namespacing of paginated document requests', () => {
+  // The dedup key of in-flight paginated document requests is namespaced by
+  // the active workspace: identical parameters under different workspaces
+  // must NOT share a promise. The settings store is mocked in this file, so
+  // the workspace is controlled via the `storeWorkspace` variable.
+  const makeDocsRequest = (page = 1) => ({
+    status_filter: null,
+    page,
+    page_size: 20,
+    sort_field: 'updated_at' as const,
+    sort_direction: 'desc' as const
+  })
+
+  const emptyPage = {
+    documents: [],
+    pagination: { page: 1, page_size: 20, total_count: 0, total_pages: 0, has_next: false, has_prev: false },
+    status_counts: { all: 0 }
+  }
+
+  test('does not dedupe identical requests across workspaces', async () => {
+    const request = makeDocsRequest()
+
+    let callCount = 0
+    const resolvers: Array<(value: any) => void> = []
+    apiModule.__setPaginatedDocumentsPostForTests((_request, controller) => {
+      callCount += 1
+      return new Promise((resolve, reject) => {
+        resolvers.push(resolve)
+        controller.signal.addEventListener(
+          'abort',
+          () => reject(new DOMException('Aborted', 'AbortError')),
+          { once: true }
+        )
+      })
+    })
+
+    storeWorkspace = 'ws_a'
+    const reqA = apiModule.getDocumentsPaginated(request)
+    storeWorkspace = 'ws_b'
+    const reqB = apiModule.getDocumentsPaginated(request)
+
+    expect(callCount).toBe(2)
+
+    resolvers[0](emptyPage)
+    resolvers[1](emptyPage)
+    await expect(reqA).resolves.toEqual(emptyPage)
+    await expect(reqB).resolves.toEqual(emptyPage)
+
+    // Same workspace + same parameters still dedupes
+    const reqB1 = apiModule.getDocumentsPaginated(request)
+    const reqB2 = apiModule.getDocumentsPaginated(request)
+    expect(callCount).toBe(3)
+    resolvers[2](emptyPage)
+    await expect(reqB1).resolves.toEqual(emptyPage)
+    await expect(reqB2).resolves.toEqual(emptyPage)
+
+    storeWorkspace = ''
+    apiModule.__resetPaginatedDocumentRequestsForTests()
+  })
+
+  test('abortAllDocumentsPaginated aborts every in-flight request', async () => {
+    let callCount = 0
+    apiModule.__setPaginatedDocumentsPostForTests((_request, controller) => {
+      callCount += 1
+      return new Promise((_resolve, reject) => {
+        controller.signal.addEventListener(
+          'abort',
+          () => reject(new DOMException('Aborted', 'AbortError')),
+          { once: true }
+        )
+      })
+    })
+
+    const first = apiModule.getDocumentsPaginated(makeDocsRequest())
+    const second = apiModule.getDocumentsPaginated(makeDocsRequest(2))
+    expect(callCount).toBe(2)
+
+    apiModule.abortAllDocumentsPaginated()
+
+    const [r1, r2] = await Promise.allSettled([first, second])
+    expect(r1.status).toBe('rejected')
+    expect(r2.status).toBe('rejected')
+
+    apiModule.__resetPaginatedDocumentRequestsForTests()
   })
 })

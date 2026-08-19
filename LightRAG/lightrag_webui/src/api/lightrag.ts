@@ -383,6 +383,10 @@ const silentRefreshGuestToken = async (): Promise<string> => {
   refreshTokenPromise = (async () => {
     try {
       // Call /auth-status to get new guest token
+      // NOTE: intentionally NOT sending LIGHTRAG-WORKSPACE here — /auth-status
+      // is a global endpoint; attaching the header would only trigger a
+      // pointless lazy-load of the workspace instance on the server
+      // (see local-patches/workspace-request-routing.patch middleware).
       const response = await axios.get('/auth-status', {
         baseURL: backendBaseUrl,
         // This request must skip the interceptor to avoid adding expired token
@@ -425,6 +429,7 @@ axiosInstance.interceptors.request.use((config) => {
 
   const apiKey = useSettingsStore.getState().apiKey
   const token = localStorage.getItem('LIGHTRAG-API-TOKEN');
+  const workspace = useSettingsStore.getState().workspace
 
   // Always include token if it exists, regardless of path
   if (token) {
@@ -432,6 +437,11 @@ axiosInstance.interceptors.request.use((config) => {
   }
   if (apiKey) {
     config.headers['X-API-Key'] = apiKey
+  }
+  if (workspace) {
+    // Server routes the request to the per-workspace LightRAG instance
+    // (see local-patches/workspace-request-routing.patch)
+    config.headers['LIGHTRAG-WORKSPACE'] = workspace
   }
   return config
 })
@@ -691,6 +701,7 @@ async function _readNdjsonStream(
 function _buildStreamHeaders(): HeadersInit {
   const apiKey = useSettingsStore.getState().apiKey;
   const token = localStorage.getItem('LIGHTRAG-API-TOKEN');
+  const workspace = useSettingsStore.getState().workspace;
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     Accept: 'application/x-ndjson',
@@ -700,6 +711,10 @@ function _buildStreamHeaders(): HeadersInit {
   }
   if (apiKey) {
     headers['X-API-Key'] = apiKey;
+  }
+  if (workspace) {
+    // Streaming queries must route to the selected workspace instance too
+    headers['LIGHTRAG-WORKSPACE'] = workspace;
   }
   return headers;
 }
@@ -1100,8 +1115,10 @@ type InFlightPaginatedDocumentRequest = {
   subscriberCount: number
 }
 
+// Dedup key must include the workspace: identical requests targeting
+// different workspaces must never share an in-flight promise.
 const getPaginatedDocumentsRequestKey = (request: DocumentsRequest): string =>
-  JSON.stringify(request)
+  `${useSettingsStore.getState().workspace}\n${JSON.stringify(request)}`
 
 // Deduplicate in-flight paginated document requests with identical parameters.
 // This prevents duplicate backend calls caused by overlapping timers/effects or
@@ -1200,6 +1217,18 @@ export const abortDocumentsPaginated = (request: DocumentsRequest): void => {
 
   inFlightPaginatedDocumentRequests.delete(requestKey)
   inFlightRequest.controller.abort()
+}
+
+/**
+ * Abort ALL in-flight paginated document requests regardless of parameters.
+ * Used on workspace switch so stale responses from the previous workspace
+ * can never land in the new workspace's document list.
+ */
+export const abortAllDocumentsPaginated = (): void => {
+  for (const { controller } of inFlightPaginatedDocumentRequests.values()) {
+    controller.abort()
+  }
+  inFlightPaginatedDocumentRequests.clear()
 }
 
 export const __resetPaginatedDocumentRequestsForTests = (): void => {

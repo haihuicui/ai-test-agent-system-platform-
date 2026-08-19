@@ -113,7 +113,8 @@
         "removeFile": "Remove file",
         "uploadDescription": "You can upload {{isMultiple ? 'multiple' : count}} files (up to {{maxSize}} each)",
         "duplicateFile": "File name already exists in server cache"
-      }
+      },
+      "targetWorkspace": "Target workspace"
     },
     "documentManager": {
       "title": "Document Management",
@@ -491,5 +492,18 @@
     "prevPage": "Previous Page",
     "nextPage": "Next Page",
     "lastPage": "Last Page"
+  },
+  "workspace": {
+    "label": "Workspace",
+    "default": "Default workspace",
+    "current": "Current",
+    "inputPlaceholder": "Workspace name (letters, digits, _)",
+    "apply": "Switch",
+    "history": "Recent workspaces",
+    "sanitizedPreview": "Will route to: {{sanitized}}",
+    "sanitizeCollisionWarning": "Non-ASCII names collapse to underscores and may collide",
+    "switched": "Switched to workspace {{workspace}}",
+    "switchedToDefault": "Switched to default workspace",
+    "tooltip": "Documents, graphs and queries are isolated per workspace"
   }
 }

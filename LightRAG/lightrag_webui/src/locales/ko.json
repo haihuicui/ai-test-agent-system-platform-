@@ -111,7 +111,8 @@
         "removeFile": "파일 제거",
         "uploadDescription": "{{isMultiple ? '여러' : count}}개의 파일을 업로드할 수 있습니다 (각 최대 {{maxSize}})",
         "duplicateFile": "파일 이름이 서버 캐시에 이미 존재합니다"
-      }
+      },
+      "targetWorkspace": "대상 워크스페이스"
     },
     "documentManager": {
       "title": "문서 관리",
@@ -489,5 +490,18 @@
     "prevPage": "이전 페이지",
     "nextPage": "다음 페이지",
     "lastPage": "마지막 페이지"
+  },
+  "workspace": {
+    "label": "워크스페이스",
+    "default": "기본 워크스페이스",
+    "current": "현재",
+    "inputPlaceholder": "워크스페이스 이름(영문자, 숫자, _)",
+    "apply": "전환",
+    "history": "최근 워크스페이스",
+    "sanitizedPreview": "라우팅 대상: {{sanitized}}",
+    "sanitizeCollisionWarning": "비 ASCII 이름은 밑줄로 대체되어 충돌할 수 있습니다",
+    "switched": "워크스페이스 {{workspace}}(으)로 전환했습니다",
+    "switchedToDefault": "기본 워크스페이스로 전환했습니다",
+    "tooltip": "문서, 그래프, 검색은 워크스페이스별로 격리됩니다"
   }
 }

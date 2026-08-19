@@ -113,7 +113,8 @@
         "removeFile": "移除文件",
         "uploadDescription": "您可以上传{{isMultiple ? '多个' : count}}个文件（每个文件最大{{maxSize}}）",
         "duplicateFile": "文件名与服务器上的缓存重复"
-      }
+      },
+      "targetWorkspace": "目标工作空间"
     },
     "documentManager": {
       "title": "文档管理",
@@ -491,5 +492,18 @@
     "prevPage": "上一页",
     "nextPage": "下一页",
     "lastPage": "末页"
+  },
+  "workspace": {
+    "label": "工作空间",
+    "default": "默认空间",
+    "current": "当前",
+    "inputPlaceholder": "工作空间名称（字母、数字、下划线）",
+    "apply": "切换",
+    "history": "最近使用",
+    "sanitizedPreview": "将路由到：{{sanitized}}",
+    "sanitizeCollisionWarning": "非 ASCII 名称（如中文）会被全部转为下划线，不同名称可能撞到同一空间",
+    "switched": "已切换到工作空间 {{workspace}}",
+    "switchedToDefault": "已切换到默认空间",
+    "tooltip": "文档、图谱与检索按工作空间隔离"
   }
 }

@@ -111,7 +111,8 @@
         "removeFile": "Supprimer le fichier",
         "uploadDescription": "Vous pouvez télécharger {{isMultiple ? 'plusieurs' : count}} fichiers (jusqu'à {{maxSize}} chacun)",
         "duplicateFile": "Le nom du fichier existe déjà dans le cache du serveur"
-      }
+      },
+      "targetWorkspace": "Espace cible"
     },
     "documentManager": {
       "title": "Gestion des documents",
@@ -489,5 +490,18 @@
     "prevPage": "Page précédente",
     "nextPage": "Page suivante",
     "lastPage": "Dernière page"
+  },
+  "workspace": {
+    "label": "Espace de travail",
+    "default": "Espace par défaut",
+    "current": "Actuel",
+    "inputPlaceholder": "Nom de l'espace (lettres, chiffres, _)",
+    "apply": "Changer",
+    "history": "Espaces récents",
+    "sanitizedPreview": "Sera routé vers : {{sanitized}}",
+    "sanitizeCollisionWarning": "Les noms non ASCII sont remplacés par des tirets bas et peuvent entrer en collision",
+    "switched": "Espace de travail changé : {{workspace}}",
+    "switchedToDefault": "Espace par défaut activé",
+    "tooltip": "Documents, graphes et recherches sont isolés par espace de travail"
   }
 }

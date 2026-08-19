@@ -111,7 +111,8 @@
         "removeFile": "Xóa tệp",
         "uploadDescription": "Bạn có thể tải lên {{isMultiple ? 'nhiều' : count}} tệp (tối đa {{maxSize}} mỗi tệp)",
         "duplicateFile": "Tên tệp đã tồn tại trong bộ nhớ cache của máy chủ"
-      }
+      },
+      "targetWorkspace": "Không gian đích"
     },
     "documentManager": {
       "title": "Quản Lý Tài Liệu",
@@ -489,5 +490,18 @@
     "prevPage": "Trang Trước",
     "nextPage": "Trang Tiếp",
     "lastPage": "Trang Cuối"
+  },
+  "workspace": {
+    "label": "Không gian làm việc",
+    "default": "Không gian mặc định",
+    "current": "Hiện tại",
+    "inputPlaceholder": "Tên không gian (chữ, số, _)",
+    "apply": "Chuyển",
+    "history": "Không gian gần đây",
+    "sanitizedPreview": "Sẽ định tuyến tới: {{sanitized}}",
+    "sanitizeCollisionWarning": "Tên không phải ASCII sẽ bị thay bằng dấu gạch dưới và có thể trùng nhau",
+    "switched": "Đã chuyển sang không gian {{workspace}}",
+    "switchedToDefault": "Đã chuyển sang không gian mặc định",
+    "tooltip": "Tài liệu, đồ thị và truy vấn được tách biệt theo không gian làm việc"
   }
 }

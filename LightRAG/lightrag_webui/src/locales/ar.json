@@ -111,7 +111,8 @@
         "removeFile": "إزالة الملف",
         "uploadDescription": "يمكنك رفع {{isMultiple ? 'عدة' : count}} ملفات (حتى {{maxSize}} لكل منها)",
         "duplicateFile": "اسم الملف موجود بالفعل في ذاكرة التخزين المؤقت للخادم"
-      }
+      },
+      "targetWorkspace": "مساحة العمل المستهدفة"
     },
     "documentManager": {
       "title": "إدارة المستندات",
@@ -489,5 +490,18 @@
     "prevPage": "الصفحة السابقة",
     "nextPage": "الصفحة التالية",
     "lastPage": "الصفحة الأخيرة"
+  },
+  "workspace": {
+    "label": "مساحة العمل",
+    "default": "مساحة العمل الافتراضية",
+    "current": "الحالية",
+    "inputPlaceholder": "اسم مساحة العمل (أحرف، أرقام، _)",
+    "apply": "تبديل",
+    "history": "مساحات العمل الأخيرة",
+    "sanitizedPreview": "سيتم التوجيه إلى: {{sanitized}}",
+    "sanitizeCollisionWarning": "الأسماء غير ASCII تتحول إلى شرطات سفلية وقد تتعارض",
+    "switched": "تم التبديل إلى مساحة العمل {{workspace}}",
+    "switchedToDefault": "تم التبديل إلى مساحة العمل الافتراضية",
+    "tooltip": "المستندات والرسوم البيانية والاستعلامات معزولة حسب مساحة العمل"
   }
 }
