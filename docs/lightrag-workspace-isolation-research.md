@@ -104,6 +104,16 @@ Agent (LangGraph) ──SSE──> 103 rag-server:8008 ──HTTP──> 103 lig
 
 **验证**：bun test 45/45；tsc 干净；本机 9621 补丁版实例 Playwright E2E 7/7（`ui/scripts/e2e_webui_workspace_switcher.mjs` 可复跑）——切换器渲染、消毒预览、持久化、刷新后请求带头、切回默认库头消失。**103 重跑 deploy.sh 后生效。**
 
+## 8-19 补充②：平台 Agent 链路端到端实证（PR-1 会话）
+
+**脚本**：`backend/scripts/verify_rag_workspace_routing_e2e.py`（in-process make_agent 真实模型 + **真实 RAG 工具链**，context=PR-1）。
+
+**结果 3/3 PASS**：H1 agent 发起 rag_query_data 调用；H2「登录流程」查询命中 PR_1 库特征内容（密码错误锁定 30 分钟/登录按钮，refs=pr1-login-doc.txt）；H3「支付流程」查询不含 PR_2 库内容（购物车/退款）——反向隔离成立。
+
+**过程中发现并澄清的两个认知陷阱**：
+1. **首次运行失败（落默认库）的原因**：in-process `ainvoke` 不会像平台那样把 context 合并进 config.configurable，包装器 `get_session_project()` 读不到项目标识。平台行为由 `langgraph_api/models/run.py:232-237` 保证（`context → configurable.copy()`）——修正 config 后全 PASS。**生产链路（前端 context → 平台合并 → 包装器注入）因此完整闭环**。
+2. **「103 默认库为空」的精确含义**：空的是 PG doc_status（/documents 列表）；Neo4j/Milvus 里有历史入库（本机 LightRAG 曾用远程存储配置时期）的图谱数据，图谱类查询仍能命中——评估存量数据时两个维度要分开看。
+
 ## Sources
 
 - [PR #2445: workspace isolation in lightrag_server](https://github.com/HKUDS/LightRAG/pull/2445)
