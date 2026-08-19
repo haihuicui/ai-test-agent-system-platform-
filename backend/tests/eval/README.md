@@ -14,8 +14,9 @@ tests/eval/
 ├── coverage_audit.py         # 覆盖漏测审计（复用运行时 compute_coverage，项目级全景）
 ├── judge_coverage.py         # 需求覆盖语义裁判（FP 级 G-Eval，抓虚假声明/真漏测）
 ├── defense_stats.py          # 防线有效性统计（拦截率/评审发现/信任度，零 token）
+├── compare_runs.py           # 模型 A/B 对比（同需求两版产出三维对比，裁判 3 次采样取中位）
 ├── judge_model.py            # DeepSeek 裁判封装（DeepEvalBaseLLM 协议）
-├── metrics.py                # 2 个 G-Eval 裁判定义（单一事实源，门禁与落盘共用）
+├── metrics.py                # G-Eval 裁判定义（单一事实源，门禁与落盘共用）
 ├── test_testcase_quality.py  # pytest 参数化门禁
 ├── harvest_samples.py        # 从 workspace 历史产出采集回归样本（分层均衡 + 矩阵关联）
 ├── make_blind_labels.py      # 生成盲标工作表 + 标注骨架
@@ -25,8 +26,11 @@ tests/eval/
 └── dataset/
     ├── regression_v1.jsonl   # 回归集 v1（actual_output only，45 条，只增不减）
     ├── regression_v2.jsonl   # 回归集 v2（带 feature_matrix，覆盖/忠实度裁判用）
-    ├── lint_baseline.json    # lint 存量违规冻结基线（1285 条，只拦新增）
-    ├── human_labels_v1.jsonl # 人工盲标（0/1，校准基准）
+    ├── lint_baseline.json    # lint 存量违规冻结基线（1615 条 @2026-08-19，只拦新增）
+    ├── judge_coverage_v1.jsonl # 覆盖裁判首份基线（25 FP = 23 过 / 2 真漏测）
+    ├── judge_coverage_ab.jsonl      # A/B 实战：两模型各自目录 × 各自矩阵
+    ├── judge_coverage_ab_cross.jsonl # A/B 交叉：跨目录 × 跨矩阵对照
+    ├── human_labels_v1.jsonl # 人工盲标骨架（未标注，校准轨道已冻结——见「校准」）
     ├── judge_scores_v1.jsonl # 裁判分数落盘（重分析不重跑）
     └── blind_worksheet.md    # 盲标阅读材料（用例全文 + 判定行，无裁判分）
 ```
@@ -40,18 +44,36 @@ uv pip install --python backend/.venv/Scripts/python.exe "deepeval>=3.0"
 # 用例规范 lint（零 token，推荐每次改 prompt 后先跑它）
 cd backend
 ./.venv/Scripts/python.exe -m tests.eval.lint_cases          # 有 error 退出码 1
-# baseline 模式：存量 1285 条已冻结为基线（历史不修），日常只报新增——接 CI 用这个
+# baseline 模式：存量 1615 条已冻结为基线（历史不修），日常只报新增
 ./.venv/Scripts/python.exe -m tests.eval.lint_cases --baseline
 
-# 覆盖漏测审计（项目级全景：FP 漏测清单/薄弱覆盖/无追溯文件；P0 未覆盖退出码 1）
+# 本地门禁已上线：git push 自动跑 lint --baseline + coverage_audit
+# （新增 error 或 P0 未覆盖即阻断，--no-verify 可跳过）。
+# 为什么不在云端 CI：workspace 用例数据是 .gitignore 的本地资产，
+# GitHub Actions 没有数据可扫。换机克隆后需执行一次：
+#   git config core.hooksPath .githooks
+
+# 覆盖漏测审计（项目级全景：FP 漏测清单/薄弱覆盖/无追溯文件；P0 未覆盖退出码 1；
+# REQ 需求级对齐防 FP 编号撞车虚高——跨需求显式声明不计入覆盖）
 ./.venv/Scripts/python.exe -m tests.eval.coverage_audit
 
 # 需求覆盖语义裁判（FP 级 G-Eval：相关用例是否真语义覆盖每个 test_point；
 # REQ 主题需求级对齐防 FP 编号撞车；断点续跑。首跑：25 FP = 23 过 / 2 真漏测）
 ./.venv/Scripts/python.exe -m tests.eval.judge_coverage --project PR-1
+# 会话目录级 / 跨矩阵评估（模型 A/B 对比用）：
+./.venv/Scripts/python.exe -m tests.eval.judge_coverage \
+    --cases-dir workspace/testcase/PR-1/<thread_id> --source-tag qwen
 
 # 防线有效性统计（中间件拦截率、对抗评审发现、信任度分布——过程质量量化）
 ./.venv/Scripts/python.exe -m tests.eval.defense_stats
+
+# 模型 A/B 对比（同需求两版产出三维对比：lint / 语义裁判 / 覆盖裁判；
+# 裁判 3 次采样取中位数抗摆动——实测同一裁判同一样本评分摆动 0.00↔0.90）
+./.venv/Scripts/python.exe -m tests.eval.compare_runs \
+    --a-name "deepseek-v4-flash" --a-path workspace/testcase/PR-1 \
+    --b-name "qwen"             --b-path workspace/testcase/PR-1/<thread_id> \
+    --matrix workspace/testcase/PR-1/feature_matrix.jsonl
+# 加 --skip-judges 只跑零 token 的 lint 对比（快速预览）
 
 # 1. 采集真实样本（从 workspace 历史用例文件）
 ./.venv/Scripts/python.exe -m tests.eval.harvest_samples
@@ -75,8 +97,12 @@ cd backend
 | warning | W1 case_type 非法值 / W4 单步骤 / W5 步骤>10 / W6 无 REQ-/FP-/F- 追溯 / W7 命名不规范 | 单条用例规范 |
 | warning | W8 priority 双体系混用 / W9 critical 占比>50% / W10 步骤非结构化(字符串) / W11 旧 schema | 文件级/结构级问题 |
 
-首份基线（2026-08）：459 error / 826 warning，违规集中于 sorted_cases、dms_test_cases
+首份基线（2026-08-13）：459 error / 826 warning，违规集中于 sorted_cases、dms_test_cases
 等旧格式文件。新产出的准入标准：**error 必须为 0**，warning 只减不增。
+
+扫描口径（2026-08-19）：`adversarial_review*` 文件不再扫描——评审报告逐字引用
+缺陷用例作证据，lint 这些"被展示的反面教材"是纯假阳性（排除后新增违规 540→330）。
+基线同日推进 1285→1615（吸收 A/B 实验与 E2E 线程产出）。
 
 ## 样本格式（regression_v1.jsonl，每行一条）
 
@@ -98,12 +124,24 @@ cd backend
 
 ## 当前裁判（阈值待定，见「校准」）
 
-| 裁判 | 评什么 | 初始阈值 |
-|------|--------|---------|
-| 预期结果可断言性 | 模糊词扣分、因果断裂扣分（质量红线第 2 条） | 0.8 |
-| 异常与安全覆盖 | 异常流密度、安全用例、边界值（红线第 4/6/7 条） | 0.7 |
+| 裁判 | 评什么 | 状态 |
+|------|--------|------|
+| 预期结果可断言性 | 模糊词扣分、因果断裂扣分（质量红线第 2 条） | 初始阈值 0.8，未校准（校准轨道冻结，见下） |
+| 异常与安全覆盖 | 异常流密度、安全用例、边界值（红线第 4/6/7 条） | 初始阈值 0.7，未校准；A/B 对比中作相对分用 |
+| 需求覆盖完整性 | FP 级：相关用例是否真语义覆盖每个 test_point | ✅ 实战主力，judge_coverage.py 专用 |
 
-## 校准（启用真门禁前必做）
+## A/B 实战首份结论（2026-08-17，compare_runs + judge_coverage）
+
+DeepSeek vs Qwen 同需求生成对比：lint 打平、可断言性打平 0.70、
+异常覆盖 DS 0.90 > QW 0.70、矩阵拆分 QW 23FP > DS 11FP（粒度差异非遗漏）、
+效率 DS 快 2.3×。经验：**裁判单次分数不可作对比依据**（推理路径非确定，
+同一样本两次评分摆动 0.00↔0.90），compare_runs 一律 3 次采样取中位数。
+
+## 校准（轨道已冻结，重启 LLM 裁判门禁时才走）
+
+> **2026-08-13 决策：放弃 v1 双裁判（可断言性/异常覆盖）的盲标校准**，
+> 转向确定性 lint + 覆盖类专用裁判优先。`human_labels_v1.jsonl` 45 条骨架
+> 未标注，以下工具链保留可用。本 SOP 仅在重启 LLM 裁判作正式门禁时恢复执行。
 
 裁判与被测 Agent 同源（都是 deepseek-v4-flash），存在自评偏好风险。
 校准 = 证明「裁判的 pass/fail 与人的判断足够一致」，不一致就调裁判，而不是信裁判。
