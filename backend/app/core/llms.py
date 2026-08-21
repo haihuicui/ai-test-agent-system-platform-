@@ -181,13 +181,18 @@ def get_qwen_model_with_temperature(temperature: float = 0.3, max_tokens: int | 
     return model
 
 
-@lru_cache(maxsize=1)
-def get_kimi_model():
+@lru_cache(maxsize=2)
+def get_kimi_model(disable_thinking: bool = False):
     """创建 Kimi 文本模型（Anthropic 兼容协议）。
 
     适用于 DeepSeek 之外的云端备选文本模型。通过 ChatAnthropic 对接
-    kimi.com/coding 网关（k3 系列，ANTHROPIC_AUTH_TOKEN 以 Bearer 头传递，
+    kimi.com/coding 网关（ANTHROPIC_AUTH_TOKEN 以 Bearer 头传递，
     同时保留 x-api-key 以兼容标准 Anthropic 鉴权）。
+
+    Args:
+        disable_thinking: True 时下发 thinking={"type": "disabled"} 关闭推理
+            （k2.7/k3 默认开启 thinking；逐步浏览器决策等场景无需深度推理，
+            关思考可显著降时延）。两个取值各自缓存一个单例。
 
     Returns:
         配置好 ModelProfile 的 ChatAnthropic 实例
@@ -210,11 +215,15 @@ def get_kimi_model():
             max_retries=settings.llm_max_retries,
             default_request_timeout=settings.llm_timeout,
             max_tokens=settings.llm_max_tokens,
+            thinking={"type": "disabled"} if disable_thinking else None,
         )
-        # k3 实际上下文未公开，保守按 256K 预估并预留输出配额，
+        # k2.7 实际上下文未公开，保守按 256K 预估并预留输出配额，
         # 避免压缩中间件过晚触发导致 API 侧上下文溢出
         model.profile = ModelProfile(max_input_tokens=245760)
-        logger.info(f"Kimi model ready: {settings.kimi_model} @ {settings.kimi_api_base}")
+        logger.info(
+            f"Kimi model ready: {settings.kimi_model} @ {settings.kimi_api_base}"
+            f" (thinking={'off' if disable_thinking else 'on'})"
+        )
         return model
     except Exception as e:
         logger.error(f"Failed to create kimi model: {e}")

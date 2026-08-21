@@ -185,10 +185,10 @@ class Settings(BaseSettings):
 
     # Kimi 文本模型（kimi.com/coding，Anthropic 兼容协议，用于 ChatAnthropic）
     # 未配置 kimi_api_key 时 get_kimi_model() 直接报错；
-    # 线上模型 id 为 k3（Claude Code 配置里的 k3[1M] 是客户端侧别名，直连 API 不认）
+    # 线上模型 id 为 k2.7/k3 等裸名（Claude Code 配置里的 k3[1M] 是客户端侧别名，直连 API 不认）
     kimi_api_base: str = "https://api.kimi.com/coding/"
     kimi_api_key: Optional[str] = None
-    kimi_model: str = "k3"
+    kimi_model: str = "k2.7"
 
     # testcase Agent 文本模型提供方：deepseek（默认）| qwen（自部署，数据不出网）
     # 只切换文本决策模型；image_model（VLM 图片转录）不受影响
@@ -198,8 +198,9 @@ class Settings(BaseSettings):
     api_llm_provider: str = "deepseek"
 
     # web_mcp Agent 文本模型提供方：deepseek（默认）| qwen（自部署，数据不出网）| kimi
-    # web_agent_disable_thinking 只对 deepseek/qwen 生效（DeepSeek 走 thinking.type=disabled，
-    # qwen/vLLM 走 chat_template_kwargs.enable_thinking=false；kimi 无此开关）
+    # web_agent_disable_thinking 对三家均生效（DeepSeek 走 thinking.type=disabled，
+    # qwen/vLLM 走 chat_template_kwargs.enable_thinking=false，
+    # kimi 走 Anthropic 协议 thinking={"type": "disabled"}）
     web_llm_provider: str = "deepseek"
 
     # Langfuse LLM 观测（自部署，见 deploy/langfuse/）。默认关闭；
@@ -282,6 +283,10 @@ class Settings(BaseSettings):
     web_mcp_storage_state_probe_enabled: bool = True
     web_mcp_storage_state_probe_path: str = "/api/user/info"
 
+    # MCP 浏览器工具单次调用超时（秒）。目标站认证失效弹原生 Basic Auth 弹窗时
+    # 页面 JS 冻结、MCP 调用永不返回（thread 681b9d01 实证卡死 28 分钟），
+    # 必须有上限让 agent 拿到超时错误并走诊断路径。
+    web_mcp_tool_call_timeout_seconds: int = 300
     # Web 测试执行预算（超时/并发/重试，统一在此调整）。
     # 层级关系：单用例超时(web_exec_test_timeout_ms) < 整脚本执行超时(web_exec_timeout_seconds)。
     web_exec_test_timeout_ms: int = 60_000   # 单个测试用例超时（写入 playwright.config 的 timeout）
