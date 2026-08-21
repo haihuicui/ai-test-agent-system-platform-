@@ -112,6 +112,19 @@ class APIEndpoint(Base, UUIDMixin, TimestampMixin):
         comment="安全配置 [{type, scheme, scopes}]"
     )
 
+    links: Mapped[dict | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment="接口间依赖（OpenAPI links，按响应状态分组）{status: {link_name: link_object}}；"
+                "link 内 parameters 描述目标接口参数 ← 本接口响应字段的映射（如 {orderId: '$response.body#/id'}）"
+    )
+
+    callbacks: Mapped[dict | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment="回调定义（OpenAPI callbacks，operation 级）{expression: callback_object}，描述本接口触发的异步通知"
+    )
+
     tags: Mapped[list[str] | None] = mapped_column(
         JSONB,
         nullable=True,

@@ -284,6 +284,12 @@ async def get_endpoint_details(
                 "request_body": endpoint.request_body,
                 "responses": endpoint.responses,
                 "security": endpoint.security,
+                # links/callbacks：接口间依赖与回调（解析自 OpenAPI）。
+                # linked_endpoints（custom_config 内）是解析后的依赖清单，
+                # target 为 "METHOD path"，parameters 是「目标参数 ← 本接口响应字段」映射，
+                # 场景设计时据此决定步骤顺序与提取器/数据映射。
+                "links": endpoint.links,
+                "callbacks": endpoint.callbacks,
                 "tags": endpoint.tags,
                 "custom_config": endpoint.custom_config,
                 "statistics": {
@@ -375,6 +381,8 @@ async def get_multiple_endpoints_details(
                     "request_body": endpoint.request_body,
                     "responses": endpoint.responses,
                     "security": endpoint.security,
+                    "links": endpoint.links,
+                    "callbacks": endpoint.callbacks,
                     "tags": endpoint.tags,
                     "custom_config": endpoint.custom_config,
                     "statistics": {

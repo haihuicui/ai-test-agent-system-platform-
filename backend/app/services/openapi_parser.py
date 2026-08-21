@@ -16,6 +16,48 @@ from app.models.project import Project
 from app.models.folder_type import FolderType
 
 
+def _resolve_linked_endpoints(
+    links_by_status: dict[str, Any] | None,
+    operation_targets: dict[str, str]
+) -> list[dict[str, Any]]:
+    """
+    将 OpenAPI links 解析为可读的接口依赖清单
+
+    OpenAPI 3.0 中 links 定义在 response 对象上，通过 operationId / operationRef
+    引用目标接口。此函数把引用解析为 "METHOD path"，供场景设计直接消费
+    （link.parameters 保留了「目标接口参数 ← 本接口响应字段」的映射表达式，
+    如 {orderId: "$response.body#/id"}，即场景步骤间数据提取/映射的依据）。
+
+    Args:
+        links_by_status: {响应状态: {link 名: link 对象}}
+        operation_targets: {operationId: "METHOD path"} 全量映射
+
+    Returns:
+        [{status, link_name, operation_id, operation_ref, target, description, parameters}]
+        target 解析失败（引用了文档外的 operation）时为 None
+    """
+    resolved = []
+    for status, links in (links_by_status or {}).items():
+        if not isinstance(links, dict):
+            continue
+        for name, link in links.items():
+            if not isinstance(link, dict):
+                continue
+            operation_id = link.get("operationId")
+            operation_ref = link.get("operationRef")
+            target = operation_targets.get(operation_id) if operation_id else None
+            resolved.append({
+                "status": status,
+                "link_name": name,
+                "operation_id": operation_id,
+                "operation_ref": operation_ref,
+                "target": target,
+                "description": link.get("description"),
+                "parameters": link.get("parameters"),
+            })
+    return resolved
+
+
 class OpenAPIParser:
     """OpenAPI Schema 解析器"""
 
@@ -54,6 +96,22 @@ class OpenAPIParser:
 
         # 按标签分组端点
         endpoints_by_tag = self._group_endpoints_by_tag(paths, top_servers)
+
+        # 构建 operationId -> "METHOD path" 全量映射，把 links 中的接口引用
+        # 解析为可读依赖清单（写入 custom_config.linked_endpoints）
+        operation_targets: dict[str, str] = {}
+        for endpoints in endpoints_by_tag.values():
+            for endpoint_data in endpoints:
+                if endpoint_data.get("operation_id"):
+                    operation_targets.setdefault(
+                        endpoint_data["operation_id"],
+                        f"{endpoint_data['method']} {endpoint_data['path']}"
+                    )
+        for endpoints in endpoints_by_tag.values():
+            for endpoint_data in endpoints:
+                endpoint_data["linked_endpoints"] = (
+                    _resolve_linked_endpoints(endpoint_data.get("links"), operation_targets) or None
+                )
 # pylint: disable  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2Y0ZwV1p3PT06MDg1MGI4ODg=
 
         # 创建文件夹结构
@@ -152,6 +210,13 @@ class OpenAPIParser:
                 operation_servers = method_spec.get("servers", [])
                 servers = operation_servers or path_servers or top_servers
 
+                # OpenAPI links 定义在 response 对象上（非 operation 级），
+                # 按响应状态分组收集，如 {"201": {"GetOrder": {...}}}
+                links_by_status: dict[str, Any] = {}
+                for status, resp in (method_spec.get("responses") or {}).items():
+                    if isinstance(resp, dict) and resp.get("links"):
+                        links_by_status[str(status)] = resp["links"]
+
                 # 构建端点数据
                 endpoint_data = {
                     "path": path,
@@ -165,7 +230,9 @@ class OpenAPIParser:
                     "tags": tags,
                     "deprecated": method_spec.get("deprecated", False),
                     "operation_id": method_spec.get("operationId"),
-                    "servers": servers
+                    "servers": servers,
+                    "links": links_by_status or None,
+                    "callbacks": method_spec.get("callbacks")
                 }
 
                 # 添加到分组
@@ -274,6 +341,8 @@ class OpenAPIParser:
             request_body=endpoint_data.get("request_body"),
             responses=endpoint_data.get("responses"),
             security=endpoint_data.get("security"),
+            links=endpoint_data.get("links"),
+            callbacks=endpoint_data.get("callbacks"),
             tags=endpoint_data.get("tags"),
             tag_group=tag_name,
             custom_config={
@@ -281,7 +350,8 @@ class OpenAPIParser:
                 "operation_id": endpoint_data.get("operation_id"),
                 "resource_name": resource_name,
                 "folder_name": folder_name,
-                "servers": endpoint_data.get("servers", [])
+                "servers": endpoint_data.get("servers", []),
+                "linked_endpoints": endpoint_data.get("linked_endpoints")
             },
             sort_order=self._get_method_sort_order(method)
         )
