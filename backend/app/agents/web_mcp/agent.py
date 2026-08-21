@@ -36,6 +36,7 @@ from app.agents.tools.web import get_local_tools
 from app.agents.tools.error_handler import wrap_tools_with_error_handling
 from app.agents.web_mcp.execution_invitation_middleware import WebExecutionInvitationMiddleware
 from app.agents.web_mcp.intent_confirmation_middleware import WebIntentConfirmationMiddleware
+from app.agents.web_mcp.tool_guard_middleware import WebToolGuardMiddleware
 from app.config.settings import settings
 from app.core.llms import text_model as model
 from app.core.tracing import with_langfuse_tracing
@@ -465,6 +466,7 @@ async def make_agent(config: RunnableConfig | None = None) -> AsyncIterator[Preg
                 context_middleware,
                 WebIntentConfirmationMiddleware(),
                 WebExecutionInvitationMiddleware(),
+                WebToolGuardMiddleware(),
             ],
             backend=composite_backend,
             context_schema=WebAgentContext,

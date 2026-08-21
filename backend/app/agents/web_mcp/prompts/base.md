@@ -68,6 +68,34 @@
   - 如果 plan 明确写着 `**认证方式**：已通过项目 storageState 自动登录`，才可以不写 UI 登录步骤。
   - 绝对禁止因为 `playwright.config.js` 配置了 storageState 就忽略 plan 中的登录 Setup Steps。
 
+### 运行时认证失效（401 / 原生登录弹窗）
+storageState 的 token 可能在会话中途被服务端踢出。此时目标站 API 返回
+`401 + WWW-Authenticate: Basic`，**Chrome 会弹出浏览器原生登录弹窗**（不是应用登录页），
+页面 JS 完全冻结，Playwright 无法自动关闭它。
+
+识别信号（命中任意一条即按本节处理）：
+- 页面内 fetch/XHR 返回空响应体或非 JSON（`Unexpected end of JSON input`）；
+- `Failed to fetch` / `origin 'null' ... blocked by CORS`；
+- 页面 URL 变成 `about:blank`（浏览器已重启，登录态上下文丢失）；
+- 快照长期停在「加载中…」、工具调用超时（`ToolCallTimeout`）。
+
+处置流程（严格按顺序）：
+1. **立即停止对该站 API 的一切 fetch/盲探**，不要换参数重试同一个接口。
+2. `browser_snapshot()` 确认页面真实状态。
+3. 若确认登录态失效：按项目环境的登录配置**重新执行一次 UI 登录**（同「登录态」节的判断标准），
+   登录成功后从断点继续；若无法重新登录（无凭据/登录页不可用），
+   **明确告知用户「项目登录态已失效，请更新后重试」并结束当前任务**，禁止无限重试。
+4. 若页面是 `about:blank`：先 `browser_navigate` 回目标 URL，再继续任何操作。
+
+### 验证与探测纪律
+- **列表首页没看到新数据 ≠ 新增失败**：先用 UI 搜索框/筛选/翻页/总数变化（如 566→567）确认，
+  禁止直接跳到 DOM/API 层盲探。
+- `browser_run_code_unsafe` 是最后手段，连续失败 2 次后必须回到 `browser_snapshot()` 重建页面认知
+  （系统会注入 [WebToolGuard] 纠偏消息，收到后严格按步骤执行）。
+- 传给 `browser_run_code_unsafe` 的代码签名是 `async (page) => {...}`；
+  浏览器上下文 API（`document` 等）必须包在 `page.evaluate()` 内。
+
+
 ### 等待策略（统一口径，二者不矛盾）
 - **MCP 探索/调试侧**：不要用 `browser_wait_for(state=...)`；改用 `browser_snapshot()`（自动等待）或 `browser_wait_for(time=2000)`。
 - **生成的 Playwright 脚本内**：导航后写 `await page.waitForLoadState('networkidle')` 是允许的。

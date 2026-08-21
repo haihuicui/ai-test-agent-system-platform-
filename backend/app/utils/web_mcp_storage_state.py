@@ -5,6 +5,7 @@
 """
 
 import asyncio
+import json
 import logging
 from pathlib import Path
 from typing import Optional
@@ -151,6 +152,64 @@ _LOGIN_STATE_CACHE_TTL_SECONDS = 60.0
 _login_state_cache: dict[str, tuple[float, bool, "str | None"]] = {}
 
 
+async def probe_storage_state_liveness(
+    storage_state_path: str,
+    base_url: str,
+) -> tuple[bool, str]:
+    """运行时探针：用 storageState 中的 token 访问需登录 API，判定是否已失效。
+
+    与 StorageStateService._probe_storage_state（生成时探针）互补：本探针在
+    run 注入存量 storageState 时执行——存量 token 可能在生成后、本次 run
+    开始前已被服务端踢出（thread 681b9d01 实证：run 中途 401 → 目标站返回
+    ``WWW-Authenticate: Basic`` 触发浏览器原生登录弹窗，MCP 调用全部卡死）。
+
+    判失效（返回 False）仅当探针明确返回 401/403；网络异常、5xx、路径 404
+    等不确定情况一律放行（fail-open），避免探针基础设施问题误杀登录态。
+
+    Returns:
+        (是否可用, 原因说明)。
+    """
+    try:
+        ss_data = json.loads(
+            await run_sync(Path(storage_state_path).read_text, encoding="utf-8")
+        )
+        token: Optional[str] = None
+        for origin_entry in ss_data.get("origins", []):
+            for item in origin_entry.get("localStorage", []):
+                if item.get("name") == "token":
+                    token = item.get("value")
+                    break
+            if token:
+                break
+        if not token:
+            for cookie in ss_data.get("cookies", []):
+                if cookie.get("name") == "Authorization":
+                    token = cookie.get("value")
+                    break
+        if not token:
+            # 无 token 可探（可能走其他认证形式），不据此判失效
+            return True, "storageState 中无 token/Authorization，跳过运行时探针"
+
+        from app.config import settings  # 延迟 import，避免循环依赖
+
+        probe_url = f"{base_url.rstrip('/')}{settings.web_mcp_storage_state_probe_path}"
+
+        import httpx
+
+        async with httpx.AsyncClient(timeout=15.0, follow_redirects=False) as client:
+            resp = await client.get(
+                probe_url,
+                headers={"Authorization": f"Bearer {token}"},
+            )
+        if resp.status_code in (401, 403):
+            return False, f"探针返回 {resp.status_code}: {probe_url}"
+        # 2xx/3xx/404/5xx 均不据此判失效（404 可能接口不存在，5xx 是服务端问题）
+        return True, f"探针通过: {probe_url} status={resp.status_code}"
+    except Exception as exc:
+        logger.warning("[WebMCPStorage] 运行时探针异常（放行登录态）: %s", exc)
+        return True, f"探针异常（放行）: {type(exc).__name__}: {exc}"
+
+
 async def resolve_project_login_state(
     project_identifier: str,
 ) -> tuple[bool, "str | None"]:
@@ -188,6 +247,27 @@ async def resolve_project_login_state(
                     storage_state = await resolve_project_storage_state_path(
                         project_identifier, env.id if env else None
                     )
+                    if storage_state:
+                        # 运行时探针：存量 token 可能在生成后已被服务端踢出。
+                        # 明确 401/403 才判失效（降级为无登录态，走 UI 登录路径）；
+                        # 探针异常/网络问题放行，结果随登录态缓存 60s。
+                        from app.config import settings  # 延迟 import，避免循环依赖
+
+                        if settings.web_mcp_storage_state_probe_enabled and (
+                            env is not None and env.base_url
+                        ):
+                            alive, reason = await probe_storage_state_liveness(
+                                storage_state, env.base_url
+                            )
+                            if not alive:
+                                logger.warning(
+                                    "[WebMCPAgent] 项目 %s storageState 运行时探针"
+                                    "判定失效（%s），本 run 不注入登录态，"
+                                    "将依赖 UI 登录路径。",
+                                    project_identifier,
+                                    reason,
+                                )
+                                storage_state = None
                     if storage_state:
                         logger.info(
                             "[WebMCPAgent] 使用项目级 storageState: %s",
