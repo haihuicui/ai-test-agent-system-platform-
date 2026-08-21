@@ -190,6 +190,11 @@ class WebIntentConfirmationMiddleware(AgentMiddleware):
     与 HumanInTheLoopMiddleware / PhaseReviewMiddleware 协作：
     - 若当前 AI 消息包含待审批的工具调用，先让路给工具审批机制。
     - 若当前 AI 消息是意图推荐（无工具调用），触发结构化中断。
+
+    自动放行（不中断）的两种情形：
+    - ``auto_skip`` 标记 + 唯一精确匹配 → 自动按 expand 继续；
+    - ``recommendation`` 为字面值 ``"new"``（模型判定已有功能与需求明显不同、
+      建议新建）→ 自动按新建功能继续。
     """
 
     @hook_config(can_jump_to=["model", "end"])
@@ -242,6 +247,19 @@ class WebIntentConfirmationMiddleware(AgentMiddleware):
             # 唯一精确匹配 → 自动选择 expand，不触发中断
             return {
                 "messages": [_build_resume_human_message("expand", payload)],
+                "jump_to": "model",
+            }
+
+        # ── 自动跳过确认：模型明确建议新建（recommendation 为字面 "new"）──
+        # 模型已判定匹配到的已有功能与本次需求明显不同（环境/菜单/业务模块
+        # 不一致等）并建议新建时，与 auto_skip 唯一精确匹配→expand 对称：
+        # 自动按"新建功能"继续，不弹面板重复征求用户确认
+        # （thread 5c4e81df 实证：功能明显不同仍弹窗的摩擦来源）。
+        # 注意：recommendation 也可能是功能 identifier（指向候选项高亮），
+        # 仅字面值 "new" 触发本路径。
+        if str(payload.get("recommendation") or "").strip().lower() == "new":
+            return {
+                "messages": [_build_resume_human_message("new", payload)],
                 "jump_to": "model",
             }
 

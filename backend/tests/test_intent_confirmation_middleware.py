@@ -161,8 +161,64 @@ class TestWebIntentConfirmationMiddleware:
         assert result is None
 
     def test_no_interrupt_when_already_resumed(self, middleware):
+        """同 thread 已有带 decision 的 [Web意图确认] 消息时，后续标记一律拦截。"""
         payload = _build_payload()
         ai_msg = _build_ai_message(payload)
-        human_msg = HumanMessage(content="[Web意图确认] 用户选择扩展已有功能 WF-1008")
+        human_msg = HumanMessage(
+            content="[Web意图确认] 用户选择扩展已有功能 WF-1008",
+            additional_kwargs={
+                "_web_intent_confirmation": {"decision": "expand"}
+            },
+        )
         result = middleware.after_model({"messages": [ai_msg, human_msg]}, runtime=None)
+        assert result is None
+
+    def test_auto_skip_when_recommendation_new(self, middleware):
+        """recommendation 为字面 "new" 时不中断，自动按新建功能继续。"""
+        payload = _build_payload(recommendation="new")
+        state = {"messages": [_build_ai_message(payload)]}
+
+        with patch(
+            "app.agents.web_mcp.intent_confirmation_middleware.interrupt",
+        ) as mock_interrupt:
+            result = middleware.after_model(state, runtime=None)
+
+        mock_interrupt.assert_not_called()
+        assert result is not None
+        assert result["jump_to"] == "model"
+        human_msg = result["messages"][0]
+        assert isinstance(human_msg, HumanMessage)
+        assert "用户选择新建功能" in str(human_msg.content)
+        assert human_msg.additional_kwargs["_web_intent_confirmation"]["decision"] == "new"
+
+    def test_recommendation_identifier_does_not_auto_skip(self, middleware):
+        """recommendation 指向功能 identifier（非字面 "new"）时仍走人工面板。"""
+        payload = _build_payload(recommendation="WF-1008")
+        state = {"messages": [_build_ai_message(payload)]}
+
+        with patch(
+            "app.agents.web_mcp.intent_confirmation_middleware.interrupt",
+            return_value={"decision": "expand"},
+        ) as mock_interrupt:
+            result = middleware.after_model(state, runtime=None)
+
+        mock_interrupt.assert_called_once_with(payload)
+        assert result is not None
+
+    def test_auto_skip_new_suppressed_after_existing_confirmation(self, middleware):
+        """同 thread 已确认过（非 view_details）后，recommendation=new 也拦截不再放行。"""
+        payload = _build_payload(recommendation="new")
+        ai_msg = _build_ai_message(payload)
+        resumed = HumanMessage(
+            content="[Web意图确认] 用户选择扩展已有功能 WF-1008",
+            additional_kwargs={
+                "_web_intent_confirmation": {"decision": "expand"}
+            },
+        )
+        with patch(
+            "app.agents.web_mcp.intent_confirmation_middleware.interrupt",
+        ) as mock_interrupt:
+            result = middleware.after_model({"messages": [ai_msg, resumed]}, runtime=None)
+
+        mock_interrupt.assert_not_called()
         assert result is None
