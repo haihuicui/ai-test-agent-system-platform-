@@ -191,11 +191,21 @@ async def _probe_tcp(url: str, timeout: float = 3.0) -> bool:
         return False
 
 
-def _build_mcp_client(stdio_command: str, stdio_args: list[str]) -> MultiServerMCPClient:
+def _build_mcp_client(
+    stdio_command: str,
+    stdio_args: list[str],
+    stdio_cwd: str | None = None,
+) -> MultiServerMCPClient:
     """按配置选择 MCP 传输方式并构建客户端。
 
     优先级：常驻 server（streamable_http，WEB_MCP_SERVER_URL 可达时）> per-run stdio。
     调用方需保证：解析到 storageState 的 run 不走常驻 server（登录态隔离）。
+
+    Args:
+        stdio_command: stdio 启动命令（如 npx 绝对路径）。
+        stdio_args: stdio 参数列表（真实 argv，不含 shell 包裹）。
+        stdio_cwd: stdio 子进程工作目录（Playwright MCP 工作区根目录）；
+            未传时子进程继承当前目录。
     """
     shared_url = (settings.web_mcp_server_url or "").strip()
     if shared_url:
@@ -211,15 +221,14 @@ def _build_mcp_client(stdio_command: str, stdio_args: list[str]) -> MultiServerM
                 }
             }
         )
-    return MultiServerMCPClient(
-        {
-            "web_mcp": {
-                "transport": "stdio",
-                "command": stdio_command,
-                "args": stdio_args,
-            }
-        }
-    )
+    stdio_connection: dict = {
+        "transport": "stdio",
+        "command": stdio_command,
+        "args": stdio_args,
+    }
+    if stdio_cwd:
+        stdio_connection["cwd"] = stdio_cwd
+    return MultiServerMCPClient({"web_mcp": stdio_connection})
 
 
 # =============================================================================
@@ -386,12 +395,12 @@ async def make_agent(config: RunnableConfig | None = None) -> AsyncIterator[Preg
             logger.info(
                 "[WebMCPAgent] 已解析 storageState，使用 stdio 隔离启动（不走常驻 server）。"
             )
-        mcp_command, mcp_args = await get_playwright_mcp_command_args(
+        mcp_command, mcp_args, mcp_cwd = await get_playwright_mcp_command_args(
             settings.web_mcp_root,
             headless=settings.web_mcp_headless,
             config_path=run_config_path,
         )
-        client = _build_mcp_client(mcp_command, mcp_args)
+        client = _build_mcp_client(mcp_command, mcp_args, mcp_cwd)
 
     # 使用 async with 保持 session 存活
     async with client.session("web_mcp") as session:

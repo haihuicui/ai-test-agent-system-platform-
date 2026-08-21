@@ -62,6 +62,70 @@ class TestPlaywrightChromiumInstalled:
             assert not Path(pattern).is_absolute()
 
 
+class TestGetPlaywrightMcpCommandArgs:
+    """回归：MCP server 启动必须是真实 argv + cwd，禁止 shell 字符串包裹。
+
+    旧实现拼 ``cmd /c "cd X & npx ... -c \\"path\\""`` 形式的 shell 字符串；
+    subprocess 的 list2cmdline 会把内嵌引号二次转义（Python 3.13+ 转成 ``\"``），
+    cmd 不认该转义，子进程（MS CRT 解析）最终收到带字面引号的 ``-c`` 参数，
+    Playwright 把配置路径按相对路径解析到 cwd 下，``planner_setup_page`` 报
+    ``does not exist``（路径形如 ``web_mcp\\"D:\\...\\ss-*.js"``）。
+    """
+
+    @pytest.mark.asyncio
+    async def test_no_shell_wrapping(self, tmp_path):
+        from app.utils.shell_env import get_playwright_mcp_command_args
+
+        command, args, cwd = await get_playwright_mcp_command_args(str(tmp_path))
+        assert command not in ("cmd", "bash")
+        assert args[:2] == ["playwright", "run-test-mcp-server"]
+        assert "--headless" not in args
+        assert cwd == str(tmp_path)
+
+    @pytest.mark.asyncio
+    async def test_config_path_is_standalone_argv(self, tmp_path):
+        from app.utils.shell_env import get_playwright_mcp_command_args
+
+        config_file = tmp_path / "playwright.config.ss-PR-1-b80ec302.js"
+        command, args, _cwd = await get_playwright_mcp_command_args(
+            str(tmp_path), headless=True, config_path=str(config_file)
+        )
+        # -c 与路径是两个独立 argv 项，路径本身不含引号
+        assert args[args.index("-c") + 1] == str(config_file)
+        assert '"' not in str(config_file)
+        assert args[-1] == "--headless"
+
+    @pytest.mark.asyncio
+    async def test_windows_list2cmdline_keeps_config_arg_clean(self, tmp_path):
+        """Windows 回归：list2cmdline 重转义后命令行不得出现 ``\\"`` 残留。"""
+        import subprocess
+        import sys
+
+        if sys.platform != "win32":
+            pytest.skip("Windows-only regression")
+        from app.utils.shell_env import get_playwright_mcp_command_args
+
+        config_file = tmp_path / "playwright.config.ss-PR-1-b80ec302.js"
+        _command, args, _cwd = await get_playwright_mcp_command_args(
+            str(tmp_path), headless=True, config_path=str(config_file)
+        )
+        cmdline = subprocess.list2cmdline(args)
+        assert '\\"' not in cmdline
+
+    @pytest.mark.asyncio
+    async def test_headless_env_forced_on_linux(self, tmp_path, monkeypatch):
+        """无 DISPLAY 的 Linux 下 headless 强制为 True（resolve_effective_headless 语义）。"""
+        import sys
+
+        if sys.platform != "linux":
+            pytest.skip("Linux-only behavior")
+        from app.utils.shell_env import get_playwright_mcp_command_args
+
+        monkeypatch.delenv("DISPLAY", raising=False)
+        _command, args, _cwd = await get_playwright_mcp_command_args(str(tmp_path), headless=False)
+        assert "--headless" in args
+
+
 class TestBuildMcpClient:
     def test_shared_url_selects_streamable_http(self, monkeypatch):
         from app.agents.web_mcp import agent as agent_module
@@ -93,6 +157,24 @@ class TestBuildMcpClient:
         monkeypatch.setattr(agent_module.settings, "web_mcp_server_url", "  ")
         client = agent_module._build_mcp_client("bash", ["-c", "noop"])
         assert client.connections["web_mcp"]["transport"] == "stdio"
+
+    def test_stdio_connection_carries_cwd(self, monkeypatch):
+        from app.agents.web_mcp import agent as agent_module
+
+        monkeypatch.setattr(agent_module.settings, "web_mcp_server_url", None)
+        client = agent_module._build_mcp_client(
+            "npx", ["playwright", "run-test-mcp-server"], stdio_cwd=r"D:\ws"
+        )
+        conn = client.connections["web_mcp"]
+        assert conn["transport"] == "stdio"
+        assert conn["cwd"] == r"D:\ws"
+
+    def test_stdio_connection_omits_cwd_when_absent(self, monkeypatch):
+        from app.agents.web_mcp import agent as agent_module
+
+        monkeypatch.setattr(agent_module.settings, "web_mcp_server_url", None)
+        client = agent_module._build_mcp_client("bash", ["-c", "noop"])
+        assert "cwd" not in client.connections["web_mcp"]
 
 
 class TestProbeTcp:

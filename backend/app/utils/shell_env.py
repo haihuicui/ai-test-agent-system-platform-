@@ -446,22 +446,35 @@ async def get_playwright_mcp_command_args(
     root_dir: str,
     headless: bool = False,
     config_path: str | None = None,
-) -> tuple[str, list[str]]:
-    """返回适合当前平台的 Playwright MCP server 启动命令与参数。
+) -> tuple[str, list[str], str]:
+    """返回 Playwright MCP server 的启动命令（command, args, cwd）。
 
-    Windows 下使用 cmd /c 执行 cd & npx ...；
-    Linux/macOS 下使用 bash -c 执行 cd && npx ...，并优先定位 npx 绝对路径。
+    所有平台直接 exec ``npx playwright run-test-mcp-server``，工作区目录经
+    ``cwd`` 传给子进程——**不要**拼 ``cmd /c "cd X & npx ... -c \\"path\\""`` 形式的
+    shell 字符串。该字符串会被 subprocess 的 list2cmdline 二次包裹（Python 3.13+
+    把内嵌引号转义成 ``\"``），而 cmd 不认反斜杠转义，子进程（MS CRT 解析）最终
+    收到带字面引号的 ``-c`` 参数（如 ``"D:\\...\\playwright.config.ss-*.js"``），
+    Playwright 因此把配置路径按相对路径解析到 cwd 下，``planner_setup_page`` 报
+    ``does not exist``。真实 argv 列表按参数逐个转义直传，路径不经过任何引号层。
+
+    Windows 下 ``npx`` 解析为 ``npx.cmd``，CreateProcess 会自动经 cmd 执行脚本，
+    stdio 管道沿 cmd → node 链路正常继承。
 
     Args:
-        root_dir: Playwright MCP 工作区根目录。
+        root_dir: Playwright MCP 工作区根目录（作为子进程 cwd 传递）。
         headless: 是否以无头模式运行浏览器。``False`` 表示弹出真实浏览器窗口。
         config_path: 可选的独立配置文件路径（如携带登录态的
             ``playwright.config.ss-*.js``）；未传时 MCP server 加载默认共享配置。
+
+    Returns:
+        ``(command, args, cwd)`` 三元组，可直接映射为 MCP stdio 连接
+        ``{transport, command, args, cwd}``。
     """
     npx = await run_sync(shutil.which, "npx") or "npx"
     effective_headless = resolve_effective_headless(headless)
-    headless_flag = " --headless" if effective_headless else ""
-    config_flag = f' -c "{config_path}"' if config_path else ""
-    if sys.platform == "win32":
-        return "cmd", ["/c", f"cd {root_dir} & {npx} playwright run-test-mcp-server{config_flag}{headless_flag}"]
-    return "bash", ["-c", f"cd {root_dir} && {npx} playwright run-test-mcp-server{config_flag}{headless_flag}"]
+    args = ["playwright", "run-test-mcp-server"]
+    if config_path:
+        args += ["-c", config_path]
+    if effective_headless:
+        args.append("--headless")
+    return npx, args, root_dir
