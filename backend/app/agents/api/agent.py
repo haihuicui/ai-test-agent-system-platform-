@@ -104,7 +104,7 @@ _STAGE_RULES: dict[str, str] = {
 ## 🔧 场景测试模式
 
 **场景规范（详见 scenario skill）：**
-- 生成前每个步骤调 `get_endpoint_details` 读取 request_body/parameters/responses
+- 生成前每个步骤调 `get_endpoint_details` 读取 request_body/parameters/responses；若返回 `linked_endpoints`，必须按依赖清单的 `target/status/parameters` 配置步骤顺序与数据传递
 - URL 中 `{xxx}` 必须在前序步骤用 `add_step_extractor` 提取，用 `{{xxx}}` 引用
 - 创建类步骤必须提取资源 ID + 配置 `add_teardown_step`
 - 分页步骤断言 records/list 非空、total 为数字；首次执行用最小参数确认结构

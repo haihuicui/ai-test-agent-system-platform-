@@ -38,6 +38,26 @@ description: API 场景测试专家 - 编排多接口业务流测试，实现端
 - 用户登录 → 浏览商品 → 加入购物车 → 下单 → 支付
 - 创建订单 → 查询订单状态 → 支付订单 → 确认收货
 
+**接口依赖信息来源（按优先级）：**
+
+1. **`linked_endpoints`（依赖清单）** —— 每个端点 `get_endpoint_details` 返回的 `linked_endpoints` 来自 OpenAPI `links`，是文档声明的接口间依赖，**非空时必须优先遵循**（优先级高于业务常识推断）：
+   - `target`（如 `"GET /orders/{id}"`）→ 场景的后续步骤接口；`status` 声明触发条件（如 `"201"` 表示仅创建成功后才可调用）
+   - `parameters` 的每个键值对：键 = 目标接口的参数名，值 = OpenAPI 取值表达式 → 直接映射为「提取器/变量导出 + 数据传递」：
+
+   | OpenAPI 表达式 | 含义 | 场景中的落地 |
+   |---|---|---|
+   | `$response.body#/data/id` | 从本步骤**响应体**取 `data.id`（`#/` 后为 JSON Pointer） | 提取器 `{"name":"orderId","path":"$.data.id","type":"jsonpath"}`，目标步骤用 `{{orderId}}` 引用 |
+   | `$request.body#/siteId` | 从本步骤**请求体**取 | `variable_exports`：`{"name":"siteId","source":"request","path":"$.siteId","type":"jsonpath"}`，后续步骤用 `{{siteId}}` |
+   | `$response.header#/...`、`$request.url#/...` 等 | 响应头、URL 等 | ⚠️ 当前场景执行器的提取器只支持从 body 取 JSONPath；此类依赖**不能直接自动化**，需在场景描述中注明「需手动补充/验证」|
+
+   **JSON Pointer → JSONPath 转换规则**：取 `#/` 之后的指针，逐段转成 JSONPath 属性，数字段转数组下标。如 `$response.body#/data/records/0/id` → `$.data.records[0].id`。
+
+   交叉核对：把 `linked_endpoints[i].parameters` 的键与目标接口 `parameters` 定义比对，确认它用于目标接口的必填路径参数 `{xxx}`、query 或 body 字段，避免漏配。
+
+2. **`callbacks`（回调定义）** —— 非空说明该接口会触发异步通知（Webhook）。场景若需覆盖回调效果：主流程断言同步响应（如 202）后，追加「查询资源最终状态」的轮询步骤，**不要**对同步响应断言异步结果。
+
+3. **均为空（文档未声明依赖）** → 回退到业务常识推断（登录取 token、创建取资源 ID……），并在场景 description 中注明「步骤间依赖为推断，非文档声明」。
+
 ### 2. 创建测试场景
 
 使用 `create_test_scenario` 创建场景：
@@ -715,6 +735,7 @@ const result = await tools.execute_scenario({
 - [ ] 分页/列表查询首次执行时，是否只保留 `page`/`size`（或 `current`/`size`）等最小参数，未使用未经验证的 `orders` 排序参数？
 
 ### 检查表 B：数据依赖
+- [ ] 是否已查看当前步骤 `get_endpoint_details` 返回的 `linked_endpoints`？若存在，是否已按 `target` / `status` / `parameters` 表达式配置了步骤顺序与提取器/数据传递？
 - [ ] 当前步骤是否需要前序步骤的数据（token / siteId / orderId 等）？
 - [ ] 需要的前序字段是否已用 `add_step_extractor` 提取为同名变量？
 - [ ] 是否已通过 `add_data_mapping` 或 `{{varName}}` 占位符完成数据传递？
