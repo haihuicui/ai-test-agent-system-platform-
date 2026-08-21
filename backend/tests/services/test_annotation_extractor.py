@@ -49,6 +49,18 @@ class TestAnnotationExtractor:
         assert annotations[0]["annotation_type"] == "business_success_code"
         assert annotations[0]["business_code"] == "0"
         assert annotations[0]["http_status"] == 200
+        assert annotations[0]["source"] == "trace"
+
+    def test_code_2000_recognized_as_success(self, extractor):
+        """常见业务成功码 2000 应被识别为成功"""
+        result = self._make_result(
+            status=200,
+            body={"code": "2000", "message": "success"},
+        )
+        annotations = extractor.extract(result)
+        assert len(annotations) == 1
+        assert annotations[0]["annotation_type"] == "business_success_code"
+        assert annotations[0]["business_code"] == "2000"
 
     def test_error_code_extracted(self, extractor):
         result = self._make_result(

@@ -45,7 +45,7 @@ _MESSAGE_FIELDS = (
 )
 
 # 业务成功码白名单
-_BUSINESS_SUCCESS_CODES = {0, "0", 200, "200", "success", "SUCCESS", True, "true", "ok", "OK"}
+_BUSINESS_SUCCESS_CODES = {0, "0", 200, "200", "2000", "success", "SUCCESS", True, "true", "ok", "OK"}
 
 # 字段级错误常见容器
 _FIELD_ERROR_CONTAINERS = (
@@ -136,6 +136,7 @@ class AnnotationExtractor:
         # 补充公共字段
         for ann in annotations:
             ann["endpoint_id"] = endpoint_id
+            ann["source"] = "trace"
             ann["source_metadata"] = {
                 "test_result_id": str(result.id),
                 "test_run_id": str(result.test_run_id),
