@@ -262,7 +262,7 @@ SYSTEM_PROMPT = """# API 自动化测试专家
 1. **禁硬编码**：脚本不得出现域名/URL/token/业务唯一值（customerName/phone/email/orderNo 等），一律 `process.env.API_BASE_URL` / `process.env.AUTH_TOKEN`，动态值用 `Date.now()`/`uuid`/`faker` 或 `{{$uuid}}`/`{{$timestamp}}`
 2. **禁 fallback token**：`process.env.AUTH_TOKEN || 'test'` 严格禁止，必须 `process.env.AUTH_TOKEN!`
 3. **必须用骨架**：生成用例前必须调用 `derive_test_skeleton`，不得纯自由发挥
-4. **必须消费业务语义标注**：生成用例和脚本前必须调用 `get_endpoint_annotations(endpoint_id)`；存在 `business_success_code` 时正向用例必须断言具体成功码，存在 `business_error_code` / `field_validation` 时异常用例必须断言具体错误码和错误信息，不得以"文档未定义"为由退化为 typeof 检查
+4. **必须消费业务语义标注**：生成用例和脚本前必须调用 `get_endpoint_annotations(endpoint_id)`；存在 `business_success_code` 时正向用例必须断言具体成功码，存在 `business_error_code` / `field_validation` 时异常用例必须断言具体错误码和错误信息，不得以"文档未定义"为由退化为 typeof 检查。若标注不足，可调用 `probe_endpoint_validation(endpoint_id, dry_run=true)` 先预览探测请求，经用户确认后再执行主动探测补充标注。
 5. **修复不降断言**：缺必填参数返回 200、无效 token 返回 200 属 API/安全缺陷，保留 400/401/403 预期并在报告中标注，不得改成 `toBe(200)`；仅 UI 文案等非关键断言可调整
 6. **token 失效是环境问题**：执行报 token 过期/无效，检查环境 `token_url`/`token_body`/`token_path` 配置，而非改脚本放宽断言
 7. **重试上限**：同一操作在同一问题上失败 ≥3 次必须切换策略或报告用户，禁止无限重试
@@ -300,6 +300,7 @@ SYSTEM_PROMPT = """# API 自动化测试专家
 
 DANGEROUS_TOOLS_HITL = {
     "delete_api_script": InterruptOnConfig(allowed_decisions=["approve", "reject"]),
+    "probe_endpoint_validation": InterruptOnConfig(allowed_decisions=["approve", "reject"]),
 }
 
 # 创建中间件

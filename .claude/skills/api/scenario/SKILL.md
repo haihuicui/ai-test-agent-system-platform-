@@ -60,6 +60,7 @@ description: API 场景测试专家 - 编排多接口业务流测试，实现端
    - `field_validation`：针对字段级校验规则（`required_missing` / `invalid_enum` / `type_error` 等），在对应步骤中加入字段级错误码和错误信息断言。
    - `enum_meaning`：枚举字段断言优先参考标注给出的示例值或合法值集合。
    - `dependency` / `state_constraint`：在编排步骤顺序与前置状态时参考，例如「订单必须处于 pending 才能支付」。
+   - 若当前端点标注不足，可调用 `probe_endpoint_validation(endpoint_id, dry_run=true)` 预览探测请求，经用户确认后执行主动探测补充标注。
 
 3. **`callbacks`（回调定义）** —— 非空说明该接口会触发异步通知（Webhook）。场景若需覆盖回调效果：主流程断言同步响应（如 202）后，追加「查询资源最终状态」的轮询步骤，**不要**对同步响应断言异步结果。
 

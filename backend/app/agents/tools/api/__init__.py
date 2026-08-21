@@ -79,6 +79,7 @@ from app.agents.tools.api.scenario_design_validator import (
 from app.agents.tools.api.annotation_tools import (
     get_endpoint_annotations,
     harvest_annotations_from_traces,
+    probe_endpoint_validation,
 )
 # fmt: off  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2UVZkTVF3PT06MjJlNmJjMTM=
 
@@ -153,6 +154,7 @@ SCENARIO_TOOLS = [
 ANNOTATION_TOOLS = [
     get_endpoint_annotations,
     harvest_annotations_from_traces,
+    probe_endpoint_validation,
 ]
 
 ALL_API_TOOLS = (
@@ -231,6 +233,7 @@ __all__ = [
     # 业务语义标注
     "get_endpoint_annotations",
     "harvest_annotations_from_traces",
+    "probe_endpoint_validation",
     # 分类列表
     "OPENAPI_TOOLS",
     "SKELETON_TOOLS",

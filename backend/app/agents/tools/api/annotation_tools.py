@@ -19,6 +19,8 @@ from app.models.api_endpoint import APIEndpoint
 from app.models.project import Project
 from app.repositories.api_annotation_repo import APIAnnotationRepository
 from app.services.annotation_service import AnnotationService
+from app.services.probe_executor import ProbeExecutor
+from app.utils.exceptions import BadRequestException
 
 
 def _project_identifier_to_id(
@@ -187,6 +189,77 @@ async def harvest_annotations_from_traces(
             return json.dumps({
                 "success": False,
                 "error": f"收割标注失败: {str(e)}",
+            }, ensure_ascii=False, indent=2)
+
+
+@tool
+async def probe_endpoint_validation(
+    project_identifier: str,
+    endpoint_id: str,
+    env_id: Optional[str] = None,
+    probe_budget: int = 20,
+    concurrency: int = 1,
+    dry_run: bool = False,
+) -> str:
+    """
+    对 API 端点执行主动验证层探测，从异常响应中沉淀业务语义标注
+
+    本工具会基于 OpenAPI schema 生成单字段异常请求（如必填缺失、类型错误、
+    格式错误、长度越界等），向测试环境发送，并将 4xx/5xx 响应中的业务码/
+    错误信息写入 api_annotations。执行前受 HITL 确认，且仅允许 dev/test/
+    staging/uat 等非生产环境。
+
+    Args:
+        project_identifier: 项目标识符（如 PR-1）
+        endpoint_id: 要探测的 API 端点 ID
+        env_id: 环境 ID（默认使用项目默认环境）
+        probe_budget: 最大探测数，默认 20，上限 50
+        concurrency: 并发数，默认 1，上限 3
+        dry_run: 为 True 时只返回将要发送的请求列表，不实际执行
+
+    Returns:
+        JSON 格式的探测结果摘要
+
+    Example:
+        >>> result = await probe_endpoint_validation(
+        ...     project_identifier="PR-1",
+        ...     endpoint_id="550e8400-e29b-41d4-a716-446655440000",
+        ...     dry_run=True
+        ... )
+    """
+    try:
+        endpoint_uuid = UUID(endpoint_id)
+    except ValueError:
+        return json.dumps({
+            "success": False,
+            "error": f"无效的端点 ID: {endpoint_id}",
+        }, ensure_ascii=False, indent=2)
+
+    async for db in get_db():
+        try:
+            executor = ProbeExecutor(db)
+            result = await executor.probe_endpoint(
+                project_identifier=project_identifier,
+                endpoint_id=str(endpoint_uuid),
+                env_id=env_id,
+                probe_budget=probe_budget,
+                concurrency=concurrency,
+                dry_run=dry_run,
+            )
+            await db.commit()
+            return json.dumps(result, ensure_ascii=False, indent=2, default=str)
+
+        except BadRequestException as e:
+            await db.rollback()
+            return json.dumps({
+                "success": False,
+                "error": str(e),
+            }, ensure_ascii=False, indent=2)
+        except Exception as e:
+            await db.rollback()
+            return json.dumps({
+                "success": False,
+                "error": f"主动探测失败: {str(e)}",
             }, ensure_ascii=False, indent=2)
 
 

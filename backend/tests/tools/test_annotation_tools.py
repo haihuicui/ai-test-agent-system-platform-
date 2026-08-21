@@ -116,3 +116,18 @@ class TestHarvestAnnotationsValidation:
 
         assert parsed["success"] is False
         assert "端点 ID" in parsed["error"]
+
+
+class TestProbeEndpointValidationValidation:
+    @pytest.mark.asyncio
+    async def test_invalid_endpoint_id_returns_error(self):
+        from app.agents.tools.api.annotation_tools import probe_endpoint_validation
+
+        result = await probe_endpoint_validation.ainvoke({
+            "project_identifier": "PR-1",
+            "endpoint_id": "bad-uuid",
+        })
+        parsed = __import__("json").loads(result)
+
+        assert parsed["success"] is False
+        assert "端点 ID" in parsed["error"]
