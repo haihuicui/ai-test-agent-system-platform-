@@ -75,6 +75,11 @@ from app.agents.tools.api.scenario_tools import (
 from app.agents.tools.api.scenario_design_validator import (
     validate_scenario_design,
 )
+
+from app.agents.tools.api.annotation_tools import (
+    get_endpoint_annotations,
+    harvest_annotations_from_traces,
+)
 # fmt: off  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2UVZkTVF3PT06MjJlNmJjMTM=
 
 # 按业务域分类的工具列表
@@ -145,6 +150,11 @@ SCENARIO_TOOLS = [
     validate_scenario_design,
 ]
 
+ANNOTATION_TOOLS = [
+    get_endpoint_annotations,
+    harvest_annotations_from_traces,
+]
+
 ALL_API_TOOLS = (
     OPENAPI_TOOLS
     + SKELETON_TOOLS
@@ -156,6 +166,7 @@ ALL_API_TOOLS = (
     + RUNNER_TOOLS
     + BATCH_TOOLS
     + SCENARIO_TOOLS
+    + ANNOTATION_TOOLS
 )
 
 
@@ -217,6 +228,9 @@ __all__ = [
     "list_test_scenarios",
     "execute_scenario",
     "validate_scenario_design",
+    # 业务语义标注
+    "get_endpoint_annotations",
+    "harvest_annotations_from_traces",
     # 分类列表
     "OPENAPI_TOOLS",
     "SKELETON_TOOLS",
@@ -227,6 +241,7 @@ __all__ = [
     "RUNNER_TOOLS",
     "BATCH_TOOLS",
     "SCENARIO_TOOLS",
+    "ANNOTATION_TOOLS",
     "ALL_API_TOOLS",
     "get_local_tools",
 ]

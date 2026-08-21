@@ -54,7 +54,14 @@ description: API 场景测试专家 - 编排多接口业务流测试，实现端
 
    交叉核对：把 `linked_endpoints[i].parameters` 的键与目标接口 `parameters` 定义比对，确认它用于目标接口的必填路径参数 `{xxx}`、query 或 body 字段，避免漏配。
 
-2. **`callbacks`（回调定义）** —— 非空说明该接口会触发异步通知（Webhook）。场景若需覆盖回调效果：主流程断言同步响应（如 202）后，追加「查询资源最终状态」的轮询步骤，**不要**对同步响应断言异步结果。
+2. **`get_endpoint_annotations`（业务语义标注）** —— 在 `get_endpoint_details` 之后，必须调用 `get_endpoint_annotations(endpoint_id)` 读取该端点已沉淀的业务语义：
+   - `business_success_code`：正向步骤必须断言该业务成功码的具体值（如 `$.code="2000"`）。
+   - `business_error_code`：异常/边界步骤必须断言具体业务错误码，并优先用 `message_pattern` 做 `contains` 匹配。
+   - `field_validation`：针对字段级校验规则（`required_missing` / `invalid_enum` / `type_error` 等），在对应步骤中加入字段级错误码和错误信息断言。
+   - `enum_meaning`：枚举字段断言优先参考标注给出的示例值或合法值集合。
+   - `dependency` / `state_constraint`：在编排步骤顺序与前置状态时参考，例如「订单必须处于 pending 才能支付」。
+
+3. **`callbacks`（回调定义）** —— 非空说明该接口会触发异步通知（Webhook）。场景若需覆盖回调效果：主流程断言同步响应（如 202）后，追加「查询资源最终状态」的轮询步骤，**不要**对同步响应断言异步结果。
 
 3. **均为空（文档未声明依赖）** → 回退到业务常识推断（登录取 token、创建取资源 ID……），并在场景 description 中注明「步骤间依赖为推断，非文档声明」。
 
@@ -729,6 +736,7 @@ const result = await tools.execute_scenario({
 
 ### 检查表 A：请求体与参数
 - [ ] 是否已调用 `get_endpoint_details` 读取当前步骤接口的 `request_body` / `parameters` / `responses`？
+- [ ] 是否已调用 `get_endpoint_annotations(endpoint_id)` 读取当前步骤接口的业务语义标注（成功码/错误码/字段校验/枚举含义）？
 - [ ] `request_body.required` 中的所有字段是否都已出现在 `request_override.body` 中？
 - [ ] 唯一性字段（如 `name` / `address` / `email` / `phone` / `title`）是否使用动态占位符（`{{$timestamp}}` / `{{$uuid}}` / `{{$faker.*}}`）避免重复？
 - [ ] 路径参数 `{xxx}` 是否已在 `request_override.path` 中写成 `{{xxx}}` 占位符？
@@ -745,6 +753,7 @@ const result = await tools.execute_scenario({
 - [ ] 每个步骤是否至少包含 1 个 `status` 断言？
 - [ ] 每个步骤是否至少包含 1 个 `jsonpath` 或 `header` 业务断言？
 - [ ] 正向用例是否断言了业务成功码的具体值（如 `$.code="2000"` / `$.success=true`），而不仅是存在性或类型？
+- [ ] 是否已根据 `get_endpoint_annotations` 返回的 `business_error_code` / `field_validation` 补充异常步骤的具体错误码和错误信息断言？
 - [ ] 从本步骤提取出来供后续步骤使用的字段（如 `siteId`），是否在本步骤追加 `ne null` / `ne ""` 断言？
 - [ ] 分页/列表步骤是否断言了 `$.data.records`（或 `$.data.list`）非空、`$.data.total` 为数字？
 

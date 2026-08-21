@@ -28,6 +28,7 @@ from sqlalchemy import select
 from app.config.database import async_session_factory
 from app.agents.tools.api._cache import cached_read
 from app.models.api_endpoint import APIEndpoint
+from app.services.annotation_service import AnnotationService
 
 # 视为成功的 2xx 状态码
 _SUCCESS_STATUS = ("200", "201", "202", "204")
@@ -65,6 +66,83 @@ def _make_point(
         "data_strategy": data_strategy,
         "assertion_hints": assertion_hints,
     }
+
+
+def _enrich_skeletons_with_annotations(
+    skeletons: list[dict],
+    annotations: list[Any],
+) -> list[dict]:
+    """用已沉淀的标注 enrich 用例骨架，补充业务码和字段级约束。"""
+    if not annotations:
+        return skeletons
+
+    # 按类型分组
+    success_codes = [a for a in annotations if a.annotation_type == "business_success_code"]
+    error_codes = [a for a in annotations if a.annotation_type == "business_error_code"]
+    field_validations = [a for a in annotations if a.annotation_type == "field_validation"]
+
+    # 选取置信度最高的成功码作为正向断言
+    preferred_success_code = None
+    if success_codes:
+        preferred = max(success_codes, key=lambda a: (a.confidence, a.hit_count))
+        if preferred.expected_value and "code" in preferred.expected_value:
+            preferred_success_code = preferred.expected_value["code"]
+        elif preferred.business_code:
+            preferred_success_code = preferred.business_code
+
+    for point in skeletons:
+        target = point.get("target", "")
+        category = point.get("category", "")
+        expected_status = point.get("expected_status")
+
+        # 正向用例补充成功码
+        if category == "functional" and preferred_success_code is not None:
+            point["expected_business_code"] = preferred_success_code
+            point["assertion_hints"].append(
+                f"断言业务成功码为 {preferred_success_code}（来自历史 trace 沉淀）"
+            )
+
+        # 异常用例补充业务错误码（按状态码匹配）
+        if category in ("exception", "boundary", "security") and expected_status is not None:
+            matched = None
+            for ann in error_codes:
+                if ann.http_status == expected_status:
+                    # 如果有字段路径，优先匹配同字段
+                    if ann.field_path and target and ann.field_path.endswith(f".{target}"):
+                        matched = ann
+                        break
+            if matched is None:
+                for ann in error_codes:
+                    if ann.http_status == expected_status and not ann.field_path:
+                        matched = ann
+                        break
+
+            if matched and matched.business_code:
+                point["expected_business_code"] = matched.business_code
+                point["assertion_hints"].append(
+                    f"断言业务错误码为 {matched.business_code}（来自历史 trace 沉淀）"
+                )
+                if matched.message_pattern:
+                    point["expected_message_contains"] = matched.message_pattern
+                    point["assertion_hints"].append(
+                        f"断言错误信息包含: {matched.message_pattern}"
+                    )
+
+        # 字段级校验补充
+        for ann in field_validations:
+            if not ann.field_path:
+                continue
+            # field_path 形如 body.email / query.page / path.id / header.X-Api-Key
+            field_name = ann.field_path.split(".")[-1]
+            if target == field_name or target == ann.field_path:
+                if ann.business_code:
+                    point["expected_business_code"] = ann.business_code
+                if ann.message_pattern:
+                    point["expected_message_contains"] = ann.message_pattern
+                if ann.condition:
+                    point.setdefault("condition", ann.condition)
+
+    return skeletons
 
 
 def _schema_type(schema: dict) -> str:
@@ -503,6 +581,26 @@ async def derive_test_skeleton(endpoint_id: str) -> str:
                 responses=endpoint.responses,
                 security=endpoint.security,
             )
+
+            # 用已沉淀的业务语义标注 enrich 骨架
+            try:
+                ann_service = AnnotationService(session)
+                annotations = await ann_service.list_for_endpoint(
+                    project_id=endpoint.project_id,
+                    endpoint_id=endpoint.id,
+                    include_disabled=False,
+                )
+                derived["skeletons"] = _enrich_skeletons_with_annotations(
+                    derived["skeletons"], annotations
+                )
+                if annotations:
+                    derived["annotation_enriched"] = True
+                    derived["annotation_count"] = len(annotations)
+            except Exception as ann_err:
+                # 标注 enrich 失败不应阻塞骨架推导
+                derived["annotation_enriched"] = False
+                derived["annotation_error"] = str(ann_err)
+
             derived["success"] = True
             derived["endpoint"]["id"] = str(endpoint.id)
             derived["endpoint"]["display_name"] = endpoint.display_name

@@ -69,6 +69,15 @@ const testPlan = planResult.content
 有效业务断言 = 非状态码、非宽泛（`toBeTruthy`/`toBeFalsy`、对裸变量的 `toBeDefined` 不算）的字段存在性/类型/枚举/业务值断言。
 低于下限会被 `save_test_script` 门禁以 WEAK 硬拒；只含状态码以 FAIL 硬拒。
 
+**生成断言前必须先查业务语义标注**：
+在解析测试计划后、生成代码前，必须调用 `get_endpoint_annotations(endpoint_id)` 获取该端点已沉淀的业务语义：
+
+- 若返回 `business_success_code`：正向用例必须断言该业务成功码的具体值（如 `expect(body.code).toBe(0)`），不得再使用存在性或类型检查兜底。
+- 若返回 `business_error_code`：异常用例必须断言具体业务错误码（如 `expect(body.code).toBe('4009')`），并优先用 `message_pattern` 做 `toContain` 部分匹配。
+- 若返回 `field_validation`：针对同名字段的异常/边界用例，必须将字段级错误码和提示样例写入断言（如 `expect(body.message).toContain('邮箱格式不正确')`）。
+- 若返回 `enum_meaning`：枚举字段断言优先使用标注给出的示例值或合法值集合。
+- 标注为空时，仍按既有优先级（schema enum/example/default → 常见约定 → 向用户确认）推断，不得以“文档未定义”为由退化为 typeof 检查。
+
 按三层模型组织断言：
 
 1. **协议层**：验证 HTTP 状态码
