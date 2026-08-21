@@ -153,7 +153,7 @@ class WebContextInjectionMiddleware(AgentMiddleware):
 
 
 # 从 prompts/base.md 加载 Layer 0 核心提示词（始终加载，含铁律 + 路由决策树）
-# Layer 1 工作流专属提示词由 WorkflowRouterMiddleware 按需动态注入
+# 各工作流详细流程见 .claude/skills/web_mcp/ 对应 Skill，由模型按需读取
 _base_prompt_path = Path(__file__).parent / "prompts" / "base.md"
 if _base_prompt_path.exists():
     SYSTEM_PROMPT = _base_prompt_path.read_text(encoding="utf-8")
