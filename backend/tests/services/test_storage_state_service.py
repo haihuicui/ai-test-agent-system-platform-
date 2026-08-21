@@ -486,6 +486,10 @@ async def test_success_switches_auth_type_from_none_to_form_login():
     }
     service.env_repo.get_by_id.return_value = env
 
+    # 639ca43 引入的生成后运行时探针会真实发 HTTP；本用例只关注 auth_type
+    # 切换，且临时 storageState 无 token 会被探针判失效，直接 mock 掉。
+    service._probe_storage_state = AsyncMock(return_value=(True, "probe mocked"))
+
     selectors = LoginSelectors(
         login_url="http://example.com/login",
         submit_selector="button[type='submit']",
@@ -527,4 +531,6 @@ async def test_success_switches_auth_type_from_none_to_form_login():
     assert job.status == "completed"
     assert env.auth_type == "form_login"
     assert "form_login" in env.auth_config
-    assert env.auth_config["form_login"]["username"] == "admin"
+    # 5bbf9f9 起本次生成的新凭据覆盖旧配置（新凭据才是实际可用的），
+    # 不再是 e59e492 时期保留旧 storage_state 配置中的 username
+    assert env.auth_config["form_login"]["username"] == "user"
