@@ -280,7 +280,14 @@ def build_web_agent_model():
       需独立实例；开关关闭时直接返回共享单例。
     - qwen：自部署 vLLM 网关（数据不出网），ChatOpenAI 独立实例。
       关闭 thinking 走 chat_template_kwargs.enable_thinking=false。
+    - kimi：kimi.com/coding 网关（Anthropic 兼容协议），复用
+      get_kimi_model() 单例；无 thinking 开关。
     """
+    if settings.web_llm_provider == "kimi":
+        from app.core.llms import get_kimi_model
+
+        return get_kimi_model()
+
     if settings.web_llm_provider == "qwen":
         from langchain_openai import ChatOpenAI
 

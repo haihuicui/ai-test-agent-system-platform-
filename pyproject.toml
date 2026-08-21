@@ -13,6 +13,7 @@ dependencies = [
     "fastmcp>=3.4.4",
     "httpx>=0.28.1",
     "jsonpath-ng>=1.8.0",
+    "langchain-anthropic>=1.0.0",
     "langchain-deepseek>=1.0.1",
     "langchain-mcp-adapters>=0.2.2",
     "langgraph-cli[inmem]>=0.4.26",

@@ -183,13 +183,23 @@ class Settings(BaseSettings):
     qwen_api_key: Optional[str] = None
     qwen_model: str = "qwen3.8-27b"
 
+    # Kimi 文本模型（kimi.com/coding，Anthropic 兼容协议，用于 ChatAnthropic）
+    # 未配置 kimi_api_key 时 get_kimi_model() 直接报错；
+    # 线上模型 id 为 k3（Claude Code 配置里的 k3[1M] 是客户端侧别名，直连 API 不认）
+    kimi_api_base: str = "https://api.kimi.com/coding/"
+    kimi_api_key: Optional[str] = None
+    kimi_model: str = "k3"
+
     # testcase Agent 文本模型提供方：deepseek（默认）| qwen（自部署，数据不出网）
     # 只切换文本决策模型；image_model（VLM 图片转录）不受影响
     testcase_llm_provider: str = "deepseek"
 
-    # web_mcp Agent 文本模型提供方：deepseek（默认）| qwen（自部署，数据不出网）
-    # web_agent_disable_thinking 对两家均生效（DeepSeek 走 thinking.type=disabled，
-    # qwen/vLLM 走 chat_template_kwargs.enable_thinking=false）
+    # api Agent 文本模型提供方：deepseek（默认）| qwen | kimi
+    api_llm_provider: str = "deepseek"
+
+    # web_mcp Agent 文本模型提供方：deepseek（默认）| qwen（自部署，数据不出网）| kimi
+    # web_agent_disable_thinking 只对 deepseek/qwen 生效（DeepSeek 走 thinking.type=disabled，
+    # qwen/vLLM 走 chat_template_kwargs.enable_thinking=false；kimi 无此开关）
     web_llm_provider: str = "deepseek"
 
     # Langfuse LLM 观测（自部署，见 deploy/langfuse/）。默认关闭；

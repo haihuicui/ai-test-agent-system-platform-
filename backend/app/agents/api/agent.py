@@ -32,6 +32,7 @@ from app.agents.api.scenario_quality_middleware import ScenarioQualityGateMiddle
 from app.agents.tools.api import get_local_tools
 from app.config.settings import settings
 from app.core.llms import text_model as model
+from app.core.llms import get_kimi_model, get_qwen_model
 from app.core.tracing import with_langfuse_tracing
 from app.utils.filesystem import FixedFilesystemBackend
 from app.utils.session_scope import set_session_scope
@@ -302,8 +303,25 @@ DANGEROUS_TOOLS_HITL = {
 # 创建中间件
 context_middleware = APIContextInjectionMiddleware()
 all_tools = get_local_tools()
+
+
+def build_api_agent_model():
+    """构建 api_agent 文本模型。
+
+    提供方由 settings.api_llm_provider 切换：
+    - deepseek（默认）：共享 text_model 单例（ChatDeepSeek）。
+    - qwen：自部署 vLLM 网关（数据不出网），get_qwen_model() 单例。
+    - kimi：kimi.com/coding 网关（Anthropic 兼容协议），get_kimi_model() 单例。
+    """
+    if settings.api_llm_provider == "qwen":
+        return get_qwen_model()
+    if settings.api_llm_provider == "kimi":
+        return get_kimi_model()
+    return model
+
+
 api_agent = create_agent(
-            model=model,
+            model=build_api_agent_model(),
             tools=all_tools,
             system_prompt=SYSTEM_PROMPT,
             middleware=[
