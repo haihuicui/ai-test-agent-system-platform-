@@ -982,40 +982,65 @@ test('login and save storage state', async ({ page }) => {
         if not target_domains:
             raise BadRequestException("token_inject 配置缺少 target_domains")
 
-        # 1. 调用 token 接口获取 token
-        try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                if token_method == "GET":
-                    resp = await client.get(token_url, params=token_body)
-                else:
-                    resp = await client.request(
-                        token_method,
-                        token_url,
-                        json=token_body if isinstance(token_body, dict) else None,
-                        content=token_body if isinstance(token_body, str) else None,
-                    )
-                resp.raise_for_status()
-                data = resp.json()
-        except Exception as e:
-            raise RuntimeError(f"获取 token 失败: {e}") from e
+        # 1. 调用 token 接口获取 token（带一次重试：实证错误包络与成功交替出现，
+        #    疑似验证码/风控瞬时拦截，重试一次可自愈）
+        # 2. 提取 token（失败时必须带响应体摘要，否则像 2026-08-21 两次失败
+        #    那样无法回溯——JSONPath 不匹配只说明"结构不符"，不说明服务端说了什么）
+        token: Optional[str] = None
+        last_detail = ""
+        for attempt in range(2):
+            try:
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    if token_method == "GET":
+                        resp = await client.get(token_url, params=token_body)
+                    else:
+                        resp = await client.request(
+                            token_method,
+                            token_url,
+                            json=token_body if isinstance(token_body, dict) else None,
+                            content=token_body if isinstance(token_body, str) else None,
+                        )
+                    resp.raise_for_status()
+                    data = resp.json()
+            except Exception as e:
+                last_detail = f"获取 token 失败: {e}"
+                logger.warning(
+                    "[StorageState] token 接口调用失败 job=%s attempt=%d: %s",
+                    job_id, attempt + 1, e,
+                )
+                if attempt == 0:
+                    await asyncio.sleep(2)
+                continue
 
-        # 2. 提取 token
-        try:
-            if token_path.startswith("$"):
-                jsonpath_expr = jsonpath_parse(token_path)
-                matches = jsonpath_expr.find(data)
-                if not matches:
-                    raise RuntimeError(f"JSONPath '{token_path}' 未匹配到任何值")
-                token = matches[0].value
-            else:
-                current = data
-                for part in token_path.split("."):
-                    current = current[part]
-                token = current
-            if not isinstance(token, str) or not token:
-                raise RuntimeError(f"提取到的 token 无效: {token!r}")
-        except Exception as e:
-            raise RuntimeError(f"提取 token 失败: {e}") from e
+            try:
+                if token_path.startswith("$"):
+                    jsonpath_expr = jsonpath_parse(token_path)
+                    matches = jsonpath_expr.find(data)
+                    if not matches:
+                        raise RuntimeError(f"JSONPath '{token_path}' 未匹配到任何值")
+                    token = matches[0].value
+                else:
+                    current = data
+                    for part in token_path.split("."):
+                        current = current[part]
+                    token = current
+                if not isinstance(token, str) or not token:
+                    raise RuntimeError(f"提取到的 token 无效: {token!r}")
+                break
+            except Exception as e:
+                # 错误包络（如 {"code":"xxx","msg":"验证码错误","data":null}）
+                # 不带响应体就是盲猜；data 可能很大，截断 500 字符
+                last_detail = f"提取 token 失败: {e}，响应体: {str(data)[:500]}"
+                logger.warning(
+                    "[StorageState] token 提取失败 job=%s attempt=%d: %s",
+                    job_id, attempt + 1, last_detail,
+                )
+                token = None
+                if attempt == 0:
+                    await asyncio.sleep(2)
+
+        if token is None:
+            raise RuntimeError(last_detail)
 
         logger.info("[StorageState] token 获取成功 job=%s token=%s...", job_id, token[:20])
 
