@@ -19,7 +19,45 @@ from app.agents.web_mcp.tool_guard_middleware import (
     _GUARD_NUDGE_PREFIX,
 )
 from app.config.settings import settings
-from app.utils.web_mcp_storage_state import probe_storage_state_liveness
+from app.utils.web_mcp_storage_state import (
+    DEFAULT_PROBE_INVALID_PATTERN,
+    judge_probe_response,
+    probe_storage_state_liveness,
+)
+
+
+class TestJudgeProbeResponse:
+    """业务层失效识别：xmetrix-sit 实证 token 过期返回 200+{"code":"4003"} 而非 401。"""
+
+    def test_401_and_403_invalid(self):
+        assert judge_probe_response(401, "")[0] is False
+        assert judge_probe_response(403, "")[0] is False
+
+    def test_200_with_expired_envelope_invalid(self):
+        ok, reason = judge_probe_response(
+            200, '{"code":"4003","message":"登陆已过期"}'
+        )
+        assert ok is False
+        assert "失效特征" in reason
+
+    def test_200_normal_body_valid(self):
+        assert judge_probe_response(200, '{"code":"2000","data":[]}')[0] is True
+
+    def test_404_and_500_not_invalid(self):
+        # 404 可能只是探针路径不存在；5xx 是服务端问题，均不判失效
+        assert judge_probe_response(404, "not found")[0] is True
+        assert judge_probe_response(500, "server error")[0] is True
+
+    def test_custom_pattern_override(self):
+        import re
+
+        pattern = re.compile(r'"code":\s*"9100"')
+        assert judge_probe_response(200, '{"code":"9100"}', pattern)[0] is False
+        # 自定义 pattern 不命中默认关键词时放行
+        assert judge_probe_response(200, '{"code":"2000"}', pattern)[0] is True
+
+    def test_default_pattern_no_false_positive_on_normal_text(self):
+        assert DEFAULT_PROBE_INVALID_PATTERN.search('{"message":"success"}') is None
 
 
 # ---------------------------------------------------------------------------
@@ -61,6 +99,11 @@ class _FakeAsyncClient:
             raise self._exc
         return self._response
 
+    async def request(self, method, url, headers=None, json=None):
+        if self._exc:
+            raise self._exc
+        return self._response
+
 
 class TestProbeStorageStateLiveness:
     @pytest.mark.asyncio
@@ -90,6 +133,23 @@ class TestProbeStorageStateLiveness:
                 _write_storage_state(tmp_path), "https://x.example.com"
             )
             assert alive is True, f"status={status} 不应判失效"
+
+    @pytest.mark.asyncio
+    async def test_200_business_expired_envelope_marks_invalid(self, tmp_path, monkeypatch):
+        """200 + {"code":"4003","message":"登陆已过期"} 必须判失效（xmetrix 实证形态）。"""
+        import httpx
+
+        monkeypatch.setattr(
+            httpx, "AsyncClient",
+            lambda **kw: _FakeAsyncClient(
+                _FakeResponse(200, '{"code":"4003","message":"登陆已过期"}')
+            ),
+        )
+        alive, reason = await probe_storage_state_liveness(
+            _write_storage_state(tmp_path), "https://x.example.com"
+        )
+        assert alive is False
+        assert "失效特征" in reason
 
     @pytest.mark.asyncio
     async def test_network_error_fails_open(self, tmp_path, monkeypatch):

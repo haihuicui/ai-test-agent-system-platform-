@@ -7,6 +7,7 @@
 import asyncio
 import json
 import logging
+import re
 from pathlib import Path
 from typing import Optional
 from uuid import UUID
@@ -151,10 +152,44 @@ async def _resolve_project(session, project_identifier: str) -> Optional[Project
 _LOGIN_STATE_CACHE_TTL_SECONDS = 60.0
 _login_state_cache: dict[str, tuple[float, bool, "str | None"]] = {}
 
+# 默认「业务层登录失效」响应特征：很多应用在 token 过期时返回 HTTP 200 +
+# 业务错误码包络（如 {"code":"4003","message":"登陆已过期"}），而不是 401——
+# xmetrix-sit 实证（2026-08-22）：带过期 token 的请求返回 200/4003，
+# 只有完全不带凭据才返回 401。仅看 HTTP 状态码的探针会对死 token 放行。
+# 可用 env.auth_config["probe_invalid_pattern"] 按项目覆盖。
+DEFAULT_PROBE_INVALID_PATTERN = re.compile(
+    r"(登陆|登录).{0,4}(过期|失效)|未(登陆|登录)|invalid.?token|token.{0,10}expired",
+    re.IGNORECASE,
+)
+
+
+def judge_probe_response(
+    status_code: int,
+    body_text: str,
+    invalid_pattern: "re.Pattern[str] | None" = None,
+) -> tuple[bool, str]:
+    """判定探针响应是否表明登录态有效。供注入时探针与生成时探针共用。
+
+    判失效（False）：HTTP 401/403，或 2xx 响应体命中失效特征正则。
+    其余（2xx/3xx/404/5xx）均不判失效——404 可能只是探针路径不存在，
+    5xx 是服务端问题，都与 token 有效性无关。
+    """
+    if status_code in (401, 403):
+        return False, f"HTTP {status_code}"
+    if 200 <= status_code < 300:
+        pattern = invalid_pattern or DEFAULT_PROBE_INVALID_PATTERN
+        if pattern.search(body_text or ""):
+            return False, f"响应体命中失效特征: {pattern.pattern!r}"
+    return True, f"status={status_code}"
+
 
 async def probe_storage_state_liveness(
     storage_state_path: str,
     base_url: str,
+    probe_path: "str | None" = None,
+    probe_method: str = "GET",
+    probe_body: "dict | None" = None,
+    probe_invalid_pattern: "str | None" = None,
 ) -> tuple[bool, str]:
     """运行时探针：用 storageState 中的 token 访问需登录 API，判定是否已失效。
 
@@ -163,8 +198,13 @@ async def probe_storage_state_liveness(
     开始前已被服务端踢出（thread 681b9d01 实证：run 中途 401 → 目标站返回
     ``WWW-Authenticate: Basic`` 触发浏览器原生登录弹窗，MCP 调用全部卡死）。
 
-    判失效（返回 False）仅当探针明确返回 401/403；网络异常、5xx、路径 404
-    等不确定情况一律放行（fail-open），避免探针基础设施问题误杀登录态。
+    判失效（返回 False）仅当：探针明确返回 401/403，或 2xx 响应体命中
+    失效特征正则（业务层 token 过期常返回 200 + 错误码包络）。
+    网络异常、5xx、路径 404 等不确定情况一律放行（fail-open），
+    避免探针基础设施问题误杀登录态。
+
+    探针目标可用 per-env 覆盖（auth_config 的 probe_path/probe_method/
+    probe_body/probe_invalid_pattern），默认 settings.web_mcp_storage_state_probe_path。
 
     Returns:
         (是否可用, 原因说明)。
@@ -192,19 +232,25 @@ async def probe_storage_state_liveness(
 
         from app.config import settings  # 延迟 import，避免循环依赖
 
-        probe_url = f"{base_url.rstrip('/')}{settings.web_mcp_storage_state_probe_path}"
+        path = probe_path or settings.web_mcp_storage_state_probe_path
+        probe_url = f"{base_url.rstrip('/')}{path}"
+        pattern = (
+            re.compile(probe_invalid_pattern, re.IGNORECASE)
+            if probe_invalid_pattern
+            else None
+        )
 
         import httpx
 
         async with httpx.AsyncClient(timeout=15.0, follow_redirects=False) as client:
-            resp = await client.get(
+            resp = await client.request(
+                probe_method.upper(),
                 probe_url,
                 headers={"Authorization": f"Bearer {token}"},
+                json=probe_body,
             )
-        if resp.status_code in (401, 403):
-            return False, f"探针返回 {resp.status_code}: {probe_url}"
-        # 2xx/3xx/404/5xx 均不据此判失效（404 可能接口不存在，5xx 是服务端问题）
-        return True, f"探针通过: {probe_url} status={resp.status_code}"
+        ok, reason = judge_probe_response(resp.status_code, resp.text, pattern)
+        return ok, f"{reason}: {probe_method.upper()} {probe_url}"
     except Exception as exc:
         logger.warning("[WebMCPStorage] 运行时探针异常（放行登录态）: %s", exc)
         return True, f"探针异常（放行）: {type(exc).__name__}: {exc}"
@@ -256,8 +302,16 @@ async def resolve_project_login_state(
                         if settings.web_mcp_storage_state_probe_enabled and (
                             env is not None and env.base_url
                         ):
+                            env_cfg = env.auth_config or {}
                             alive, reason = await probe_storage_state_liveness(
-                                storage_state, env.base_url
+                                storage_state,
+                                env.base_url,
+                                probe_path=env_cfg.get("probe_path"),
+                                probe_method=env_cfg.get("probe_method", "GET"),
+                                probe_body=env_cfg.get("probe_body"),
+                                probe_invalid_pattern=env_cfg.get(
+                                    "probe_invalid_pattern"
+                                ),
                             )
                             if not alive:
                                 logger.warning(

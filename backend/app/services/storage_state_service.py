@@ -9,6 +9,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import shutil
 import subprocess
 import traceback
@@ -32,6 +33,7 @@ from app.schemas.storage_state import LoginSelectors, StorageStateJobInfo
 from app.utils.exceptions import BadRequestException, NotFoundException
 from app.utils.shell_env import build_script_exec_env, ensure_playwright_mcp_project
 from app.utils.storage_state_validator import validate_storage_state
+from app.utils.web_mcp_storage_state import judge_probe_response
 from app.utils.sync_executor import run_sync
 
 logger = logging.getLogger(__name__)
@@ -1178,8 +1180,17 @@ test('token inject and save storage state', async ({{ context, page }}) => {{
             if not token:
                 return False, "storageState 中未找到 token/Authorization"
 
-            # 确定探针目标 URL
-            probe_path = settings.web_mcp_storage_state_probe_path
+            # 确定探针目标 URL（per-env 覆盖：auth_config.probe_path/probe_method/
+            # probe_body——默认路径 /api/user/info 在很多应用上 404，探针形同虚设）
+            env_cfg = env.auth_config or {}
+            probe_path = env_cfg.get("probe_path") or settings.web_mcp_storage_state_probe_path
+            probe_method = (env_cfg.get("probe_method") or "GET").upper()
+            probe_body = env_cfg.get("probe_body")
+            invalid_pattern = (
+                re.compile(env_cfg["probe_invalid_pattern"], re.IGNORECASE)
+                if env_cfg.get("probe_invalid_pattern")
+                else None
+            )
             if token_inject and token_inject.get("target_domains"):
                 # token 注入模式：优先用第一个目标域
                 domain = token_inject["target_domains"][0]
@@ -1194,14 +1205,24 @@ test('token inject and save storage state', async ({{ context, page }}) => {{
             # 发起探针请求
             import httpx
             async with httpx.AsyncClient(timeout=15.0, follow_redirects=False) as client:
-                resp = await client.get(
+                resp = await client.request(
+                    probe_method,
                     probe_url,
                     headers={"Authorization": f"Bearer {token}"},
+                    json=probe_body,
                 )
                 if resp.status_code in (401, 403):
                     return False, f"探针返回 {resp.status_code}: {resp.text[:200]}"
                 if resp.status_code >= 500:
                     return False, f"探针返回服务端错误 {resp.status_code}"
+                # 业务层失效识别：token 过期常返回 200 + 错误码包络
+                # （如 {"code":"4003","message":"登陆已过期"}），仅看 HTTP
+                # 状态码会对死 token 放行（xmetrix-sit 2026-08-22 实证）。
+                ok, judge_reason = judge_probe_response(
+                    resp.status_code, resp.text, invalid_pattern
+                )
+                if not ok:
+                    return False, f"探针判定业务层失效: {judge_reason}: {resp.text[:200]}"
                 # 2xx/3xx/404 都视为通过（404 可能只是接口不存在，但 token 本身有效）
                 return True, f"探针通过: {probe_url} status={resp.status_code}"
         except Exception as e:
