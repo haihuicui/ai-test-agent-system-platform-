@@ -175,6 +175,65 @@ class TestToolCallTimeout:
         assert result.content == "ok"
 
 
+class TestLoginStateRegen:
+    @pytest.mark.asyncio
+    async def test_timeout_triggers_regen_and_returns_recovery_steps(self, monkeypatch):
+        """超时 + 重建成功 → ToolMessage 含 browser_close/planner_setup_page 恢复指引。"""
+        monkeypatch.setattr(settings, "web_mcp_tool_call_timeout_seconds", 1)
+        mw = WebToolGuardMiddleware()
+
+        async def fake_regen():
+            return True, "ok", 12.0
+
+        monkeypatch.setattr(mw, "_try_regenerate_login_state", fake_regen)
+
+        async def slow_handler(request):
+            await asyncio.sleep(30)
+
+        result = await mw.awrap_tool_call(_make_request("browser_snapshot"), slow_handler)
+        payload = json.loads(result.content)
+        assert payload["login_state_regenerated"] is True
+        assert "browser_close" in payload["message"]
+        assert "planner_setup_page" in payload["message"]
+
+    @pytest.mark.asyncio
+    async def test_regen_failure_falls_back_to_timeout_diagnosis(self, monkeypatch):
+        """重建失败 → 仍返回原超时诊断文案并附失败原因。"""
+        monkeypatch.setattr(settings, "web_mcp_tool_call_timeout_seconds", 1)
+        mw = WebToolGuardMiddleware()
+
+        async def fake_regen():
+            return False, "环境未保存可用登录凭据（form_login/token_inject）", 0.1
+
+        monkeypatch.setattr(mw, "_try_regenerate_login_state", fake_regen)
+
+        async def slow_handler(request):
+            await asyncio.sleep(30)
+
+        result = await mw.awrap_tool_call(_make_request("browser_click"), slow_handler)
+        payload = json.loads(result.content)
+        assert payload["login_state_regenerated"] is False
+        assert "401" in payload["message"]
+        assert "未保存可用登录凭据" in payload["message"]
+
+    @pytest.mark.asyncio
+    async def test_regen_attempted_at_most_once_per_run(self):
+        """每 run 限一次：旗标置位后直接短路，不触 DB/续期链路。"""
+        mw = WebToolGuardMiddleware()
+        mw._regen_attempted = True
+        ok, note, _ = await mw._try_regenerate_login_state()
+        assert ok is False
+        assert "已尝试过" in note
+
+    @pytest.mark.asyncio
+    async def test_regen_skipped_without_project_identifier(self):
+        """LangGraph 上下文外（无 project_identifier）直接判不可重建。"""
+        mw = WebToolGuardMiddleware()
+        ok, note, _ = await mw._try_regenerate_login_state()
+        assert ok is False
+        assert "project_identifier" in note
+
+
 class TestRunCodeFailureGuard:
     def _error_msg(self):
         return ToolMessage(
