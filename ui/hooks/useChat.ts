@@ -196,6 +196,61 @@ export function useChat({
   const streamRef = useRef(stream);
   streamRef.current = stream;
 
+  // ── SSE 传输层自愈 ─────────────────────────────────────────
+  // SDK 的 streamWithRetry 重连计数全程累计、成功也不复位（上限 5 次），
+  // 长任务中连接多次抖动后抛 MaxReconnectAttemptsError，UI 误报「运行已中断」。
+  // 但服务端 run 由 cancel_on_disconnect=false 保护，通常仍在正常运行——
+  // 正确恢复是重新 join 该 run 的事件流，而不是把传输层故障暴露给用户。
+  // joinStream 启动时 StreamManager.enqueue 会 setState({error: undefined})，
+  // 红卡随之消失；连接真失败时 SDK 会再次写入 error，effect 自动进入下一次
+  // 退避重试，3 次失败后放弃并保留红卡（用户仍可手动「从断点继续」）。
+  const autoRecoverAttemptsRef = useRef(0);
+  const [isAutoRecovering, setIsAutoRecovering] = useState(false);
+
+  useEffect(() => {
+    const err = stream.error;
+    const isReconnectBudgetError =
+      err instanceof Error &&
+      (err.name === "MaxReconnectAttemptsError" ||
+        err.name === "MaxWebSocketReconnectAttemptsError");
+    if (!isReconnectBudgetError || !threadId) return;
+    if (autoRecoverAttemptsRef.current >= 3) return;
+
+    autoRecoverAttemptsRef.current += 1;
+    // 首次立即恢复（看门狗误杀占多数）；失败后退避
+    const delay = [0, 5_000, 15_000][autoRecoverAttemptsRef.current - 1];
+
+    setIsAutoRecovering(true);
+    const timer = setTimeout(() => {
+      void (async () => {
+        try {
+          const runs = await client.runs.list(threadId, { limit: 5 });
+          const target =
+            runs.find(
+              (r) => r.status === "running" || r.status === "pending"
+            ) ?? runs[0];
+          if (!target) return;
+          // 重挂事件流：补齐断线期间错过的事件并清除错误态
+          await streamRef.current.joinStream(target.run_id);
+        } catch {
+          // joinStream 本身抛错（如网络仍不可用）：保留红卡，等下一次 effect
+        } finally {
+          setIsAutoRecovering(false);
+        }
+      })();
+    }, delay);
+
+    return () => clearTimeout(timer);
+  }, [stream.error, threadId, client]);
+
+  // run 正常结束（error 清空且不再 loading）后重置自愈计数，
+  // 避免历史失败挤占下一次长任务的自愈额度；切换线程时同样重置。
+  useEffect(() => {
+    if (stream.error == null && !stream.isLoading) {
+      autoRecoverAttemptsRef.current = 0;
+    }
+  }, [stream.error, stream.isLoading, threadId]);
+
   // 合并流式消息与历史消息（去重，按时间顺序排列）
   const mergedMessages = useMemo(() => {
     const streamIds = new Set(
@@ -521,6 +576,8 @@ export function useChat({
     isThreadLoading: stream.isThreadLoading || threadMessages.isLoading,
     interrupt: stream.interrupt,
     isResumingInterrupt: resumeWaitPhase !== null,
+    // SSE 重连预算耗尽后的自动恢复进行中（joinStream 重挂 run 事件流）。
+    isAutoRecovering,
     // 评审决策已提交、卡片已消失、下一阶段首个输出尚未到达的过渡等待期。
     isAwaitingResumeOutput: resumeWaitPhase === "awaiting_output",
     getMessagesMetadata: stream.getMessagesMetadata,

@@ -216,6 +216,7 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
     interrupt,
     isResumingInterrupt,
     isAwaitingResumeOutput,
+    isAutoRecovering,
     sendMessage,
     stopStream,
     retryFromError,
@@ -269,7 +270,14 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
     const anyErr = streamError as Record<string, any>;
     return anyErr?.message || anyErr?.error || "未知错误";
   }, [streamError]);
-  const showStreamError = !!streamError && streamError !== dismissedError && !isLoading;
+  // SSE 重连预算耗尽的错误在 useChat 中会自动重挂 run 事件流（joinStream），
+  // 自动恢复期间不展示红色错误卡，避免误报「运行已中断」惊吓用户；
+  // 连续自动恢复失败（默认 3 次）后 isAutoRecovering 归零，红卡照常出现。
+  const showStreamError =
+    !!streamError &&
+    streamError !== dismissedError &&
+    !isLoading &&
+    !isAutoRecovering;
 
   // 组件挂载/卸载标记
   React.useEffect(() => {
@@ -958,6 +966,17 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
                   />
                 );
               })}
+              {/* SSE 断线自动恢复提示：中性样式，区别于红色错误卡。
+                  服务端 run 仍在运行（cancel_on_disconnect=false），
+                  useChat 正在重新挂接事件流补齐断线期间的事件。 */}
+              {isAutoRecovering && (
+                <div className="mt-4 w-full rounded-lg border border-amber-300 bg-amber-50/80 p-3 dark:border-amber-800 dark:bg-amber-950/30">
+                  <div className="flex items-center gap-2 text-sm text-amber-800 dark:text-amber-200">
+                    <Loader2 size={14} className="animate-spin" />
+                    <span>连接中断，正在自动恢复…（运行未受影响，内容不会丢失）</span>
+                  </div>
+                </div>
+              )}
               {/* 运行失败横幅：让"静默终止"变为可见错误 + 一键从断点恢复 */}
               {showStreamError && (
                 <div className="mt-4 w-full rounded-lg border-2 border-red-300 bg-red-50/80 p-4 dark:border-red-800 dark:bg-red-950/30">
