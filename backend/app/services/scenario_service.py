@@ -252,14 +252,21 @@ class ScenarioService:
         step_in: ScenarioStepCreate,
     ) -> ScenarioStep:
         """添加步骤"""
+        # 先对场景行加 FOR UPDATE 锁，串行化并发添加，避免 step_order/total_steps
+        # 读-改-写竞争（并发调用都读到旧的步骤数时会互相覆盖）
+        lock_result = await self.db.execute(
+            select(TestScenario)
+            .where(TestScenario.id == scenario_id)
+            .with_for_update()
+        )
+        scenario = lock_result.scalar_one_or_none()
+
+        existing_steps = await self.list_steps(scenario_id)
         # 确定步骤顺序
         if step_in.step_order is None:
-            existing_steps = await self.list_steps(scenario_id)
             step_order = len(existing_steps) + 1
         else:
             step_order = step_in.step_order
-            # 如果指定了 step_order，也需要查询现有步骤数量用于更新 total_steps
-            existing_steps = await self.list_steps(scenario_id)
 
         step = ScenarioStep(
             id=uuid4(),
@@ -280,8 +287,7 @@ class ScenarioService:
         )
         self.db.add(step)
 
-        # 更新场景的步骤总数（直接使用现有步骤数量+1，避免再次查询）
-        scenario = await self.get_scenario(scenario_id)
+        # 更新场景的步骤总数（scenario 已在上方持锁读取，避免再次查询）
         if scenario:
             scenario.total_steps = len(existing_steps) + 1
 # pylint: disable  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2Y0doM09BPT06NDNmN2JhNDc=

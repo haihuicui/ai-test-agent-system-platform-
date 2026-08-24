@@ -450,10 +450,12 @@ async def update_test_scenario(
     """
     async with async_session_factory() as session:
         try:
-            # 1. 查询场景
+            # 1. 查询场景（FOR UPDATE 行锁：同一消息的并行工具调用会各自开启独立
+            # 会话并发读-改-写场景行，不加锁时大家都读到旧快照，导致 step_order
+            # 撞车、total_steps/teardown_config 被并发覆盖丢失）
             scenario_stmt = select(TestScenario).where(
                 TestScenario.id == UUID(scenario_id)
-            )
+            ).with_for_update()
             scenario_result = await session.execute(scenario_stmt)
             scenario = scenario_result.scalar_one_or_none()
 
@@ -646,10 +648,12 @@ async def add_scenario_step(
     """
     async with async_session_factory() as session:
         try:
-            # 1. 查询场景
+            # 1. 查询场景（FOR UPDATE 行锁：同一消息的并行工具调用会各自开启独立
+            # 会话并发读-改-写场景行，不加锁时大家都读到旧快照，导致 step_order
+            # 撞车、total_steps/teardown_config 被并发覆盖丢失）
             scenario_stmt = select(TestScenario).where(
                 TestScenario.id == UUID(scenario_id)
-            )
+            ).with_for_update()
             scenario_result = await session.execute(scenario_stmt)
             scenario = scenario_result.scalar_one_or_none()
 
