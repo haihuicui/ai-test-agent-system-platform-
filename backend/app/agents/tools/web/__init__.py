@@ -39,6 +39,10 @@ from app.agents.tools.web.healing_tools import (
     record_healing_result,
 )
 
+from app.agents.tools.web.api_request_tools import (
+    web_api_request,
+)
+
 # 按业务域分类的工具列表，供注册表使用
 FUNCTION_TOOLS = [
     list_web_functions,
@@ -74,9 +78,13 @@ HEALING_KNOWLEDGE_TOOLS = [
     search_healing_knowledge,
     record_healing_result,
 ]
+
+API_REQUEST_TOOLS = [
+    web_api_request,
+]
 # pragma: no cover  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2WXpaeGVRPT06NmJiMGM5OTU=
 
-ALL_WEB_TOOLS = FUNCTION_TOOLS + ARTIFACT_TOOLS + SCRIPT_TOOLS + EXECUTION_TOOLS + HEALING_KNOWLEDGE_TOOLS
+ALL_WEB_TOOLS = FUNCTION_TOOLS + ARTIFACT_TOOLS + SCRIPT_TOOLS + EXECUTION_TOOLS + HEALING_KNOWLEDGE_TOOLS + API_REQUEST_TOOLS
 
 
 def get_local_tools():
@@ -113,12 +121,15 @@ __all__ = [
     # 修复知识图谱
     "search_healing_knowledge",
     "record_healing_result",
+    # 接口调用（造数验证）
+    "web_api_request",
     # 分类列表
     "FUNCTION_TOOLS",
     "ARTIFACT_TOOLS",
     "SCRIPT_TOOLS",
     "EXECUTION_TOOLS",
     "HEALING_KNOWLEDGE_TOOLS",
+    "API_REQUEST_TOOLS",
     "ALL_WEB_TOOLS",
     "get_local_tools",
 ]

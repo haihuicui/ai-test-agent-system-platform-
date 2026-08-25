@@ -183,6 +183,57 @@ def _scan_script_quality(script_content: str) -> list[dict]:
     return issues
 
 
+async def _check_api_setup_fixture_gap(
+    session: AsyncSession, sub_function_uuid: UUID, script_content: str
+) -> "dict | None":
+    """检测 plan 含已验证 API Data Setup 但脚本未用 request fixture 的契约断裂。
+
+    plan 中的 `## API Data Setup` 块带「已验证」标记（Verified/已验证）时，
+    generator 应用 Playwright request fixture 造数；若脚本全文无 `request.`
+    调用，说明静默退化为 UI 造数，返回一条 warning 供 Agent 自我修正。
+
+    任何异常（plan 不存在、MinIO 下载失败等）一律返回 None，不阻塞保存。
+    """
+    if "request." in script_content:
+        return None
+    try:
+        plan_stmt = select(Attachment).where(
+            Attachment.entity_type == AttachmentEntityType.WEB_TEST_PLAN,
+            Attachment.entity_id == sub_function_uuid,
+        )
+        plan_result = await session.execute(plan_stmt)
+        plan_attachment = plan_result.scalar_one_or_none()
+        if not plan_attachment:
+            return None
+        plan_bytes = await run_sync(
+            MinIOClient.download_file, plan_attachment.object_name
+        )
+        plan_content = plan_bytes.decode("utf-8")
+    except Exception:
+        return None
+
+    if "## API Data Setup" not in plan_content:
+        return None
+    # 仅当块带验证标记时才报警（无验证标记的占位块允许退化）
+    setup_block = plan_content.split("## API Data Setup", 1)[1]
+    if "Verified" not in setup_block and "已验证" not in setup_block:
+        return None
+    return {
+        "id": "API_SETUP_FIXTURE_MISSING",
+        "severity": "warning",
+        "line": 0,
+        "matched": "",
+        "message": (
+            "测试计划包含已验证的 API Data Setup（接口造数端点），但脚本未使用 "
+            "Playwright request fixture 造数——疑似静默退化为 UI 造数"
+        ),
+        "fix": (
+            "按计划的 API Data Setup 块在 test.beforeEach 中用 request fixture 造数；"
+            "若确需 UI 造数（如端点字段不满足），请在保存回复中显式说明退化原因"
+        ),
+    }
+
+
 def _resolve_workspace_path(file_path: str) -> Path:
     """
     解析文件路径，支持 MCP workspace 中的相对路径
@@ -709,6 +760,15 @@ async def save_web_test_script(
 
         # 脚本质量扫描（非阻塞，仅作为 Agent 自我修正的参考）
         quality_issues = _scan_script_quality(script_content)
+        # plan 含已验证 API Data Setup 但脚本未用 request fixture → 补充 warning
+        # （契约断裂静默退化的防线，详见 generator SKILL 的退化报告义务）
+        plan_warning = await _check_api_setup_fixture_gap(
+            session, sub_function_uuid, script_content
+        )
+        if plan_warning:
+            quality_issues.append(plan_warning)
+            _sev = {"error": 0, "warning": 1, "info": 2}
+            quality_issues.sort(key=lambda x: _sev.get(x["severity"], 99))
         error_count = sum(1 for i in quality_issues if i["severity"] == "error")
         warning_count = sum(1 for i in quality_issues if i["severity"] == "warning")
         info_count = sum(1 for i in quality_issues if i["severity"] == "info")

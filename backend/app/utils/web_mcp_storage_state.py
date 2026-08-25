@@ -183,6 +183,38 @@ def judge_probe_response(
     return True, f"status={status_code}"
 
 
+def extract_credentials_from_storage_state_data(
+    ss_data: dict,
+) -> "tuple[Optional[str], list[dict]]":
+    """从 storageState JSON 数据提取 (token, cookies)。
+
+    token 提取顺序：
+      1. origins[].localStorage[] 中 name == "token"
+      2. cookies[] 中 name == "Authorization"（裸 token，不带 Bearer 前缀）
+
+    供运行时探针（probe_storage_state_liveness）与 agent 接口调用工具
+    （web_api_request）共用，保持同一套提取语义。
+
+    Returns:
+        (token 或 None, cookies 列表)。
+    """
+    token: Optional[str] = None
+    for origin_entry in ss_data.get("origins", []):
+        for item in origin_entry.get("localStorage", []):
+            if item.get("name") == "token":
+                token = item.get("value")
+                break
+        if token:
+            break
+    cookies: list[dict] = ss_data.get("cookies", [])
+    if not token:
+        for cookie in cookies:
+            if cookie.get("name") == "Authorization":
+                token = cookie.get("value")
+                break
+    return token, cookies
+
+
 async def probe_storage_state_liveness(
     storage_state_path: str,
     base_url: str,
@@ -213,19 +245,7 @@ async def probe_storage_state_liveness(
         ss_data = json.loads(
             await run_sync(Path(storage_state_path).read_text, encoding="utf-8")
         )
-        token: Optional[str] = None
-        for origin_entry in ss_data.get("origins", []):
-            for item in origin_entry.get("localStorage", []):
-                if item.get("name") == "token":
-                    token = item.get("value")
-                    break
-            if token:
-                break
-        if not token:
-            for cookie in ss_data.get("cookies", []):
-                if cookie.get("name") == "Authorization":
-                    token = cookie.get("value")
-                    break
+        token, _cookies = extract_credentials_from_storage_state_data(ss_data)
         if not token:
             # 无 token 可探（可能走其他认证形式），不据此判失效
             return True, "storageState 中无 token/Authorization，跳过运行时探针"

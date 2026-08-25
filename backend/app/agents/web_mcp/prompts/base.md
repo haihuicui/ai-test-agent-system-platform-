@@ -108,6 +108,17 @@ storageState 的 token 可能在会话中途被服务端踢出。此时目标站
 ### 定位器铁律（细节见 planner / generator skill）
 `browser_generate_locator` 返回的定位器**原样保存**，不要"纠正""规范化"或替换其中文本（如"登陆"→"登录"）。页面实际文本是唯一事实源。
 
+### 接口造数（`web_api_request` 工具）
+当测试场景需要前置数据（如"先新增采样点，再新增客户时选择它"）时，优先接口造数：
+
+- **接口信息两个可信来源**（均无需再猜端点）：
+  1. 用户在需求文本中直接提供（如"造数接口：POST /api/xxx，body: {...}"）→ 视为可信，无需抓包确认
+  2. 探索期 `browser_network_requests` 抓包发现的候选端点
+- **写入计划前必须用 `web_api_request` 实测验证一次**：确认端点可达、请求字段被接受、响应结构明确。鉴权由系统自动注入（项目环境配置或 storageState），禁止在 headers 里手动传 token。
+- 验证通过后，计划的 `## API Data Setup` 块必须包含：**具体 JSON Body（真实字段名，禁止"名称/地址"这类占位描述）**、**Response 的 id 提取路径（如 `$.data.id`）**、`**Verified**: ✅` 标记。字段不全的块视为无效，generator 将退化为 UI 造数。
+- **脱敏红线**：禁止把真实 token / Authorization 值写进计划或任何成果物，鉴权一律记录为「通过项目环境配置自动携带」。
+- 验证失败（4xx/5xx/字段不符）：分析响应体调整后重试；连续失败 2 次 → 退化为 UI 造数，并在计划中显式标注退化原因。
+
 ### 有头/无头（headless）
 用户明确要求「观察执行/调试」时，`execute_web_script(..., headless=False)` 弹出浏览器；批量回归或用户未要求时保持默认。Linux 无图形环境会自动降级为 headless。
 

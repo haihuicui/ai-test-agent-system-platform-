@@ -72,13 +72,23 @@ You will:
    ```markdown
    ## API Data Setup
    - **Base URL**: https://api.example.com
-   - **Auth**: POST {Base URL}/auth/login → { token }（Body: { username, password }，凭证见上表）
-   - **Create**: POST {Base URL}/orders — Headers: Authorization: Bearer {token}
+   - **Auth**: 通过项目环境配置自动携带（禁止记录真实 token）
+   - **Create**: POST {Base URL}/orders — Headers: 自动注入
     Body: { "sku": "SKU-001", "qty": 2, "status": "PENDING_PAYMENT" }
-    Response: { "id": "..." }（记录 id 供清理使用）
+    Response: { "id": "..." }（id 提取路径：$.id，供清理使用）
    - **Cleanup**: DELETE {Base URL}/orders/{id}
-   - **Source**: 由 browser_network_requests 抓取的页面真实请求确认（勿凭空猜测端点）
+   - **Source**: browser_network_requests 抓包 / 用户在需求中提供
+   - **Verified**: ✅（已通过 web_api_request 实测验证）
    ```
+
+   **⚠️ API Data Setup 的可执行性要求（缺一项即为无效块，generator 将退化为 UI 造数）：**
+   - Body 必须是**具体 JSON 示例**（真实字段名），禁止"名称/描述/地址"这类占位描述
+   - Response 必须标注 **id 提取路径**（如 `$.data.id`）
+   - **写入计划前必须用 `web_api_request` 工具实测验证一次**（鉴权自动注入）：
+     确认端点可达、字段被接受、响应结构明确后，才标注 `**Verified**: ✅`
+   - `Source` 两种合法取值：`browser_network_requests 抓包确认` 或 `用户在需求中提供`——
+     用户提供视为可信来源，无需抓包，但同样必须经 `web_api_request` 验证
+   - 验证连续失败 2 次 → 放弃该端点，改记 UI 造数步骤并显式标注退化原因
 
 2. **Analyze User Flows and Dependencies**
    - Map out the primary user journeys and identify critical paths through the application
@@ -120,10 +130,12 @@ You will:
    - **Prerequisites section** (MANDATORY for each scenario):
      - Authentication requirements (e.g., "User must be logged in")
      - Data requirements (e.g., "At least one product must exist in the catalog")
-       - **⚠️ 若前置数据可通过 API 准备（优先于 UI 造数）**：探索时用 `browser_network_requests`
-         抓取页面真实请求，识别出可复用的数据创建/删除接口，并在 `## Test Data` 中记录
-         `## API Data Setup` 块（见 1.5 节模板）。generator 会据此在 `beforeEach` 中用
-         Playwright `request` fixture 造数。仅当页面无对应接口时才记录为 UI 造数步骤。
+       - **⚠️ 若前置数据可通过 API 准备（优先于 UI 造数）**：两个可信来源——
+         用户在需求中直接提供造数接口（视为可信，无需抓包）；或探索时用
+         `browser_network_requests` 抓取页面真实请求识别候选端点。
+         无论哪个来源，写入计划前**必须用 `web_api_request` 实测验证一次**，
+         并在 `## Test Data` 中记录符合可执行性要求的 `## API Data Setup` 块
+         （见 1.5 节模板）。仅当验证失败或页面无对应接口时才记录为 UI 造数步骤。
      - State requirements (e.g., "Shopping cart must be empty")
      - Setup steps (e.g., "Create a test user account")
    - Happy path scenarios (normal user behavior)

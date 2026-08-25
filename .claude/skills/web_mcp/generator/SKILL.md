@@ -38,7 +38,7 @@ locators and the test cases' structure. Do not try to navigate or re-explore the
   - 如果 plan 的 `**认证方式**` 写着 `需 UI 登录` 或 Setup Steps 中包含登录步骤（fill username / fill password / click login），**必须**把这些步骤写进脚本，推荐放在 `test.beforeEach()` 中，并复用 plan 中的定位器和测试数据。
   - 如果 plan 表述模糊，默认生成 UI 登录步骤作为兜底，确保脚本在 storageState 不生效的站点也能执行通过。
 - Data/state required → create/reset in `beforeEach` / `afterEach`.
-  - **⚠️ 若 test plan 含 `## API Data Setup` 块，必须用 Playwright `request` fixture 造数（禁止退化为 UI 造数）**：
+  - **⚠️ 若 test plan 含 `## API Data Setup` 块且带 `**Verified**: ✅` 标记，必须用 Playwright `request` fixture 造数（禁止退化为 UI 造数）**：
     严格按 plan 记录的端点/方法/Headers/Body 生成代码，勿猜测或"修正" URL。
     **端点必须是完整 URL**（执行环境的 playwright.config.js 未配置 baseURL，相对路径会失败）。示例：
     ```typescript
@@ -68,6 +68,10 @@ locators and the test cases' structure. Do not try to navigate or re-explore the
     注意：`request` 与 `page` 共享浏览器上下文的 cookie/storageState——若 plan 标注
     `已通过项目 storageState 自动登录`，则跳过 Auth 步骤，直接发 Create 请求即可。
     若 plan 中无 `## API Data Setup` 块，才按 Setup Steps 生成 UI 造数步骤。
+  - **退化报告义务（强制）**：plan 含 `## API Data Setup` 块但你决定用 UI 造数时，
+    **必须在保存脚本的回复中显式说明退化原因**（如"块中 Body 为占位描述、缺 id 提取路径，
+    无法生成可执行代码"）。无 `Verified` 标记、Body 占位、缺 id 提取路径的块视为无效块，
+    允许退化，但同样需要说明。静默退化会被 `save_web_test_script` 的质量门禁标记为 warning。
 - **TestIdAttribute (from the plan)**: if the plan's `**TestIdAttribute**:` is non-default
   (e.g. `data-test`, `data-cy`, `data-qa`), add this at the TOP of the spec (after imports,
   before `describe`):
