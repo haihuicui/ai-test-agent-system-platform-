@@ -164,6 +164,18 @@ def _schema_type(schema: dict) -> str:
     return "any"
 
 
+def _is_id_like_param(name: str) -> bool:
+    """路径参数是否为资源 ID 引用（customerId / customer_id / id / ID）。
+
+    要求大写 I 或下划线分隔，避免误匹配 valid / grid / pid 等普通单词。
+    """
+    if not name:
+        return False
+    if name.lower() == "id":
+        return True
+    return name.endswith(("Id", "_id", "ID", "_ID", "Ids", "_ids"))
+
+
 def _field_test_points(name: str, schema: dict, required: bool, location: str) -> list[dict]:
     """针对单个字段（路径/查询/头参数 或 请求体属性）推导边界与异常测试点。
 
@@ -190,6 +202,25 @@ def _field_test_points(name: str, schema: dict, required: bool, location: str) -
         return points
 
     stype = _schema_type(schema)
+
+    # 0) Invalid Dynamic Object（RESTler checker）：路径参数为资源 ID 时，
+    #    校验「不存在资源」的拒绝行为——返回 200（幽灵资源）或 500（未处理）均属缺陷
+    if location == "path" and _is_id_like_param(name):
+        points.append(_make_point(
+            name=f"异常 - 不存在的资源 {name}",
+            category="exception",
+            target=name,
+            test_point=(
+                f"路径参数 {name} 传入格式合法但不存在的资源 ID（如随机 UUID / 极大整数），"
+                "应返回 4xx（通常 404）；返回 200 意味着读取到幽灵资源，返回 500 说明服务端未处理，均属缺陷"
+            ),
+            expected_status=404,
+            data_strategy="生成格式合法但确定不存在的 ID（随机 UUID 或不存在的数值）",
+            assertion_hints=[
+                "断言状态码为 4xx（如 404），严禁 5xx",
+                "断言错误信息指明资源不存在（Invalid Dynamic Object 检查）",
+            ],
+        ))
 
     # 1) 必填缺失（异常）
     if required:

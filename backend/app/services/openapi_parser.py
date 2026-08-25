@@ -14,6 +14,10 @@ from app.models.attachment import Attachment
 from app.models.folder import Folder
 from app.models.project import Project
 from app.models.folder_type import FolderType
+from app.services.dependency_inference import (
+    infer_endpoint_dependencies,
+    upsert_inferred_dependencies,
+)
 
 
 def _resolve_linked_endpoints(
@@ -126,6 +130,7 @@ class OpenAPIParser:
         }
 
         # 为每个标签组创建文件夹
+        created_endpoints: list[dict[str, Any]] = []  # (端点 + 原始数据)，供依赖推断使用
         for tag_name, endpoints in sorted(endpoints_by_tag.items()):
             # 创建标签文件夹（如 "Activities"）
             tag_folder = await self._create_tag_folder(
@@ -160,12 +165,33 @@ class OpenAPIParser:
                     "folder_id": str(endpoint.folder_id),
                     "tag_group": tag_name
                 })
+                created_endpoints.append({
+                    "endpoint_id": str(endpoint.id),
+                    "method": endpoint.method,
+                    "path": endpoint.path,
+                    "parameters": endpoint_data.get("parameters"),
+                    "request_body": endpoint_data.get("request_body"),
+                    "responses": endpoint_data.get("responses"),
+                    "linked_endpoints": endpoint_data.get("linked_endpoints"),
+                })
+
+        # 导入期依赖推断（RESTler 风格 producer-consumer 匹配）：
+        # 把 {xxxId} 路径参数 / 请求体 ID 引用与创建接口静态配对，写入 api_annotations
+        # （annotation_type='dependency', source='openapi_inferred'）。
+        # 推断失败不阻塞导入，仅在 summary 中记录。
+        try:
+            dep_candidates = infer_endpoint_dependencies(created_endpoints)
+            dep_result = await upsert_inferred_dependencies(self.db, project_id, dep_candidates)
+            dep_result["total"] = len(dep_candidates)
+        except Exception as dep_err:  # pylint: disable=broad-except
+            dep_result = {"error": str(dep_err), "total": 0}
 
         # 添加汇总信息
         result["summary"] = {
             "message": f"成功解析 OpenAPI 文档：{title} v{version}",
             "folders_created": len(result["tag_folders"]),
             "endpoints_created": result["total_endpoints"],
+            "dependencies_inferred": dep_result,
             "structure": "已创建按标签分组的文件夹结构，可以在左侧查看"
         }
 # type: ignore  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2Y0ZwV1p3PT06MDg1MGI4ODg=

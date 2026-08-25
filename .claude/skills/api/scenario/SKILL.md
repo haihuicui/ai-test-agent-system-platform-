@@ -59,7 +59,10 @@ description: API 场景测试专家 - 编排多接口业务流测试，实现端
    - `business_error_code`：异常/边界步骤必须断言具体业务错误码，并优先用 `message_pattern` 做 `contains` 匹配。
    - `field_validation`：针对字段级校验规则（`required_missing` / `invalid_enum` / `type_error` 等），在对应步骤中加入字段级错误码和错误信息断言。
    - `enum_meaning`：枚举字段断言优先参考标注给出的示例值或合法值集合。
-   - `dependency` / `state_constraint`：在编排步骤顺序与前置状态时参考，例如「订单必须处于 pending 才能支付」。
+   - `dependency` / `state_constraint`：在编排步骤顺序与前置状态时参考，例如「订单必须处于 pending 才能支付」。其中 `source=openapi_inferred` 的 dependency 标注是**导入期静态推断**的 producer-consumer 依赖（`expected_value` 含 `producer`（创建接口）、`id_source`、`producer_id_path`、`lookup`）：
+     - `id_source=response` → 创建步骤按 `producer_id_path` 配置提取器即可；
+     - `id_source=none` → 创建响应不含资源 ID（如仅 code/message），必须按 `lookup` 提示在创建后追加列表查询步骤，用 `variable_exports` 导出的 name 定位资源 ID（即「分页查询按 name 定位」模式）；
+     - 推断标注置信度低于文档声明（linked_endpoints），冲突时以声明为准；发现推断错误请指出，可人工修正为 manual 标注覆盖。
    - 若当前端点标注不足，可调用 `probe_endpoint_validation(endpoint_id, dry_run=true)` 预览探测请求，经用户确认后执行主动探测补充标注。
 
 3. **`callbacks`（回调定义）** —— 非空说明该接口会触发异步通知（Webhook）。场景若需覆盖回调效果：主流程断言同步响应（如 202）后，追加「查询资源最终状态」的轮询步骤，**不要**对同步响应断言异步结果。
@@ -269,11 +272,20 @@ await tools.add_step_assertion({
 | `contains` | 包含 | `expected: "success"` |
 | `regex` | 正则匹配 | `expected: "^\\d+$"` |
 
-### 7. 添加 Teardown 清理步骤
+### 7. 创建类步骤的验证与 Teardown 清理（RESTler checker 模板）
 
-如果场景包含“创建/新增/上传”类步骤，必须添加对应的 teardown 步骤清理资源，避免脏数据堆积和后续运行失败。
+如果场景包含“创建/新增/上传”类步骤，必须添加对应的 teardown 步骤清理资源，避免脏数据堆积和后续运行失败。同时按 RESTler checker 模板补两类「返回 200 但语义错」的验证：
 
-**规则：**
+**A. Resource Leak（创建可见性验证）** —— 创建步骤之后，追加一个列表/明细查询步骤，验证新资源真的可查（创建返回 200 但数据未落库/列表不可见是典型的静默缺陷）：
+
+1. 创建步骤用 `variable_exports` 导出请求中的 `name`（动态占位符值）。
+2. 追加查询步骤：列表接口按 `{{name}}` 过滤（或明细接口按提取的 ID 查询）。
+3. 断言：`$.data.records`（或 `$.data.list`）包含该 name / 明细响应字段与创建请求一致。
+4. 若创建接口的 dependency 标注为 `id_source=none`（响应不含 ID），此查询步骤同时承担「按 name 定位资源 ID」的职责，从 `$.data.records[0].id` 提取 ID 供后续步骤使用。
+
+**B. Use-After-Free（删除生效验证）** —— 删除类 teardown 步骤之后，再追加一个「再读一次」teardown 步骤：用同一 ID 调 GET 明细，断言状态码为 **404**（删除返回 200 但资源仍可读，是生命周期管理缺陷）。该步骤同样 `continue_on_failure=true`。
+
+**Teardown 规则：**
 1. 在创建类步骤中添加提取器，提取资源 ID（如 `customerId`、`orderId`、`fileId`）。
 2. 使用 `add_teardown_step` 添加清理步骤，放在场景最后执行。
 3. teardown 步骤引用主流程变量，如 `"path": "/customers/{{customerId}}"`。
@@ -288,6 +300,10 @@ await tools.add_step_extractor({
   extractor_type: "jsonpath"
 })
 
+// 步骤 3（Resource Leak 验证）：列表按 name 查询，确认新客户可见
+// request_override: { "query": { "name": "{{customerName}}" } }
+// 断言: $.data.records 非空 且 $.data.records[0].name eq {{customerName}}
+
 // 添加 teardown：删除刚才创建的客户
 await tools.add_teardown_step({
   scenario_id: "{scenario_id}",
@@ -299,6 +315,19 @@ await tools.add_teardown_step({
   },
   continue_on_failure: true
 })
+
+// 再追加 teardown（Use-After-Free 验证）：删除后再读应 404
+await tools.add_teardown_step({
+  scenario_id: "{scenario_id}",
+  name: "验证客户已删除",
+  endpoint_id: "{get_customer_endpoint_id}",
+  request_override: {
+    method: "GET",
+    path: "/customers/{{customerId}}"
+  },
+  continue_on_failure: true
+})
+// 该步骤断言: status eq 404
 ```
 
 ### 8. 执行场景测试
@@ -762,6 +791,8 @@ const result = await tools.execute_scenario({
 - [ ] 场景中是否存在「创建/新增/上传/生成」类步骤？
 - [ ] 是否已在该步骤中提取资源 ID？
 - [ ] 是否已调用 `add_teardown_step` 添加对应的清理步骤（如 DELETE）？
+- [ ] 创建类步骤之后是否追加了「列表/明细可见性验证」步骤（Resource Leak 检查：断言新资源可查）？
+- [ ] 删除类 teardown 之后是否追加了「再读应 404」验证步骤（Use-After-Free 检查）？
 
 ## 生成后：执行邀约 → 验证与修复
 

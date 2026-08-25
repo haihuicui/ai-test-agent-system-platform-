@@ -1,12 +1,18 @@
 """
 skeleton_tools 单元测试
 
-覆盖 _enrich_skeletons_with_annotations 对正向/异常/字段级校验的 enrich 逻辑。
+覆盖 _enrich_skeletons_with_annotations 对正向/异常/字段级校验的 enrich 逻辑，
+以及 _derive_skeletons 的 Invalid Dynamic Object（不存在资源 ID）骨架点推导。
 """
 
 from types import SimpleNamespace
 
-from app.agents.tools.api.skeleton_tools import _enrich_skeletons_with_annotations, _make_point
+from app.agents.tools.api.skeleton_tools import (
+    _derive_skeletons,
+    _enrich_skeletons_with_annotations,
+    _is_id_like_param,
+    _make_point,
+)
 
 
 class TestEnrichSkeletonsWithAnnotations:
@@ -96,3 +102,59 @@ class TestEnrichSkeletonsWithAnnotations:
         ]
         result = _enrich_skeletons_with_annotations(skeletons, annotations)
         assert "expected_business_code" not in result[0]
+
+
+class TestIsIdLikeParam:
+    def test_matches_id_suffixes(self):
+        assert _is_id_like_param("id") is True
+        assert _is_id_like_param("customerId") is True
+        assert _is_id_like_param("customer_id") is True
+        assert _is_id_like_param("siteID") is True
+        assert _is_id_like_param("siteIds") is True
+
+    def test_rejects_plain_words(self):
+        assert _is_id_like_param("valid") is False
+        assert _is_id_like_param("grid") is False
+        assert _is_id_like_param("pid") is False
+        assert _is_id_like_param("page") is False
+        assert _is_id_like_param("") is False
+
+
+class TestInvalidDynamicObjectSkeleton:
+    """路径参数为资源 ID 时应自动追加「不存在的资源」骨架点（RESTler Invalid Dynamic Object）"""
+
+    def _derive(self, parameters):
+        return _derive_skeletons(
+            method="GET",
+            path="/api/customers/{customerId}",
+            parameters=parameters,
+            request_body=None,
+            responses={"200": {"description": "ok"}},
+            security=None,
+        )
+
+    def test_path_id_param_generates_not_found_point(self):
+        result = self._derive([
+            {"name": "customerId", "in": "path", "required": True, "schema": {"type": "string"}}
+        ])
+        points = [s for s in result["skeletons"] if s["target"] == "customerId"]
+        invalid = [s for s in points if "不存在的资源" in s["name"]]
+        assert len(invalid) == 1
+        point = invalid[0]
+        assert point["category"] == "exception"
+        assert point["expected_status"] == 404
+        assert any("5xx" in hint or "500" in hint for hint in point["assertion_hints"])
+
+    def test_query_id_param_not_triggered(self):
+        """只有路径参数触发，query 中的 id 类参数不生成该点"""
+        result = self._derive([
+            {"name": "customerId", "in": "query", "schema": {"type": "string"}}
+        ])
+        assert not any("不存在的资源" in s["name"] for s in result["skeletons"])
+
+    def test_plain_path_param_not_triggered(self):
+        """非 ID 路径参数（如 {valid}）不生成该点"""
+        result = self._derive([
+            {"name": "slug", "in": "path", "required": True, "schema": {"type": "string"}}
+        ])
+        assert not any("不存在的资源" in s["name"] for s in result["skeletons"])
