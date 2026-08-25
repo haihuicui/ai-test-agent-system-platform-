@@ -774,6 +774,7 @@ const result = await tools.execute_scenario({
 
 ### 检查表 B：数据依赖
 - [ ] 是否已查看当前步骤 `get_endpoint_details` 返回的 `linked_endpoints`？若存在，是否已按 `target` / `status` / `parameters` 表达式配置了步骤顺序与提取器/数据传递？
+- [ ] 步骤的 `dependency` 标注中的 producer（创建接口）是否已作为前序步骤加入场景？producer 不在用户勾选范围内时也应加入，并在总结中向用户说明自动补充了哪些依赖接口；无标注时用 `list_api_endpoints(method="POST", keyword="<资源名>", compact=true)` 搜索创建接口，禁止裸拉全量列表
 - [ ] 当前步骤是否需要前序步骤的数据（token / siteId / orderId 等）？
 - [ ] 需要的前序字段是否已用 `add_step_extractor` 提取为同名变量？
 - [ ] 是否已通过 `add_data_mapping` 或 `{{varName}}` 占位符完成数据传递？
@@ -880,6 +881,7 @@ if (result.data.status !== "completed" || result.data.failed_steps > 0) {
 | 失败现象 | 可能原因 | 修复方法 |
 |----------|----------|----------|
 | 401/403 未授权 | token 未传递或已过期 | 检查前序步骤是否提取 token，数据映射是否传递到 `headers.Authorization` |
+| 404 且路径含 `{{xxId}}` 变量 | 缺少前置创建接口（producer 未入场），变量为空或取到不存在的 ID | 查该端点 dependency 标注的 producer 或用 `list_api_endpoints(method="POST", keyword="<资源名>", compact=true)` 搜索创建接口，用 `add_scenario_step` 前置补齐；禁止编造静态 ID |
 | 404 接口不存在 | URL 路径错误或环境 base_url 不对 | 核对 endpoint path 和环境配置 |
 | 422 参数校验失败 | 必填参数缺失或类型错误 | 使用 `update_scenario_step` 修正 `request_override` |
 | 断言失败 | 预期值与实际响应不符 | 用 debug 模式查看实际响应，调整 `expected` 或 `operator` |

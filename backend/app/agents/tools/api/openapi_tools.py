@@ -26,7 +26,66 @@ from app.models.attachment import Attachment
 from app.models.folder import Folder
 from app.models.folder_type import FolderType
 from app.models.project import Project
+from app.services.dependency_inference import _normalize_entity
 from app.services.openapi_parser import OpenAPIParser
+
+# list_api_endpoints 单次返回上限（防上下文爆炸的底线，limit 参数不能超过它）
+_MAX_LIST_LIMIT = 200
+
+
+def _match_score(keyword_norm: str, ep: dict) -> int:
+    """关键词与端点的相关性打分（关键词在函数内归一化，幂等）。
+
+    100 路径段精确匹配 > 80 路径段前缀 > 60 路径子串 > 40 summary/显示名 > 20 标签组；
+    0 表示不匹配。
+    """
+    keyword_norm = _normalize_entity(keyword_norm)
+    if not keyword_norm:
+        return 0
+    path = ep.get("path") or ""
+    segments = [
+        _normalize_entity(seg)
+        for seg in path.strip("/").split("/")
+        if seg and not seg.startswith("{")
+    ]
+    if keyword_norm in segments:
+        return 100
+    if any(seg.startswith(keyword_norm) for seg in segments):
+        return 80
+    if keyword_norm in _normalize_entity(path):
+        return 60
+    for field in ("summary", "display_name"):
+        if keyword_norm in _normalize_entity(ep.get(field) or ""):
+            return 40
+    if keyword_norm in _normalize_entity(ep.get("tag_group") or ""):
+        return 20
+    return 0
+
+
+def _filter_rank_endpoints(
+    endpoints: list[dict],
+    keyword: str | None,
+    limit: int,
+) -> tuple[list[dict], int]:
+    """关键词过滤 + 相关性排序 + limit 截取（纯函数，便于单测）。
+
+    匹配是归一化的（去 -_ 转小写）：samplingSite 可命中 /sampling-sites。
+
+    Returns:
+        (截取后的列表, 截取前匹配总数)；有关键词时每条附带 match_score
+    """
+    limit = max(1, min(limit, _MAX_LIST_LIMIT))
+    if not keyword or not keyword.strip():
+        return endpoints[:limit], len(endpoints)
+
+    kw = _normalize_entity(keyword)
+    matched = []
+    for ep in endpoints:
+        score = _match_score(kw, ep)
+        if score > 0:
+            matched.append(({**ep, "match_score": score}, score))
+    matched.sort(key=lambda item: (-item[1], item[0].get("path") or ""))
+    return [ep for ep, _ in matched[:limit]], len(matched)
 
 
 # @tool
@@ -120,10 +179,17 @@ async def list_api_endpoints(
     folder_id: str | None = None,
     tag_group: str | None = None,
     method: str | None = None,
-    endpoint_ids: list[str] | None = None
+    endpoint_ids: list[str] | None = None,
+    keyword: str | None = None,
+    compact: bool = False,
+    limit: int = 50,
 ) -> str:
     """
     列出项目的 API 端点
+
+    ⚠️ 上下文节约规则：裸拉全量列表在大项目会产生几万 token。
+    寻找特定接口时必须用 keyword + method + compact 精准查询，例如寻找
+    customer 资源的创建接口：method="POST", keyword="customer", compact=true。
 
     Args:
         project_identifier: 项目标识符
@@ -131,9 +197,17 @@ async def list_api_endpoints(
         tag_group: 标签分组（可选，过滤特定标签的端点）
         method: HTTP 方法（可选，过滤特定方法，如 "GET", "POST" 等）
         endpoint_ids: 端点 ID 列表（可选，只获取指定的端点）
+        keyword: 关键词（可选），按 path/summary/显示名/标签组匹配；
+            匹配是归一化的——samplingSite 可命中 /sampling-sites，
+            customer 可命中 customerId / customer_id；
+            结果按相关性排序并附 match_score
+        compact: 为 True 时每条只返回 id/method/path/summary 且 JSON 不缩进，
+            大幅节省 token（盘点/搜索场景务必开启）
+        limit: 最大返回条数，默认 50，上限 200；
+            结果截断时响应会带 truncated=true 和 total_matched
 
     Returns:
-        JSON 格式的端点列表
+        JSON：{success, total_matched, returned, truncated, endpoints[]}
 
     Example:
         >>> result = await list_api_endpoints(
@@ -141,10 +215,10 @@ async def list_api_endpoints(
         ...     tag_group="Activities",
         ...     method="GET"
         ... )
-        >>> # 获取特定端点的信息
+        >>> # 精准搜索创建接口（推荐写法）
         >>> result = await list_api_endpoints(
         ...     project_identifier="PR-1234",
-        ...     endpoint_ids=["uuid-1", "uuid-2"]
+        ...     method="POST", keyword="customer", compact=true
         ... )
     """
     async for db in get_db():
@@ -225,11 +299,31 @@ async def list_api_endpoints(
                     "last_run_status": endpoint.last_run_status
                 })
 
-            return json.dumps({
+            # 关键词过滤 + 相关性排序 + limit 截取（归一化匹配）
+            page, total_matched = _filter_rank_endpoints(endpoints_data, keyword, limit)
+
+            if compact:
+                keep = ("id", "method", "path", "summary", "match_score")
+                page = [
+                    {k: v for k, v in ep.items() if k in keep and v is not None}
+                    for ep in page
+                ]
+
+            payload = {
                 "success": True,
-                "total": len(endpoints_data),
-                "endpoints": endpoints_data
-            }, ensure_ascii=False, indent=2)
+                "total_matched": total_matched,
+                "returned": len(page),
+                "truncated": total_matched > len(page),
+                "endpoints": page,
+            }
+            if payload["truncated"]:
+                payload["hint"] = (
+                    f"结果已截断（共匹配 {total_matched} 条，返回前 {len(page)} 条）；"
+                    "请用 keyword / tag_group / method 缩小范围，或调大 limit"
+                )
+            if compact:
+                return json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+            return json.dumps(payload, ensure_ascii=False, indent=2)
 
         except Exception as e:
             return json.dumps({

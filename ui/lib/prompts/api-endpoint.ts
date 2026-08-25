@@ -145,7 +145,12 @@ export function buildScenarioGenerationPrompt(
 ${listBlock}
 
 请基于这些接口分析业务关联性，使用场景测试技能（scenario）创建完整的测试场景。
-创建完成后必须执行场景测试，根据执行结果自动修复数据依赖、断言或请求参数，确保场景可正常运行。`;
+创建完成后必须执行场景测试，根据执行结果自动修复数据依赖、断言或请求参数，确保场景可正常运行。
+
+依赖接口处理规则（重要，按优先级）：
+1. 先调 get_endpoint_annotations 读取各接口的 dependency 标注；若 producer 指向未勾选的创建接口，应将其作为前置步骤加入场景（场景步骤不限于勾选范围），并在总结中说明自动补充了哪些依赖接口。
+2. 无 dependency 标注时，用 list_api_endpoints(method="POST", keyword="<资源名>", compact=true) 在项目中搜索资源创建接口（如同集合路径的 POST）作为前置步骤；禁止裸拉全量接口列表。
+3. 若项目中找不到创建接口，禁止编造资源 ID（如 'site-001'）：改用列表接口按 name 定位存量数据，或用 {{变量}} 占位，并在总结中明确告知用户「缺少创建接口，需手动提供 ID 或补充接口」。`;
 
   if (customRequirements?.trim()) {
     prompt += `\n\n---\n\n自定义要求:\n${customRequirements.trim()}`;

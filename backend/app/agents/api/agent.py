@@ -107,6 +107,7 @@ _STAGE_RULES: dict[str, str] = {
 **场景规范（详见 scenario skill）：**
 - 生成前每个步骤调 `get_endpoint_details` 读取 request_body/parameters/responses；若返回 `linked_endpoints`，必须按依赖清单的 `target/status/parameters` 配置步骤顺序与数据传递
 - 同时调 `get_endpoint_annotations` 读取 `dependency` 标注（含导入期 `openapi_inferred` 推断的 producer/lookup 提示）；`id_source=none` 时创建后必须追加列表步骤按 name 定位资源 ID
+- 无 dependency 标注时用 `list_api_endpoints(method="POST", keyword="<资源名>", compact=true)` 搜索创建接口（禁止裸拉全量列表）；找不到创建接口时用 `{{变量}}` 占位并告知用户，禁止编造静态资源 ID
 - URL 中 `{xxx}` 必须在前序步骤用 `add_step_extractor` 提取，用 `{{xxx}}` 引用
 - 创建类步骤必须提取资源 ID + 配置 `add_teardown_step`；创建后追加列表/明细可见性验证（Resource Leak），删除后追加再读 404 验证（Use-After-Free）
 - 分页步骤断言 records/list 非空、total 为数字；首次执行用最小参数确认结构
