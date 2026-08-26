@@ -291,10 +291,18 @@ def _parse_json_objects(text: str, source: str, max_objects: int | None = None) 
             obj, end = decoder.raw_decode(text, idx)
         except json.JSONDecodeError as e:
             snippet = text[idx:idx + 80].replace("\n", " ")
-            raise ValueError(
+            err = ValueError(
                 f"用例数据文件 {source} 第 {text.count(chr(10), 0, idx) + 1} 行附近不是合法 JSON："
                 f"{e}（片段：{snippet!r}）"
-            ) from e
+            )
+            # 附加诊断属性（不改变既有文案/行为）：供 save_test_cases_file
+            # 区分「输出截断」与「语法错误」并给出针对性分批指引；
+            # 其他调用方不受影响（getattr 回落 None）
+            err.parsed_count = len(objs)  # 失败前已成功解析的对象数
+            err.fail_offset = idx  # 失败对象的字符偏移
+            err.text_length = n
+            err.json_error = str(e)  # 原始 JSONDecodeError 文案
+            raise err from e
         objs.append(obj)
         idx = end
     return objs

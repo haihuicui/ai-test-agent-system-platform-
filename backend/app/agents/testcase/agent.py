@@ -22,6 +22,7 @@ from langgraph.pregel import Pregel
 from app.agents.tools.testcase import get_all_tools, get_local_tools
 from app.agents.tools.error_handler import wrap_tools_with_error_handling
 from app.agents.testcase.case_quality_middleware import CaseQualityGateMiddleware
+from app.agents.testcase.duplicate_tool_call_middleware import DuplicateToolCallMiddleware
 from app.agents.testcase.module_self_check_middleware import ModuleSelfCheckMiddleware
 from app.agents.testcase.phase_review_middleware import PhaseReviewMiddleware
 from app.agents.testcase.rag_middleware import RAGMiddleware, RagAwareSkillsMiddleware, resolve_enable_rag
@@ -613,7 +614,7 @@ SYSTEM_PROMPT = """
 
 每完成一个模块的用例设计后，必须按以下顺序执行，**否则禁止进入下一模块**：
 
-1. 用 `save_test_cases_file` 将该模块用例保存到 JSONL 文件（文件名建议包含模块序号，如 `test_cases_module_05.jsonl`；文件会自动保存到当前会话工作目录，`file_path` 直接传文件名即可，保存后记住返回的 `read_path` 供后续读取与导出）。该工具**允许覆盖**历史会话遗留的同名文件，并自动做解析校验与 JSONL 规范化——不要用通用 `write_file`（不可覆盖）或逐行 `edit_file`（同文件多次并行 edit 只有最后一个生效）来创建模块文件。
+1. 用 `save_test_cases_file` 将该模块用例保存到 JSONL 文件（文件名建议包含模块序号，如 `test_cases_module_05.jsonl`；文件会自动保存到当前会话工作目录，`file_path` 直接传文件名即可，保存后记住返回的 `read_path` 供后续读取与导出）。该工具**允许覆盖**历史会话遗留的同名文件，并自动做解析校验与 JSONL 规范化——不要用通用 `write_file`（不可覆盖）或逐行 `edit_file`（同文件多次并行 edit 只有最后一个生效）来创建模块文件。**单次调用硬上限：每次 `save_test_cases_file` 最多保存 10 条用例**；超过 10 条必须拆成多次调用（可并行），写入分片文件（如 `test_cases_module_05_p1.jsonl`、`_p2.jsonl`）——单次序列化过多用例会撞输出 token 上限导致 JSON 截断、整批写入失败（后续导出/入库时把分片文件清单一并传给 `input_file` 即可，无需手工合并）。
 2. **冗余自查（防重复用例）**：同一场景不得在多个模块各生一条——日志字段断言（时间/级别/端口/方向/内容）归日志模块承担，其他模块只断言「产生日志」；操作超时场景的提示与 error 日志级别并入触发模块的操作用例，不另立日志用例；同一输入框的多种非法形态合并为一条数据驱动用例。回读本模块 JSONL 逐对检查子集/同规则/同构，写不出「与已有用例差异点」的用例必须删除或合并。**密度锚点：单功能点用例数一般不超过其测试要点数 × 3（对齐 Phase 1 逐 FP 预估），超出须逐条差异点自证。**
 3. 调用 `module_self_check_tool(input_files=["..."], expected_module="模块名", project_identifier=project_identifier)` 执行模块级自检（确定性校验：编号、模块、数据、预期结果、优先级；**并对照 Phase 1 功能矩阵做覆盖核对**——本模块功能点零用例覆盖会被拦截，测试点疑似未覆盖会给出提示，需补充用例或在报告中说明）。
 4. 若自检返回失败，根据返回的 `violations` 修正 JSONL 文件后重新调用自检。
@@ -898,7 +899,7 @@ export_test_cases_to_excel(
 
 **用例较多（约 >= 30 条，必须用此方式，否则会数据截断）**：把用例写入 JSONL 文件后读文件导出，**禁止在对话里手工合并多个文件或把全部用例塞进一次输出**
 ```python
-# 1) 用 save_test_cases_file 把用例分批保存为 .jsonl（每行一条用例即可，工具自动规范化）
+# 1) 用 save_test_cases_file 把用例分批保存为 .jsonl（每行一条用例即可，工具自动规范化；每批 ≤10 条）
 # 2) 全部写完后一次性导出：
 export_test_cases_to_excel(
     input_file="cases.jsonl",
@@ -1002,6 +1003,10 @@ async def make_agent(model: Any | None = None) -> AsyncIterator[Pregel]:
     stale_offload_middleware = StaleToolResultOffloadMiddleware(backend=composite_backend)
     # 阶段报告人工评审：需求分析、测试策略、质量评审完成后触发 HITL
     phase_review_middleware = PhaseReviewMiddleware()
+    # 重复工具调用拦截：模型偶发重发与上一轮签名全等的整组调用（thread
+    # 6f08f7ab 实证），剥离不执行并纠偏。after_model 逆序执行，须排在
+    # phase_review 之后注册才能先于其运行
+    duplicate_tool_call_middleware = DuplicateToolCallMiddleware()
     # 用例创建质量门禁：单条创建前确定性校验质量红线，失败时拦截并返回违规清单
     # （批量创建的创建前校验由 ModuleSelfCheckMiddleware 统一执行）
     case_quality_gate_middleware = CaseQualityGateMiddleware()
@@ -1040,6 +1045,7 @@ async def make_agent(model: Any | None = None) -> AsyncIterator[Pregel]:
             rag_middleware,
             stale_offload_middleware,
             phase_review_middleware,
+            duplicate_tool_call_middleware,
             case_quality_gate_middleware,
             module_self_check_middleware,
             dynamic_model_selection,

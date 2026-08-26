@@ -517,6 +517,11 @@ FP-028（数据隔离规则）的 test_points：
 **同一会话内追加用例**：向本模块当前 JSONL 文件追加时，从该文件现有最大序号 +1 继续；
 整体重写模块文件用 `save_test_cases_file`（覆盖写，历史同名文件直接替换）。
 
+**批量上限（强制）**：`save_test_cases_file` 单次调用最多保存 10 条用例；超出按 10 条/批
+拆为多次调用（可并行），写入分片文件（如 `test_cases_module_05_p1.jsonl`、`_p2.jsonl`）。
+单次序列化过多用例会撞输出 token 上限导致 JSON 截断、整批写入失败；后续导出/入库时
+把分片文件清单一并传给 `input_file`，禁止手工读取拼接。
+
 ### case_type 枚举（强制）
 
 `case_type` 只能使用以下合法值：`functional` / `security` / `performance` / `compatibility` / `regression` / `smoke_sanity` / `acceptance` / `accessibility` / `destructive` / `usability` / `other`。

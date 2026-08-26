@@ -508,6 +508,68 @@ def _resolve_case_file_path(file_path: str) -> Path:
     return resolved
 
 
+def _classify_parse_failure(error: ValueError, text: str) -> dict[str, Any]:
+    """把 JSONL 解析失败分类为「输出截断」或「语法错误」，给出针对性指引。
+
+    背景（thread 6f08f7ab 实证）：
+    - 单次序列化过多用例撞输出上限 → 内容尾部断弦（Unterminated string），
+      通用报错让模型靠试错才收敛到分批；
+    - 模型生成未转义双引号等非法 JSON → 通用报错缺少修复方向。
+
+    _parse_json_objects 抛出的 ValueError 附带 parsed_count/fail_offset 等
+    诊断属性；旧路径（无属性）回落通用文案，行为与此前一致。
+    """
+    parsed_count = getattr(error, "parsed_count", None)
+    if parsed_count is None:
+        return {
+            "success": False,
+            "error": str(error),
+            "message": f"保存失败：用例内容不是合法 JSONL/JSON：{error}",
+        }
+
+    json_error = getattr(error, "json_error", "") or ""
+    fail_offset = getattr(error, "fail_offset", 0) or 0
+    text_length = getattr(error, "text_length", len(text)) or len(text)
+
+    # 截断特征：Unterminated string（字符串没写完就断了），或断裂点在内容
+    # 尾部 20% 且全文不以闭合括号收尾——均为「单次输出超长被截断」的典型指纹
+    is_truncated = "Unterminated string" in json_error or (
+        text_length > 0
+        and fail_offset >= 0.8 * text_length
+        and not text.rstrip().endswith(("}", "]"))
+    )
+
+    if is_truncated:
+        return {
+            "success": False,
+            "error": str(error),
+            "error_type": "truncated",
+            "parsed_count": parsed_count,
+            "message": (
+                f"保存失败：内容在第 {parsed_count} 条用例之后被输出长度上限截断"
+                f"（第 {parsed_count + 1} 条 JSON 不完整），本次未写入任何内容。"
+                "这是单次序列化用例过多导致的。请改为分批保存：每次 "
+                "save_test_cases_file 调用不超过 10 条用例，从第 "
+                f"{parsed_count + 1} 条起重发；分批写入多个分片文件"
+                "（如 test_cases_module_01_p1.jsonl、_p2.jsonl），"
+                "后续导出/入库时把分片文件清单一并传给 input_file 即可。"
+            ),
+        }
+
+    return {
+        "success": False,
+        "error": str(error),
+        "error_type": "invalid_json",
+        "parsed_count": parsed_count,
+        "message": (
+            f"保存失败：第 {parsed_count + 1} 条用例附近 JSON 语法错误"
+            f"（{json_error}）。最常见原因是字符串值内含未转义的英文双引号"
+            "——请改为中文引号「」或转义为 \\\"。本次未写入任何内容，"
+            "请修正后重发（建议每批不超过 10 条）。"
+        ),
+    }
+
+
 @tool
 async def save_test_cases_file(file_path: str, content: str) -> dict[str, Any]:
     """
@@ -546,11 +608,7 @@ async def save_test_cases_file(file_path: str, content: str) -> dict[str, Any]:
     try:
         cases = _parse_json_objects(text, file_path)
     except ValueError as e:
-        return {
-            "success": False,
-            "error": str(e),
-            "message": f"保存失败：用例内容不是合法 JSONL/JSON：{e}",
-        }
+        return _classify_parse_failure(e, text)
 
     invalid = [i for i, c in enumerate(cases) if not isinstance(c, dict)]
     if invalid:

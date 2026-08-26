@@ -105,7 +105,11 @@ async def test_phase3_self_check_gate_intercepts_bad_batch(workspace_root):
 
     # 注入 fake 模型并运行 agent。dynamic_model_selection 会根据消息选择 text_model，
     # 因此需要把 agent 模块里的 text_model 也替换为 fake_model，避免走真实 DeepSeek。
-    import app.agents.testcase.agent as agent_mod
+    # 注意：不能写成 `import app.agents.testcase.agent as agent_mod`——包的
+    # __init__.py 用 `from .agent import agent` 把包属性 agent 遮蔽成了函数，
+    # 那样拿到的不是模块，替换 text_model 会静默失效、真实调用 LLM（慢且依赖网络）。
+    import importlib
+    agent_mod = importlib.import_module("app.agents.testcase.agent")
     agent_mod.text_model = fake_model
     agent_mod.image_model = fake_model
 

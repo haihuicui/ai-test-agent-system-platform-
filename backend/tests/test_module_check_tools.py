@@ -617,3 +617,61 @@ class TestSaveTestCasesFile:
 
         assert result["success"] is False
         assert "越权" in (result["message"] + result.get("error", ""))
+
+    def test_truncated_content_classified(self, workspace_root: Path):
+        """输出截断特征（尾部 Unterminated string）→ error_type=truncated + 分批指引。"""
+        good = [json.dumps(_valid_case(f"TC-PROJ-MOD-00{i}"), ensure_ascii=False) for i in (1, 2)]
+        # 第 3 条写到一半被截断（字符串未闭合）
+        truncated_tail = '{"case_number": "TC-PROJ-MOD-003", "name": "未写完的用例'
+        content = "\n".join([*good, truncated_tail])
+
+        result = _run_tool(
+            save_test_cases_file,
+            {"file_path": "trunc.jsonl", "content": content},
+        )
+
+        assert result["success"] is False
+        assert result["error_type"] == "truncated"
+        assert result["parsed_count"] == 2
+        assert "10 条" in result["message"]
+        assert "第 3 条" in result["message"]
+        # 原子写入语义：失败不落盘
+        assert not (workspace_root / "trunc.jsonl").exists()
+
+    def test_unescaped_quote_classified_as_invalid_json(self, workspace_root: Path):
+        """中部语法错误（未转义双引号）→ error_type=invalid_json + 修复指引。"""
+        case = _valid_case("TC-PROJ-MOD-001")
+        line = json.dumps(case, ensure_ascii=False)
+        # 在合法行后追加一条含未转义双引号的坏行（中部断裂，非尾部截断）
+        bad_line = '{"case_number": "TC-PROJ-MOD-002", "name": "含"未转义"引号"}  {"x": 1}'
+        content = line + "\n" + bad_line
+
+        result = _run_tool(
+            save_test_cases_file,
+            {"file_path": "bad2.jsonl", "content": content},
+        )
+
+        assert result["success"] is False
+        assert result["error_type"] == "invalid_json"
+        assert result["parsed_count"] == 1
+        assert "双引号" in result["message"]
+        assert not (workspace_root / "bad2.jsonl").exists()
+
+    def test_parse_error_attributes_backward_compatible(self, workspace_root: Path):
+        """_parse_json_objects 抛出的异常 str(e) 与改动前一致，新属性可读取。"""
+        from app.agents.tools.testcase.excel_tools import _parse_json_objects
+
+        good = json.dumps(_valid_case("TC-PROJ-MOD-001"), ensure_ascii=False)
+        text = good + '\n{"case_number": "TC-PROJ-MOD-002", "name": "断弦'
+        try:
+            _parse_json_objects(text, "x.jsonl")
+            raise AssertionError("应当抛出 ValueError")
+        except ValueError as e:
+            # 既有文案格式不变（6 个既有调用方依赖）
+            assert "不是合法 JSON" in str(e)
+            assert "x.jsonl" in str(e)
+            # 新增诊断属性
+            assert e.parsed_count == 1
+            assert e.fail_offset > 0
+            assert e.text_length == len(text.strip())
+            assert "Unterminated string" in e.json_error
