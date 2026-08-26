@@ -346,3 +346,99 @@ class TestRunCodeFailureGuard:
         # 因此不会因同一批失败重复注入
         messages = [self._error_msg(), self._error_msg(), AIMessage(content="重试")]
         assert mw._count_trailing_run_code_failures(messages) == 0
+
+
+# ============================================================================
+# storage-state 目录访问拦截（凭证防泄漏）+ dynamic_bearer 就地刷新
+# ============================================================================
+
+
+def _make_fs_request(tool_name: str, args: dict):
+    return SimpleNamespace(
+        tool_call={"name": tool_name, "id": "call-fs", "args": args},
+    )
+
+
+class TestStorageStateAccessBlocked:
+    """storage-state 目录含登录凭证，文件/shell 工具访问必须被拦截。"""
+
+    @pytest.mark.asyncio
+    async def test_read_file_blocked(self):
+        mw = WebToolGuardMiddleware()
+
+        async def handler(request):
+            return ToolMessage(content="ok", tool_call_id="call-fs", name="read_file")
+
+        req = _make_fs_request("read_file", {"file_path": "/storage-state/p/e/job.json"})
+        result = await mw.awrap_tool_call(req, handler)
+        assert result.status == "error"
+        payload = json.loads(result.content)
+        assert "禁止访问" in payload["error"]
+
+    @pytest.mark.asyncio
+    async def test_execute_command_blocked(self):
+        mw = WebToolGuardMiddleware()
+
+        async def handler(request):
+            return ToolMessage(content="ok", tool_call_id="call-fs", name="execute")
+
+        req = _make_fs_request("execute", {"command": "cat storage-state/global.json"})
+        result = await mw.awrap_tool_call(req, handler)
+        assert result.status == "error"
+
+    @pytest.mark.asyncio
+    async def test_normal_path_passthrough(self):
+        mw = WebToolGuardMiddleware()
+
+        async def handler(request):
+            return ToolMessage(content="ok", tool_call_id="call-fs", name="read_file")
+
+        req = _make_fs_request("read_file", {"file_path": "/skills/web_mcp/planner/SKILL.md"})
+        result = await mw.awrap_tool_call(req, handler)
+        assert result.content == "ok"
+        assert result.status != "error"
+
+
+class TestRefreshStorageStateToken:
+    """dynamic_bearer 续期：就地替换 token，保留 userInfo 等其余数据。"""
+
+    def _write_ss(self, tmp_path):
+        ss = {
+            "cookies": [{"name": "Authorization", "value": "old-token"}],
+            "origins": [
+                {
+                    "origin": "https://x.example.com",
+                    "localStorage": [
+                        {"name": "token", "value": "old-token"},
+                        {"name": "userInfo", "value": '{"username":"root"}'},
+                    ],
+                }
+            ],
+        }
+        p = tmp_path / "ss.json"
+        p.write_text(json.dumps(ss), encoding="utf-8")
+        return p
+
+    @pytest.mark.asyncio
+    async def test_refresh_replaces_token_keeps_userinfo(self, tmp_path):
+        from app.utils.web_mcp_storage_state import refresh_storage_state_token
+
+        p = self._write_ss(tmp_path)
+        ok, note = await refresh_storage_state_token(str(p), "new-token")
+        assert ok is True
+
+        data = json.loads(p.read_text(encoding="utf-8"))
+        ls = data["origins"][0]["localStorage"]
+        assert next(i for i in ls if i["name"] == "token")["value"] == "new-token"
+        assert next(i for i in ls if i["name"] == "userInfo")["value"] == '{"username":"root"}'
+        assert data["cookies"][0]["value"] == "new-token"
+
+    @pytest.mark.asyncio
+    async def test_refresh_no_token_fields_fails(self, tmp_path):
+        from app.utils.web_mcp_storage_state import refresh_storage_state_token
+
+        p = tmp_path / "ss.json"
+        p.write_text(json.dumps({"cookies": [], "origins": []}), encoding="utf-8")
+        ok, note = await refresh_storage_state_token(str(p), "new-token")
+        assert ok is False
+        assert "未找到" in note

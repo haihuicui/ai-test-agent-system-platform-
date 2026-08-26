@@ -46,6 +46,11 @@ logger = logging.getLogger(__name__)
 # 与 agent.py 中 wrap_tools_with_error_handling 的 tool_patterns 保持一致
 _GUARDED_TOOL_PREFIXES = ("browser_", "planner_", "generator_", "test_")
 
+# 含登录凭证的虚拟文件系统目录：禁止 agent 通过文件/命令工具访问
+# （虚拟路径 /storage-state/... 与 shell 相对路径 storage-state/... 都拦截）
+_BLOCKED_FS_PREFIX = "storage-state"
+_FS_TOOL_NAMES = {"read_file", "write_file", "edit_file", "ls", "glob", "execute"}
+
 # 连败守卫触发阈值：尾部连续 N 条 run_code_unsafe 错误
 _RUN_CODE_FAIL_THRESHOLD = 2
 
@@ -114,6 +119,35 @@ class WebToolGuardMiddleware(AgentMiddleware):
     ) -> "ToolMessage | Command[Any]":
         tool_call = getattr(request, "tool_call", None) or {}
         tool_name = tool_call.get("name") or ""
+
+        # 安全拦截：storage-state 目录含登录凭证（手机号/密码/token），
+        # 禁止 agent 通过文件系统/shell 工具读取——凭证入 LLM 上下文即泄漏。
+        # 登录态问题应走「超时自动重建」或「告知用户更新登录态」，不允许
+        # 手动读文件/手动注入 localStorage 这类自救路径。
+        if tool_name in _FS_TOOL_NAMES:
+            args = tool_call.get("args") or {}
+            if any(_BLOCKED_FS_PREFIX in str(v) for v in args.values()):
+                logger.warning(
+                    "[WebToolGuard] 拦截对 %s 的访问: tool=%s", _BLOCKED_FS_PREFIX, tool_name
+                )
+                return ToolMessage(
+                    content=json.dumps(
+                        {
+                            "success": False,
+                            "error": (
+                                "安全策略：/storage-state/ 目录包含登录凭证，禁止访问。"
+                                "登录态失效请等待系统自动重建（工具超时触发），"
+                                "或明确告知用户「项目登录态已失效，请更新后重试」，"
+                                "禁止手动读取 storageState 文件或手动注入 localStorage。"
+                            ),
+                        },
+                        ensure_ascii=False,
+                    ),
+                    tool_call_id=tool_call.get("id", ""),
+                    name=tool_name,
+                    status="error",
+                )
+
         if not tool_name.startswith(_GUARDED_TOOL_PREFIXES):
             return await handler(request)
 
@@ -219,6 +253,24 @@ class WebToolGuardMiddleware(AgentMiddleware):
         if env is None:
             return _result(False, "项目无默认环境")
         auth_config = env.auth_config or {}
+
+        # dynamic_bearer：登录态失效的本质是 token 过期，userInfo 等应用数据仍有效。
+        # 就地刷新 token（不走完整生成链路，避免丢失应用特有的 localStorage 数据）。
+        if env.auth_type == AuthType.DYNAMIC_BEARER.value:
+            try:
+                from app.utils.auth_resolver import resolve_dynamic_bearer_token
+                from app.utils.web_mcp_storage_state import (
+                    refresh_storage_state_token,
+                )
+
+                new_token = await resolve_dynamic_bearer_token(env)
+                ok, note = await refresh_storage_state_token(old_path, new_token)
+                return _result(ok, f"dynamic_bearer 就地刷新: {note}")
+            except Exception as exc:
+                return _result(
+                    False, f"dynamic_bearer 刷新异常: {type(exc).__name__}: {exc}"
+                )
+
         if env.auth_type != AuthType.FORM_LOGIN.value or not (
             env.auth_secret or auth_config.get("token_inject")
         ):

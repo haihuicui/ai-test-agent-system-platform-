@@ -408,6 +408,10 @@ async def make_agent(config: RunnableConfig | None = None) -> AsyncIterator[Preg
             headless=settings.web_mcp_headless,
             config_path=run_config_path,
         )
+        logger.info(
+            "[WebMCPAgent] stdio MCP 启动参数: cmd=%s args=%s cwd=%s",
+            mcp_command, mcp_args, mcp_cwd,
+        )
         client = _build_mcp_client(mcp_command, mcp_args, mcp_cwd)
 
     # 使用 async with 保持 session 存活

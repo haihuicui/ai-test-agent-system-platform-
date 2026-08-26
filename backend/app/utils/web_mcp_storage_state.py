@@ -215,6 +215,51 @@ def extract_credentials_from_storage_state_data(
     return token, cookies
 
 
+async def refresh_storage_state_token(
+    storage_state_path: str, token: str
+) -> tuple[bool, str]:
+    """就地刷新 storageState 文件中的 token，其余字段（userInfo 等）原样保留。
+
+    用于 dynamic_bearer 环境的登录态续期：该类环境的登录态本质是「token 过期，
+    其余 localStorage/cookie 仍有效」，重新走完整生成链路会丢失应用特有的
+    localStorage 数据（如 userInfo），因此只替换 token 值：
+      - origins[].localStorage[] 中 name == "token" 的 value
+      - cookies[] 中 name == "Authorization" 的 value
+
+    Returns:
+        (是否刷新成功, 说明)。
+    """
+    path = Path(storage_state_path)
+    try:
+        ss_data = json.loads(await run_sync(path.read_text, encoding="utf-8"))
+    except Exception as exc:
+        return False, f"读取 storageState 失败: {type(exc).__name__}: {exc}"
+
+    updated: list[str] = []
+    for origin_entry in ss_data.get("origins", []):
+        for item in origin_entry.get("localStorage", []):
+            if item.get("name") == "token":
+                item["value"] = token
+                updated.append(f"localStorage.token@{origin_entry.get('origin')}")
+    for cookie in ss_data.get("cookies", []):
+        if cookie.get("name") == "Authorization":
+            cookie["value"] = token
+            updated.append("cookie.Authorization")
+
+    if not updated:
+        return False, "storageState 中未找到 token/Authorization 字段可刷新"
+
+    try:
+        await run_sync(
+            path.write_text,
+            json.dumps(ss_data, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+    except Exception as exc:
+        return False, f"写回 storageState 失败: {type(exc).__name__}: {exc}"
+    return True, "已刷新: " + ", ".join(updated)
+
+
 async def probe_storage_state_liveness(
     storage_state_path: str,
     base_url: str,
@@ -276,6 +321,37 @@ async def probe_storage_state_liveness(
         return True, f"探针异常（放行）: {type(exc).__name__}: {exc}"
 
 
+async def _try_refresh_dynamic_bearer(
+    env, storage_state_path: str, env_cfg: dict, base_url: str
+) -> "tuple[bool, str]":
+    """dynamic_bearer 环境探针失效后的就地续期：换新 token → 写回 → 复查探针。
+
+    Returns:
+        (复查后是否可用, 原因说明)。
+    """
+    try:
+        from app.utils.auth_resolver import resolve_dynamic_bearer_token
+
+        new_token = await resolve_dynamic_bearer_token(env)
+    except Exception as exc:
+        return False, f"dynamic_bearer 获取新 token 失败: {type(exc).__name__}: {exc}"
+
+    ok, note = await refresh_storage_state_token(storage_state_path, new_token)
+    if not ok:
+        return False, f"dynamic_bearer token 刷新失败: {note}"
+    logger.info("[WebMCPStorage] dynamic_bearer token 已就地刷新: %s", note)
+
+    # 复查探针：新 token 仍不通才算真失效
+    return await probe_storage_state_liveness(
+        storage_state_path,
+        base_url,
+        probe_path=env_cfg.get("probe_path"),
+        probe_method=env_cfg.get("probe_method", "GET"),
+        probe_body=env_cfg.get("probe_body"),
+        probe_invalid_pattern=env_cfg.get("probe_invalid_pattern"),
+    )
+
+
 async def resolve_project_login_state(
     project_identifier: str,
 ) -> tuple[bool, "str | None"]:
@@ -333,6 +409,14 @@ async def resolve_project_login_state(
                                     "probe_invalid_pattern"
                                 ),
                             )
+                            if not alive:
+                                # dynamic_bearer：失效本质是 token 过期，就地刷新
+                                # 新 token 后复查探针（userInfo 等应用数据仍有效，
+                                # 重走完整生成链路反而会丢失）。
+                                if env.auth_type == AuthType.DYNAMIC_BEARER.value:
+                                    alive, reason = await _try_refresh_dynamic_bearer(
+                                        env, storage_state, env_cfg, env.base_url
+                                    )
                             if not alive:
                                 logger.warning(
                                     "[WebMCPAgent] 项目 %s storageState 运行时探针"
