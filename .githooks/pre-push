@@ -4,9 +4,10 @@
 # 为什么不在云端 CI：workspace 用例数据是 .gitignore 的本地资产，
 # GitHub Actions 上没有数据可扫——数据质量门禁只能装在本地 hook。
 #
-# 两道闸：
+# 三道闸：
 #   1. lint --baseline   新增 error 级违规 = 阻断（存量 1615 条已冻结 2026-08-19）
 #   2. coverage_audit    P0 功能点未覆盖 = 阻断（REQ 需求级对齐后口径）
+#   3. traj_audit        golden 轨迹出现 error 级违规 = 阻断（仅 golden 样本入闸）
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)/backend" || exit 1
 
@@ -28,6 +29,14 @@ audit_rc=$?
 if [ "$audit_rc" -ne 0 ]; then
   ./.venv/Scripts/python.exe -m tests.eval.coverage_audit
   echo "[pre-push] ❌ 存在 P0 功能点未覆盖，push 已阻断（--no-verify 可跳过）。"
+  exit 1
+fi
+
+echo "[pre-push] 轨迹合规审计（golden 样本 error 阻断）…"
+./.venv/Scripts/python.exe -m tests.eval.traj_audit
+traj_rc=$?
+if [ "$traj_rc" -ne 0 ]; then
+  echo "[pre-push] ❌ golden 轨迹出现 error 级违规（防线被绕过或规则需随 prompt 同步），push 已阻断。"
   exit 1
 fi
 

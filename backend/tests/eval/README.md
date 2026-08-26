@@ -15,6 +15,11 @@ tests/eval/
 ├── judge_coverage.py         # 需求覆盖语义裁判（FP 级 G-Eval，抓虚假声明/真漏测）
 ├── judge_faithfulness.py     # 需求忠实度裁判（文件级 G-Eval，抓幻觉用例，会话目录配对基准）
 ├── defense_stats.py          # 防线有效性统计（拦截率/评审发现/信任度，零 token）
+├── traj_extract.py           # 轨迹提取：消息转储 → 结构化工具调用序列（三 Agent 共用）
+├── traj_rules.py             # 轨迹规则：提示词红线的零 token 断言（tc 7 / web 5 / api 6 条）
+├── traj_audit.py             # 轨迹审计 CLI（golden 样本 error 阻断，已入 pre-push 第三道闸）
+├── traj_harvest.py           # 轨迹采集：LangGraph thread → 转储样本（翻车现场一键收编）
+├── test_traj_rules.py        # 轨迹规则单测（手工构造轨迹，正反样本对照）
 ├── compare_runs.py           # 模型 A/B 对比（同需求两版产出三维对比，裁判 3 次采样取中位）
 ├── judge_model.py            # DeepSeek 裁判封装（DeepEvalBaseLLM 协议）
 ├── metrics.py                # G-Eval 裁判定义（单一事实源，门禁与落盘共用）
@@ -33,7 +38,8 @@ tests/eval/
     ├── judge_coverage_ab_cross.jsonl # A/B 交叉：跨目录 × 跨矩阵对照
     ├── human_labels_v1.jsonl # 人工盲标骨架（未标注，校准轨道已冻结——见「校准」）
     ├── judge_scores_v1.jsonl # 裁判分数落盘（重分析不重跑）
-    └── blind_worksheet.md    # 盲标阅读材料（用例全文 + 判定行，无裁判分）
+    ├── blind_worksheet.md    # 盲标阅读材料（用例全文 + 判定行，无裁判分）
+    └── trajectories/         # 轨迹样本（thread 消息转储，traj_audit 扫描目录）
 ```
 
 ## 快速开始
@@ -48,11 +54,18 @@ cd backend
 # baseline 模式：存量 1615 条已冻结为基线（历史不修），日常只报新增
 ./.venv/Scripts/python.exe -m tests.eval.lint_cases --baseline
 
-# 本地门禁已上线：git push 自动跑 lint --baseline + coverage_audit
-# （新增 error 或 P0 未覆盖即阻断，--no-verify 可跳过）。
+# 本地门禁已上线：git push 自动跑 lint --baseline + coverage_audit + traj_audit
+# （新增 error / P0 未覆盖 / golden 轨迹 error 级违规即阻断，--no-verify 可跳过）。
 # 为什么不在云端 CI：workspace 用例数据是 .gitignore 的本地资产，
 # GitHub Actions 没有数据可扫。换机克隆后需执行一次：
 #   git config core.hooksPath .githooks
+
+# 轨迹合规审计（把提示词红线变成零 token 断言；golden 样本入门禁，详见「轨迹层」节）
+./.venv/Scripts/python.exe -m tests.eval.traj_audit
+./.venv/Scripts/python.exe -m pytest tests/eval/test_traj_rules.py -q   # 规则单测
+
+# 轨迹样本采集（翻车现场一键收编；--golden 仅用于人工确认合规的标杆轨迹）
+./.venv/Scripts/python.exe -m tests.eval.traj_harvest <thread_id> --agent web
 
 # 覆盖漏测审计（项目级全景：FP 漏测清单/薄弱覆盖/无追溯文件；P0 未覆盖退出码 1；
 # REQ 需求级对齐防 FP 编号撞车虚高——跨需求显式声明不计入覆盖）
@@ -108,6 +121,29 @@ cd backend
 扫描口径（2026-08-19）：`adversarial_review*` 文件不再扫描——评审报告逐字引用
 缺陷用例作证据，lint 这些"被展示的反面教材"是纯假阳性（排除后新增违规 540→330）。
 基线同日推进 1285→1615（吸收 A/B 实验与 E2E 线程产出）。
+
+## 轨迹层（traj_*，2026-08-26 上线）
+
+评「过程合不合规」而非「产物好不好」：把三个 Agent 系统提示词里的流程红线
+（"第一条调用必须 write_todos"、"browser_* 前必须 setup"、"execute_* 前必须邀约+
+用户决策"、"入库前必须 compute_coverage_report" 等 18 条）翻译为零 token 断言，
+扫 thread 消息转储。
+
+与运行时中间件的关系：中间件拦住的违规不会出现在轨迹里（调用被剥离），
+所以轨迹层抓到的是**绕过防线真实发生**的事件，与中间件统计（defense_stats）互补。
+
+- `traj_extract.py`：消息转储 → 结构化工具调用序列；按工具画像自动识别 Agent 类型
+  （文件名前缀 tc_/web_/api_ 优先）。
+- `traj_rules.py`：规则注册表。每条规则注明提示词出处——**prompt 改版必须同步改规则**
+  （双载体纪律，与 quality-review SKILL 同理）。
+- `traj_audit.py`：CLI。golden 样本（`*.golden.json`，人工确认合规的标杆轨迹）
+  出现 error 级违规时退出码 1，已入 pre-push 第三道闸；非 golden 样本只报告不阻断。
+- `traj_harvest.py`：从 LangGraph Server 拉 thread 消息落样本，
+  修完线上 bug 顺手收编翻车现场（样本只增不减）。
+- `test_traj_rules.py`：每条规则正反样本对照单测。
+
+首份实证（web_xmetrix_customer.json，真实翻车 thread）：抓出
+browser_run_code_unsafe 连续使用 10 次未回 snapshot 的失控段（WB-T05）。
 
 ## 样本格式（regression_v1.jsonl，每行一条）
 
