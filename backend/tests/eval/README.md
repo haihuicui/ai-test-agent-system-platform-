@@ -19,7 +19,9 @@ tests/eval/
 ├── traj_rules.py             # 轨迹规则：提示词红线的零 token 断言（tc 7 / web 5 / api 6 条）
 ├── traj_audit.py             # 轨迹审计 CLI（golden 样本 error 阻断，已入 pre-push 第三道闸）
 ├── traj_harvest.py           # 轨迹采集：LangGraph thread → 转储样本（翻车现场一键收编）
+├── trace_sentry.py           # 在线哨兵：Langfuse 生产 trace → 轨迹断言 → 违规自动收编
 ├── test_traj_rules.py        # 轨迹规则单测（手工构造轨迹，正反样本对照）
+├── test_trace_sentry.py      # 哨兵转换层单测（消息归一化/还原/收编去重）
 ├── compare_runs.py           # 模型 A/B 对比（同需求两版产出三维对比，裁判 3 次采样取中位）
 ├── judge_model.py            # DeepSeek 裁判封装（DeepEvalBaseLLM 协议）
 ├── metrics.py                # G-Eval 裁判定义（单一事实源，门禁与落盘共用）
@@ -66,6 +68,10 @@ cd backend
 
 # 轨迹样本采集（翻车现场一键收编；--golden 仅用于人工确认合规的标杆轨迹）
 ./.venv/Scripts/python.exe -m tests.eval.traj_harvest <thread_id> --agent web
+
+# 在线 trace 哨兵（Langfuse 生产 trace → 轨迹断言 → 含 error 的自动收编为回归样本）
+./.venv/Scripts/python.exe -m tests.eval.trace_sentry                  # 最近 24h 全 Agent
+./.venv/Scripts/python.exe -m tests.eval.trace_sentry --hours 720 --limit 100 --no-harvest
 
 # 覆盖漏测审计（项目级全景：FP 漏测清单/薄弱覆盖/无追溯文件；P0 未覆盖退出码 1；
 # REQ 需求级对齐防 FP 编号撞车虚高——跨需求显式声明不计入覆盖）
@@ -144,6 +150,24 @@ cd backend
 
 首份实证（web_xmetrix_customer.json，真实翻车 thread）：抓出
 browser_run_code_unsafe 连续使用 10 次未回 snapshot 的失控段（WB-T05）。
+
+### 在线哨兵（trace_sentry，2026-08-26 上线）
+
+观测 → 评估 → 回归集扩充的闭环：从 Langfuse 拉生产 trace（REST API + Basic Auth，
+零 SDK 依赖），取消息数最多的 generation input 还原全量轨迹，跑 traj_rules，
+含 error 的 trace 自动落盘收编（.sentry_index.json 去重）。fail-open：Langfuse
+不可达/缺配置时静默跳过，只评不拦（门禁仍在 pre-push 的 golden 样本上）。
+
+首战即完成一轮「规则 ↔ 数据」互校（49 条 trace）：
+- **规则误报修正 ×3**：resume run 的独立 trace 只有决策消息（邀约在上一条 trace）；
+  前端执行入口「请执行测试脚本 Script ID:xxx」是用户主动许可，不走邀约流；
+  摘要续跑/用户直接指令/意图路由简单任务不适用「首调用 write_todos」；
+  分片保存（_pN、01b/01c）与合并自检须按连续保存段配对。
+- **规则盲区修复 ×1**：save_test_cases_file 真实传参是 content JSON 字符串
+  （非 test_cases 列表），分批超限检测改为按 case_number 计数——修复后
+  立刻抓到 7 条真实超限（单次 29 条）。
+- **现存真违规**：API-T04×2（纯 GET 快速路径跳过标注消费，红线 4 兜底缺口）、
+  TC-T03×2（返工补充用例未自检直接入库）、TC-T05×7（分批硬约束前的历史超限）。
 
 ## 样本格式（regression_v1.jsonl，每行一条）
 

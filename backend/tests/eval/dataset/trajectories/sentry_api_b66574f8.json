@@ -1,0 +1,2098 @@
+[
+ {
+  "i": 1,
+  "type": "HumanMessage",
+  "content": "为端点 GET /store/inventory（endpoint_id=f120abc6-5a5f-409d-bf8a-0e0a8b1633f3）生成 API 测试。这是纯 GET 无参数端点，走快速路径即可。"
+ },
+ {
+  "i": 2,
+  "type": "AIMessage",
+  "content": "",
+  "tool_calls": [
+   {
+    "name": "get_endpoint_details",
+    "args": {
+     "endpoint_id": "f120abc6-5a5f-409d-bf8a-0e0a8b1633f3"
+    }
+   },
+   {
+    "name": "get_endpoint_artifacts",
+    "args": {
+     "endpoint_id": "f120abc6-5a5f-409d-bf8a-0e0a8b1633f3"
+    }
+   },
+   {
+    "name": "get_response_schema",
+    "args": {
+     "endpoint_id": "f120abc6-5a5f-409d-bf8a-0e0a8b1633f3"
+    }
+   }
+  ]
+ },
+ {
+  "i": 3,
+  "type": "ToolMessage",
+  "content": "{\n  \"success\": true,\n  \"endpoint\": {\n    \"id\": \"f120abc6-5a5f-409d-bf8a-0e0a8b1633f3\",\n    \"display_name\": \"GET /store/inventory\",\n    \"path\": \"/store/inventory\",\n    \"method\": \"GET\",\n    \"summary\": \"Returns pet inventories by status\",\n    \"description\": \"Returns a map of status codes to quantities\",\n    \"tag_group\": \"store\",\n    \"folder_id\": \"5b1c102a-a5f5-4791-8159-3fdf10ecdb8b\",\n    \"parameters\": [],\n    \"request_body\": null,\n    \"responses\": {\n      \"200\": {\n        \"schema\": {\n          \"type\": \"object\",\n          \"additionalProperties\": {\n            \"type\": \"integer\",\n            \"format\": \"int32\"\n          }\n        },\n        \"description\": \"successful operation\"\n      }\n    },\n    \"security\": [\n      {\n        \"api_key\": []\n      }\n    ],\n    \"tags\": [\n      \"store\"\n    ],\n    \"custom_config\": {\n      \"servers\": [],\n      \"deprecated\": false,\n      \"folder_name\": \"GET-inventory\",\n      \"operation_id\": \"getInventory\",\n      \"resource_name\": \"inventory\"\n    },\n    \"statistics\": {\n      \"total_test_cases\": 0,\n      \"total_test_runs\": 0,\n      \"last_run_status\": null\n    },\n    \"created_at\": \"2026-08-05T09:12:31.592753+00:00\",\n    \"updated_at\": null\n  }\n}"
+ },
+ {
+  "i": 4,
+  "type": "ToolMessage",
+  "content": "{\"success\": true, \"endpoint_id\": \"f120abc6-5a5f-409d-bf8a-0e0a8b1633f3\", \"artifacts\": [], \"total\": 0}"
+ },
+ {
+  "i": 5,
+  "type": "ToolMessage",
+  "content": "{\"success\": true, \"endpoint\": {\"id\": \"f120abc6-5a5f-409d-bf8a-0e0a8b1633f3\", \"method\": \"GET\", \"path\": \"/store/inventory\", \"display_name\": \"GET /store/inventory\"}, \"success_status\": \"200\", \"schemas\": {\"200\": {\"schema\": {\"type\": \"object\", \"additionalProperties\": {\"type\": \"integer\", \"format\": \"int32\"}}, \"has_inline_schema\": true, \"required_fields\": [], \"field_types\": {}, \"enums\": {}, \"unresolved_refs\": []}}, \"notes\": [], \"usage_hint\": \"在脚本中嵌入 schemas['<status>'].schema 为 const SCHEMA，成功响应用例调用 validateSchema(body, SCHEMA).valid（TS，helper 在 tests/_helpers/schema.ts）或 validate_schema(body, SCHEMA)（Python，tests/_helpers/schema.py）做整体契约校验；field_types/enums/required_fields 可用于补充针对性断言。\"}"
+ },
+ {
+  "i": 6,
+  "type": "AIMessage",
+  "content": "端点确认：`GET /store/inventory`，无参数、无请求体，响应为「status code → 数量」的整数映射，需要 api_key 认证。无已有成果物，走快速路径。先确认环境配置：",
+  "tool_calls": [
+   {
+    "name": "get_environment_details",
+    "args": {
+     "project_identifier": "PR-1",
+     "env_id": "3f8678c8-2a98-4fc6-8bc6-5dbc011f6764"
+    }
+   }
+  ]
+ },
+ {
+  "i": 7,
+  "type": "ToolMessage",
+  "content": "{\n  \"success\": true,\n  \"environment\": {\n    \"id\": \"3f8678c8-2a98-4fc6-8bc6-5dbc011f6764\",\n    \"name\": \"测试环境-动态token\",\n    \"base_url\": \"https://xmetrix-sit-15000.chromxhealth.com/api\",\n    \"auth_type\": \"dynamic_bearer\",\n    \"auth_config\": {\n      \"token_url\": \"https://xcloud-sit-15000.chromxhealth.com/api/auth/token\",\n      \"token_body\": {\n        \"captcha\": \"8m3g\",\n        \"password\": \"$2b$12$VWqIzD.bmRdiG5L8aqcEE.PQivLEVPx7d5WdC/rhKGWCFwn2sI3ae\",\n        \"username\": \"root\"\n      },\n      \"token_path\": \"$.data.token\",\n      \"token_inject\": {\n        \"token_url\": \"https://xcloud-sit-15000.chromxhealth.com/api/auth/token/\",\n        \"token_body\": {\n          \"captcha\": \"8m3g\",\n          \"password\": \"$2b$12$VWqIzD.bmRdiG5L8aqcEE.PQivLEVPx7d5WdC/rhKGWCFwn2sI3ae\",\n          \"username\": \"root\"\n        },\n        \"token_path\": \"$.data.token\",\n        \"token_method\": \"POST\",\n        \"inject_cookies\": [\n          {\n            \"name\": \"Authorization\",\n            \"value\": \"{token}\"\n          }\n        ],\n        \"target_domains\": [\n          \"xcloud-sit-15000.chromxhealth.com\",\n          \"xcloud-admin-sit-15000.chromxhealth.com\",\n          \"xmetrix-sit-15000.chromxhealth.com\"\n        ],\n        \"token_ttl_seconds\": 604800,\n        \"inject_localstorage\": {\n          \"token\": \"{token}\",\n          \"userStatus\": \"login\"\n        }\n      },\n      \"token_method\": \"POST\",\n      \"storage_state\": {\n        \"captcha\": \"4\",\n        \"password\": \"root\",\n        \"username\": \"root\",\n        \"login_url\": \"https://xcloud-sit-15000.chromxhealth.com/login\",\n        \"selectors\": {\n          \"login_url\": \"https://xcloud-sit-15000.chromxhealth.com/login\",\n          \"submit_selector\": \"button:has-text(\\\"登录\\\"):not([disabled])\",\n          \"captcha_selector\": \"input[id=\\\"captcha_input\\\"]\",\n          \"success_selector\": \"div:has-text(\\\"登录成功\\\")\",\n          \"password_selector\": \"input[id=\\\"password_input\\\"]\",\n          \"username_selector\": \"input[id=\\\"username_input\\\"]\",\n          \"pre_click_selector\": \"span:has-text(\\\"密码\\\")\"\n        }\n      },\n      \"token_ttl_seconds\": 300\n    },\n    \"timeout_ms\": 30000,\n    \"is_default\": true,\n    \"has_auth_secret\": true,\n    \"auth_secret\": \"$2b$12$VWqIzD.bmRdiG5L8aqcEE.PQivLEVPx7d5WdC/rhKGWCFwn2sI3ae\",\n    \"created_at\": \"2026-07-08T00:59:39.757786Z\",\n    \"updated_at\": \"2026-08-04T03:14:44.179093Z\"\n  }\n}"
+ },
+ {
+  "i": 8,
+  "type": "AIMessage",
+  "content": "环境确认：dynamic_bearer 动态 token，`base_url=https://xmetrix-sit-15000.chromxhealth.com/api`，执行时后端自动注入 AUTH_TOKEN。先读取 generator skill 以遵循脚本硬规范：",
+  "tool_calls": [
+   {
+    "name": "read_file",
+    "args": {
+     "file_path": "/skills/api/generator/SKILL.md",
+     "limit": 1000
+    }
+   }
+  ]
+ },
+ {
+  "i": 9,
+  "type": "ToolMessage",
+  "content": "     1\t---\n     2\tname: generator\n     3\tdescription: API 测试代码生成专家 - 根据测试计划智能生成可执行的测试代码\n     4\t---\n     5\t\n     6\t# API 测试代码生成专家\n     7\t\n     8\t您是 API 测试代码生成专家，负责将测试计划转换为可执行的测试代码。\n     9\t\n    10\t## 核心工作流\n    11\t\n    12\t### 1. 获取测试计划\n    13\t\n    14\t首先获取已保存的测试计划或根据用户需求直接生成：\n    15\t\n    16\t**方法 A：从 MinIO 获取测试计划**\n    17\t```javascript\n    18\tconst result = await tools.get_endpoint_artifacts({\n    19\t  endpoint_id: \"550e8400-e29b-41d4-a716-446655440000\",\n    20\t  artifact_type: \"API_TEST_PLAN\"\n    21\t})\n    22\t\n    23\t// 获取计划内容\n    24\tconst planResult = await tools.get_artifact_content({\n    25\t  attachment_id: result.artifacts[0].id\n    26\t})\n    27\tconst testPlan = planResult.content\n    28\t```\n    29\t\n    30\t**方法 B：用户直接提供测试计划内容**\n    31\t\n    32\t如果用户提供了测试计划，直接使用该内容。\n    33\t\n    34\t### 2. 解析测试计划\n    35\t\n    36\t分析测试计划，提取以下信息：\n    37\t- API 端点信息（方法、路径、Base URL）\n    38\t- 认证方式\n    39\t- 测试场景列表\n    40\t- 测试数据\n    41\t- 预期结果\n    42\t\n    43\t**确认 Base URL 来源（按优先级）：**\n    44\t1. 用户显式提供的 `execution_config.base_url`\n    45\t2. 项目默认环境（ProjectEnvironment.is_default=True）的 `base_url`\n    46\t3. 端点 `custom_config.servers[0].url`\n    47\t4. 如果以上都没有，生成脚本时保留环境变量占位，执行时会明确报错提示配置\n    48\t\n    49\t**不要**在脚本中硬编码任何域名或 token。所有地址和凭据必须通过环境变量注入。\n    50\t\n    51\t### 3. 选择测试框架\n    52\t\n    53\t根据项目需求选择合适的框架：\n    54\t\n    55\t| 框架 | 适用场景 | 语言 | 文件扩展名 | 特点 |\n    56\t|------|----------|------|-----------|------|\n    57\t| **Playwright** | 现代 API 测试 | TypeScript/JavaScript | `.spec.ts` / `.spec.js` | 强大的 API 测试能力，支持 TypeScript |\n    58\t| **Jest** | 简单 API 测试 | TypeScript/JavaScript | `.test.ts` / `.test.js` | Node.js 生态，简单易用 |\n    59\t| **Pytest** | Python 项目 | Python | `.py` | 简洁易读，Python 生态 |\n    60\t| **Postman** | API 集合 | JSON | `.json` | 可导入 Postman 使用 |\n    61\t\n    62\t默认推荐使用 **Playwright + TypeScript**。\n    63\t\n    64\t### 4. 生成测试代码\n    65\t\n    66\t#### 断言生成强制规范（必须遵守）\n    67\t\n    68\t**可度量下限（门禁据此判定，硬性无放行开关）**：每个测试函数至少 **1 个状态码断言 + 2 个有效业务断言**。\n    69\t有效业务断言 = 非状态码、非宽泛（`toBeTruthy`/`toBeFalsy`、对裸变量的 `toBeDefined` 不算）的字段存在性/类型/枚举/业务值断言。\n    70\t低于下限会被 `save_test_script` 门禁以 WEAK 硬拒；只含状态码以 FAIL 硬拒。\n    71\t\n    72\t按三层模型组织断言：\n    73\t\n    74\t1. **协议层**：验证 HTTP 状态码\n    75\t   ```typescript\n    76\t   expect(response.status).toBe(200); // 根据场景使用 200/201/204/400/401/403/404\n    77\t   ```\n    78\t\n    79\t2. **结构/业务层**：基于 OpenAPI `responses` schema 验证响应体\n    80\t   ```typescript\n    81\t   const body = await response.json();\n    82\t\n    83\t   // 必填字段存在性\n    84\t   expect(body).toHaveProperty('data');\n    85\t   expect(body.data).toHaveProperty('id');\n    86\t\n    87\t   // 字段类型（动态值只断言类型，不断言具体值）\n    88\t   expect(typeof body.data.id).toBe('string');\n    89\t\n    90\t   // ⚠️ 业务状态码断言（正向用例最重要的断言，硬性强制）\n    91\t   //\n    92\t   // 正向用例必须断言业务成功码的**值**（不是存在性、不是类型），这是区分\"真正成功\"和\n    93\t   // \"HTTP 200 + 业务错误码=4009\"假阳性的唯一防线。\n    94\t   //\n    95\t   // 如果 OpenAPI 文档没有明确定义成功值，按以下优先级推断：\n    96\t   //   1. responses schema 中 code/success 的 enum/example/default → 取成功值\n    97\t   //   2. 调用 get_response_schema(endpoint_id) 获取的 schema 中 code 的默认值\n    98\t   //   3. 常见约定：code: 0 | \"0\" | 200 | \"success\" | true\n    99\t   //   4. 若仍无法确定，必须向用户确认，不得退化为 typeof 类型检查\n   100\t   //\n   101\t   // ✅ 正确：断言 code 等于成功值\n   102\t   expect(body.code).toBe(0);                      // 或 '0' / '200' / 'success'，以文档为准\n   103\t   expect(body.success).toBe(true);                 // 如果文档定义了 success 字段\n   104\t   //\n   105\t   // ❌ 禁止：只检查存在性或类型（code=\"4009\"也能通过！）\n   106\t   // expect(typeof body.code).toBe('string');      // ❌ \"4009\" 也是 string\n   107\t   // expect(body).toHaveProperty('code');           // ❌ 错误响应也有 code 字段\n   108\t\n   109\t   // 枚举字段\n   110\t   expect(['pending', 'paid', 'cancelled']).toContain(body.data.orderStatus);\n   111\t   ```\n   112\t\n   113\t3. **边界/错误层**：异常场景验证具体错误信息\n   114\t   ```typescript\n   115\t   // 4xx 场景 / 业务错误场景（断言具体的错误码值）\n   116\t   expect(response.status).toBe(400);\n   117\t   expect(body).toHaveProperty('code');\n   118\t   expect(body.code).toBe('4009');                  // 断言具体错误码，不是类型\n   119\t   expect(body.message).toContain('参数不能为空');    // 以文档 error schema 为准\n   120\t   ```\n   121\t\n   122\t**核心原则：**\n   123\t- 字段名必须从 `get_endpoint_details` 返回的 `responses` schema 中提取，**禁止臆测**。\n   124\t- **正向用例必须断言 body.code（或 body.success）等于成功值，这是硬性要求**。禁止将 `typeof body.code === 'string'` 作为正向用例的核心业务断言——这无法区分 HTTP 200 + code=4009（业务拒绝）和真正成功。\n   125\t- 数组/分页接口必须断言 `Array.isArray(body.data.records)` 和 `typeof body.data.total === 'number'`。\n   126\t- 生成脚本后、保存前，**必须调用 `audit_script_assertions(script_content=...)`**；若返回 `FAIL` 或 `WEAK`，必须补充断言后再保存。\n   127\t\n   128\t#### 契约断言（推荐）：整体校验响应体符合 schema\n   129\t\n   130\t对 **2xx 成功响应**，优先用 schema 整体校验替代一堆手写字段断言——一次调用覆盖字段存在性/类型/必填/枚举，且杜绝字段名臆测。\n   131\t\n   132\t**步骤：**\n   133\t1. 调 `get_response_schema(endpoint_id)` 获取精确 schema（含 `field_types`/`enums`/`required_fields`/`unresolved_refs`）。\n   134\t2. 把返回的 `schemas['<status>'].schema` 嵌入脚本为 `const SCHEMA`。\n   135\t3. 成功响应用例调用 `validateSchema(body, SCHEMA).valid`（TS）或 `validate_schema(body, SCHEMA)`（Python）断言。\n   136\t\n   137\t**TypeScript / Playwright**（helper 在 `tests/_helpers/schema.ts`，零依赖内置校验器）：\n   138\t```typescript\n   139\timport { validateSchema } from './_helpers/schema';\n   140\tconst SCHEMA = { type: 'object', required: ['data'], properties: { /* 由 get_response_schema 返回 */ } } as const;\n   141\t\n   142\ttest('成功场景', async () => {\n   143\t  const response = await fetch(url, { method: 'POST', headers: authHeaders, body: JSON.stringify(payload) });\n   144\t  expect(response.status).toBe(200);\n   145\t  const body = await response.json();\n   146\t  expect(validateSchema(body, SCHEMA).valid).toBe(true); // 整体契约校验（失败自动打印全部错误）\n   147\t});\n   148\t```\n   149\t\n   150\t**Python / Pytest**（helper 在 `tests/_helpers/schema.py`，基于 jsonschema）：\n   151\t```python\n   152\tfrom _helpers.schema import validate_schema\n   153\t\n   154\tdef test_success():\n   155\t    response = requests.post(url, json=payload, headers=get_headers())\n   156\t    assert response.status_code == 200\n   157\t    valid, errors = validate_schema(response.json(), SCHEMA)\n   158\t    assert valid, \"\\n\".join(errors)\n   159\t```\n   160\t\n   161\t**注意：**\n   162\t- 门禁已识别 `validateSchema(`/`validate_schema(`/`jsonschema.validate(`，计为有效结构断言（`status + schema 校验` 即合格）。\n   163\t- `get_response_schema` 返回的 `unresolved_refs` 部分（完整 spec 未持久化）按\"任意\"处理，这些字段需结合 `get_endpoint_details` 用手写字段断言补充。\n   164\t- schema 校验不替代状态码断言和错误场景断言，二者仍需保留。\n   165\t\n   166\t#### 场景测试脚本硬规范（场景框架专用）\n   167\t\n   168\t使用场景框架（`create_test_scenario` / `add_scenario_step` / `execute_scenario`）时，除上述断言规范外，还必须遵守：\n   169\t\n   170\t1. **基于接口 schema 生成步骤**：每个 `add_scenario_step` 前必须调用 `get_endpoint_details` 读取 `request_body` / `parameters` / `responses`，`request_body.required` 字段必须出现在 `request_override.body` 中。\n   171\t2. **路径参数必须闭环**：URL 中的 `{xxx}` 必须在前序步骤通过 `add_step_extractor` 提取同名变量，并在当前步骤 `request_override.path` 中用 `{{xxx}}` 引用。\n   172\t3. **创建类步骤必须提取 ID 并配 teardown**：步骤含\"创建/新增/上传/生成\"语义时，必须在本步骤提取资源 ID，并调用 `add_teardown_step` 配置清理。\n   173\t4. **分页查询先用最小参数**：首次生成时只保留 `page`/`size`（或 `current`/`size`），确认响应结构后再考虑加入 `orders` 等排序参数。\n   174\t5. **变量语法**：统一使用 `{{$timestamp}}` / `{{$uuid}}` / `{{$faker.name}}` / `{{variableName}}`，括号内不要加空格；执行时传入的 `variables` 中可配合 `Date.now()` 保证唯一性。\n   175\t6. **每个步骤断言下限**：1 个 `status` 断言 + 1 个 `jsonpath`/`header` 业务断言；正向用例必须断言业务成功码具体值。\n   176\t\n   177\t#### 脚本生成硬规范（避免 URL 丢失 /api 前缀、避免网关拦截）\n   178\t\n   179\t1. **URL 用字符串拼接，不要用 `new URL()`**：`new URL(API_PATH, BASE_URL)` 在 `API_PATH` 以 `/` 开头时会丢弃 `BASE_URL` 里的 `/api` 等前缀。必须手动拼接：\n   180\t   ```typescript\n   181\t   const BASE_URL = (process.env.API_BASE_URL || '').trim();\n   182\t   if (!BASE_URL) throw new Error('API_BASE_URL is not set');\n   183\t   const url = `${BASE_URL.replace(/\\/$/, '')}${API_PATH}`; // 去掉 BASE_URL 尾斜杠，保留 API_PATH 头斜杠\n   184\t   ```\n   185\t2. **HTTP 请求统一用 Node 原生 `fetch`**：当前网关会拦截 Playwright 的 `request` fixture，不要用 `request`。`body` 必须 `JSON.stringify(payload)` 并显式设置 `'Content-Type': 'application/json'`。\n   186\t3. **禁止 fallback token**:`const token = process.env.AUTH_TOKEN || 'test'` 严格禁止，必须 `const token = process.env.AUTH_TOKEN!`（缺失时让脚本显式报错，而非静默用假 token)。\n   187\t4. **禁止硬编码**：域名、URL、token、业务唯一值（customerName/phone/email/orderNo）一律用环境变量 + `Date.now()`/`uuid`/`faker` 动态生成。\n   188\t\n   189\t#### 4.1 Playwright + TypeScript 模板\n   190\t\n   191\t根据选择的框架生成测试代码。\n   192\t\n   193\t```typescript\n   194\timport { test, expect } from '@playwright/test';\n   195\timport { faker } from '@faker-js/faker/locale/zh_CN';\n   196\t\n   197\t// 配置：API_BASE_URL 由执行环境注入，禁止硬编码 fallback\n   198\tconst BASE_URL = (process.env.API_BASE_URL || '').trim();\n   199\tif (!BASE_URL) {\n   200\t  throw new Error(\n   201\t    'API_BASE_URL is not set. ' +\n   202\t    'Configure it in Project Settings > Environments or pass execution_config.base_url.'\n   203\t  );\n   204\t}\n   205\t\n   206\tconst AUTH_TOKEN = process.env.AUTH_TOKEN;\n   207\tif (!AUTH_TOKEN) {\n   208\t  throw new Error(\n   209\t    'AUTH_TOKEN is not set. ' +\n   210\t    'Configure it in Project Settings > Environments or pass execution_config.env.AUTH_TOKEN.'\n   211\t  );\n   212\t}\n   213\t\n   214\t// 认证请求头\n   215\tconst authHeaders = {\n   216\t  'Authorization': `Bearer ${AUTH_TOKEN}`,\n   217\t  'Content-Type': 'application/json'\n   218\t};\n   219\t\n   220\t// 动态测试数据生成：用于 customerName/phone/email/orderNo 等必须唯一的字段\n   221\tfunction generateUnique(prefix: string, length = 6): string {\n   222\t  const random = Math.random().toString(36).substring(2, 2 + length);\n   223\t  return `${prefix}-${Date.now()}-${random}`;\n   224\t}\n   225\t\n   226\t// 使用示例（根据实际接口字段替换）：\n   227\t// const payload = {\n   228\t//   customerName: `${faker.person.fullName()}-${Date.now()}`,\n   229\t//   phone: faker.phone.number('138########'),\n   230\t//   email: faker.internet.email({ provider: 'example.com' }).replace('@', `+${Date.now()}@`),\n   231\t// };\n   232\t\n   233\ttest.describe('{endpoint_display_name}', () => {\n   234\t\n   235\t  test('成功场景 - {scenario_name}', async () => {\n   236\t    const url = `${BASE_URL.replace(/\\/$/, '')}{path}`;\n   237\t    const response = await fetch(url, {\n   238\t      method: 'POST',\n   239\t      headers: authHeaders,\n   240\t      body: JSON.stringify({\n   241\t        // 请求数据\n   242\t      })\n   243\t    });\n   244\t\n   245\t    // 1. 协议断言\n   246\t    expect(response.status).toBe(200);\n   247\t\n   248\t    // 2. 结构/业务断言（根据 OpenAPI responses schema 替换字段名）\n   249\t    const data = await response.json();\n   250\t    expect(data).toHaveProperty('data');\n   251\t    expect(data.data).toHaveProperty('id');\n   252\t    expect(typeof data.data.id).toBe('string'); // 或 number，以 schema 为准\n   253\t\n   254\t    // 若接口文档定义了业务状态字段，直接断言（禁止 if 条件包裹）\n   255\t    expect(data.success).toBe(true);\n   256\t    expect(data.code).toBe(0);\n   257\t  });\n   258\t\n   259\t  test('边界测试 - {boundary_name}', async () => {\n   260\t    const url = `${BASE_URL.replace(/\\/$/, '')}{path}`;\n   261\t    const response = await fetch(url, {\n   262\t      method: 'POST',\n   263\t      headers: authHeaders,\n   264\t      body: JSON.stringify({\n   265\t        // 边界测试数据\n   266\t      })\n   267\t    });\n   268\t\n   269\t    // 协议断言\n   270\t    expect(response.status).toBe(200);\n   271\t\n   272\t    // 边界场景应验证数据结构完整性，而非具体值\n   273\t    const data = await response.json();\n   274\t    expect(data).toHaveProperty('data');\n   275\t  });\n   276\t\n   277\t  test('异常测试 - 缺少必填参数', async () => {\n   278\t    const url = `${BASE_URL.replace(/\\/$/, '')}{path}`;\n   279\t    const response = await fetch(url, {\n   280\t      method: 'POST',\n   281\t      headers: authHeaders,\n   282\t      body: JSON.stringify({\n   283\t        // 故意缺少必填参数\n   284\t      })\n   285\t    });\n   286\t\n   287\t    // 协议断言 + 错误信息断言\n   288\t    expect(response.status).toBe(400);\n   289\t    const error = await response.json();\n   290\t    expect(error).toHaveProperty('error');\n   291\t    expect(error.error).toContain('required'); // 或根据文档 error schema 调整\n   292\t  });\n   293\t\n   294\t  test('安全测试 - SQL注入', async () => {\n   295\t    const url = `${BASE_URL.replace(/\\/$/, '')}{path}`;\n   296\t    const response = await fetch(url, {\n   297\t      method: 'POST',\n   298\t      headers: authHeaders,\n   299\t      body: JSON.stringify({\n   300\t        name: \"'; DROP TABLE users; --\"\n   301\t      })\n   302\t    });\n   303\t\n   304\t    // 应该被拒绝或返回错误，不应该影响服务器\n   305\t    expect([200, 400, 422]).toContain(response.status);\n   306\t  });\n   307\t\n   308\t  test('安全测试 - 认证失败', async () => {\n   309\t    const url = `${BASE_URL.replace(/\\/$/, '')}{path}`;\n   310\t    const response = await fetch(url, {\n   311\t      method: 'POST',\n   312\t      headers: {\n   313\t        'Authorization': 'Bearer invalid-token',\n   314\t        'Content-Type': 'application/json'\n   315\t      },\n   316\t      body: JSON.stringify({})\n   317\t    });\n   318\t\n   319\t    expect([401, 403]).toContain(response.status);\n   320\t  });\n   321\t});\n   322\t```\n   323\t\n   324\t#### 4.2 Jest + TypeScript 模板\n   325\t\n   326\t```typescript\n   327\timport axios from 'axios';\n   328\t\n   329\t// 配置：API_BASE_URL 由执行环境注入，禁止硬编码 fallback\n   330\tconst BASE_URL = (process.env.API_BASE_URL || '').trim();\n   331\tif (!BASE_URL) {\n   332\t  throw new Error(\n   333\t    'API_BASE_URL is not set. ' +\n   334\t    'Configure it in Project Settings > Environments or pass execution_config.base_url.'\n   335\t  );\n   336\t}\n   337\t\n   338\tconst AUTH_TOKEN = process.env.AUTH_TOKEN;\n   339\tif (!AUTH_TOKEN) {\n   340\t  throw new Error(\n   341\t    'AUTH_TOKEN is not set. ' +\n   342\t    'Configure it in Project Settings > Environments or pass execution_config.env.AUTH_TOKEN.'\n   343\t  );\n   344\t}\n   345\t\n   346\tconst api = axios.create({\n   347\t  baseURL: BASE_URL,\n   348\t  headers: {\n   349\t    'Authorization': `Bearer ${AUTH_TOKEN}`,\n   350\t    'Content-Type': 'application/json'\n   351\t  }\n   352\t});\n   353\t\n   354\tdescribe('{endpoint_display_name}', () => {\n   355\t\n   356\t  test('成功场景 - {scenario_name}', async () => {\n   357\t    const response = await api.post('{path}', {\n   358\t      // 请求数据\n   359\t    });\n   360\t\n   361\t    expect(response.status).toBe(200);\n   362\t    expect(response.data).toHaveProperty('id');\n   363\t  });\n   364\t\n   365\t  test('异常测试 - 缺少必填参数', async () => {\n   366\t    await expect(\n   367\t      api.post('{path}', {})\n   368\t    ).rejects.toMatchObject({\n   369\t      response: {\n   370\t        status: 400\n   371\t      }\n   372\t    });\n   373\t  });\n   374\t\n   375\t  test('异常测试 - 认证失败', async () => {\n   376\t    const invalidApi = axios.create({\n   377\t      baseURL: BASE_URL,\n   378\t      headers: {\n   379\t        'Authorization': 'Bearer invalid-token'\n   380\t      }\n   381\t    });\n   382\t\n   383\t    await expect(\n   384\t      invalidApi.post('{path}', {})\n   385\t    ).rejects.toMatchObject({\n   386\t      response: {\n   387\t        status: expect.any(Number)\n   388\t      }\n   389\t    });\n   390\t  });\n   391\t});\n   392\t```\n   393\t\n   394\t#### 4.3 Pytest + Python 模板\n   395\t\n   396\t```python\n   397\timport os\n   398\timport pytest\n   399\timport requests\n   400\tfrom typing import Dict, Optional\n   401\t\n   402\tBASE_URL = os.environ.get(\"API_BASE_URL\")\n   403\tAUTH_TOKEN = os.environ.get(\"AUTH_TOKEN\")\n   404\t\n   405\tif not BASE_URL:\n   406\t    raise RuntimeError(\n   407\t        \"API_BASE_URL is not set. \"\n   408\t        \"Configure it in Project Settings > Environments or pass execution_config.base_url.\"\n   409\t    )\n   410\t\n   411\tdef get_headers(auth_token: Optional[str] = None) -> Dict[str, str]:\n   412\t    \"\"\"获取请求头\"\"\"\n   413\t    token = auth_token or AUTH_TOKEN\n   414\t    headers = {\n   415\t        \"Content-Type\": \"application/json\"\n   416\t    }\n   417\t    if token:\n   418\t        headers[\"Authorization\"] = f\"Bearer {token}\"\n   419\t    return headers\n   420\t\n   421\tclass Test{EndpointName}:\n   422\t\n   423\t    def test_success_scenario(self):\n   424\t        \"\"\"成功场景测试\"\"\"\n   425\t        url = f\"{BASE_URL}{path}\"\n   426\t        payload = {\n   427\t            # 测试数据\n   428\t        }\n   429\t\n   430\t        response = requests.post(url, json=payload, headers=get_headers())\n   431\t\n   432\t        assert response.status_code == 200\n   433\t        data = response.json()\n   434\t        assert \"id\" in data\n   435\t        assert \"name\" in data\n   436\t\n   437\t    def test_missing_required_field(self):\n   438\t        \"\"\"缺少必填参数测试\"\"\"\n   439\t        url = f\"{BASE_URL}{path}\"\n   440\t        payload = {}  # 故意为空\n   441\t\n   442\t        response = requests.post(url, json=payload, headers=get_headers())\n   443\t\n   444\t        assert response.status_code == 400\n   445\t        error = response.json()\n   446\t        assert \"error\" in error\n   447\t\n   448\t    def test_invalid_auth(self):\n   449\t        \"\"\"认证失败测试\"\"\"\n   450\t        url = f\"{BASE_URL}{path}\"\n   451\t\n   452\t        response = requests.post(\n   453\t            url,\n   454\t            json={},\n   455\t            headers=get_headers(auth_token=\"invalid-token\")\n   456\t        )\n   457\t\n   458\t        assert response.status_code in [401, 403]\n   459\t\n   460\t    def test_boundary_min_value(self):\n   461\t        \"\"\"边界测试 - 最小值\"\"\"\n   462\t        url = f\"{BASE_URL}{path}\"\n   463\t        payload = {\n   464\t            \"field\": 0  # 最小值\n   465\t        }\n   466\t\n   467\t        response = requests.post(url, json=payload, headers=get_headers())\n   468\t\n   469\t        assert response.status_code == 200\n   470\t\n   471\t    def test_boundary_max_value(self):\n   472\t        \"\"\"边界测试 - 最大值\"\"\"\n   473\t        url = f\"{BASE_URL}{path}\"\n   474\t        payload = {\n   475\t            \"field\": 999999  # 最大值\n   476\t        }\n   477\t\n   478\t        response = requests.post(url, json=payload, headers=get_headers())\n   479\t\n   480\t        assert response.status_code == 200\n   481\t```\n   482\t\n   483\t#### 4.4 Postman Collection 模板\n   484\t\n   485\tPostman Collection 中的 `baseUrl` 和 `authToken` 变量应由执行环境注入，生成时保持为空字符串，禁止填入示例域名或 token。\n   486\t\n   487\t```json\n   488\t{\n   489\t  \"info\": {\n   490\t    \"name\": \"{collection_name}\",\n   491\t    \"schema\": \"https://schema.getpostman.com/json/collection/v2.1.0/collection.json\"\n   492\t  },\n   493\t  \"variable\": [\n   494\t    {\n   495\t      \"key\": \"baseUrl\",\n   496\t      \"value\": \"\"\n   497\t    },\n   498\t    {\n   499\t      \"key\": \"authToken\",\n   500\t      \"value\": \"\"\n   501\t    }\n   502\t  ],\n   503\t  \"item\": [\n   504\t    {\n   505\t      \"name\": \"{endpoint_group}\",\n   506\t      \"item\": [\n   507\t        {\n   508\t          \"name\": \"成功场景 - 创建资源\",\n   509\t          \"request\": {\n   510\t            \"method\": \"POST\",\n   511\t            \"header\": [\n   512\t              {\n   513\t                \"key\": \"Authorization\",\n   514\t                \"value\": \"Bearer {{authToken}}\"\n   515\t              },\n   516\t              {\n   517\t                \"key\": \"Content-Type\",\n   518\t                \"value\": \"application/json\"\n   519\t              }\n   520\t            ],\n   521\t            \"url\": {\n   522\t              \"raw\": \"{{baseUrl}}{path}\",\n   523\t              \"host\": [\"{{baseUrl}}\"],\n   524\t              \"path\": [\"{path_segments}\"]\n   525\t            },\n   526\t            \"body\": {\n   527\t              \"mode\": \"raw\",\n   528\t              \"raw\": \"{\\n  \\\"field\\\": \\\"value\\\"\\n}\"\n   529\t            }\n   530\t          },\n   531\t          \"response\": []\n   532\t        },\n   533\t        {\n   534\t          \"name\": \"异常测试 - 缺少必填参数\",\n   535\t          \"request\": {\n   536\t            \"method\": \"POST\",\n   537\t            \"header\": [\n   538\t              {\n   539\t                \"key\": \"Authorization\",\n   540\t                \"value\": \"Bearer {{authToken}}\"\n   541\t              }\n   542\t            ],\n   543\t            \"url\": {\n   544\t              \"raw\": \"{{baseUrl}}{path}\",\n   545\t              \"host\": [\"{{baseUrl}}\"],\n   546\t              \"path\": [\"{path_segments}\"]\n   547\t            },\n   548\t            \"body\": {\n   549\t              \"mode\": \"raw\",\n   550\t              \"raw\": \"{}\"\n   551\t            }\n   552\t          },\n   553\t          \"response\": []\n   554\t        }\n   555\t      ]\n   556\t    }\n   557\t  ]\n   558\t}\n   559\t```\n   560\t\n   561\t### 5. 保存测试脚本\n   562\t\n   563\t**必须**使用 `save_test_script` 保存生成的测试脚本到 MinIO：\n   564\t\n   565\t```javascript\n   566\tawait tools.save_test_script({\n   567\t  endpoint_id: \"{endpoint_id}\",\n   568\t  scr…[截断,原长32281]"
+ },
+ {
+  "i": 10,
+  "type": "AIMessage",
+  "content": "规范已明确。现在并行保存精简测试计划与测试用例（快速路径）：",
+  "tool_calls": [
+   {
+    "name": "save_test_plan",
+    "args": {
+     "endpoint_id": "f120abc6-5a5f-409d-bf8a-0e0a8b1633f3",
+     "project_identifier": "PR-1",
+     "plan_content": "# 测试计划：GET /store/inventory\n\n## 端点信息\n- **路径**: `/store/inventory`\n- **方法**: GET\n- **功能**: 按状态返回宠物库存数量（status code → quantity 的整数映射）\n- **认证**: api_key（Bearer token）\n- **响应 (200)**: `{ \"additionalProperties\": { \"type\": \"integer\", \"format\": \"int32\" } }` —— 对象，键为库存状态，值为数量（整数）\n\n## 测试策略\n纯 GET、无参数、无请求体，采用快速路径精简用例：\n1. **正向**: 携带有效 token 获取库存 → 200，响应为 status→quantity 的整数映射（契约 schema 校验 + 值类型/非负断言）\n2. **安全**: 未携带 token → 401/403\n3. **安全**: 携带无效 token → 401/403\n\n## 用例清单\n| 编号 | 用例 | 优先级 | 预期 |\n|------|------|--------|------|\n| TC-01 | 正常获取库存 | P0 | 200，body 为对象，所有值为非负整数 |\n| TC-02 | 未携带认证 token | P1 | 401/403 |\n| TC-03 | 携带无效 token | P1 | 401/403 |\n\n## 覆盖率\n- 协议层：200 / 401 / 403 状态码 ✓\n- 结构层：响应契约 schema 整体校验 ✓\n- 安全层：认证缺失与无效 token ✓\n\n## 预估时间\n~5 分钟（含执行与报告）\n"
+    }
+   },
+   {
+    "name": "save_test_cases",
+    "args": {
+     "endpoint_id": "f120abc6-5a5f-409d-bf8a-0e0a8b1633f3",
+     "project_identifier": "PR-1",
+     "test_cases": [
+      {
+       "name": "正常获取库存 - 返回状态到数量的整数映射",
+       "description": "携带有效认证 token 调用 GET /store/inventory，验证返回 200 且响应体为 status code 到数量的整数映射，符合契约 schema",
+       "steps": [
+        "准备有效认证请求头（AUTH_TOKEN 从环境注入）",
+        "GET /store/inventory"
+       ],
+       "expected_result": "HTTP 200；响应体为对象，键为状态码，值为非负整数；validateSchema 通过",
+       "priority": "P0"
+      },
+      {
+       "name": "未携带认证 token - 拒绝访问",
+       "description": "不携带任何认证信息调用 GET /store/inventory，验证接口拒绝未认证请求",
+       "steps": [
+        "无 Authorization 头",
+        "GET /store/inventory"
+       ],
+       "expected_result": "HTTP 401 或 403",
+       "priority": "P1"
+      },
+      {
+       "name": "携带无效 token - 拒绝访问",
+       "description": "携带格式合法但无效的 token 调用 GET /store/inventory，验证接口拒绝无效凭据",
+       "steps": [
+        "Authorization: Bearer invalid-token",
+        "GET /store/inventory"
+       ],
+       "expected_result": "HTTP 401 或 403",
+       "priority": "P1"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "i": 11,
+  "type": "ToolMessage",
+  "content": "{\"success\": true, \"attachment_id\": \"46f74262-0874-467e-b1a2-a57896ea7972\", \"file_path\": \"api-tests/PR-1/endpoints/f120abc6-5a5f-409d-bf8a-0e0a8b1633f3/test-plan.md\", \"format\": \"markdown\", \"file_extension\": \"md\", \"message\": \"测试计划已保存 (Markdown)\"}"
+ },
+ {
+  "i": 12,
+  "type": "ToolMessage",
+  "content": "{\"success\": true, \"attachment_id\": \"d85f574e-c955-4915-9684-3e884529747e\", \"file_path\": \"api-tests/PR-1/endpoints/f120abc6-5a5f-409d-bf8a-0e0a8b1633f3/test-cases.json\", \"test_cases_count\": 3, \"overwritten\": false, \"previous_count\": 0, \"message\": \"已保存 3 个测试用例\"}"
+ },
+ {
+  "i": 13,
+  "type": "AIMessage",
+  "content": "测试计划与用例已保存。检查脚本运行时需要的 schema helper 是否存在：",
+  "tool_calls": [
+   {
+    "name": "glob",
+    "args": {
+     "pattern": "**/tests/_helpers/schema*"
+    }
+   },
+   {
+    "name": "ls",
+    "args": {
+     "path": "/"
+    }
+   }
+  ]
+ },
+ {
+  "i": 14,
+  "type": "ToolMessage",
+  "content": "['/tests/_helpers/schema.py', '/tests/_helpers/schema.ts']"
+ },
+ {
+  "i": 15,
+  "type": "ToolMessage",
+  "content": "['/!', '/api-trace-03e3d165-40e9-4d15-aefe-d3594f9464c5.jsonl', '/api-trace-049e5450-25cf-4e4b-acb3-1e14ab8eecb5.jsonl', '/api-trace-07899366-487f-437e-966b-855ab997ba0d.jsonl', '/api-trace-09ff7374-4203-49aa-b6cb-f6d49d0e29fc.jsonl', '/api-trace-0f27701f-acee-4caf-8684-273b540f718f.jsonl', '/api-trace-0f42a934-b4f4-42ac-8771-503453927f10.jsonl', '/api-trace-11a79a03-6f29-4308-9930-5d11eed66bb1.jsonl', '/api-trace-11b7313c-0c2a-42de-a8fd-d44ebcee8e36.jsonl', '/api-trace-11d82715-cfe7-4ce7-a93d-2e148d172bfd.jsonl', '/api-trace-146f9f3b-bf66-422f-9252-6a7883d112c2.jsonl', '/api-trace-16f399e7-17c7-447f-adf1-d8d4f98ee884.jsonl', '/api-trace-1ec5b5f7-e5ec-4094-b75c-de8b818ef4b6.jsonl', '/api-trace-218730a5-405d-464f-ae42-fc050f849798.jsonl', '/api-trace-223593ad-9c10-4574-93d7-359b0bad7fa4.jsonl', '/api-trace-232b320a-5221-4109-99fb-0347c1d87346.jsonl', '/api-trace-23493c20-d6d9-4195-88a6-e59cd33da74b.jsonl', '/api-trace-23500ba8-1d06-4e25-8090-8883c2c0ddb2.jsonl', '/api-trace-2357b914-2f39-444a-9583-697213688f56.jsonl', '/api-trace-268d8f8d-92de-4c55-9635-5d32b9b00176.jsonl', '/api-trace-2826505e-a1d9-4a5a-9f17-3af7dba33590.jsonl', '/api-trace-2943f12a-7f51-478e-abb8-54dab475c675.jsonl', '/api-trace-2ab34c13-44f0-4f56-93ed-f75735192907.jsonl', '/api-trace-2e1109a4-4aa7-4b8b-857f-c7182c2161cc.jsonl', '/api-trace-315d9e7c-0e38-42eb-ada3-06d8bb26ef56.jsonl', '/api-trace-33b22588-8ead-4e4c-8436-0bdaca4892ce.jsonl', '/api-trace-345c5c13-7cd8-4f85-90a4-6a2e87bcbe5a.jsonl', '/api-trace-34f353c0-68c5-4144-9325-41ea37fd297e.jsonl', '/api-trace-3506dfb0-460a-45be-b521-2e92554ec42b.jsonl', '/api-trace-382bda60-9738-43f4-aa23-6f9446c9ea1c.jsonl', '/api-trace-38648990-6e23-499e-8fcf-5ba7c96cf6e0.jsonl', '/api-trace-3afd23ac-0500-4594-a31a-96e84d6c76e5.jsonl', '/api-trace-3db4370a-d91a-49f2-860d-d4007a5236c6.jsonl', '/api-trace-3f1c7b6d-ef4d-49bc-b5a9-05f9fc917806.jsonl', '/api-trace-403843c9-bf39-435a-9df7-27311d222fb8.jsonl', '/api-trace-4a0dda0a-2c94-4710-bec4-3866dbd41f6e.jsonl', '/api-trace-4b69f332-63de-4da5-b3a6-f76147d71a19.jsonl', '/api-trace-50ff642c-fddb-42a6-9865-374f3183bdf2.jsonl', '/api-trace-53bb4180-a4f2-4f4a-8c76-93f5086a8615.jsonl', '/api-trace-5485625a-b289-43fb-9393-2b7530b383f4.jsonl', '/api-trace-55360a6e-dd1c-45cf-8d6c-6b1e8fd37b65.jsonl', '/api-trace-56b4dda1-3746-4a52-9e60-83b15a5002fc.jsonl', '/api-trace-57a77467-1f7a-458b-aca4-d388ebc842f0.jsonl', '/api-trace-5b8a8363-a3e6-4cad-a162-0c5bcecf6e5f.jsonl', '/api-trace-5bc66b18-7271-4307-8aa3-afd36d5a8a60.jsonl', '/api-trace-5e239a3c-ba42-4eb3-a2c1-b675c56c5e99.jsonl', '/api-trace-6031ec57-78ba-4d08-b56f-392bfb7fe855.jsonl', '/api-trace-61887de2-eb2b-43d8-982f-75de718bfe79.jsonl', '/api-trace-659d0cf2-422f-4c8a-bc73-819c77ab5b25.jsonl', '/api-trace-66ee3c90-5d52-44d0-b418-4032daf83d6f.jsonl', '/api-trace-6a046cae-0e1a-45a1-acd7-89375aade6f2.jsonl', '/api-trace-6a20f108-c49d-42d2-a32d-8f24cadf525d.jsonl', '/api-trace-6a6139a8-ef3f-4359-8c38-dcbb58446605.jsonl', '/api-trace-6a9a3e0d-7501-450a-b9b5-46e7e059ae66.jsonl', '/api-trace-6b16379c-9fa4-4ad7-b919-4aeafb30ae7f.jsonl', '/api-trace-6f65b000-3fe5-4618-a1ee-cdbed8218482.jsonl', '/api-trace-70315c90-b8d0-4bbe-890b-04c11f01a79a.jsonl', '/api-trace-7077883e-5085-43d2-bdaa-1967faf7288e.jsonl', '/api-trace-7141dce5-e64b-48e3-85d2-13e6799c9efa.jsonl', '/api-trace-71fdefb2-3b0d-4818-91ef-a815e46ba76a.jsonl', '/api-trace-7200353a-3aa7-4ee1-b687-0fe0be6be935.jsonl', '/api-trace-72583fd4-d6fa-40df-969a-5d042d705222.jsonl', '/api-trace-77c04b18-33a6-4529-8bd2-dc986f88a864.jsonl', '/api-trace-7cc5ea2a-92e8-4390-a87f-a88fba63752d.jsonl', '/api-trace-7e3eab50-4979-41f4-a045-1defd6d05190.jsonl', '/api-trace-80ada2d2-b009-43d5-a921-af91528ad85c.jsonl', '/api-trace-821cb307-9764-46dd-8953-0b49bb25cedf.jsonl', '/api-trace-827c64b2-f628-4999-a79a-d881a4b1bde3.jsonl', '/api-trace-829a1757-b7a0-406d-9391-6eef9aa4228f.jsonl', '/api-trace-86f87103-bc2a-403d-a516-fe27c0417983.jsonl', '/api-trace-879349de-75ed-48e3-8863-81e79156ace3.jsonl', '/api-trace-8815cf18-2952-4190-babf-c44e70204101.jsonl', '/api-trace-8a16657b-a26c-4164-9fa5-ac4035d72866.jsonl', '/api-trace-8ecdb0e8-420e-4ef0-8a4c-ff8ac0c52739.jsonl', '/api-trace-90e13f8c-9908-4e6c-8865-2f82e6ddf1d6.jsonl', '/api-trace-90f81924-0966-4de1-a305-c988afeeb26b.jsonl', '/api-trace-91ddfcec-4fc7-4cbe-a540-8f23fdb0f07d.jsonl', '/api-trace-96578927-9200-4158-b6b5-cc67e596ec31.jsonl', '/api-trace-9765d907-ec56-4310-84f8-148167e73184.jsonl', '/api-trace-982c6e27-8748-47e2-8c92-6628c14296af.jsonl', '/api-trace-98f6626c-0076-432f-aef1-ff099afce849.jsonl', '/api-trace-99224bb8-f71d-406a-af04-1d1f30356241.jsonl', '/api-trace-9a5e7a3c-f836-4e96-a0b3-98669cbff3b9.jsonl', '/api-trace-9aaf7825-7069-42d5-a9f4-426bd12b8d7e.jsonl', '/api-trace-9de3aa38-2941-43c7-b356-106bf8ce3faa.jsonl', '/api-trace-9f44d9e2-5b51-4c24-8451-866a5739d443.jsonl', '/api-trace-a29af2e0-42ae-4dd2-841f-9c053e6d44ae.jsonl', '/api-trace-a572c2be-8b15-437a-bd12-a9102e009c46.jsonl', '/api-trace-a967415a-fbec-44f5-820f-e228aca360a9.jsonl', '/api-trace-aa21bae8-7099-4053-ba2f-95e3488068d6.jsonl', '/api-trace-aeebe636-d632-4d74-8b7d-e3485b2b50d0.jsonl', '/api-trace-b1aaddc9-1d49-4406-8111-afad01585c93.jsonl', '/api-trace-b93c86ce-6706-42b9-bb86-ddd7879e5299.jsonl', '/api-trace-bc5c1a65-5d78-414d-b8bb-e5b7955f4ae3.jsonl', '/api-trace-bcebe0bf-d8f8-4e3b-957e-5cff1d4a792e.jsonl', '/api-trace-bf58a295-2cc9-4b4a-aff8-cfc8b7f9cdfd.jsonl', '/api-trace-bf750de7-9c01-4905-adbe-80b10d2fdfa3.jsonl', '/api-trace-c20f7f04-b6d5-401e-88dc-1d4bd7ce8186.jsonl', '/api-trace-c486f40d-4ae9-4798-ae87-7d559e77dd4f.jsonl', '/api-trace-c4a63ef0-f622-4e5b-b877-f1d17f1e3543.jsonl', '/api-trace-c4d89967-7aab-4a38-90d6-829610969324.jsonl', '/api-trace-c5a9bb8a-6482-4be2-b184-6e093d23f2d7.jsonl', '/api-trace-c8ed1b30-c9a4-4c9c-9449-883c1a454d80.jsonl', '/api-trace-c95604ab-c824-4293-a1d2-9c14f639ae0d.jsonl', '/api-trace-cb4a7d9d-a420-46e5-aaf0-b672a80adbe4.jsonl', '/api-trace-cbba36c1-0120-4801-b005-6f1c7314a2ef.jsonl', '/api-trace-cc18c8ce-e140-448f-82d6-16b59e1204e9.jsonl', '/api-trace-cf9dca6c-8ce3-4f2f-8173-b127734aaed1.jsonl', '/api-trace-d076a488-c185-4863-8df2-3c1c7546df09.jsonl', '/api-trace-d4329fc4-f847-4227-9f5f-40b3ac36a805.jsonl', '/api-trace-d5193754-9a76-4be5-9234-7b0a14bd3a9f.jsonl', '/api-trace-da548d71-2526-463f-96db-3c785ea729bc.jsonl', '/api-trace-dd4ca5ec-4329-4235-b729-2a85f0acf31a.jsonl', '/api-trace-de8e2f91-7523-4723-b96d-aaf69010a726.jsonl', '/api-trace-df5d8683-3636-4d4b-8beb-1e337beaf998.jsonl', '/api-trace-dfc2d412-eeb0-4c79-88a9-30e1f8f1d5bc.jsonl', '/api-trace-e088e2f0-0685-4f8d-aaee-f46d2ec0994a.jsonl', '/api-trace-e327907e-3655-4bab-b610-0b1aa64cd7ea.jsonl', '/api-trace-e7d5e2bf-8d69-40e3-89cb-3d4e32aba477.jsonl', '/api-trace-e86aa7a7-2234-4461-ba6d-c449c8f96cf2.jsonl', '/api-trace-eafd31e1-64b9-41b8-9c02-3a87c3d12ad2.jsonl', '/api-trace-eb32a86a-5d17-4dd9-ac19-99c05bd25137.jsonl', '/api-trace-ebaa94bb-bef3-4b51-ab45-5dff7a3ac7b9.jsonl', '/api-trace-ef881242-6d4d-4f2c-afaa-10d486a08375.jsonl', '/api-trace-f37d5609-e698-4284-8084-6b24ca426b81.jsonl', '/api-trace-f3d7cb6c-af39-48fa-bfb2-c77cd54f9639.jsonl', '/api-trace-f7fa0c52-97d2-414a-9bb8-fbf4cc8adc51.jsonl', '/api-trace-fbe31742-300e-42f1-ad68-f2bcfeb85174.jsonl', '/api-trace-fc2edeb3-b882-4385-a81b-07baea238d93.jsonl', '/api-trace-fc7045a0-859f-4d17-b0f2-38a4256aec0c.jsonl', '/api-trace-fcbcfe22-3ba7-47fe-95eb-8ae6f250238a.jsonl', '/api-trace-helper.ts', '/api-trace-manual.jsonl', '/api-trace-manual2.jsonl', '/api-trace-manual3.jsonl', '/api_test_report_20260709_133936.zip', '/api_test_report_20260709_133937.zip', '/backend/', '/conversation_history/', '/large_tool_results/', '/node_modules/', '/package-lock.json', '/package.json', '/playwright-report-1b66aa87/', '/playwright-report-5fe88936/', '/playwright-report-68438cca/', '/playwright-report-6ce58101/', '/playwright-report-71d06468/', '/playwright-report-7259093c/', '/playwright-report-914cbcce/', '/playwright-report-b9830d28/', '/playwright-report-bc5c1a65-5d78-414d-b8bb-e5b7955f4ae3/', '/playwright-report-c22f5f1c-ed2e-4131-acc0-1a3a77f7df25/', '/playwright-report-d2c29937/', '/playwright-report-fa2b0822/', '/playwright-results-09c5f85e97574b8a9cfd3b60d48ea8ed.json', '/playwright-results-330861d299a642cd933f43937a419d67.json', '/playwright-results-37e260941d29435e8ce0309058d61a62.json', '/playwright-results-4a32d9c27b9f4de0b4c1e9ba483eba08.json', '/playwright-results-782d2459a91041b3a922ca1a408753ae.json', '/playwright-results-910d5075ff244bdfbdc4fce1a6e45dce.json', '/playwright.config.ts', '/project/', '/test-results/', '/test_run/', '/test_simple.spec.ts', '/tests/', '/tmp/', '/{console.log(JSON.parse(d).data.token)}))']"
+ },
+ {
+  "i": 16,
+  "type": "AIMessage",
+  "content": "",
+  "tool_calls": [
+   {
+    "name": "read_file",
+    "args": {
+     "file_path": "/tests/_helpers/schema.ts",
+     "limit": 60
+    }
+   }
+  ]
+ },
+ {
+  "i": 17,
+  "type": "ToolMessage",
+  "content": "     1\t// tests/_helpers/schema.ts\n     2\t//\n     3\t// 零依赖 JSON Schema 校验器（常用子集），用于 API 响应契约断言。\n     4\t// 背景：workspace 无法安装 ajv（npm 不可靠），故内置一个覆盖常用子集的校验器，\n     5\t//       让生成脚本无需任何新依赖即可做整体契约校验。\n     6\t//\n     7\t// 覆盖：type(含类型数组 / nullable) / required / properties(递归) / items /\n     8\t//       additionalProperties / enum / minItems·maxItems / minLength·maxLength /\n     9\t//       minimum·maximum / allOf(合并) / anyOf·oneOf(至少其一)。\n    10\t// $ref 已由后端 get_response_schema 尽力内联，未解的替换为 {}（此处视为“任意”，跳过）。\n    11\t//\n    12\t// 用法（生成脚本中）：\n    13\t//   import { validateSchema } from './_helpers/schema';\n    14\t//   const body = await response.json();\n    15\t//   expect(validateSchema(body, SCHEMA).valid).toBe(true);   // 失败时自动 console.error 全部错误\n    16\t\n    17\texport interface SchemaValidationResult {\n    18\t  valid: boolean;\n    19\t  errors: string[];\n    20\t}\n    21\t\n    22\tfunction typeOf(v: unknown): string {\n    23\t  if (v === null) return 'null';\n    24\t  if (Array.isArray(v)) return 'array';\n    25\t  return typeof v;\n    26\t}\n    27\t\n    28\tfunction matchType(v: unknown, t: string): boolean {\n    29\t  switch (t) {\n    30\t    case 'string': return typeof v === 'string';\n    31\t    case 'number': return typeof v === 'number' && !Number.isNaN(v as number);\n    32\t    case 'integer': return typeof v === 'number' && Number.isInteger(v as number);\n    33\t    case 'boolean': return typeof v === 'boolean';\n    34\t    case 'object': return v !== null && typeof v === 'object' && !Array.isArray(v);\n    35\t    case 'array': return Array.isArray(v);\n    36\t    case 'null': return v === null;\n    37\t    default: return true; // 未知类型不约束\n    38\t  }\n    39\t}\n    40\t\n    41\tfunction join(base: string, key: string): string {\n    42\t  return base ? `${base}.${key}` : key;\n    43\t}\n    44\t\n    45\tfunction validate(value: any, schema: any, path: string, errors: string[]): void {\n    46\t  if (schema === null || typeof schema !== 'object') return; // {} / 非法 → 不约束\n    47\t  if (schema.$ref) return;                                    // 未解 $ref → 跳过\n    48\t\n    49\t  // allOf：全部满足\n    50\t  if (Array.isArray(schema.allOf)) {\n    51\t    for (const s of schema.allOf) validate(value, s, path, errors);\n    52\t  }\n    53\t  // anyOf / oneOf：至少一个满足\n    54\t  for (const key of ['anyOf', 'oneOf'] as const) {\n    55\t    if (Array.isArray(schema[key])) {\n    56\t      const ok = (schema[key] as any[]).some((s) => {\n    57\t        const sub: string[] = [];\n    58\t        validate(value, s, path, sub);\n    59\t        return sub.length === 0;\n    60\t      });"
+ },
+ {
+  "i": 18,
+  "type": "AIMessage",
+  "content": "Helper 可用。生成测试脚本并预检断言：",
+  "tool_calls": [
+   {
+    "name": "audit_script_assertions",
+    "args": {
+     "script_content": "import { test, expect } from '@playwright/test';\nimport { validateSchema } from './_helpers/schema';\n\n// 配置：API_BASE_URL / AUTH_TOKEN 由执行环境注入，禁止硬编码 fallback\nconst BASE_URL = (process.env.API_BASE_URL || '').trim();\nif (!BASE_URL) {\n  throw new Error(\n    'API_BASE_URL is not set. Configure it in Project Settings > Environments or pass execution_config.base_url.'\n  );\n}\n\nconst AUTH_TOKEN = process.env.AUTH_TOKEN;\nif (!AUTH_TOKEN) {\n  throw new Error(\n    'AUTH_TOKEN is not set. Configure it in Project Settings > Environments or pass execution_config.env.AUTH_TOKEN.'\n  );\n}\n\nconst API_PATH = '/store/inventory';\n\n// 认证请求头\nconst authHeaders: Record<string, string> = {\n  'Authorization': `Bearer ${AUTH_TOKEN}`,\n  'Content-Type': 'application/json',\n};\n\n// 响应契约：{ statusCode: quantity(int32) } 映射\nconst SCHEMA = {\n  type: 'object',\n  additionalProperties: { type: 'integer', format: 'int32' },\n} as const;\n\ntest.describe('GET /store/inventory - 按状态返回宠物库存', () => {\n  test('成功场景 - 携带有效 token 获取库存', async () => {\n    const url = `${BASE_URL.replace(/\\/$/, '')}${API_PATH}`;\n    const response = await fetch(url, { method: 'GET', headers: authHeaders });\n\n    // 1. 协议断言\n    expect(response.status).toBe(200);\n\n    // 2. 契约断言：整体校验响应体符合 schema（键为状态码，值为 int32）\n    const body = await response.json();\n    expect(validateSchema(body, SCHEMA).valid).toBe(true);\n\n    // 3. 业务断言：所有库存数量为非负整数\n    const values = Object.values(body);\n    for (const v of values) {\n      expect(typeof v).toBe('number');\n      expect(Number.isInteger(v)).toBe(true);\n      expect(v).toBeGreaterThanOrEqual(0);\n    }\n  });\n\n  test('安全测试 - 未携带认证 token', async () => {\n    const url = `${BASE_URL.replace(/\\/$/, '')}${API_PATH}`;\n    const response = await fetch(url, {\n      method: 'GET',\n      headers: { 'Content-Type': 'application/json' },\n    });\n\n    expect([401, 403]).toContain(response.status);\n  });\n\n  test('安全测试 - 携带无效 token', async () => {\n    const url = `${BASE_URL.replace(/\\/$/, '')}${API_PATH}`;\n    const response = await fetch(url, {\n      method: 'GET',\n      headers: { 'Authorization': 'Bearer invalid-token', 'Content-Type': 'application/json' },\n    });\n\n    expect([401, 403]).toContain(response.status);\n  });\n});\n",
+     "script_language": "typescript",
+     "script_format": "playwright"
+    }
+   }
+  ]
+ },
+ {
+  "i": 19,
+  "type": "ToolMessage",
+  "content": "{\"success\": true, \"verdict\": \"OK\", \"message\": \"断言基本充足。\", \"metrics\": {\"total_tests\": 3, \"total_expects\": 7, \"status_asserts\": 3, \"non_status_asserts\": 4, \"weak_asserts\": 0, \"conditional_asserts\": 0, \"effective_asserts\": 4, \"schema_validation_calls\": 1, \"avg_effective_per_test\": 1.67, \"status_only\": false, \"weak\": false, \"status_only_tests\": [], \"thin_tests\": [], \"rigor_signals\": 0, \"parser\": \"structural_scan\", \"language\": \"js\", \"per_test\": [{\"test\": \"成功场景 - 携带有效 token 获取库存\", \"status\": 1, \"weak\": 0, \"conditional\": 0, \"effective\": 4, \"schema\": 1, \"total\": 5}, {\"test\": \"安全测试 - 未携带认证 token\", \"status\": 1, \"weak\": 0, \"conditional\": 0, \"effective\": 0, \"schema\": 0, \"total\": 1}, {\"test\": \"安全测试 - 携带无效 token\", \"status\": 1, \"weak\": 0, \"conditional\": 0, \"effective\": 0, \"schema\": 0, \"total\": 1}]}, \"suggestions\": [], \"parser\": \"structural_scan\"}"
+ },
+ {
+  "i": 20,
+  "type": "AIMessage",
+  "content": "审计通过（OK）。保存测试脚本：",
+  "tool_calls": [
+   {
+    "name": "save_test_script",
+    "args": {
+     "endpoint_id": "f120abc6-5a5f-409d-bf8a-0e0a8b1633f3",
+     "project_identifier": "PR-1",
+     "script_content": "import { test, expect } from '@playwright/test';\nimport { validateSchema } from './_helpers/schema';\n\n// 配置：API_BASE_URL / AUTH_TOKEN 由执行环境注入，禁止硬编码 fallback\nconst BASE_URL = (process.env.API_BASE_URL || '').trim();\nif (!BASE_URL) {\n  throw new Error(\n    'API_BASE_URL is not set. Configure it in Project Settings > Environments or pass execution_config.base_url.'\n  );\n}\n\nconst AUTH_TOKEN = process.env.AUTH_TOKEN;\nif (!AUTH_TOKEN) {\n  throw new Error(\n    'AUTH_TOKEN is not set. Configure it in Project Settings > Environments or pass execution_config.env.AUTH_TOKEN.'\n  );\n}\n\nconst API_PATH = '/store/inventory';\n\n// 认证请求头\nconst authHeaders: Record<string, string> = {\n  'Authorization': `Bearer ${AUTH_TOKEN}`,\n  'Content-Type': 'application/json',\n};\n\n// 响应契约：{ statusCode: quantity(int32) } 映射\nconst SCHEMA = {\n  type: 'object',\n  additionalProperties: { type: 'integer', format: 'int32' },\n} as const;\n\ntest.describe('GET /store/inventory - 按状态返回宠物库存', () => {\n  test('成功场景 - 携带有效 token 获取库存', async () => {\n    const url = `${BASE_URL.replace(/\\/$/, '')}${API_PATH}`;\n    const response = await fetch(url, { method: 'GET', headers: authHeaders });\n\n    // 1. 协议断言\n    expect(response.status).toBe(200);\n\n    // 2. 契约断言：整体校验响应体符合 schema（键为状态码，值为 int32）\n    const body = await response.json();\n    expect(validateSchema(body, SCHEMA).valid).toBe(true);\n\n    // 3. 业务断言：所有库存数量为非负整数\n    const values = Object.values(body);\n    for (const v of values) {\n      expect(typeof v).toBe('number');\n      expect(Number.isInteger(v)).toBe(true);\n      expect(v).toBeGreaterThanOrEqual(0);\n    }\n  });\n\n  test('安全测试 - 未携带认证 token', async () => {\n    const url = `${BASE_URL.replace(/\\/$/, '')}${API_PATH}`;\n    const response = await fetch(url, {\n      method: 'GET',\n      headers: { 'Content-Type': 'application/json' },\n    });\n\n    expect([401, 403]).toContain(response.status);\n  });\n\n  test('安全测试 - 携带无效 token', async () => {\n    const url = `${BASE_URL.replace(/\\/$/, '')}${API_PATH}`;\n    const response = await fetch(url, {\n      method: 'GET',\n      headers: { 'Authorization': 'Bearer invalid-token', 'Content-Type': 'application/json' },\n    });\n\n    expect([401, 403]).toContain(response.status);\n  });\n});\n",
+     "script_language": "typescript",
+     "script_format": "playwright"
+    }
+   }
+  ]
+ },
+ {
+  "i": 21,
+  "type": "ToolMessage",
+  "content": "{\"success\": true, \"attachment_id\": \"bb9e8072-d3e2-451e-b2c6-3ce2fb7ce805\", \"api_test_id\": \"425cbbc9-19bb-43e8-ba2f-0f6261b30f4d\", \"file_path\": \"api-tests/PR-1/endpoints/f120abc6-5a5f-409d-bf8a-0e0a8b1633f3/test-script.ts\", \"language\": \"typescript\", \"format\": \"playwright\", \"message\": \"测试脚本已保存\"}"
+ },
+ {
+  "i": 22,
+  "type": "AIMessage",
+  "content": "测试计划、用例、脚本均已生成并保存。快速路径完成 ✅\n\n**产出摘要：**\n- 📋 **测试计划**：正向（200 契约校验）+ 安全（无 token / 无效 token → 401/403）共 3 类场景\n- 🧪 **测试用例**：3 个（P0 正向 + 2 个 P1 安全）\n- 💻 **测试脚本**：Playwright + TypeScript，动态注入 `API_BASE_URL`/`AUTH_TOKEN`，`validateSchema` 契约校验 + 库存值非负整数业务断言，无硬编码\n- ✅ 断言审计：OK（4 个有效业务断言 + 1 次 schema 校验）\n\n<EXECUTION_INVITATION>\n{\"type\":\"execution_invitation\",\"mode\":\"api\",\"endpoint_id\":\"f120abc6-5a5f-409d-bf8a-0e0a8b1633f3\",\"script_name\":\"test-script.ts\",\"test_count\":3,\"has_write_ops\":false,\"has_delete_ops\":false,\"endpoint_count\":1,\"description\":\"测试计划、测试用例、测试脚本已保存；尚未执行，暂无 HTML 测试报告和执行摘要。是否立即执行？\",\"alternatives\":[{\"key\":\"execute\",\"label\":\"立即执行\"},{\"key\":\"skip\",\"label\":\"暂不执行\"},{\"key\":\"edit\",\"label\":\"修改脚本\"},{\"key\":\"other\",\"label\":\"其他\"}]}\n</EXECUTION_INVITATION>"
+ },
+ {
+  "i": 23,
+  "type": "HumanMessage",
+  "content": "[执行邀约] 用户选择暂不执行测试（test-script.ts）。请停止执行流程，礼貌等待用户后续指令，不要主动调用任何执行类工具。"
+ },
+ {
+  "i": 24,
+  "type": "ToolMessage",
+  "content": {
+   "type": "function",
+   "function": {
+    "name": "write_todos",
+    "description": "Use this tool to create and manage a structured task list for your current work session. This helps you track progress, organize complex tasks, and demonstrate thoroughness to the user.\n\nOnly use this tool if you think it will be helpful in staying organized. If the user's request is trivial and takes less than 3 steps, it is better to NOT use this tool and just do the task directly.\n\n## When to Use This Tool\nUse this tool in these scenarios:\n\n1. Complex multi-step tasks - When a task requires 3 or more distinct steps or actions\n2. Non-trivial and complex tasks - Tasks that require careful planning or multiple operations\n3. User explicitly requests todo list - When the user directly asks you to use the todo list\n4. User provides multiple tasks - When users provide a list of things to be done (numbered or comma-separated)\n5. The plan may need future revisions or updates based on results from the first few steps\n\n## How to Use This Tool\n1. When you start working on a task - Mark it as in_progress BEFORE beginning work.\n2. After completing a task - Mark it as completed and add any new follow-up tasks discovered during implementation.\n3. You can also update future tasks, such as deleting them if they are no longer necessary, or adding new tasks that are necessary. Don't change previously completed tasks.\n4. You can make several updates to the todo list at once. For example, when you complete a task, you can mark the next task you need to start as in_progress.\n\n## When NOT to Use This Tool\nIt is important to skip using this tool when:\n1. There is only a single, straightforward task\n2. The task is trivial and tracking it provides no benefit\n3. The task can be completed in less than 3 trivial steps\n4. The task is purely conversational or informational\n\n## Task States and Management\n\n1. **Task States**: Use these states to track progress:\n   - pending: Task not yet started\n   - in_progress: Currently working on (you can have multiple tasks in_progress at a time if they are not related to each other and can be run in parallel)\n   - completed: Task finished successfully\n\n2. **Task Management**:\n   - Update task status in real-time as you work\n   - Mark tasks complete IMMEDIATELY after finishing (don't batch completions)\n   - Complete current tasks before starting new ones\n   - Remove tasks that are no longer relevant from the list entirely\n   - IMPORTANT: When you write this todo list, you should mark your first task (or tasks) as in_progress immediately!.\n   - IMPORTANT: Unless all tasks are completed, you should always have at least one task in_progress to show the user that you are working on something.\n\n3. **Task Completion Requirements**:\n   - ONLY mark a task as completed when you have FULLY accomplished it\n   - If you encounter errors, blockers, or cannot finish, keep the task as in_progress\n   - When blocked, create a new task describing what needs to be resolved\n   - Never mark a task as completed if:\n     - There are unresolved issues or errors\n     - Work is partial or incomplete\n     - You encountered blockers that prevent completion\n     - You couldn't find necessary resources or dependencies\n     - Quality standards haven't been met\n\n4. **Task Breakdown**:\n   - Create specific, actionable items\n   - Break complex tasks into smaller, manageable steps\n   - Use clear, descriptive task names\n\nBeing proactive with task management demonstrates attentiveness and ensures you complete all requirements successfully\nRemember: If you only need to make a few tool calls to complete a task, and it is clear what you need to do, it is better to just do the task directly and NOT call this tool at all.",
+    "parameters": {
+     "properties": {
+      "todos": {
+       "items": {
+        "description": "A single todo item with content and status.",
+        "properties": {
+         "content": {
+          "type": "string"
+         },
+         "status": {
+          "enum": [
+           "pending",
+           "in_progress",
+           "completed"
+          ],
+          "type": "string"
+         }
+        },
+        "required": [
+         "content",
+         "status"
+        ],
+        "type": "object"
+       },
+       "type": "array"
+      }
+     },
+     "required": [
+      "todos"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ {
+  "i": 25,
+  "type": "ToolMessage",
+  "content": {
+   "type": "function",
+   "function": {
+    "name": "ls",
+    "description": "Lists all files in a directory.\n\nThis is useful for exploring the filesystem and finding the right file to read or edit.\nYou should almost ALWAYS use this tool before using the read_file or edit_file tools.",
+    "parameters": {
+     "properties": {
+      "path": {
+       "description": "Absolute path to the directory to list. Must be absolute, not relative.",
+       "type": "string"
+      }
+     },
+     "required": [
+      "path"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ {
+  "i": 26,
+  "type": "ToolMessage",
+  "content": {
+   "type": "function",
+   "function": {
+    "name": "read_file",
+    "description": "Reads a file from the filesystem.\n\nAssume this tool is able to read all files. If the User provides a path to a file assume that path is valid. It is okay to read a file that does not exist; an error will be returned.\n\nUsage:\n- By default, it reads up to 100 lines starting from the beginning of the file\n- **IMPORTANT for large files and codebase exploration**: Use pagination with offset and limit parameters to avoid context overflow\n  - First scan: read_file(path, limit=100) to see file structure\n  - Read more sections: read_file(path, offset=100, limit=200) for next 200 lines\n  - Only omit limit (read full file) when necessary for editing\n- Specify offset and limit: read_file(path, offset=0, limit=100) reads first 100 lines\n- Results are returned using cat -n format, with line numbers starting at 1\n- Lines longer than 5,000 characters will be split into multiple lines with continuation markers (e.g., 5.1, 5.2, etc.). When you specify a limit, these continuation lines count towards the limit.\n- You have the capability to call multiple tools in a single response. It is always better to speculatively read multiple files as a batch that are potentially useful.\n- If you read a file that exists but has empty contents you will receive a system reminder warning in place of file contents.\n- Image files (`.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, etc.), audio and video files, and PDFs are returned as multimodal content blocks (see https://docs.langchain.com/oss/python/langchain/messages#multimodal).\n\nFor multimodal reads (image, audio, video, PDF, etc.):\n- Use `read_file(file_path=...)`\n- Do NOT use `offset`/`limit` for images (pagination is text-only)\n- If file details were compacted from history, call `read_file` again on the same path\n\n- You should ALWAYS make sure a file has been read before editing it.",
+    "parameters": {
+     "properties": {
+      "file_path": {
+       "description": "Absolute path to the file to read. Must be absolute, not relative.",
+       "type": "string"
+      },
+      "offset": {
+       "default": 0,
+       "description": "Line number to start reading from (0-indexed). Use for pagination of large files.",
+       "type": "integer"
+      },
+      "limit": {
+       "default": 100,
+       "description": "Maximum number of lines to read. Use for pagination of large files.",
+       "type": "integer"
+      }
+     },
+     "required": [
+      "file_path"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ {
+  "i": 27,
+  "type": "ToolMessage",
+  "content": {
+   "type": "function",
+   "function": {
+    "name": "write_file",
+    "description": "Writes to a new file in the filesystem.\n\nUsage:\n- The write_file tool will create the a new file.\n- Prefer to edit existing files (with the edit_file tool) over creating new ones when possible.",
+    "parameters": {
+     "properties": {
+      "file_path": {
+       "description": "Absolute path where the file should be created. Must be absolute, not relative.",
+       "type": "string"
+      },
+      "content": {
+       "description": "The text content to write to the file. This parameter is required.",
+       "type": "string"
+      }
+     },
+     "required": [
+      "file_path",
+      "content"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ {
+  "i": 28,
+  "type": "ToolMessage",
+  "content": {
+   "type": "function",
+   "function": {
+    "name": "edit_file",
+    "description": "Performs exact string replacements in files.\n\nUsage:\n- You must read the file before editing. This tool will error if you attempt an edit without reading the file first.\n- When editing, preserve the exact indentation (tabs/spaces) from the read output. Never include line number prefixes in old_string or new_string.\n- ALWAYS prefer editing existing files over creating new ones.\n- Only use emojis if the user explicitly requests it.",
+    "parameters": {
+     "properties": {
+      "file_path": {
+       "description": "Absolute path to the file to edit. Must be absolute, not relative.",
+       "type": "string"
+      },
+      "old_string": {
+       "description": "The exact text to find and replace. Must be unique in the file unless replace_all is True.",
+       "type": "string"
+      },
+      "new_string": {
+       "description": "The text to replace old_string with. Must be different from old_string.",
+       "type": "string"
+      },
+      "replace_all": {
+       "default": false,
+       "description": "If True, replace all occurrences of old_string. If False (default), old_string must be unique.",
+       "type": "boolean"
+      }
+     },
+     "required": [
+      "file_path",
+      "old_string",
+      "new_string"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ {
+  "i": 29,
+  "type": "ToolMessage",
+  "content": {
+   "type": "function",
+   "function": {
+    "name": "glob",
+    "description": "Find files matching a glob pattern.\n\nSupports standard glob patterns: `*` (any characters), `**` (any directories), `?` (single character).\nReturns a list of absolute file paths that match the pattern.\n\nExamples:\n- `**/*.py` - Find all Python files\n- `*.txt` - Find all text files in root\n- `/subdir/**/*.md` - Find all markdown files under /subdir",
+    "parameters": {
+     "properties": {
+      "pattern": {
+       "description": "Glob pattern to match files (e.g., '**/*.py', '*.txt', '/subdir/**/*.md').",
+       "type": "string"
+      },
+      "path": {
+       "default": "/",
+       "description": "Base directory to search from. Defaults to root '/'.",
+       "type": "string"
+      }
+     },
+     "required": [
+      "pattern"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ {
+  "i": 30,
+  "type": "ToolMessage",
+  "content": {
+   "type": "function",
+   "function": {
+    "name": "grep",
+    "description": "Search for a text pattern across files.\n\nSearches for literal text (not regex) and returns matching files or content based on output_mode.\nSpecial characters like parentheses, brackets, pipes, etc. are treated as literal characters, not regex operators.\n\nExamples:\n- Search all files: `grep(pattern=\"TODO\")`\n- Search Python files only: `grep(pattern=\"import\", glob=\"*.py\")`\n- Show matching lines: `grep(pattern=\"error\", output_mode=\"content\")`\n- Search for code with special chars: `grep(pattern=\"def __init__(self):\")`",
+    "parameters": {
+     "properties": {
+      "pattern": {
+       "description": "Text pattern to search for (literal string, not regex).",
+       "type": "string"
+      },
+      "path": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "description": "Directory to search in. Defaults to current working directory."
+      },
+      "glob": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "description": "Glob pattern to filter which files to search (e.g., '*.py')."
+      },
+      "output_mode": {
+       "default": "files_with_matches",
+       "description": "Output format: 'files_with_matches' (file paths only, default), 'content' (matching lines with context), 'count' (match counts per file).",
+       "enum": [
+        "files_with_matches",
+        "content",
+        "count"
+       ],
+       "type": "string"
+      }
+     },
+     "required": [
+      "pattern"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ {
+  "i": 31,
+  "type": "ToolMessage",
+  "content": {
+   "type": "function",
+   "function": {
+    "name": "execute",
+    "description": "Executes a shell command in an isolated sandbox environment.\n\nUsage:\nExecutes a given command in the sandbox environment with proper handling and security measures.\nBefore executing the command, please follow these steps:\n1. Directory Verification:\n   - If the command will create new directories or files, first use the ls tool to verify the parent directory exists and is the correct location\n   - For example, before running \"mkdir foo/bar\", first use ls to check that \"foo\" exists and is the intended parent directory\n2. Command Execution:\n   - Always quote file paths that contain spaces with double quotes (e.g., cd \"path with spaces/file.txt\")\n   - Examples of proper quoting:\n     - cd \"/Users/name/My Documents\" (correct)\n     - cd /Users/name/My Documents (incorrect - will fail)\n     - python \"/path/with spaces/script.py\" (correct)\n     - python /path/with spaces/script.py (incorrect - will fail)\n   - After ensuring proper quoting, execute the command\n   - Capture the output of the command\nUsage notes:\n  - Commands run in an isolated sandbox environment\n  - Returns combined stdout/stderr output with exit code\n  - If the output is very large, it may be truncated\n  - For long-running commands, use the optional timeout parameter to override the default timeout (e.g., execute(command=\"make build\", timeout=300))\n  - A timeout of 0 may disable timeouts on backends that support no-timeout execution\n  - VERY IMPORTANT: You MUST avoid using search commands like find and grep. Instead use the grep, glob tools to search. You MUST avoid read tools like cat, head, tail, and use read_file to read files.\n  - When issuing multiple commands, use the ';' or '&&' operator to separate them. DO NOT use newlines (newlines are ok in quoted strings)\n    - Use '&&' when commands depend on each other (e.g., \"mkdir dir && cd dir\")\n    - Use ';' only when you need to run commands sequentially but don't care if earlier commands fail\n  - Try to maintain your current working directory throughout the session by using absolute paths and avoiding usage of cd\n\nExamples:\n  Good examples:\n    - execute(command=\"pytest /foo/bar/tests\")\n    - execute(command=\"python /path/to/script.py\")\n    - execute(command=\"npm install && npm test\")\n    - execute(command=\"make build\", timeout=300)\n\n  Bad examples (avoid these):\n    - execute(command=\"cd /foo/bar && pytest tests\")  # Use absolute path instead\n    - execute(command=\"cat file.txt\")  # Use read_file tool instead\n    - execute(command=\"find . -name '*.py'\")  # Use glob tool instead\n    - execute(command=\"grep -r 'pattern' .\")  # Use grep tool instead\n\nNote: This tool is only available if the backend supports execution (SandboxBackendProtocol).\nIf execution is not supported, the tool will return an error message.",
+    "parameters": {
+     "properties": {
+      "command": {
+       "description": "Shell command to execute in the sandbox environment.",
+       "type": "string"
+      },
+      "timeout": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "description": "Optional timeout in seconds for this command. Overrides the default timeout. Use 0 for no-timeout execution on backends that support it."
+      }
+     },
+     "required": [
+      "command"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ {
+  "i": 32,
+  "type": "ToolMessage",
+  "content": {
+   "type": "function",
+   "function": {
+    "name": "task",
+    "description": "Launch an ephemeral subagent to handle complex, multi-step independent tasks with isolated context windows.\n\nAvailable agent types and the tools they have access to:\n- general-purpose: General-purpose agent for researching complex questions, searching for files and content, and executing multi-step tasks. When you are searching for a keyword or file and are not confident that you will find the right match in the first few tries use this agent to perform the search for you. This agent has access to all tools as the main agent.\n\nWhen using the Task tool, you must specify a subagent_type parameter to select which agent type to use.\n\n## Usage notes:\n1. Launch multiple agents concurrently whenever possible, to maximize performance; to do that, use a single message with multiple tool uses\n2. When the agent is done, it will return a single message back to you. The result returned by the agent is not visible to the user. To show the user the result, you should send a text message back to the user with a concise summary of the result.\n3. Each agent invocation is stateless. You will not be able to send additional messages to the agent, nor will the agent be able to communicate with you outside of its final report. Therefore, your prompt should contain a highly detailed task description for the agent to perform autonomously and you should specify exactly what information the agent should return back to you in its final and only message to you.\n4. The agent's outputs should generally be trusted\n5. Clearly tell the agent whether you expect it to create content, perform analysis, or just do research (search, file reads, web fetches, etc.), since it is not aware of the user's intent\n6. If the agent description mentions that it should be used proactively, then you should try your best to use it without the user having to ask for it first. Use your judgement.\n7. When only the general-purpose agent is provided, you should use it for all tasks. It is great for isolating context and token usage, and completing specific, complex tasks, as it has all the same capabilities as the main agent.\n\n### Example usage of the general-purpose agent:\n\n<example_agent_descriptions>\n\"general-purpose\": use this agent for general purpose tasks, it has access to all tools as the main agent.\n</example_agent_descriptions>\n\n<example>\nUser: \"I want to conduct research on the accomplishments of Lebron James, Michael Jordan, and Kobe Bryant, and then compare them.\"\nAssistant: *Uses the task tool in parallel to conduct isolated research on each of the three players*\nAssistant: *Synthesizes the results of the three isolated research tasks and responds to the User*\n<commentary>\nResearch is a complex, multi-step task in it of itself.\nThe research of each individual player is not dependent on the research of the other players.\nThe assistant uses the task tool to break down the complex objective into three isolated tasks.\nEach research task only needs to worry about context and tokens about one player, then returns synthesized information about each player as the Tool Result.\nThis means each research task can dive deep and spend tokens and context deeply researching each player, but the final result is synthesized information, and saves us tokens in the long run when comparing the players to each other.\n</commentary>\n</example>\n\n<example>\nUser: \"Analyze a single large code repository for security vulnerabilities and generate a report.\"\nAssistant: *Launches a single `task` subagent for the repository analysis*\nAssistant: *Receives report and integrates results into final summary*\n<commentary>\nSubagent is used to isolate a large, context-heavy task, even though there is only one. This prevents the main thread from being overloaded with details.\nIf the user then asks followup questions, we have a concise report to reference instead of the entire history of analysis and tool calls, which is good and saves us time and money.\n</commentary>\n</example>\n\n<example>\nUser: \"Schedule two meetings for me and prepare agendas for each.\"\nAssistant: *Calls the task tool in parallel to launch two `task` subagents (one per meeting) to prepare agendas*\nAssistant: *Returns final schedules and agendas*\n<commentary>\nTasks are simple individually, but subagents help silo agenda preparation.\nEach subagent only needs to worry about the agenda for one meeting.\n</commentary>\n</example>\n\n<example>\nUser: \"I want to order a pizza from Dominos, order a burger from McDonald's, and order a salad from Subway.\"\nAssistant: *Calls tools directly in parallel to order a pizza from Dominos, a burger from McDonald's, and a salad from Subway*\n<commentary>\nThe assistant did not use the task tool because the objective is super simple and clear and only requires a few trivial tool calls.\nIt is better to just complete the task directly and NOT use the `task` tool.\n</commentary>\n</example>\n\n### Example usage with custom agents:\n\n<example_agent_descriptions>\n\"content-reviewer\": use this agent after you are done creating significant content or documents\n\"greeting-responder\": use this agent when to respond to user greetings with a friendly joke\n\"research-analyst\": use this agent to conduct thorough research on complex topics\n</example_agent_descriptions>\n\n<example>\nuser: \"Please write a function that checks if a number is prime\"\nassistant: Sure let me write a function that checks if a number is prime\nassistant: First let me use the Write tool to write a function that checks if a number is prime\nassistant: I'm going to use the Write tool to write the following code:\n<code>\nfunction isPrime(n) {\n  if (n <= 1) return false\n  for (let i = 2; i * i <= n; i++) {\n    if (n % i === 0) return false\n  }\n  return true\n}\n</code>\n<commentary>\nSince significant content was created and the task was completed, now use the content-reviewer agent to review the work\n</commentary>\nassistant: Now let me use the content-reviewer agent to review the code\nassistant: Uses the Task tool to launch with the content-reviewer agent\n</example>\n\n<example>\nuser: \"Can you help me research the environmental impact of different renewable energy sources and create a comprehensive report?\"\n<commentary>\nThis is a complex research task that would benefit from using the research-analyst agent to conduct thorough analysis\n</commentary>\nassistant: I'll help you research the environmental impact of renewable energy sources. Let me use the research-analyst agent to conduct comprehensive research on this topic.\nassistant: Uses the Task tool to launch with the research-analyst agent, providing detailed instructions about what research to conduct and what format the report should take\n</example>\n\n<example>\nuser: \"Hello\"\n<commentary>\nSince the user is greeting, use the greeting-responder agent to respond with a friendly joke\n</commentary>\nassistant: \"I'm going to use the Task tool to launch with the greeting-responder agent\"\n</example>",
+    "parameters": {
+     "properties": {
+      "description": {
+       "description": "A detailed description of the task for the subagent to perform autonomously. Include all necessary context and specify the expected output format.",
+       "type": "string"
+      },
+      "subagent_type": {
+       "description": "The type of subagent to use. Must be one of the available agent types listed in the tool description.",
+       "type": "string"
+      }
+     },
+     "required": [
+      "description",
+      "subagent_type"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ {
+  "i": 33,
+  "type": "ToolMessage",
+  "content": {
+   "type": "function",
+   "function": {
+    "name": "list_api_endpoints",
+    "description": "列出项目的 API 端点\n\nArgs:\n    project_identifier: 项目标识符\n    folder_id: 文件夹 ID（可选，过滤特定文件夹的端点）\n    tag_group: 标签分组（可选，过滤特定标签的端点）\n    method: HTTP 方法（可选，过滤特定方法，如 \"GET\", \"POST\" 等）\n    endpoint_ids: 端点 ID 列表（可选，只获取指定的端点）\n\nReturns:\n    JSON 格式的端点列表\n\nExample:\n    >>> result = await list_api_endpoints(\n    ...     project_identifier=\"PR-1234\",\n    ...     tag_group=\"Activities\",\n    ...     method=\"GET\"\n    ... )\n    >>> # 获取特定端点的信息\n    >>> result = await list_api_endpoints(\n    ...     project_identifier=\"PR-1234\",\n    ...     endpoint_ids=[\"uuid-1\", \"uuid-2\"]\n    ... )",
+    "parameters": {
+     "properties": {
+      "project_identifier": {
+       "type": "string"
+      },
+      "folder_id": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      },
+      "tag_group": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      },
+      "method": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      },
+      "endpoint_ids": {
+       "anyOf": [
+        {
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      }
+     },
+     "required": [
+      "project_identifier"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ {
+  "i": 34,
+  "type": "ToolMessage",
+  "content": {
+   "type": "function",
+   "function": {
+    "name": "get_endpoint_details",
+    "description": "获取 API 端点的详细信息\n\nArgs:\n    endpoint_id: 端点 ID\n\nReturns:\n    JSON 格式的端点详细信息，包括参数、请求体、响应等\n\nExample:\n    >>> result = await get_endpoint_details(endpoint_id=\"123e4567-e89b-12d3-a456-426614174000\")",
+    "parameters": {
+     "properties": {
+      "endpoint_id": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "endpoint_id"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ {
+  "i": 35,
+  "type": "ToolMessage",
+  "content": {
+   "type": "function",
+   "function": {
+    "name": "get_multiple_endpoints_details",
+    "description": "批量获取多个 API 端点的详细信息\n\n此工具用于一次性获取多个端点的详细信息，比单独调用 get_endpoint_details 更高效。\n\nArgs:\n    endpoint_ids: 端点 ID 列表\n\nReturns:\n    JSON 格式的端点详细信息列表\n\nExample:\n    >>> result = await get_multiple_endpoints_details(\n    ...     endpoint_ids=[\"uuid-1\", \"uuid-2\", \"uuid-3\"]\n    ... )",
+    "parameters": {
+     "properties": {
+      "endpoint_ids": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      }
+     },
+     "required": [
+      "endpoint_ids"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ {
+  "i": 36,
+  "type": "ToolMessage",
+  "content": {
+   "type": "function",
+   "function": {
+    "name": "get_folder_structure",
+    "description": "获取项目的文件夹结构\n\nArgs:\n    project_identifier: 项目标识符\n    folder_type: 文件夹类型（\"test_case\" 或 \"api_test\"）\n\nReturns:\n    JSON 格式的文件夹树结构\n\nExample:\n    >>> result = await get_folder_structure(\n    ...     project_identifier=\"PR-1234\",\n    ...     folder_type=\"api_test\"\n    ... )",
+    "parameters": {
+     "properties": {
+      "project_identifier": {
+       "type": "string"
+      },
+      "folder_type": {
+       "default": "api_test",
+       "type": "string"
+      }
+     },
+     "required": [
+      "project_identifier"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ {
+  "i": 37,
+  "type": "ToolMessage",
+  "content": {
+   "type": "function",
+   "function": {
+    "name": "derive_test_skeleton",
+    "description": "从端点的 OpenAPI schema 确定性推导测试用例骨架。\n\n把「要测哪些点」交给规则推导（required/enum/类型/数值边界/字符串长度/数组/安全），\n而不是 LLM 自由发挥。返回结构化骨架后，LLM 只需据此填充测试数据与断言，\n再调用 save_test_cases / 生成脚本。\n\n适用时机：在「生成测试计划 / 生成测试用例」之前调用，作为用例设计的确定性底座。\n\n注意：request_body 若为 $ref 引用（完整 spec 未持久化无法解析），会降级为通用骨架\n并在 derivation_notes 中标注，字段级用例需结合 get_endpoint_details 补充。\n\nArgs:\n    endpoint_id: API 端点 ID（UUID）\n\nReturns:\n    JSON：{endpoint, success_status, expected_status_codes, skeletons[],\n           coverage_summary, total_skeletons, derivation_notes}",
+    "parameters": {
+     "properties": {
+      "endpoint_id": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "endpoint_id"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ {
+  "i": 38,
+  "type": "ToolMessage",
+  "content": {
+   "type": "function",
+   "function": {
+    "name": "get_response_schema",
+    "description": "获取端点响应 schema，用于生成契约断言（expectSchema 整体校验响应体）。\n\n生成测试脚本时调用：拿到精确的响应 schema（字段名/类型/必填/枚举），\n既避免臆测字段，又可直接把返回的 schema 嵌入脚本，调用 expectSchema(body, SCHEMA)\n一次校验整体响应（门禁已识别该调用并计为有效结构断言）。\n\nArgs:\n    endpoint_id: API 端点 ID（UUID）\n    status: 可选，指定状态码（如 \"200\"）；不传则返回所有已定义状态码的 schema\n\nReturns:\n    JSON: {success, endpoint, success_status, schemas{status: {schema, required_fields,\n           field_types, enums, unresolved_refs, has_inline_schema}}, notes, usage_hint}",
+    "parameters": {
+     "properties": {
+      "endpoint_id": {
+       "type": "string"
+      },
+      "status": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      }
+     },
+     "required": [
+      "endpoint_id"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ {
+  "i": 39,
+  "type": "ToolMessage",
+  "content": {
+   "type": "function",
+   "function": {
+    "name": "get_project_environments",
+    "description": "获取项目的所有环境配置（不包含敏感凭据）\n\nArgs:\n    project_identifier: 项目标识符（如 \"PR-1\"）\n\nReturns:\n    JSON 格式的环境列表，包含：\n    - id: 环境 ID\n    - name: 环境名称\n    - base_url: API Base URL\n    - auth_type: 认证类型（none/bearer/dynamic_bearer/api_key/oauth2）\n    - auth_config: 非敏感认证配置\n    - timeout_ms: 超时时间\n    - is_default: 是否为默认环境\n    - has_auth_secret: 是否已配置静态敏感凭据\n\n注意：\n    - dynamic_bearer 类型的环境没有 auth_secret，token 通过 auth_config.token_url 动态获取\n    - 判断 dynamic_bearer 是否已配置，应检查 auth_config.token_url 是否存在\n\nExample:\n    >>> result = await get_project_environments(project_identifier=\"PR-1\")",
+    "parameters": {
+     "properties": {
+      "project_identifier": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "project_identifier"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ {
+  "i": 40,
+  "type": "ToolMessage",
+  "content": {
+   "type": "function",
+   "function": {
+    "name": "get_environment_details",
+    "description": "获取单个环境配置的详细信息（不包含敏感凭据）\n\nArgs:\n    project_identifier: 项目标识符（如 \"PR-1\"）\n    env_id: 环境 ID\n\nReturns:\n    JSON 格式的环境详情。\n    对于 dynamic_bearer 类型，重点关注 auth_config.token_url / token_body / token_path。\n\nExample:\n    >>> result = await get_environment_details(\n    ...     project_identifier=\"PR-1\",\n    ...     env_id=\"550e8400-e29b-41d4-a716-446655440000\"\n    ... )",
+    "parameters": {
+     "properties": {
+      "project_identifier": {
+       "type": "string"
+      },
+      "env_id": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "project_identifier",
+      "env_id"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ {
+  "i": 41,
+  "type": "ToolMessage",
+  "content": {
+   "type": "function",
+   "function": {
+    "name": "save_test_plan",
+    "description": "保存 API 端点的测试计划到 MinIO\n\n支持三种方式提供测试计划内容：\n1. 通过 plan_path 指定由 api_planner 生成的测试计划文件路径\n2. 通过 test_plan 直接提供测试计划字典（JSON 格式）\n3. 通过 plan_content 直接提供测试计划内容（Markdown/字符串）\n\nArgs:\n    endpoint_id: API 端点 ID\n    plan_path: 测试计划文件路径（由 api_planner 生成），如 \"./api-test-plan.md\"\n    test_plan: 测试计划内容（字典格式），包含：\n        - test_scenarios: 测试场景列表\n        - coverage: 覆盖率分析\n        - priority: 优先级评估\n        - estimated_time: 预估测试时间\n    plan_content: 测试计划内容（Markdown/字符串格式），可选\n    plan_format: 计划格式（markdown, json），默认为 markdown\n    project_identifier: 项目标识符\n\nReturns:\n    dict: 包含 attachment_id 和 file_path 的字典",
+    "parameters": {
+     "properties": {
+      "endpoint_id": {
+       "type": "string"
+      },
+      "project_identifier": {
+       "type": "string"
+      },
+      "plan_path": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      },
+      "test_plan": {
+       "anyOf": [
+        {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      },
+      "plan_content": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      },
+      "plan_format": {
+       "default": "markdown",
+       "type": "string"
+      }
+     },
+     "required": [
+      "endpoint_id",
+      "project_identifier"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ {
+  "i": 42,
+  "type": "ToolMessage",
+  "content": {
+   "type": "function",
+   "function": {
+    "name": "save_test_cases",
+    "description": "保存 API 端点的测试用例到 MinIO\n\nArgs:\n    endpoint_id: API 端点 ID\n    test_cases: 测试用例列表，每个用例包含：\n        - name: 用例名称\n        - description: 用例描述\n        - steps: 测试步骤\n        - expected_result: 预期结果\n        - priority: 优先级\n    project_identifier: 项目标识符\n\nReturns:\n    dict: 包含 attachment_id 和 file_path 的字典",
+    "parameters": {
+     "properties": {
+      "endpoint_id": {
+       "type": "string"
+      },
+      "test_cases": {
+       "items": {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       "type": "array"
+      },
+      "project_identifier": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "endpoint_id",
+      "test_cases",
+      "project_identifier"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ {
+  "i": 43,
+  "type": "ToolMessage",
+  "content": {
+   "type": "function",
+   "function": {
+    "name": "save_test_script",
+    "description": "保存 API 端点的测试脚本到 MinIO\n\n支持两种方式提供脚本内容：\n1. 通过 script_path 指定由 api_generator 生成的脚本文件路径\n2. 通过 script_content 直接提供脚本内容\n\n断言质量门禁（硬性，无绕过开关）：保存前静态分析脚本断言分布。\n- FAIL（只含状态码断言）：拒绝保存。\n- WEAK（有效业务断言不足）：拒绝保存。\n两者都必须按返回的 suggestions 补充断言后重新调用，没有放行开关。\n\nArgs:\n    endpoint_id: API 端点 ID\n    script_path: 脚本文件路径（由 api_generator 生成）\n    script_content: 脚本内容（代码），可选\n    script_language: 脚本语言（如: typescript, python）\n    script_format: 脚本格式（如: playwright, pytest）\n    project_identifier: 项目标识符\n\nReturns:\n    dict: 包含 attachment_id 和 file_path 的字典；\n          门禁未通过时返回 error + verdict + metrics + suggestions（不保存）",
+    "parameters": {
+     "properties": {
+      "endpoint_id": {
+       "type": "string"
+      },
+      "project_identifier": {
+       "type": "string"
+      },
+      "script_path": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      },
+      "script_content": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      },
+      "script_language": {
+       "default": "typescript",
+       "type": "string"
+      },
+      "script_format": {
+       "default": "playwright",
+       "type": "string"
+      }
+     },
+     "required": [
+      "endpoint_id",
+      "project_identifier"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ {
+  "i": 44,
+  "type": "ToolMessage",
+  "content": {
+   "type": "function",
+   "function": {
+    "name": "audit_script_assertions",
+    "description": "审查生成的测试脚本断言是否充分。\n\n生成测试脚本后、调用 save_test_script 保存前，应先使用本工具检查。\n如果返回 verdict 为 FAIL 或 WEAK，必须补充字段/业务/结构断言后再保存。\n\nArgs:\n    script_content: 测试脚本完整内容\n    script_language: 脚本语言（typescript/javascript/python），用于选择解析方式\n    script_format: 脚本格式（playwright/jest/pytest/postman）\n\nReturns:\n    dict: 审查结果，包含 verdict、metrics（含按用例明细 per_test）和 suggestions",
+    "parameters": {
+     "properties": {
+      "script_content": {
+       "type": "string"
+      },
+      "script_language": {
+       "default": "typescript",
+       "type": "string"
+      },
+      "script_format": {
+       "default": "playwright",
+       "type": "string"
+      }
+     },
+     "required": [
+      "script_content"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ {
+  "i": 45,
+  "type": "ToolMessage",
+  "content": {
+   "type": "function",
+   "function": {
+    "name": "get_endpoint_artifacts",
+    "description": "获取 API 端点的测试成果物列表\n\nArgs:\n    endpoint_id: API 端点 ID\n    artifact_type: 成果物类型过滤（可选）:\n        - API_TEST_PLAN: 测试计划\n        - API_TEST_CASE: 测试用例\n        - API_TEST_SCRIPT: 测试脚本\n\nReturns:\n    dict: 成果物列表，包含类型、文件名、描述、创建时间等信息",
+    "parameters": {
+     "properties": {
+      "endpoint_id": {
+       "type": "string"
+      },
+      "artifact_type": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      }
+     },
+     "required": [
+      "endpoint_id"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ {
+  "i": 46,
+  "type": "ToolMessage",
+  "content": {
+   "type": "function",
+   "function": {
+    "name": "get_artifact_content",
+    "description": "获取附件内容\n\nArgs:\n    attachment_id: 附件 ID\n\nReturns:\n    dict: 包含文件内容和元数据的字典",
+    "parameters": {
+     "properties": {
+      "attachment_id": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "attachment_id"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ {
+  "i": 47,
+  "type": "ToolMessage",
+  "content": {
+   "type": "function",
+   "function": {
+    "name": "get_api_script_info",
+    "description": "根据 API 测试脚本 ID 查询脚本的详细信息\n\nArgs:\n    script_id: API 测试脚本附件的 ID\n\nReturns:\n    JSON 格式的脚本信息，包含：\n    - success: 是否成功\n    - script: 脚本详细信息\n    - local_path: 如果已下载到本地，显示本地路径\n\nExample:\n    >>> info = await get_api_script_info(\"550e8400-e29b-41d4-a716-446655440000\")",
+    "parameters": {
+     "properties": {
+      "script_id": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "script_id"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ {
+  "i": 48,
+  "type": "ToolMessage",
+  "content": {
+   "type": "function",
+   "function": {
+    "name": "download_api_script",
+    "description": "从 MinIO 下载 API 测试脚本到 MCP 测试目录\n\n此工具会：\n1. 从数据库查询脚本信息\n2. 从 MinIO 下载脚本内容\n3. 保存到 测试目录（backend/workspace/api/tests/）\n4. 使用时间戳重命名避免冲突\n5. 返回本地文件路径\n\nArgs:\n    script_id: API 测试脚本附件的 ID\n    filename: 可选，指定下载后的文件名（不含扩展名，会自动添加 .spec.ts）\n\nReturns:\n    JSON 格式的下载结果，包含：\n    - success: 是否成功\n    - script_id: 脚本 ID\n    - original_filename: 原始文件名\n    - local_filename: 本地文件名（带时间戳）\n    - local_path: 本地完整路径\n    - file_size: 文件大小\n    - download_time: 下载时间\n\nExample:\n    >>> result = await download_api_script(\n    ...     script_id=\"550e8400-e29b-41d4-a716-446655440000\",\n    ...     filename=\"login_test\"\n    ... )",
+    "parameters": {
+     "properties": {
+      "script_id": {
+       "type": "string"
+      },
+      "filename": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      }
+     },
+     "required": [
+      "script_id"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ {
+  "i": 49,
+  "type": "ToolMessage",
+  "content": {
+   "type": "function",
+   "function": {
+    "name": "delete_api_script",
+    "description": "删除本地测试脚本文件\n\n从 MCP 测试目录删除已下载的脚本文件\n\nArgs:\n    local_path: 本地脚本文件的完整路径\n\nReturns:\n    JSON 格式的删除结果\n\nExample:\n    >>> result = await delete_api_script(\n    ...     local_path=\"backend/workspace/api/tests/login_test_20260211.spec.ts\"\n    ... )",
+    "parameters": {
+     "properties": {
+      "local_path": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "local_path"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ {
+  "i": 50,
+  "type": "ToolMessage",
+  "content": {
+   "type": "function",
+   "function": {
+    "name": "execute_api_script",
+    "description": "执行已下载到测试目录的 API 测试脚本\n\n此工具会：\n1. 验证脚本文件存在于 workspace 测试目录\n2. 执行测试（Playwright/Jest/Pytest）\n3. 生成测试报告（HTML/JSON）\n4. 将测试报告保存到 MinIO\n5. 在数据库中创建测试报告附件记录\n6. 更新端点的测试运行次数\n7. 清理临时报告文件\n\nArgs:\n    local_script_path: 本地脚本文件的完整路径（相对或绝对路径）\n    framework: 测试框架 (playwright, jest, pytest)\n    reporter: 报告格式 (html, json, list)\n    project_identifier: 项目标识符，用于保存测试报告\n    endpoint_id: 端点 ID（可选，用于更新测试统计）\n    execution_config: 执行配置（可选）\n        - env_id: 项目环境 ID，后端会自动解析该环境的 base_url、auth、headers（推荐）\n        - base_url: API Base URL，会注入为环境变量 API_BASE_URL（仅当用户明确要求时直接使用）\n        - env: 额外环境变量字典，如 {\"AUTH_TOKEN\": \"...\"}，会覆盖后端自动注入的值\n        - environment_variables: env 的别名，兼容旧调用\n\n环境注入说明：\n    - 静态认证（bearer/api_key/oauth2）：后端从环境的 auth_secret 注入 AUTH_TOKEN / Authorization 等变量\n    - 动态认证（dynamic_bearer）：后端会根据环境的 auth_config.token_url 自动获取 token 并注入 AUTH_TOKEN\n    - 脚本里应只读取 process.env.AUTH_TOKEN / process.env.API_BASE_URL，禁止写 fallback 默认值\n\nReturns:\n    JSON 格式的执行结果，包含：\n    - success: 是否成功\n    - exit_code: 语义化退出码\n        0=全部通过, 1=有失败, 2=环境不可达, 3=超时, 4=脚本/执行错误\n    - preflight_status: 执行前环境探针状态\n    - script_path: 执行的脚本路径\n    - execution_result: 执行结果（stdout, stderr, duration, return_code）\n    - report_attachment_id: 测试报告附件 ID（如果生成了报告）\n    - error: 错误信息（如果有）\n\nExample:\n    >>> result = await execute_api_script(\n    ...     local_script_path=\"backend/workspace/api/tests/login_test.spec.ts\",\n    ...     framework=\"playwright\",\n    ...     reporter=\"html\",\n    ...     project_identifier=\"PR-3\",\n    ...     endpoint_id=\"5ea81a5f-c97b-4a36-a680-13637f1b9eed\",\n    ...     execution_config={\n    ...         \"env_id\": \"550e8400-e29b-41d4-a716-446655440000\",\n    ...         \"env\": {\"OPTIONAL_HEADER\": \"value\"}\n    ...     }\n    ... )",
+    "parameters": {
+     "properties": {
+      "local_script_path": {
+       "type": "string"
+      },
+      "framework": {
+       "default": "playwright",
+       "type": "string"
+      },
+      "reporter": {
+       "default": "html",
+       "type": "string"
+      },
+      "project_identifier": {
+       "default": "PR-1",
+       "type": "string"
+      },
+      "endpoint_id": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      },
+      "execution_config": {
+       "anyOf": [
+        {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      }
+     },
+     "required": [
+      "local_script_path"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ {
+  "i": 51,
+  "type": "ToolMessage",
+  "content": {
+   "type": "function",
+   "function": {
+    "name": "execute_api_script_by_artifact_id",
+    "description": "通过附件 ID 执行已保存的 API 测试脚本\n\n此工具会自动：\n1. 从 MinIO 下载附件中的脚本内容\n2. 将脚本写入 workspace 测试目录\n3. 执行测试（默认 Playwright）\n4. 生成 HTML 测试报告并保存到 MinIO\n5. 创建测试报告附件记录\n\nArgs:\n    attachment_id: 测试脚本附件 ID\n    endpoint_id: 关联的 API 端点 ID（用于保存测试报告附件）\n    project_identifier: 项目标识符\n    execution_config: 执行配置（可选）\n        - env_id: 项目环境 ID，后端自动解析 base_url、auth、headers\n        - env: 额外环境变量字典\n    framework: 测试框架，默认 playwright\n\nReturns:\n    JSON 格式的执行结果",
+    "parameters": {
+     "properties": {
+      "attachment_id": {
+       "type": "string"
+      },
+      "endpoint_id": {
+       "type": "string"
+      },
+      "project_identifier": {
+       "type": "string"
+      },
+      "execution_config": {
+       "anyOf": [
+        {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      },
+      "framework": {
+       "default": "playwright",
+       "type": "string"
+      }
+     },
+     "required": [
+      "attachment_id",
+      "endpoint_id",
+      "project_identifier"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ {
+  "i": 52,
+  "type": "ToolMessage",
+  "content": {
+   "type": "function",
+   "function": {
+    "name": "get_test_execution_status",
+    "description": "获取测试执行状态（占位符，未来可扩展为异步执行查询）\n\nArgs:\n    execution_id: 执行 ID\n\nReturns:\n    JSON 格式的执行状态",
+    "parameters": {
+     "properties": {
+      "execution_id": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "execution_id"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ {
+  "i": 53,
+  "type": "ToolMessage",
+  "content": {
+   "type": "function",
+   "function": {
+    "name": "parse_test_results",
+    "description": "解析测试输出并提取关键信息\n\nArgs:\n    result_output: 测试运行的原始输出\n\nReturns:\n    JSON 格式的解析结果",
+    "parameters": {
+     "properties": {
+      "result_output": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "result_output"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ {
+  "i": 54,
+  "type": "ToolMessage",
+  "content": {
+   "type": "function",
+   "function": {
+    "name": "batch_generate_tests",
+    "description": "准备批量测试生成 - 查询端点并返回生成配置\n\n此工具用于准备批量生成测试的端点列表和配置。\n返回的端点信息可用于后续调用 api_generator 逐个生成测试。\n\nArgs:\n    project_identifier: 项目标识符\n    endpoint_ids: 指定的端点 ID 列表（可选）\n    tag_group: 按标签过滤（可选，与 endpoint_ids 二选一）\n    framework: 测试框架 (playwright/jest/pytest)\n    language: 编程语言 (typescript/javascript/python)\n\nReturns:\n    JSON 格式的端点列表和生成配置",
+    "parameters": {
+     "properties": {
+      "project_identifier": {
+       "type": "string"
+      },
+      "endpoint_ids": {
+       "anyOf": [
+        {
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      },
+      "tag_group": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      },
+      "framework": {
+       "default": "playwright",
+       "type": "string"
+      },
+      "language": {
+       "default": "typescript",
+       "type": "string"
+      }
+     },
+     "required": [
+      "project_identifier"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ {
+  "i": 55,
+  "type": "ToolMessage",
+  "content": {
+   "type": "function",
+   "function": {
+    "name": "batch_run_tests",
+    "description": "准备批量测试执行 - 查询端点并返回执行计划\n\n此工具用于准备批量执行测试的端点列表和执行配置。\n返回的执行计划可用于后续调用 run_test_suite 执行测试。\n\nArgs:\n    project_identifier: 项目标识符\n    endpoint_ids: 指定的端点 ID 列表（可选）\n    tag_group: 按标签过滤（可选）\n    framework: 测试框架 (playwright/jest/pytest)\n    parallel: 是否并行执行\n\nReturns:\n    JSON 格式的执行计划",
+    "parameters": {
+     "properties": {
+      "project_identifier": {
+       "type": "string"
+      },
+      "endpoint_ids": {
+       "anyOf": [
+        {
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      },
+      "tag_group": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      },
+      "framework": {
+       "default": "playwright",
+       "type": "string"
+      },
+      "parallel": {
+       "default": false,
+       "type": "boolean"
+      }
+     },
+     "required": [
+      "project_identifier"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ {
+  "i": 56,
+  "type": "ToolMessage",
+  "content": {
+   "type": "function",
+   "function": {
+    "name": "create_test_scenario",
+    "description": "创建一个新的测试场景\n\n测试场景用于编排多个 API 接口的业务流测试，例如：\n- 用户登录 → 创建订单 → 支付 → 查询订单状态\n- 注册用户 → 验证邮箱 → 完善资料 → 上传头像\n\n注意：同一次 AI 对话（conversation_id 相同）中最终只保留一个场景。如果 AI\n在同一次对话中再次调用本工具，会先删除该对话下已创建的旧场景，然后创建\n新场景，实现覆盖/替换。不同对话之间互不影响。\n\nArgs:\n    project_identifier: 项目标识符（如 \"PR-1234\"）\n    name: 场景名称（如 \"用户下单完整流程\"）\n    description: 场景描述\n    folder_id: 所属文件夹 ID（可选）\n\nReturns:\n    JSON 格式的创建结果，包含场景 ID 和标识符\n\nExample:\n    >>> result = await create_test_scenario(\n    ...     project_identifier=\"PR-1234\",\n    ...     name=\"用户下单完整流程\",\n    ...     description=\"测试从登录到支付的完整业务流\"\n    ... )",
+    "parameters": {
+     "properties": {
+      "project_identifier": {
+       "type": "string"
+      },
+      "name": {
+       "type": "string"
+      },
+      "description": {
+       "default": "",
+       "type": "string"
+      },
+      "folder_id": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      }
+     },
+     "required": [
+      "project_identifier",
+      "name"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ {
+  "i": 57,
+  "type": "ToolMessage",
+  "content": {
+   "type": "function",
+   "function": {
+    "name": "update_test_scenario",
+    "description": "更新测试场景的基本信息\n\n可以修改场景的名称、描述、状态、全局变量和 teardown 清理配置。\n\nArgs:\n    scenario_id: 场景 ID\n    name: 新的场景名称（可选）\n    description: 新的场景描述（可选）\n    status: 新的场景状态（可选，draft/active/archived）\n    global_variables: 全局变量字典（可选）\n    teardown_config: teardown 清理配置（可选），格式示例：\n        {\n          \"steps\": [\n            {\n              \"name\": \"删除测试客户\",\n              \"endpoint_id\": \"uuid\",\n              \"request_override\": {\"method\": \"DELETE\", \"path\": \"/customers/{{customerId}}\"},\n              \"headers_override\": {},\n              \"continue_on_failure\": true\n            }\n          ]\n        }\n\nReturns:\n    JSON 格式的更新结果\n\nExample:\n    >>> result = await update_test_scenario(\n    ...     scenario_id=\"uuid-xxx\",\n    ...     name=\"更新后的场景名称\",\n    ...     teardown_config={\"steps\": [{\"name\": \"清理客户\", \"endpoint_id\": \"...\", \"request_override\": {\"method\": \"DELETE\", \"path\": \"/customers/{{customerId}}\"}}]}\n    ... )",
+    "parameters": {
+     "properties": {
+      "scenario_id": {
+       "type": "string"
+      },
+      "name": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      },
+      "description": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      },
+      "status": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      },
+      "global_variables": {
+       "anyOf": [
+        {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      },
+      "teardown_config": {
+       "anyOf": [
+        {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      }
+     },
+     "required": [
+      "scenario_id"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ {
+  "i": 58,
+  "type": "ToolMessage",
+  "content": {
+   "type": "function",
+   "function": {
+    "name": "add_scenario_step",
+    "description": "向测试场景添加一个步骤\n\n每个步骤代表一个 API 接口调用，可以配置请求参数、请求头等。\n\nArgs:\n    scenario_id: 场景 ID\n    endpoint_id: API 端点 ID\n    name: 步骤名称（如 \"用户登录\"）\n    description: 步骤描述\n    step_order: 步骤顺序（可选，默认追加到最后）\n    request_override: 请求参数覆盖（可选）\n    headers_override: 请求头覆盖（可选）\n    variable_exports: 变量导出配置（可选），用于将步骤请求/响应中的值导出为变量，\n        供后续步骤引用。格式示例：\n        [{\"name\": \"siteName\", \"source\": \"request\", \"path\": \"$.body.name\"}]\n\nReturns:\n    JSON 格式的添加结果\n\nExample:\n    >>> result = await add_scenario_step(\n    ...     scenario_id=\"uuid-xxx\",\n    ...     endpoint_id=\"uuid-yyy\",\n    ...     name=\"用户登录\",\n    ...     request_override={\"body\": {\"username\": \"{{username}}\", \"password\": \"{{password}}\"}}\n    ... )",
+    "parameters": {
+     "properties": {
+      "scenario_id": {
+       "type": "string"
+      },
+      "endpoint_id": {
+       "type": "string"
+      },
+      "name": {
+       "type": "string"
+      },
+      "description": {
+       "default": "",
+       "type": "string"
+      },
+      "step_order": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      },
+      "request_override": {
+       "anyOf": [
+        {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      },
+      "headers_override": {
+       "anyOf": [
+        {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      },
+      "variable_exports": {
+       "anyOf": [
+        {
+         "items": {
+          "additionalProperties": true,
+          "type": "object"
+         },
+         "type": "array"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      }
+     },
+     "required": [
+      "scenario_id",
+      "endpoint_id",
+      "name"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ {
+  "i": 59,
+  "type": "ToolMessage",
+  "content": {
+   "type": "function",
+   "function": {
+    "name": "update_scenario_step",
+    "description": "更新测试场景步骤的配置\n\n可以修改步骤的名称、描述、请求参数、请求头、断言、提取器、变量导出等配置。\n\nArgs:\n    step_id: 步骤 ID\n    name: 新的步骤名称（可选）\n    description: 新的步骤描述（可选）\n    request_override: 新的请求参数覆盖（可选）\n    headers_override: 新的请求头覆盖（可选）\n    continue_on_failure: 失败后是否继续执行（可选）\n    delay_ms: 执行延迟（毫秒，可选）\n    assertions: 完整的断言列表（可选），会替换现有所有断言。\n        每个断言格式: {\"type\": \"jsonpath\", \"path\": \"$.code\", \"expected\": \"2000\", \"operator\": \"eq\"}\n        当 add_step_assertion 持久化异常时，可用此参数一次性设置。\n    extractors: 完整的提取器列表（可选），会替换现有所有提取器。\n        每个提取器格式: {\"name\": \"siteId\", \"path\": \"$.data.id\", \"type\": \"jsonpath\"}\n    variable_exports: 完整的变量导出列表（可选），会替换现有所有导出。\n        每个导出格式: {\"name\": \"siteName\", \"source\": \"request\", \"path\": \"$.body.name\", \"type\": \"jsonpath\"}\n\nReturns:\n    JSON 格式的更新结果\n\nExample:\n    >>> result = await update_scenario_step(\n    ...     step_id=\"uuid-xxx\",\n    ...     name=\"更新后的步骤名称\",\n    ...     request_override={\"body\": {\"new_param\": \"value\"}},\n    ...     continue_on_failure=True,\n    ...     assertions=[\n    ...         {\"type\": \"status\", \"expected\": 200, \"operator\": \"eq\"},\n    ...         {\"type\": \"jsonpath\", \"path\": \"$.code\", \"expected\": \"2000\", \"operator\": \"eq\"},\n    ...     ]\n    ... )",
+    "parameters": {
+     "properties": {
+      "step_id": {
+       "type": "string"
+      },
+      "name": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      },
+      "description": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      },
+      "request_override": {
+       "anyOf": [
+        {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      },
+      "headers_override": {
+       "anyOf": [
+        {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      },
+      "continue_on_failure": {
+       "anyOf": [
+        {
+         "type": "boolean"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      },
+      "delay_ms": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      },
+      "assertions": {
+       "anyOf": [
+        {
+         "items": {
+          "additionalProperties": true,
+          "type": "object"
+         },
+         "type": "array"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      },
+      "extractors": {
+       "anyOf": [
+        {
+         "items": {
+          "additionalProperties": true,
+          "type": "object"
+         },
+         "type": "array"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      },
+      "variable_exports": {
+       "anyOf": [
+        {
+         "items": {
+          "additionalProperties": true,
+          "type": "object"
+         },
+         "type": "array"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      }
+     },
+     "required": [
+      "step_id"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ {
+  "i": 60,
+  "type": "ToolMessage",
+  "content": {
+   "type": "function",
+   "function": {
+    "name": "add_data_mapping",
+    "description": "为步骤添加数据映射（数据依赖）\n\n数据映射用于将前一个步骤的响应数据传递给后续步骤，例如：\n- 将登录接口返回的 token 传递给后续接口的 Authorization 头\n- 将创建订单返回的 orderId 传递给支付接口\n\nArgs:\n    step_id: 目标步骤 ID\n    source_type: 数据源类型，可选值：\n        - \"previous_response\": 前一个步骤的响应数据\n        - \"variable\": 场景变量\n        - \"static\": 静态值\n    target_path: 目标路径（如 \"headers.Authorization\" 或 \"body.orderId\"）\n    source_step_id: 源步骤 ID（当 source_type 为 previous_response 时必填）\n    source_path: 源数据路径（JSONPath 格式，如 \"$.data.token\"）\n    transform_expression: 转换表达式（可选，如 \"'Bearer ' + value\"）\n    description: 映射描述\n\nReturns:\n    JSON 格式的添加结果\n\nExample:\n    >>> # 将登录接口的 token 传递给后续接口\n    >>> result = await add_data_mapping(\n    ...     step_id=\"step-2-uuid\",\n    ...     source_type=\"previous_response\",\n    ...     source_step_id=\"step-1-uuid\",\n    ...     source_path=\"$.data.token\",\n    ...     target_path=\"headers.Authorization\",\n    ...     transform_expression=\"'Bearer ' + value\"\n    ... )",
+    "parameters": {
+     "properties": {
+      "step_id": {
+       "type": "string"
+      },
+      "source_type": {
+       "type": "string"
+      },
+      "target_path": {
+       "type": "string"
+      },
+      "source_step_id": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      },
+      "source_path": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      },
+      "transform_expression": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      },
+      "description": {
+       "default": "",
+       "type": "string"
+      }
+     },
+     "required": [
+      "step_id",
+      "source_type",
+      "target_path"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ {
+  "i": 61,
+  "type": "ToolMessage",
+  "content": {
+   "type": "function",
+   "function": {
+    "name": "add_step_extractor",
+    "description": "为步骤添加数据提取器\n\n数据提取器用于从 API 响应中提取数据，保存到变量中供后续步骤使用。\n\nArgs:\n    step_id: 步骤 ID\n    name: 提取的变量名（如 \"token\", \"orderId\"）\n    path: 提取路径（JSONPath 格式，如 \"$.data.token\"）\n    extractor_type: 提取器类型（默认 \"jsonpath\"）\n\nReturns:\n    JSON 格式的添加结果\n\nExample:\n    >>> # 从登录响应中提取 token\n    >>> result = await add_step_extractor(\n    ...     step_id=\"step-1-uuid\",\n    ...     name=\"token\",\n    ...     path=\"$.data.token\"\n    ... )",
+    "parameters": {
+     "properties": {
+      "step_id": {
+       "type": "string"
+      },
+      "name": {
+       "type": "string"
+      },
+      "path": {
+       "type": "string"
+      },
+      "extractor_type": {
+       "default": "jsonpath",
+       "type": "string"
+      }
+     },
+     "required": [
+      "step_id",
+      "name",
+      "path"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ {
+  "i": 62,
+  "type": "ToolMessage",
+  "content": {
+   "type": "function",
+   "function": {
+    "name": "add_step_assertion",
+    "description": "为步骤添加断言\n\n断言用于验证 API 响应是否符合预期。\n\nArgs:\n    step_id: 步骤 ID\n    assertion_type: 断言类型，可选值：\n        - \"status\": 验证 HTTP 状态码\n        - \"jsonpath\": 验证 JSON 路径的值\n        - \"header\": 验证响应头\n    expected: 期望值\n    path: 数据路径（当 assertion_type 为 jsonpath 或 header 时必填）\n    operator: 比较运算符（eq, ne, gt, lt, contains 等）\n\nReturns:\n    JSON 格式的添加结果\n\nExample:\n    >>> # 验证状态码为 200\n    >>> result = await add_step_assertion(\n    ...     step_id=\"step-1-uuid\",\n    ...     assertion_type=\"status\",\n    ...     expected=200\n    ... )\n    >>> # 验证响应中的 success 字段为 true\n    >>> result = await add_step_assertion(\n    ...     step_id=\"step-1-uuid\",\n    ...     assertion_type=\"jsonpath\",\n    ...     path=\"$.success\",\n    ...     expected=True\n    ... )",
+    "parameters": {
+     "properties": {
+      "step_id": {
+       "type": "string"
+      },
+      "assertion_type": {
+       "type": "string"
+      },
+      "expected": {},
+      "path": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      },
+      "operator": {
+       "default": "eq",
+       "type": "string"
+      }
+     },
+     "required": [
+      "step_id",
+      "assertion_type",
+      "expected"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ {
+  "i": 63,
+  "type": "ToolMessage",
+  "content": {
+   "type": "function",
+   "function": {
+    "name": "add_step_variable_export",
+    "description": "为步骤添加变量导出\n\n将步骤执行后的请求值或响应值导出到上下文变量，供后续步骤通过 {{name}} 引用。\n常用于解决 {{$timestamp}}、{{$uuid}} 等动态占位符跨步骤不一致的问题。\n\nArgs:\n    step_id: 步骤 ID\n    name: 导出的变量名（如 \"siteName\"）\n    path: 提取路径（JSONPath 格式，如 \"$.body.name\"）\n    source: 数据来源（\"request\" 或 \"response\"，默认 \"request\"）\n    export_type: 提取器类型（默认 \"jsonpath\"）\n\nReturns:\n    JSON 格式的添加结果\n\nExample:\n    >>> result = await add_step_variable_export(\n    ...     step_id=\"uuid-xxx\",\n    ...     name=\"siteName\",\n    ...     path=\"$.body.name\",\n    ...     source=\"request\",\n    ... )",
+    "parameters": {
+     "properties": {
+      "step_id": {
+       "type": "string"
+      },
+      "name": {
+       "type": "string"
+      },
+      "path": {
+       "type": "string"
+      },
+      "source": {
+       "default": "request",
+       "type": "string"
+      },
+      "export_type": {
+       "default": "jsonpath",
+       "type": "string"
+      }
+     },
+     "required": [
+      "step_id",
+      "name",
+      "path"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ {
+  "i": 64,
+  "type": "ToolMessage",
+  "content": {
+   "type": "function",
+   "function": {
+    "name": "add_teardown_step",
+    "description": "向场景追加一个 teardown 清理步骤\n\n场景主流程执行结束后，会按顺序执行 teardown 步骤，用于删除/禁用\n主流程中创建的资源（如客户、订单、文件等）。\n\nArgs:\n    scenario_id: 场景 ID\n    name: 清理步骤名称（如 \"删除测试客户\"）\n    request_override: 请求覆盖配置，可引用主流程提取的变量，如\n        {\"method\": \"DELETE\", \"path\": \"/customers/{{customerId}}\"}\n    endpoint_id: 清理接口端点 ID（可选；若为空则尝试从 request_override 推断）\n    headers_override: 请求头覆盖（可选）\n    continue_on_failure: 该步骤失败后是否继续执行后续 teardown，默认 true\n\nReturns:\n    JSON 格式的添加结果\n\nExample:\n    >>> result = await add_teardown_step(\n    ...     scenario_id=\"uuid-xxx\",\n    ...     name=\"删除测试客户\",\n    ...     endpoint_id=\"uuid-yyy\",\n    ...     request_override={\"method\": \"DELETE\", \"path\": \"/customers/{{customerId}}\"},\n    ...     continue_on_failure=True\n    ... )",
+    "parameters": {
+     "properties": {
+      "scenario_id": {
+       "type": "string"
+      },
+      "name": {
+       "type": "string"
+      },
+      "request_override": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "endpoint_id": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      },
+      "headers_override": {
+       "anyOf": [
+        {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      },
+      "continue_on_failure": {
+       "default": true,
+       "type": "boolean"
+      }
+     },
+     "required": [
+      "scenario_id",
+      "name",
+      "request_override"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ {
+  "i": 65,
+  "type": "ToolMessage",
+  "content": {
+   "type": "function",
+   "function": {
+    "name": "get_scenario_details",
+    "description": "获取测试场景的详细信息\n\n包括场景的所有步骤、数据映射、变量等完整信息。\n\nArgs:\n    scenario_id: 场景 ID\n\nReturns:\n    JSON 格式的场景详情\n\nExample:\n    >>> result = await get_scenario_details(\"uuid-xxx\")",
+    "parameters": {
+     "properties": {
+      "scenario_id": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "scenario_id"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ {
+  "i": 66,
+  "type": "ToolMessage",
+  "content": {
+   "type": "function",
+   "function": {
+    "name": "list_test_scenarios",
+    "description": "列出项目的所有测试场景\n\nArgs:\n    project_identifier: 项目标识符\n    status: 场景状态筛选（可选，draft/active/archived）\n\nReturns:\n    JSON 格式的场景列表\n\nExample:\n    >>> result = await list_test_scenarios(\"PR-1234\")",
+    "parameters": {
+     "properties": {
+      "project_identifier": {
+       "type": "string"
+      },
+      "status": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      }
+     },
+     "required": [
+      "project_identifier"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ {
+  "i": 67,
+  "type": "ToolMessage",
+  "content": {
+   "type": "function",
+   "function": {
+    "name": "execute_scenario",
+    "description": "执行测试场景\n\n按照场景定义的步骤顺序执行所有 API 调用，处理数据依赖，验证断言。\n\nArgs:\n    scenario_id: 场景 ID\n    variables: 运行时变量（可选，如 {\"username\": \"test\", \"password\": \"123456\"}）\n    base_url: API 基础 URL（可选，如 \"https://api.example.com\"）\n    debug: 是否启用调试模式（可选，启用后会返回详细的请求/响应信息）\n    skip_assertion_gate: 是否跳过断言质量门禁（可选，默认 False）。\n        当断言持久化存在后端 bug 导致无法配置断言时，可设为 True 绕过门禁执行。\n        注意：跳过门禁后，步骤即使没有 jsonpath 断言也能执行，但步骤结果中不会有业务断言验证。\n    skip_design_gate: 是否跳过场景设计静态预检（可选，默认 False）。\n        当接口 schema 不完整导致误报，或调试生成阶段行为时可设为 True 绕过。\n\nReturns:\n    JSON 格式的执行结果，包含每个步骤的详细执行信息\n\nExample:\n    >>> result = await execute_scenario(\n    ...     scenario_id=\"uuid-xxx\",\n    ...     variables={\"username\": \"testuser\", \"password\": \"pass123\"},\n    ...     base_url=\"https://api.example.com\",\n    ...     debug=True\n    ... )",
+    "parameters": {
+     "properties": {
+      "scenario_id": {
+       "type": "string"
+      },
+      "variables": {
+       "anyOf": [
+        {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      },
+      "base_url": {
+       "default": "",
+       "type": "string"
+      },
+      "debug": {
+       "default": false,
+       "type": "boolean"
+      },
+      "skip_assertion_gate": {
+       "default": false,
+       "type": "boolean"
+      },
+      "skip_design_gate": {
+       "default": false,
+       "type": "boolean"
+      }
+     },
+     "required": [
+      "scenario_id"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ {
+  "i": 68,
+  "type": "ToolMessage",
+  "content": {
+   "type": "function",
+   "function": {
+    "name": "validate_scenario_design",
+    "description": "对场景设计做静态预检，在执行前发现生成侧质量问题。\n\n校验项：\n- 必填字段缺失\n- 路径参数未映射\n- 分页/列表步骤缺少业务断言\n- 创建类步骤缺少 teardown\n- params 中未在 schema 声明的参数\n- 模板变量是否可在运行时 variables 中解析\n\nArgs:\n    scenario_id: 场景 ID\n    variables: 执行时传入的运行时变量（可选），用于校验模板变量是否可解析\n\nReturns:\n    JSON 格式的校验报告，包含 errors / warnings / suggestions\n\nExample:\n    >>> result = await validate_scenario_design(\"uuid-xxx\")\n    >>> result = await validate_scenario_design(\"uuid-xxx\", variables={\"siteName\": \"demo\"})",
+    "parameters": {
+     "properties": {
+      "scenario_id": {
+       "type": "string"
+      },
+      "variables": {
+       "anyOf": [
+        {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null
+      }
+     },
+     "required": [
+      "scenario_id"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ }
+]

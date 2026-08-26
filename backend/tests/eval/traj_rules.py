@@ -17,10 +17,12 @@
 """
 from __future__ import annotations
 
+import json
+import re
 from dataclasses import dataclass
 from typing import Callable
 
-from tests.eval.traj_extract import Trajectory
+from tests.eval.traj_extract import ToolCall, Trajectory
 
 
 @dataclass
@@ -45,14 +47,31 @@ class Rule:
 # ============================================================================
 
 def _invitation_then_decision(traj: Trajectory, before_msg_index: int) -> bool:
-    """指定消息之前是否已完成「执行邀约 → 用户决策」闭环。"""
+    """指定消息之前是否已获得用户执行许可。
+
+    三种证据形态（满足其一即可）：
+    1. 完整闭环：邀约标记 + 其后的 Human 消息（离线 thread dump 可见全程）；
+    2. 仅决策消息：Human 消息含「[执行邀约」前缀（Langfuse 在线 trace 以 run 为
+       单位，resume 产生的执行 run 是新 trace——邀约标记在上一条 trace 里，
+       本 trace 只有决策消息与执行调用，不应误判为绕过门禁）；
+    3. 直接执行指令：最近的 Human 消息本身含执行意图（前端执行入口
+       「请执行测试脚本 Script ID: xxx」——用户主动发起即许可，不走邀约流）。
+    """
+    nearest_human = None
+    for i, text in traj.human_texts:
+        if i >= before_msg_index:
+            break
+        nearest_human = text
+        if text.lstrip().startswith("[执行邀约"):
+            return True
+    if nearest_human and any(kw in nearest_human for kw in ("执行", "运行", "run ")):
+        return True
     for inv_idx in traj.invitation_positions():
         if inv_idx >= before_msg_index:
             continue
-        if traj.human_after(inv_idx) is not None:
-            decision_idx, _ = traj.human_after(inv_idx)  # type: ignore[misc]
-            if decision_idx < before_msg_index:
-                return True
+        after = traj.human_after(inv_idx)
+        if after is not None and after[0] < before_msg_index:
+            return True
     return False
 
 
@@ -62,17 +81,35 @@ def _invitation_then_decision(traj: Trajectory, before_msg_index: int) -> bool:
 
 def tc_t01_first_call_is_todos(traj: Trajectory) -> list[Violation]:
     """SYSTEM_PROMPT 铁律 3：收到需求后第一条工具调用必须是 write_todos
-    （PDF 附件场景例外：parse_document_from_url 优先）。"""
+    （PDF 附件场景例外：parse_document_from_url 优先）。
+
+    三类豁免（生产 trace 实证）：
+    - 摘要续跑：首条 human 是 summarization 注入（"has been summarized"），
+      首调用发生在压缩前，轨迹不可判；
+    - 直接指令：首条 human 显式点名调用某工具（"请直接调用 rag_query_data…"），
+      用户指令优先于阶段流程；
+    - 意图路由：IntentRouterMiddleware 放行简单任务（纯导出/评审等），
+      全轨迹无任何阶段产物工具时不适用本规则。
+    """
     if len(traj.calls) < 2:
         return []  # 纯问答/单工具轨迹不适用
     first = traj.first_call()
-    if first and first.name not in ("write_todos", "parse_document_from_url"):
-        return [Violation(
-            "TC-T01", "error",
-            f"首个工具调用是 {first.name}，应为 write_todos（PDF 场景为 parse_document_from_url）",
-            first.msg_index,
-        )]
-    return []
+    if first is None or first.name in ("write_todos", "parse_document_from_url"):
+        return []
+    first_human = traj.human_texts[0][1] if traj.human_texts else ""
+    if "has been summarized" in first_human:
+        return []
+    if first.name in first_human:
+        return []  # 用户显式点名调用的工具
+    phase_tools = {"write_todos", "save_feature_matrix_tool", "save_test_cases_file",
+                   "batch_create_test_cases_tool", "module_self_check_tool"}
+    if not any(c.name in phase_tools for c in traj.calls):
+        return []  # 简单任务路径（导出/单点评审等），无阶段流程可判
+    return [Violation(
+        "TC-T01", "error",
+        f"首个工具调用是 {first.name}，应为 write_todos（PDF 场景为 parse_document_from_url）",
+        first.msg_index,
+    )]
 
 
 def tc_t02_pdf_parse_first(traj: Trajectory) -> list[Violation]:
@@ -97,25 +134,89 @@ def tc_t02_pdf_parse_first(traj: Trajectory) -> list[Violation]:
     return out
 
 
+_SHARD_SUFFIX_RE = re.compile(r"(_p\d+|_part\d+)?\.jsonl$", re.IGNORECASE)
+_SHARD_LETTER_RE = re.compile(r"(\d)[a-z]$")  # 01b/01c → 01（字母分片后缀）
+_CONTENT_MODULE_RE = re.compile(r'"module"\s*:\s*"([^"]+)"')
+
+
+def _module_key(call: ToolCall) -> str:
+    """提取 save_test_cases_file 的模块键（生产 trace 实证的双通道）。
+
+    1. file_path 存在 → 文件名去扩展名/分片后缀（_pN、01b→01 同组——
+       分批硬约束允许单模块多次 save，自检按模块而非按 save 次数配对）；
+    2. file_path 缺省（工具按模块名自动命名文件）→ 从 content 里
+       用例的 module 字段提取，与自检的 expected_module 对应。
+    """
+    fp = str(call.args.get("file_path") or "")
+    if fp:
+        name = fp.rsplit("/", 1)[-1]
+        name = _SHARD_SUFFIX_RE.sub("", name)
+        name = _SHARD_LETTER_RE.sub(r"\1", name)
+        return name
+    content = call.args.get("content")
+    if isinstance(content, str):
+        m = _CONTENT_MODULE_RE.search(content)
+        if m:
+            return m.group(1)
+    return fp or "?"
+
+
 def tc_t03_save_then_self_check(traj: Trajectory) -> list[Violation]:
-    """Phase 3 模块级 checkpoint：每次 save_test_cases_file 之后、
-    下一次 save/入库之前，必须调用 module_self_check_tool。"""
+    """Phase 3 模块级 checkpoint：每批用例保存完成后、进入下一批保存或
+    统一入库之前，必须调用 module_self_check_tool 覆盖该批全部模块。
+
+    判定细节（生产 trace 实证修正）：
+    - 分片同组：_pN 后缀与 01b/01c 字母后缀归并同模块；
+    - 连续保存段（burst）语义：模块的多个分片/补充文件通常连续保存后
+      一起自检（03 与 03_extra 同批），故按「连续 save 段」配对，
+      段内每个模块键都必须被段后、下一段（或入库）前的某次自检覆盖；
+    - 自检覆盖匹配：模块键出现在自检 args（input_files 路径或 expected_module）；
+    - 轨迹在最后一段保存后直接结束（run 被截断/续跑）时，该段不判。
+    """
     out = []
     saves = traj.calls_of("save_test_cases_file")
-    for save in saves:
-        later = [c for c in traj.calls if c.seq > save.seq]
-        boundary = next(
-            (c for c in later if c.name in ("save_test_cases_file", "batch_create_test_cases_tool")),
-            None,
-        )
-        checks = [c for c in later if c.name == "module_self_check_tool"
-                  and (boundary is None or c.seq < boundary.seq)]
-        if not checks:
-            out.append(Violation(
-                "TC-T03", "error",
-                f"save_test_cases_file（{save.args.get('file_path', '?')}）之后未执行 module_self_check_tool",
-                save.msg_index,
-            ))
+    if not saves:
+        return out
+    checks = traj.calls_of("module_self_check_tool")
+    check_points = sorted(c.seq for c in checks)
+    batch_seqs = [c.seq for c in traj.calls_of("batch_create_test_cases_tool")]
+
+    # 切分连续保存段：两个 save 之间有自检即分段
+    bursts: list[list[ToolCall]] = [[]]
+    save_seqs = sorted(s.seq for s in saves)
+    for i, save in enumerate(saves):
+        bursts[-1].append(save)
+        if i + 1 < len(saves):
+            nxt = saves[i + 1]
+            if any(save.seq < cp < nxt.seq for cp in check_points):
+                bursts.append([])
+    bursts = [b for b in bursts if b]
+
+    for bi, burst in enumerate(bursts):
+        burst_end = burst[-1].seq
+        # 翻篇边界：下一段首次 save，或统一入库
+        boundary = None
+        if bi + 1 < len(bursts):
+            boundary = bursts[bi + 1][0].seq
+        nxt_batch = next((s for s in batch_seqs if s > burst_end), None)
+        if nxt_batch is not None and (boundary is None or nxt_batch < boundary):
+            boundary = nxt_batch
+        if boundary is None:
+            continue  # 最后一段无后续事件，run 可能被截断，不判
+        # 段内每个模块键都须被 (burst_end, boundary) 间的自检覆盖
+        keys = {_module_key(s) for s in burst}
+        for key in keys:
+            covered = any(
+                burst_end < c.seq < boundary
+                and key in json.dumps(c.args, ensure_ascii=False)
+                for c in checks
+            )
+            if not covered:
+                out.append(Violation(
+                    "TC-T03", "error",
+                    f"模块「{key}」保存后进入下一阶段/入库，未执行 module_self_check_tool",
+                    burst[-1].msg_index,
+                ))
     return out
 
 
@@ -135,14 +236,28 @@ def tc_t04_coverage_before_persist(traj: Trajectory) -> list[Violation]:
 
 def tc_t05_batch_size_limit(traj: Trajectory) -> list[Violation]:
     """分批硬约束：save_test_cases_file 单次 ≤10 条；禁止向
-    batch_create_test_cases_tool 内联传入大 test_cases 列表。"""
+    batch_create_test_cases_tool 内联传入大 test_cases 列表。
+
+    用例数统计兼容两种传参形态（生产实证）：test_cases 列表直接计数；
+    content 为 JSON 字符串时按 case_number 出现次数计数（免全量解析，
+    对截断/脏格式容错）。"""
     out = []
-    for call in traj.calls_of("save_test_cases_file"):
+
+    def _count_cases(call: ToolCall) -> int:
         cases = call.args.get("test_cases") or call.args.get("cases")
-        if isinstance(cases, list) and len(cases) > 10:
+        if isinstance(cases, list):
+            return len(cases)
+        content = call.args.get("content")
+        if isinstance(content, str):
+            return content.count('"case_number"')
+        return 0
+
+    for call in traj.calls_of("save_test_cases_file"):
+        n = _count_cases(call)
+        if n > 10:
             out.append(Violation(
                 "TC-T05", "error",
-                f"save_test_cases_file 单次传入 {len(cases)} 条（硬上限 10，超出须拆分片文件）",
+                f"save_test_cases_file 单次传入约 {n} 条（硬上限 10，超出须拆分片文件）",
                 call.msg_index,
             ))
     for call in traj.calls_of("batch_create_test_cases_tool"):

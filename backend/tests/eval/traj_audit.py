@@ -102,7 +102,8 @@ def main() -> None:
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
 
-    paths = [Path(f) for f in args.files] if args.files else sorted(args.dir.glob("*.json"))
+    paths = ([Path(f) for f in args.files] if args.files
+             else sorted(p for p in args.dir.glob("*.json") if not p.name.startswith(".")))
     if not paths:
         print(f"未找到轨迹样本（{args.dir}）。先跑 tests.eval.traj_harvest 采集。")
         sys.exit(0)

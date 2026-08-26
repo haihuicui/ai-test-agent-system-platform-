@@ -108,8 +108,10 @@ class TestTestcaseRules:
         assert not errs, f"标杆流程不应有 error：{errs}"
 
     def test_t01_first_call_must_be_todos(self):
-        bad = [human("需求"), ai(calls=[("rag_query_data", {})]),
-               ai(calls=[("write_todos", {})])]
+        bad = [human("为登录功能生成完整测试用例，走全流程"),
+               ai(calls=[("rag_query_data", {})]),
+               ai(calls=[("write_todos", {})]),
+               ai(calls=[("save_feature_matrix_tool", {})])]
         check("TC-T01", bad, "testcase", True)
         check("TC-T01", self.GOOD_FLOW, "testcase", False)
         # PDF 场景 parse 优先不算违规
@@ -117,6 +119,33 @@ class TestTestcaseRules:
                      ai(calls=[("parse_document_from_url", {"url": "http://x"})]),
                      ai(calls=[("write_todos", {})])]
         check("TC-T01", pdf_first, "testcase", False)
+
+    def test_t01_exemptions(self):
+        """三类豁免（生产 trace 实证，误报修正）。"""
+        # 摘要续跑：首条 human 是 summarization 注入
+        summarized = [
+            human("You are in the middle of a conversation that has been summarized..."),
+            ai(calls=[("save_test_cases_file", {"file_path": "m05.jsonl"})]),
+            ai(calls=[("module_self_check_tool", {"input_files": ["m05.jsonl"]})]),
+            ai(calls=[("batch_create_test_cases_tool", {"input_file": ["m05.jsonl"]})]),
+        ]
+        check("TC-T01", summarized, "testcase", False)
+        # 直接指令：用户显式点名工具
+        directed = [
+            human("请直接调用 rag_query_data 工具查询以下问题：1.登录 2.支付"),
+            ai(calls=[("rag_query_data", {"query": "登录"})]),
+            ai(calls=[("rag_query_data", {"query": "支付"})]),
+            ai(calls=[("save_test_cases_file", {"file_path": "m01.jsonl"})]),
+            ai(calls=[("module_self_check_tool", {"input_files": ["m01.jsonl"]})]),
+        ]
+        check("TC-T01", directed, "testcase", False)
+        # 意图路由：纯导出任务无阶段流程
+        export_only = [
+            human("把之前的用例导出成 Excel"),
+            ai(calls=[("export_test_cases_to_excel", {"input_file": ["m01.jsonl"]})]),
+            ai(calls=[("read_file", {"path": "/x"})]),
+        ]
+        check("TC-T01", export_only, "testcase", False)
 
     def test_t02_pdf_attachment_must_parse_first(self):
         bad = [
@@ -136,9 +165,43 @@ class TestTestcaseRules:
             ai(calls=[("write_todos", {})]),
             ai(calls=[("save_test_cases_file", {"file_path": "m01.jsonl"})]),
             ai(calls=[("save_test_cases_file", {"file_path": "m02.jsonl"})]),
+            ai(calls=[("module_self_check_tool", {"input_files": ["m02.jsonl"]})]),
+            ai(calls=[("batch_create_test_cases_tool", {"input_file": ["m01.jsonl", "m02.jsonl"]})]),
+        ]
+        check("TC-T03", bad, "testcase", True)  # m01 未自检就入库
+        check("TC-T03", self.GOOD_FLOW, "testcase", False)
+
+    def test_t03_sharded_saves_pair_one_check(self):
+        """分片文件同属一个模块：多次 save + 一次自检 → 合规（生产实证修正）。"""
+        sharded = [
+            ai(calls=[("write_todos", {})]),
+            ai(calls=[("save_test_cases_file", {"file_path": "test_cases_module_05_p1.jsonl"})]),
+            ai(calls=[("save_test_cases_file", {"file_path": "test_cases_module_05_p2.jsonl"})]),
+            ai(calls=[("module_self_check_tool",
+                       {"input_files": ["test_cases_module_05_p1.jsonl",
+                                        "test_cases_module_05_p2.jsonl"]})]),
+            ai(calls=[("batch_create_test_cases_tool",
+                       {"input_file": ["test_cases_module_05_p1.jsonl"]})]),
+        ]
+        check("TC-T03", sharded, "testcase", False)
+
+    def test_t03_trace_ends_after_save_not_judged(self):
+        """轨迹在保存后直接结束（run 可能被截断/摘要续跑），不判违规。"""
+        cut = [
+            ai(calls=[("write_todos", {})]),
+            ai(calls=[("save_test_cases_file", {"file_path": "m01.jsonl"})]),
+            ai(calls=[("save_test_cases_file", {"file_path": "m01_p2.jsonl"})]),
+        ]
+        check("TC-T03", cut, "testcase", False)
+
+    def test_t03_batch_persist_without_check_flagged(self):
+        """模块保存后未自检直接统一入库 → 违规。"""
+        bad = [
+            ai(calls=[("write_todos", {})]),
+            ai(calls=[("save_test_cases_file", {"file_path": "m01.jsonl"})]),
+            ai(calls=[("batch_create_test_cases_tool", {"input_file": ["m01.jsonl"]})]),
         ]
         check("TC-T03", bad, "testcase", True)
-        check("TC-T03", self.GOOD_FLOW, "testcase", False)
 
     def test_t04_coverage_before_persist(self):
         bad = [
@@ -161,6 +224,38 @@ class TestTestcaseRules:
         ]
         check("TC-T05", bad_inline, "testcase", True)
         check("TC-T05", self.GOOD_FLOW, "testcase", False)
+
+    def test_t05_content_form_counted(self):
+        """生产实证：save_test_cases_file 的真实传参是 content JSON 字符串，
+        按 case_number 计数（>10 条违规）。"""
+        cases_12 = ", ".join(f'{{"case_number": "TC-X-{i:03d}"}}' for i in range(12))
+        bad = [
+            ai(calls=[("write_todos", {})]),
+            ai(calls=[("save_test_cases_file", {"content": f"[{cases_12}]"})]),
+        ]
+        check("TC-T05", bad, "testcase", True)
+        cases_10 = ", ".join(f'{{"case_number": "TC-X-{i:03d}"}}' for i in range(10))
+        ok = [
+            ai(calls=[("write_todos", {})]),
+            ai(calls=[("save_test_cases_file", {"content": f"[{cases_10}]"})]),
+        ]
+        check("TC-T05", ok, "testcase", False)
+
+    def test_t03_module_key_from_content(self):
+        """file_path 缺省时从 content 的 module 字段分组，
+        自检用 expected_module 匹配（生产实证双通道）。"""
+        flow = [
+            ai(calls=[("write_todos", {})]),
+            ai(calls=[("save_test_cases_file", {"content": '[{"case_number": "TC-1", "module": "指令构造"}]'})]),
+            ai(calls=[("save_test_cases_file", {"content": '[{"case_number": "TC-2", "module": "指令构造"}]'})]),
+            ai(calls=[("module_self_check_tool", {"expected_module": "指令构造",
+                                                 "input_files": ["test_cases_module_03.jsonl"]})]),
+            ai(calls=[("batch_create_test_cases_tool", {"input_file": ["test_cases_module_03.jsonl"]})]),
+        ]
+        check("TC-T03", flow, "testcase", False)
+        # 对照：同形态但自检缺失 → 违规
+        bad = flow[:3] + [ai(calls=[("batch_create_test_cases_tool", {"input_file": ["x.jsonl"]})])]
+        check("TC-T03", bad, "testcase", True)
 
     def test_t06_review_citations_verified(self):
         bad = [
@@ -242,6 +337,31 @@ class TestWebRules:
         check("WB-T02", no_decision, "web", True)
         check("WB-T02", self.GOOD_FLOW, "web", False)
 
+    def test_t02_resume_run_trace_not_misjudged(self):
+        """resume 产生的执行 run 是独立 trace：邀约在上一条 trace，
+        本 trace 只有决策消息 + 执行调用，不算绕过门禁。"""
+        resume_run = [
+            human("[执行邀约] 立即执行"),
+            ai(calls=[("execute_web_script", {"script_path": "a"})]),
+        ]
+        check("WB-T02", resume_run, "web", False)
+
+    def test_t02_direct_execute_entry_not_misjudged(self):
+        """前端执行入口「请执行测试脚本 Script ID: xxx」——用户主动发起即许可。
+        （生产实证：trace 9709ce6d 曾因此假阳性）"""
+        direct = [
+            human("请执行测试脚本:\n\n**Script ID**: 4ca50419\n**Project ID**: PR-1"),
+            ai(calls=[("execute_web_script", {"script_id": "4ca50419"})]),
+        ]
+        check("WB-T02", direct, "web", False)
+        # 对照：用户只要求生成、Agent 自行执行 → 仍违规
+        autonomous = [
+            human("帮我写一个登录测试脚本"),
+            ai(calls=[("generator_write_test", {})]),
+            ai(calls=[("execute_web_script", {"script_path": "a"})]),
+        ]
+        check("WB-T02", autonomous, "web", True)
+
     def test_t04_mcp_test_run_bypass(self):
         bad = [
             ai(calls=[("planner_setup_page", {})]),
@@ -314,6 +434,14 @@ class TestApiRules:
         # scenario 同样受门禁
         bad_sc = [human("测"), ai(calls=[("execute_scenario", {"scenario_id": "s1"})])]
         check("API-T01", bad_sc, "api", True)
+
+    def test_t01_resume_run_trace_not_misjudged(self):
+        """同 WB-T02：resume run 的独立 trace 只有决策消息 + 执行调用。"""
+        resume_run = [
+            human("[执行邀约] 立即执行"),
+            ai(calls=[("execute_scenario", {"scenario_id": "s1"})]),
+        ]
+        check("API-T01", resume_run, "api", False)
 
     def test_t02_audit_before_save(self):
         bad = [human("测"), ai(calls=[("save_test_script", {"script_content": "x"})])]
