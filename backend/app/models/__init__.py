@@ -19,6 +19,7 @@ from .test_plan import TestPlan
 from .api_test import APITest, APITestRun, APITestResult
 from .api_endpoint import APIEndpoint
 from .api_annotation import APIAnnotation
+from .openapi_spec_snapshot import OpenAPISpecSnapshot
 from .environment import ProjectEnvironment, AuthType
 from .storage_state_job import StorageStateJob
 from .android_test import AndroidTest, AndroidTestRun, AndroidTestResult
@@ -70,6 +71,7 @@ __all__ = [
     "APITestResult",
     "APIEndpoint",
     "APIAnnotation",
+    "OpenAPISpecSnapshot",
     "ProjectEnvironment",
     "AuthType",
     "StorageStateJob",

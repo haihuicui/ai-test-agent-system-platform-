@@ -107,9 +107,11 @@ async def upload_openapi_schema(
 
     # 3. 获取 OpenAPI 内容
     openapi_spec = request.file_content
+    spec_source = "upload"
 
     # 如果提供的是 URL，则从远程获取
     if isinstance(openapi_spec, dict) and "url" in openapi_spec:
+        spec_source = "url"
         url = openapi_spec["url"]
         try:
             openapi_spec = await fetch_openapi_from_url(url)
@@ -138,9 +140,10 @@ async def upload_openapi_schema(
         result = await parser.parse_and_create_structure(
             project_id=project.id,
             parent_folder_id=parent_id,
-            schema_file_id=None,  # 暂时不上传文件
+            schema_file_id=None,  # 完整 spec 以快照形式存 openapi_spec_snapshots 表
             openapi_spec=openapi_spec,
-            user_id=current_user_id
+            user_id=current_user_id,
+            source=spec_source
         )
         await db.commit()
 

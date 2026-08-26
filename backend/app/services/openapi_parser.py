@@ -7,6 +7,7 @@ OpenAPI Schema 解析服务
 import json
 from typing import Any
 from uuid import UUID
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.api_endpoint import APIEndpoint
@@ -14,10 +15,12 @@ from app.models.attachment import Attachment
 from app.models.folder import Folder
 from app.models.project import Project
 from app.models.folder_type import FolderType
+from app.models.openapi_spec_snapshot import OpenAPISpecSnapshot
 from app.services.dependency_inference import (
     infer_endpoint_dependencies,
     upsert_inferred_dependencies,
 )
+from app.services.openapi_resolver import resolve_refs
 
 
 def _resolve_linked_endpoints(
@@ -74,10 +77,14 @@ class OpenAPIParser:
         parent_folder_id: UUID | None,
         schema_file_id: UUID,
         openapi_spec: dict[str, Any],
-        user_id: UUID
+        user_id: UUID,
+        source: str = "upload"
     ) -> dict[str, Any]:
         """
         解析 OpenAPI Spec 并创建文件夹结构
+
+        重复导入是幂等的：按 (project_id, method, path) 匹配已有端点做更新，
+        文件夹按名复用，不产生重复结构；每次导入留存完整 spec 快照。
 
         Args:
             project_id: 项目 ID
@@ -85,6 +92,7 @@ class OpenAPIParser:
             schema_file_id: Schema 文件 ID
             openapi_spec: OpenAPI 规范字典
             user_id: 当前用户 ID
+            source: 文档来源（upload / url），用于快照记录
 
         Returns:
             包含创建的文件夹和端点信息的字典
@@ -94,9 +102,26 @@ class OpenAPIParser:
         title = info.get("title", "API")
         version = info.get("version", "1.0.0")
 
-        # 提取所有路径
-        paths = openapi_spec.get("paths", {})
+        # 提取所有路径，并就地展开本地 $ref（#/components/schemas/、#/definitions/ 等）
+        # 循环引用/外部引用/超深保留 $ref 原样，由下游降级处理
+        raw_paths = openapi_spec.get("paths", {})
+        ref_resolution = "ok"
+        try:
+            paths = resolve_refs(raw_paths, openapi_spec)
+        except Exception:  # pylint: disable=broad-except
+            paths = raw_paths
+            ref_resolution = "failed_fallback_raw"
         top_servers = openapi_spec.get("servers", [])
+
+        # 留存完整 spec 快照（审计/重解析/排障用）
+        self.db.add(OpenAPISpecSnapshot(
+            project_id=project_id,
+            title=title,
+            version=version,
+            source=source,
+            endpoint_count=len(raw_paths),
+            spec=openapi_spec,
+        ))
 
         # 按标签分组端点
         endpoints_by_tag = self._group_endpoints_by_tag(paths, top_servers)
@@ -131,6 +156,8 @@ class OpenAPIParser:
 
         # 为每个标签组创建文件夹
         created_endpoints: list[dict[str, Any]] = []  # (端点 + 原始数据)，供依赖推断使用
+        endpoints_created = 0
+        endpoints_updated = 0
         for tag_name, endpoints in sorted(endpoints_by_tag.items()):
             # 创建标签文件夹（如 "Activities"）
             tag_folder = await self._create_tag_folder(
@@ -148,13 +175,17 @@ class OpenAPIParser:
 
             # 为每个端点创建子文件夹（如 "GET /api/v1/Activities"）
             for endpoint_data in endpoints:
-                endpoint = await self._create_endpoint_folder(
+                endpoint, was_created = await self._create_endpoint_folder(
                     project_id=project_id,
                     parent_folder_id=tag_folder.id,
                     endpoint_data=endpoint_data,
                     schema_file_id=schema_file_id,
                     tag_name=tag_name
                 )
+                if was_created:
+                    endpoints_created += 1
+                else:
+                    endpoints_updated += 1
                 result["endpoints"].append({
                     "endpoint_id": str(endpoint.id),
                     "display_name": endpoint.display_name,
@@ -190,9 +221,11 @@ class OpenAPIParser:
         result["summary"] = {
             "message": f"成功解析 OpenAPI 文档：{title} v{version}",
             "folders_created": len(result["tag_folders"]),
-            "endpoints_created": result["total_endpoints"],
+            "endpoints_created": endpoints_created,
+            "endpoints_updated": endpoints_updated,
+            "ref_resolution": ref_resolution,
             "dependencies_inferred": dep_result,
-            "structure": "已创建按标签分组的文件夹结构，可以在左侧查看"
+            "structure": "已创建按标签分组的文件夹结构，可以在左侧查看；重复导入按 (method, path) 更新已有端点"
         }
 # type: ignore  MS80OmFIVnBZMlhsdEpUbXRiZm92b2s2Y0ZwV1p3PT06MDg1MGI4ODg=
 
@@ -290,8 +323,17 @@ class OpenAPIParser:
         Returns:
             创建的文件夹对象
         """
-        # 检查是否已存在同名文件夹
-        # 这里简化处理，实际应该查询数据库
+        # 幂等：同项目 + 同父目录 + 同名的 API_TEST 标签文件夹直接复用（重复导入不产生重复结构）
+        existing_stmt = select(Folder).where(
+            Folder.project_id == project_id,
+            Folder.parent_id == parent_folder_id,
+            Folder.name == tag_name,
+            Folder.folder_type == FolderType.API_TEST,
+        )
+        existing_result = await self.db.execute(existing_stmt)
+        existing = existing_result.scalar_one_or_none()
+        if existing:
+            return existing
 
         folder = Folder(
             project_id=project_id,
@@ -313,9 +355,14 @@ class OpenAPIParser:
         endpoint_data: dict[str, Any],
         schema_file_id: UUID,
         tag_name: str
-    ) -> APIEndpoint:
+    ) -> tuple[APIEndpoint, bool]:
         """
-        创建端点定义和对应的文件夹
+        创建或更新端点定义（幂等）及对应的文件夹
+
+        按 (project_id, method, path) 匹配已有端点：
+        - 已存在 → 就地更新契约字段（参数/请求体/响应/security/links 等），
+          复用原文件夹，返回 (endpoint, False)
+        - 不存在 → 新建端点与子文件夹，返回 (endpoint, True)
 
         Args:
             project_id: 项目 ID
@@ -325,10 +372,42 @@ class OpenAPIParser:
             tag_name: 标签名称
 
         Returns:
-            创建的端点对象
+            (端点对象, 是否新建)
         """
         path = endpoint_data["path"]
         method = endpoint_data["method"]
+
+        # 幂等：同项目同方法同路径的端点就地更新（重复导入不产生重复端点）
+        existing_stmt = select(APIEndpoint).where(
+            APIEndpoint.project_id == project_id,
+            APIEndpoint.method == method,
+            APIEndpoint.path == path,
+        )
+        existing_result = await self.db.execute(existing_stmt)
+        existing = existing_result.scalar_one_or_none()
+        if existing:
+            existing.summary = endpoint_data.get("summary")
+            existing.description = endpoint_data.get("description")
+            existing.schema_file_id = schema_file_id
+            existing.parameters = endpoint_data.get("parameters")
+            existing.request_body = endpoint_data.get("request_body")
+            existing.responses = endpoint_data.get("responses")
+            existing.security = endpoint_data.get("security")
+            existing.links = endpoint_data.get("links")
+            existing.callbacks = endpoint_data.get("callbacks")
+            existing.tags = endpoint_data.get("tags")
+            existing.tag_group = tag_name
+            existing.sort_order = self._get_method_sort_order(method)
+            existing.custom_config = {
+                "deprecated": endpoint_data.get("deprecated", False),
+                "operation_id": endpoint_data.get("operation_id"),
+                "resource_name": (existing.custom_config or {}).get("resource_name"),
+                "folder_name": (existing.custom_config or {}).get("folder_name"),
+                "servers": endpoint_data.get("servers", []),
+                "linked_endpoints": endpoint_data.get("linked_endpoints")
+            }
+            await self.db.flush()
+            return existing, False
 
         # 提取路径的最后一部分作为资源名称
         # 例如：/api/v1/Activities -> Activities
@@ -384,7 +463,7 @@ class OpenAPIParser:
         self.db.add(endpoint)
         await self.db.flush()
 
-        return endpoint
+        return endpoint, True
 
     def _get_method_sort_order(self, method: str) -> int:
         """
