@@ -6,6 +6,8 @@ whitespace-only extraction guard (scanned-PDF case) and the
 ``PDF_DECRYPT_PASSWORD`` plumbing.
 """
 
+import sys
+
 import pytest
 
 import lightrag.pipeline as _pipeline
@@ -65,6 +67,50 @@ async def test_legacy_parse_txt_persists_and_archives(tmp_path, archived):
     assert archived == [str(source)]
     # to_dict stays byte-compatible: no spurious skip/warning keys.
     assert "parse_stage_skipped" not in result.to_dict()
+
+
+async def test_legacy_parse_gbk_csv_decodes_via_fallback(tmp_path, archived):
+    # GBK-encoded CSV (typical Chinese Excel export) is not valid UTF-8; the
+    # legacy extractor must decode it via the charset fallback instead of
+    # failing the parse stage.
+    source = tmp_path / "cases.csv"
+    source.write_bytes("用例编号,标题\nTC-1,登录成功\n".encode("gbk"))
+    rag = _FakeRag()
+
+    result = await LegacyParser().parse(_ctx(rag, source))
+
+    assert "登录成功" in result.content
+    assert result.parse_engine == "legacy"
+    assert rag.persisted[0][1]["content"] == result.content
+
+
+async def test_legacy_parse_utf8_bom_stripped(tmp_path, archived):
+    source = tmp_path / "bom.txt"
+    source.write_bytes("﻿hello".encode("utf-8"))
+    rag = _FakeRag()
+
+    result = await LegacyParser().parse(_ctx(rag, source))
+
+    assert result.content == "hello"
+
+
+async def test_legacy_parse_undecodable_bytes_still_raises(
+    tmp_path, archived, monkeypatch
+):
+    # Bytes that defeat both charset detection and GB18030 must still fail the
+    # parse stage with a clear error.  charset-normalizer is stubbed out so the
+    # GB18030 rejection is the only path under test (deterministic across
+    # charset-normalizer versions).
+    monkeypatch.setitem(sys.modules, "charset_normalizer", None)
+    source = tmp_path / "broken.txt"
+    source.write_bytes(b"\x81\x7f broken")
+    rag = _FakeRag()
+
+    with pytest.raises(LegacyExtractionError, match="not valid UTF-8"):
+        await LegacyParser().parse(_ctx(rag, source))
+
+    assert rag.persisted == []
+    assert archived == []
 
 
 async def test_legacy_parse_unsupported_suffix_raises(tmp_path, archived):

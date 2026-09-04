@@ -1,15 +1,19 @@
 """Legacy text extractors (moved from the API layer).
 
 ``extract_text`` dispatches on file suffix: binary office/pdf formats use the
-dedicated ``_extract_*`` helpers; everything else is decoded as UTF-8 text
-with the same validation (empty / binary-looking / non-UTF-8) the API upload
-path used to enforce — now raised as :class:`LegacyExtractionError` so a bad
-file fails the parse stage instead of silently yielding an empty document.
+dedicated ``_extract_*`` helpers; everything else is decoded as text — strict
+UTF-8 first, then a best-effort charset-detection / GB18030 fallback for
+legacy-encoded exports (e.g. GBK CSVs from Chinese Excel).  The remaining
+validation (empty / binary-looking / undecodable) is raised as
+:class:`LegacyExtractionError` so a bad file fails the parse stage instead of
+silently yielding an empty document.
 """
 
 from __future__ import annotations
 
 from io import BytesIO
+
+from lightrag.utils import logger
 
 
 class LegacyExtractionError(ValueError):
@@ -150,14 +154,16 @@ _BINARY_EXTRACTORS = {
 
 
 def _decode_text(file_bytes: bytes) -> str:
-    """UTF-8 decode with the upload-path validation, raised on failure."""
+    """Decode text bytes with the upload-path validation, raised on failure.
+
+    Strict UTF-8 (BOM stripped via ``utf-8-sig``) is tried first; non-UTF-8
+    input falls back to :func:`_decode_non_utf8_fallback` instead of failing
+    outright.
+    """
     try:
-        content = file_bytes.decode("utf-8")
-    except UnicodeDecodeError as e:
-        raise LegacyExtractionError(
-            "File is not valid UTF-8 encoded text. Please convert it to "
-            f"UTF-8 before processing: {e}"
-        ) from e
+        content = file_bytes.decode("utf-8-sig")
+    except UnicodeDecodeError as utf8_error:
+        content = _decode_non_utf8_fallback(file_bytes, utf8_error)
     if not content or len(content.strip()) == 0:
         raise LegacyExtractionError("File contains no content or only whitespace")
     if content.startswith("b'") or content.startswith('b"'):
@@ -165,6 +171,52 @@ def _decode_text(file_bytes: bytes) -> str:
             "File appears to contain binary data representation instead of text"
         )
     return content
+
+
+def _decode_non_utf8_fallback(file_bytes: bytes, utf8_error: UnicodeDecodeError) -> str:
+    """Best-effort decode for legacy-encoded text (e.g. GBK CSV exports).
+
+    Tries strict GB18030 first: this deployment's non-UTF-8 uploads are
+    overwhelmingly GBK/GB2312 exports from Chinese Excel, and statistical
+    charset detection demonstrably misdetects short CJK snippets (observed:
+    a GBK CSV decoded as Korean cp949, yielding garbage).  GB18030 is a
+    superset of GBK/GB2312 and rejects (raises on) byte sequences that are
+    not valid Chinese text, in which case we fall through to
+    charset-normalizer for other legacy encodings.
+    """
+    try:
+        content = file_bytes.decode("gb18030")
+    except UnicodeDecodeError:
+        pass
+    else:
+        logger.warning(
+            "Non-UTF-8 text decoded with GB18030 fallback; "
+            "consider converting the file to UTF-8"
+        )
+        return content
+
+    try:
+        from charset_normalizer import from_bytes
+    except ImportError:
+        from_bytes = None
+
+    if from_bytes is not None:
+        try:
+            best = from_bytes(file_bytes).best()
+        except Exception:  # detection must never break ingestion
+            best = None
+        if best is not None and best.encoding:
+            logger.info(
+                "Non-UTF-8 text decoded via charset detection "
+                f"(encoding={best.encoding})"
+            )
+            return str(best)
+
+    raise LegacyExtractionError(
+        "File is not valid UTF-8 encoded text and could not be decoded "
+        "with any fallback encoding. Please convert it to UTF-8 before "
+        f"processing: {utf8_error}"
+    ) from utf8_error
 
 
 def extract_text(

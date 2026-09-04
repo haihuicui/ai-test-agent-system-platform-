@@ -1,5 +1,34 @@
 # Vendored LightRAG 本地补丁存档
 
+## legacy-text-encoding-fallback.patch（2026-09-04，基于 vendored v1.5.5）
+
+**背景**：上游 legacy 解析器对 txt/csv/md 等纯文本一律按 UTF-8 硬解码，
+中文 Excel 导出的 GBK 编码 CSV 上传即报
+`file_extraction_error: File is not valid UTF-8 encoded text`
+（103 生产实测，`s52测试用例.csv`，0xd3 = GBK"测"首字节）。
+
+**内容**（lightrag/parser/legacy/extractors.py + 回归测试）：
+- `_decode_text` 改为三级解码：strict UTF-8（顺带 utf-8-sig 去 BOM）→
+  strict GB18030 → charset-normalizer 统计检测 → 仍失败才抛
+  LegacyExtractionError（保留原始 UTF-8 报错信息）
+- **GB18030 优先于统计检测是刻意的**：实测 charset-normalizer 把短 GBK
+  中文 CSV 误判为韩文 cp949 产出乱码；本部署非 UTF-8 上传绝大多数是
+  GBK/GB2312。GB18030 strict 对非中文非法字节序列会抛错，此时才落到
+  charset-normalizer 兜底西欧 legacy 编码
+- 测试：tests/parser/test_legacy_parser.py 新增 GBK CSV 解码、UTF-8 BOM
+  剥离、不可解码字节仍报错（stub 掉 charset-normalizer 保证确定性）3 例
+
+**验证**：tests/parser 422 passed（8 个 docx golden 失败为 venv 版本漂移
+存量问题，与本补丁无关——docx 子包不 import legacy）。
+
+**重放**：
+```bash
+git apply LightRAG/local-patches/legacy-text-encoding-fallback.patch
+```
+
+**注意**：103 生产需重建镜像（deploy/deploy.sh）后生效；上游若合入
+编码自适应解码（HKUDS/LightRAG 社区已有同类诉求）则废弃本补丁。
+
 ## workspace-request-routing.patch（2026-08-13，基于 vendored v1.5.5；8-19 扩展注册表）
 
 **背景**：上游 PR #2445（全端点 per-request workspace 路由）2026-03 关闭未合并，
