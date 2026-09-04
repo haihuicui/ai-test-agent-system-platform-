@@ -38,7 +38,7 @@ if [ -f "$SYNC_SCRIPT" ]; then
         python3 "$SYNC_SCRIPT" \
             --example "$SCRIPT_DIR/lightrag/.env.example" \
             --target "$SCRIPT_DIR/lightrag/.env" \
-            --keys LIGHTRAG_PARSER MULTIMODAL_PARSER DOCLING_DO_OCR VLM_PROCESS_ENABLE
+            --keys LIGHTRAG_PARSER MULTIMODAL_PARSER DOCLING_DO_OCR VLM_PROCESS_ENABLE OPENAI_LLM_MAX_COMPLETION_TOKENS
     fi
 fi
 

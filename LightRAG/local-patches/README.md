@@ -1,5 +1,38 @@
 # Vendored LightRAG 本地补丁存档
 
+## openai-empty-content-diagnostics.patch（2026-09-04，基于 vendored v1.5.5）
+
+**背景**：103 生产实体抽取阶段 `InvalidResponseError: Received empty content
+from OpenAI API` 重试耗尽致整篇文档失败（S55测试用例.xlsx，chunk-015）。
+嫌疑有两个：推理模型（deepseek-v4-flash）思考烧光 completion 预算
+（finish_reason=length）vs 提供商内容过滤（content_filter）——原代码
+空响应时只打一句通用 error，无法区分，必须靠日志确诊。
+
+**内容**（lightrag/llm/openai.py + 回归测试）：
+- 非流式空内容分支的 error 日志补充 `finish_reason`、
+  `reasoning_chars`（reasoning_content 长度）、`completion_tokens`
+- 纯日志增强，不改重试策略/控制流；finish_reason=length 时同参数重试
+  仍是确定性浪费，但止血靠部署侧加大预算（见下），不在本补丁范围
+- 配套部署改动（非 vendored，仓库原生文件）：
+  - `deploy/lightrag/.env.example` 新增
+    `OPENAI_LLM_MAX_COMPLETION_TOKENS=16384`（OpenAILLMOptions 透传到
+    每次 LLM 调用，给推理模型的思考+正文留足共享预算）
+  - `deploy/deploy.sh` 把该键加入 sync-env 托管键列表，部署时自动补写
+    进 103 的 lightrag/.env
+- 测试：tests/llm/openai_impl/test_openai_empty_content_diagnostics.py
+  2 例——日志含 finish_reason/尺寸；缺 reasoning/usage 时日志自身不炸
+
+**验证**：tests/llm/openai_impl 12/12 PASS。
+
+**重放**：
+```bash
+git apply LightRAG/local-patches/openai-empty-content-diagnostics.patch
+```
+
+**注意**：若确诊 finish_reason=length 仍频发，下一步是调
+`OPENAI_LLM_EXTRA_BODY` 限制思考深度或换非推理抽取模型；上游若自带
+空响应诊断则废弃本补丁。
+
 ## legacy-text-encoding-fallback.patch（2026-09-04，基于 vendored v1.5.5）
 
 **背景**：上游 legacy 解析器对 txt/csv/md 等纯文本一律按 UTF-8 硬解码，

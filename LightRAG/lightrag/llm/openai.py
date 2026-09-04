@@ -743,7 +743,19 @@ async def openai_complete_if_cache(
 
                 # Validate final content
                 if not final_content or final_content.strip() == "":
-                    logger.error("Received empty content from OpenAI API")
+                    # Diagnose why the model returned nothing: finish_reason
+                    # distinguishes token-budget exhaustion (reasoning models
+                    # burning the whole completion budget on thinking, observed
+                    # in production with deepseek-v4-flash) from provider-side
+                    # content filtering.
+                    finish_reason = getattr(response.choices[0], "finish_reason", None)
+                    usage = getattr(response, "usage", None)
+                    logger.error(
+                        "Received empty content from OpenAI API "
+                        f"(finish_reason={finish_reason}, "
+                        f"reasoning_chars={len(reasoning_content or '')}, "
+                        f"completion_tokens={getattr(usage, 'completion_tokens', None)})"
+                    )
                     try:
                         await openai_async_client.close()
                     except Exception as close_error:
