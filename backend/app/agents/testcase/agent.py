@@ -30,6 +30,7 @@ from app.agents.testcase.state_compaction_middleware import StaleToolResultOfflo
 from app.agents.testcase.intent_router_middleware import IntentRouterMiddleware
 from app.agents.testcase.subagent_result_guard_middleware import SubagentResultGuardMiddleware
 from app.agents.testcase.truncation_retry_middleware import TruncationRetryMiddleware
+from app.agents.testcase.invalid_tool_call_retry_middleware import InvalidToolCallRetryMiddleware
 from app.agents.testcase.image_transcribe_middleware import ImageTranscribeMiddleware
 from app.agents.testcase.tool_call_validation_middleware import (
     ToolCallAdjacencyMiddleware,
@@ -1022,6 +1023,9 @@ async def make_agent(model: Any | None = None) -> AsyncIterator[Pregel]:
     # finish_reason=length 的空消息，react 循环误判为完成、run 静默结束。
     # 置于列表首位（最外层），重试时完整重走后续注入/修复链。
     truncation_retry_middleware = TruncationRetryMiddleware()
+    # 工具调用参数 JSON 畸形兜底：finish_reason=tool_calls 但合法 tool_calls
+    # 为空时单次重试 + 可见诊断（TruncationRetry 只认 length，覆盖不到该形态）
+    invalid_tool_call_retry_middleware = InvalidToolCallRetryMiddleware()
 
     # 加载所有工具（包括本地工具和 RAG MCP 工具）
     all_tools = await get_all_tools()
@@ -1038,6 +1042,7 @@ async def make_agent(model: Any | None = None) -> AsyncIterator[Pregel]:
         system_prompt=SYSTEM_PROMPT,
         middleware=[
             truncation_retry_middleware,
+            invalid_tool_call_retry_middleware,
             image_transcribe_middleware,
             skills_middleware,
             intent_router_middleware,
