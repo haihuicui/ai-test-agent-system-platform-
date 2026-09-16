@@ -46,6 +46,8 @@ from app.core.llms import (
     get_text_model_with_temperature,
     get_qwen_model,
     get_qwen_model_with_temperature,
+    get_kimi_model,
+    get_kimi_model_with_temperature,
 )
 from app.core.tracing import with_langfuse_tracing
 from app.utils.shell_env import build_restricted_env
@@ -54,10 +56,15 @@ from app.utils.shell_env import build_restricted_env
 # - deepseek（默认）：ChatDeepSeek 直连深度求索
 # - qwen：自部署 vLLM 网关（数据不出网），同为推理模型，下方评审子代理的
 #   max_tokens 注释与预算对两者同样适用
+# - kimi：kimi.com/coding 网关（Anthropic 兼容协议），k2.7/k3 默认开启
+#   thinking，reasoning 与正文共享 max_tokens 配额，同样适用下方评审预算注释
 # 只切换文本决策模型；image_model（VLM 图片转录）恒不变。
 if settings.testcase_llm_provider == "qwen":
     text_model = get_qwen_model()
     _text_model_with_temperature = get_qwen_model_with_temperature
+elif settings.testcase_llm_provider == "kimi":
+    text_model = get_kimi_model()
+    _text_model_with_temperature = get_kimi_model_with_temperature
 else:
     text_model = deepseek_text_model
     _text_model_with_temperature = get_text_model_with_temperature

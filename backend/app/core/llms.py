@@ -181,6 +181,34 @@ def get_qwen_model_with_temperature(temperature: float = 0.3, max_tokens: int | 
     return model
 
 
+def get_kimi_model_with_temperature(temperature: float = 0.3, max_tokens: int | None = None):
+    """创建指定 temperature 的 Kimi 模型（Anthropic 兼容协议）。
+
+    与 get_text_model_with_temperature 同契约，供 testcase Agent 按阶段调温。
+    k2.7/k3 默认开启 thinking，reasoning 与正文共享 max_tokens 配额——
+    长评审场景需显式调大 max_tokens，否则正文静默为空（finish_reason=length）。
+
+    注意：此函数不使用 lru_cache，每次调用都新建实例。
+    """
+    if not settings.kimi_api_key:
+        raise RuntimeError(
+            "Kimi model not configured. Set KIMI_API_KEY in .env"
+        )
+    from langchain_anthropic import ChatAnthropic
+    model = ChatAnthropic(
+        anthropic_api_url=settings.kimi_api_base,
+        anthropic_api_key=settings.kimi_api_key,
+        default_headers={"Authorization": f"Bearer {settings.kimi_api_key}"},
+        model=settings.kimi_model,
+        temperature=temperature,
+        max_retries=settings.llm_max_retries,
+        default_request_timeout=settings.llm_timeout,
+        max_tokens=max_tokens if max_tokens is not None else settings.llm_max_tokens,
+    )
+    model.profile = ModelProfile(max_input_tokens=245760)
+    return model
+
+
 @lru_cache(maxsize=2)
 def get_kimi_model(disable_thinking: bool = False):
     """创建 Kimi 文本模型（Anthropic 兼容协议）。

@@ -190,7 +190,7 @@ class Settings(BaseSettings):
     kimi_api_key: Optional[str] = None
     kimi_model: str = "k2.7"
 
-    # testcase Agent 文本模型提供方：deepseek（默认）| qwen（自部署，数据不出网）
+    # testcase Agent 文本模型提供方：deepseek（默认）| qwen（自部署，数据不出网）| kimi
     # 只切换文本决策模型；image_model（VLM 图片转录）不受影响
     testcase_llm_provider: str = "deepseek"
 
