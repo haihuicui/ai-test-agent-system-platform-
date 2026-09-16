@@ -160,3 +160,40 @@ class TestAPIExecutionInvitationMiddleware:
         ai_msg.tool_calls = [{"name": "save_test_script", "args": {}}]
         result = middleware.after_model({"messages": [ai_msg]}, runtime=None)
         assert result is None
+
+    def test_interrupt_with_list_content_blocks(self, middleware):
+        """Anthropic 协议模型（kimi）的 content 是 blocks 列表，邀约标记在 text 块中。
+
+        回归：str(list) 得到 repr 导致标记正则失效，卡片不弹、run 静默成功。
+        """
+        payload = _build_payload()
+        text = (
+            "API 测试脚本已生成。"
+            f"\n<EXECUTION_INVITATION>{json.dumps(payload, ensure_ascii=False)}</EXECUTION_INVITATION>"
+        )
+        ai_msg = AIMessage(
+            content=[
+                {"type": "thinking", "thinking": "应该输出邀约标记"},
+                {"type": "text", "text": text},
+            ]
+        )
+
+        with patch(
+            "app.agents.api.execution_invitation_middleware.interrupt",
+            return_value={"decision": "execute"},
+        ) as mock_interrupt:
+            result = middleware.after_model({"messages": [ai_msg]}, runtime=None)
+
+        mock_interrupt.assert_called_once()
+        assert result is not None
+        assert result["jump_to"] == "model"
+
+    def test_warning_logged_when_marker_json_invalid(self, middleware, caplog):
+        """标记存在但 JSON 非法时必须留 warning 日志，避免静默死亡无从确诊。"""
+        ai_msg = AIMessage(
+            content="脚本已生成。\n<EXECUTION_INVITATION>{not valid json</EXECUTION_INVITATION>"
+        )
+        with caplog.at_level("WARNING"):
+            result = middleware.after_model({"messages": [ai_msg]}, runtime=None)
+        assert result is None
+        assert any("JSON 解析失败" in r.message for r in caplog.records)

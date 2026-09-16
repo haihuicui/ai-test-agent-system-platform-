@@ -112,6 +112,26 @@ _REVIEW_CHECKLIST: list[dict[str, str]] = [
 ]
 
 
+def _extract_text(content: Any) -> str:
+    """提取 AI 消息的纯文本内容。
+
+    content 为 str 时直接返回；为 content blocks（list）时拼接其中的 text 块——
+    Anthropic 协议模型（如 kimi）的 AIMessage.content 是
+    [{"type": "thinking", ...}, {"type": "text", "text": ...}] 结构，
+    直接 str(list) 会得到 repr，阶段标题正则失配、评审卡片不弹且
+    run 以 success 静默结束（与 api 邀约中间件同款根因）。
+    """
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return "".join(
+            block.get("text", "")
+            for block in content
+            if isinstance(block, dict) and block.get("type") == "text"
+        )
+    return str(content or "")
+
+
 def _detect_phase(content: str) -> str | None:
     """根据 Markdown 标题检测当前完成的阶段。"""
     for phase, patterns in _PHASE_PATTERNS.items():
@@ -743,7 +763,7 @@ class PhaseReviewMiddleware(AgentMiddleware):
         if not last_ai:
             return None
 
-        content = str(last_ai.content or "")
+        content = _extract_text(last_ai.content)
         phase = _detect_phase(content)
 
         # 兜底：阶段报告与工具调用混在单条 AI 消息中。

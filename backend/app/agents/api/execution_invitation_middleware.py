@@ -37,6 +37,26 @@ _EXECUTION_INVITATION_MARKER_RE = re.compile(
 )
 
 
+def _extract_text(content: Any) -> str:
+    """提取 AI 消息的纯文本内容。
+
+    content 为 str 时直接返回；为 content blocks（list）时拼接其中的 text 块——
+    Anthropic 协议模型（如 kimi）的 AIMessage.content 是
+    [{"type": "thinking", ...}, {"type": "text", "text": ...}] 结构，
+    直接 str(list) 会得到 repr，邀约标记正则/JSON 解析全部失效，
+    interrupt 不触发、run 以 success 静默结束（生产实证）。
+    """
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return "".join(
+            block.get("text", "")
+            for block in content
+            if isinstance(block, dict) and block.get("type") == "text"
+        )
+    return str(content or "")
+
+
 _DEFAULT_ALTERNATIVES = [
     {"key": "execute", "label": "立即执行"},
     {"key": "skip", "label": "暂不执行"},
@@ -313,9 +333,16 @@ class APIExecutionInvitationMiddleware(AgentMiddleware):
         if last_ai.tool_calls:
             return None
 
-        content = str(last_ai.content or "")
+        content = _extract_text(last_ai.content)
         payload = _parse_execution_invitation(content)
         if not payload:
+            if _EXECUTION_INVITATION_MARKER_RE.search(content):
+                # 静默死亡防线：标记存在但 JSON 非法时必须有日志可确诊，
+                # 否则 run 以 success 结束、卡片不弹且无任何痕迹
+                logger.warning(
+                    "检测到 EXECUTION_INVITATION 标记但 JSON 解析失败，邀约卡片无法弹出。内容片段：%s",
+                    content[:300],
+                )
             return None
 
         # 风险评估信源修正：api 单端点模式以 DB method 推导为准（模型自报不受信）；
@@ -374,7 +401,7 @@ class APIExecutionInvitationMiddleware(AgentMiddleware):
             None,
         )
         if last_ai and not last_ai.tool_calls:
-            payload = _parse_execution_invitation(str(last_ai.content or ""))
+            payload = _parse_execution_invitation(_extract_text(last_ai.content))
             if payload and payload.get("mode", "api") == "api" and payload.get("endpoint_id"):
                 derived = await _derive_method_risk_flags(str(payload["endpoint_id"]))
         return self.after_model(state, runtime, derived_flags=derived)

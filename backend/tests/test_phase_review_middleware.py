@@ -445,6 +445,31 @@ class TestPhaseReviewAuditabilityFallback:
             ]
         }
 
+    def test_list_content_blocks_phase_detected(self, monkeypatch):
+        """Anthropic 协议模型（kimi）的 content 是 blocks 列表，阶段标题在 text 块中。
+
+        回归：str(list) 得到 repr 导致阶段标题正则失配，评审卡片不弹、
+        run 以 success 静默结束。
+        """
+        monkeypatch.setattr(
+            "app.agents.testcase.phase_review_middleware.interrupt",
+            lambda request: {"decision": "approve", "message": "", "checklist": {}},
+        )
+        middleware = PhaseReviewMiddleware()
+        state = {
+            "messages": [
+                AIMessage(
+                    content=[
+                        {"type": "thinking", "thinking": "应该输出阶段报告"},
+                        {"type": "text", "text": "## 需求解析报告\n\n只包含汇总信息。"},
+                    ]
+                ),
+            ]
+        }
+        result = middleware.after_model(state, None)
+        assert result is not None
+        assert result.get("jump_to") == "model"
+
     def test_phase3_without_preview_returns_request_changes(self):
         middleware = PhaseReviewMiddleware()
         state = self._make_state("""
