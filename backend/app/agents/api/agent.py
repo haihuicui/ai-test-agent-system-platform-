@@ -109,8 +109,11 @@ _STAGE_RULES: dict[str, str] = {
 - 同时调 `get_endpoint_annotations` 读取 `dependency` 标注（含导入期 `openapi_inferred` 推断的 producer/lookup 提示）；`id_source=none` 时创建后必须追加列表步骤按 name 定位资源 ID
 - 无 dependency 标注时用 `list_api_endpoints(method="POST", keyword="<资源名>", compact=true)` 搜索创建接口（禁止裸拉全量列表）；找不到创建接口时用 `{{变量}}` 占位并告知用户，禁止编造静态资源 ID
 - URL 中 `{xxx}` 必须在前序步骤用 `add_step_extractor` 提取，用 `{{xxx}}` 引用
-- 创建类步骤必须提取资源 ID + 配置 `add_teardown_step`；创建后追加列表/明细可见性验证（Resource Leak），删除后追加再读 404 验证（Use-After-Free）
-- 分页步骤断言 records/list 非空、total 为数字；首次执行用最小参数确认结构
+- 选项/字典类列表提取禁止 `[0]` 位置下标，必须按 label/name 业务键过滤匹配（如 `$.data[?(@.label=='精智未来')].value`）
+- 创建类步骤必须提取资源 ID + 配置 `add_teardown_step`；创建后追加列表/明细可见性验证（Resource Leak），删除后追加再读 404 验证（Use-After-Free，必须用 add_teardown_step 的 assertions 参数配 `status eq 404`）
+- 分页步骤断言 records/list 非空、total 为数字；数值统计/聚合字段（*Count/total/*Num）禁止裸 `ne null`，用 `ge 0`（流程已产生对应数据时 `ge 1`）；首次执行用最小参数确认结构
+- 验证性查询步骤（操作日志/状态回查）必须排在被验证的最后一个写动作之后，断言覆盖 description 声明的全部动作
+- 执行后必须逐项检查返回的 `teardown_results`：`success=false`（清理被拦截/验证未通过）要主动报告残留数据
 
 **去重规则：** 同对话再次 `create_test_scenario` 自动覆盖旧场景（缓存 60 分钟）。
 

@@ -7,6 +7,7 @@ ScenarioExecutionEngine 核心解析逻辑单元测试
 """
 
 import re
+from types import SimpleNamespace
 from uuid import UUID
 
 import pytest
@@ -269,3 +270,175 @@ class TestExportedDataSnapshot:
         assert exported_data == {"siteId": None}
         assert "_export_warnings" not in exported_data
         assert "_export_warnings" in response_exported
+
+
+class TestCompareOperators:
+    """_compare 比较运算符（含 ge/le）"""
+
+    def _engine(self):
+        return ScenarioExecutionEngine(session=None)
+
+    def test_ge_le(self):
+        engine = self._engine()
+        assert engine._compare(1, 1, "ge") is True
+        assert engine._compare(0, 1, "ge") is False
+        assert engine._compare(2, 1, "ge") is True
+        assert engine._compare(1, 1, "le") is True
+        assert engine._compare(2, 1, "le") is False
+        assert engine._compare(0, 1, "le") is True
+
+
+class TestTeardownResults:
+    """teardown 执行结果收集与持久化（结果不再静默吞掉）"""
+
+    def _engine(self):
+        return ScenarioExecutionEngine(session=None)
+
+    @pytest.mark.asyncio
+    async def test_results_persisted_to_runtime_variables(self, monkeypatch):
+        engine = self._engine()
+        responses = iter([
+            {"index": 1, "name": "删除测试单", "success": False, "status_code": 409,
+             "error": None, "assertion_results": []},
+            {"index": 2, "name": "验证已删除", "success": True, "status_code": 404,
+             "error": None, "assertion_results": []},
+        ])
+
+        async def fake_execute(step_def, idx):
+            return next(responses)
+
+        monkeypatch.setattr(engine, "_execute_teardown_step", fake_execute)
+
+        from types import SimpleNamespace
+        scenario = SimpleNamespace(
+            identifier="TS-0001",
+            teardown_config={"steps": [
+                {"name": "删除测试单"},
+                {"name": "验证已删除"},
+            ]},
+        )
+        run = SimpleNamespace(runtime_variables={"baseUrl": "http://x"})
+
+        await engine._run_teardown(scenario, run)
+
+        results = run.runtime_variables["teardown_results"]
+        assert len(results) == 2
+        assert results[0]["success"] is False
+        assert results[0]["status_code"] == 409
+        assert results[1]["success"] is True
+        # 原有变量不被覆盖
+        assert run.runtime_variables["baseUrl"] == "http://x"
+
+    @pytest.mark.asyncio
+    async def test_exception_recorded_and_continues(self, monkeypatch):
+        engine = self._engine()
+        calls = []
+
+        async def fake_execute(step_def, idx):
+            calls.append(idx)
+            if idx == 1:
+                raise RuntimeError("连接超时")
+            return {"index": idx, "name": step_def["name"], "success": True,
+                    "status_code": 200, "error": None, "assertion_results": []}
+
+        monkeypatch.setattr(engine, "_execute_teardown_step", fake_execute)
+
+        from types import SimpleNamespace
+        scenario = SimpleNamespace(
+            identifier="TS-0001",
+            teardown_config={"steps": [{"name": "A"}, {"name": "B"}]},
+        )
+        run = SimpleNamespace(runtime_variables={})
+
+        await engine._run_teardown(scenario, run)
+
+        assert calls == [1, 2]  # 默认 continue_on_failure=true，异常后继续
+        results = run.runtime_variables["teardown_results"]
+        assert results[0]["success"] is False
+        assert "连接超时" in results[0]["error"]
+        assert results[1]["success"] is True
+
+    @pytest.mark.asyncio
+    async def test_continue_on_failure_false_stops_on_http_failure(self, monkeypatch):
+        """非异常失败（如 4xx）也应触发 continue_on_failure=false 的中断"""
+        engine = self._engine()
+        calls = []
+
+        async def fake_execute(step_def, idx):
+            calls.append(idx)
+            return {"index": idx, "name": step_def["name"], "success": False,
+                    "status_code": 409, "error": None, "assertion_results": []}
+
+        monkeypatch.setattr(engine, "_execute_teardown_step", fake_execute)
+
+        from types import SimpleNamespace
+        scenario = SimpleNamespace(
+            identifier="TS-0001",
+            teardown_config={"steps": [
+                {"name": "A", "continue_on_failure": False},
+                {"name": "B"},
+            ]},
+        )
+        run = SimpleNamespace(runtime_variables={})
+
+        await engine._run_teardown(scenario, run)
+
+        assert calls == [1]
+        assert len(run.runtime_variables["teardown_results"]) == 1
+
+    @pytest.mark.asyncio
+    async def test_step_success_judged_by_assertions(self, monkeypatch):
+        """配置断言时以断言结果判定成功，而非状态码"""
+        engine = self._engine()
+
+        async def fake_load_endpoint(endpoint_id, step):
+            return SimpleNamespace(id=None)
+
+        async def fake_resolve(step_like, endpoint, session):
+            return {"method": "GET", "url": "/x/1", "headers": {}, "params": {}, "body": None}
+
+        async def fake_send(request):
+            # 删除后再读返回 200（资源仍在），断言预期 404 → 应判失败
+            return {"status": 200, "headers": {}, "body": {}, "timing": 1}
+
+        monkeypatch.setattr(engine, "_load_endpoint", fake_load_endpoint)
+        monkeypatch.setattr(engine.resolver, "resolve_request", fake_resolve)
+        monkeypatch.setattr(engine, "_send_request", fake_send)
+
+        result = await engine._execute_teardown_step({
+            "name": "验证已删除",
+            "request_override": {"method": "GET", "path": "/x/1"},
+            "assertions": [{"type": "status", "expected": 404, "operator": "eq"}],
+        }, 1)
+
+        assert result["success"] is False
+        assert result["status_code"] == 200
+        assert len(result["assertion_results"]) == 1
+        assert result["assertion_results"][0]["passed"] is False
+
+    @pytest.mark.asyncio
+    async def test_step_success_judged_by_status_code_without_assertions(self, monkeypatch):
+        """未配置断言时 4xx/5xx 判定清理失败"""
+        engine = self._engine()
+
+        async def fake_load_endpoint(endpoint_id, step):
+            return SimpleNamespace(id=None)
+
+        async def fake_resolve(step_like, endpoint, session):
+            return {"method": "DELETE", "url": "/x/1", "headers": {}, "params": {}, "body": None}
+
+        async def fake_send(request):
+            return {"status": 409, "headers": {}, "body": {"message": "已签收"}, "timing": 1}
+
+        monkeypatch.setattr(engine, "_load_endpoint", fake_load_endpoint)
+        monkeypatch.setattr(engine.resolver, "resolve_request", fake_resolve)
+        monkeypatch.setattr(engine, "_send_request", fake_send)
+
+        result = await engine._execute_teardown_step({
+            "name": "删除测试单",
+            "request_override": {"method": "DELETE", "path": "/x/1"},
+        }, 1)
+
+        assert result["success"] is False
+        assert result["status_code"] == 409
+        assert result["assertion_results"] == []

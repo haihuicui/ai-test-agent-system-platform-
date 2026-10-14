@@ -1,8 +1,8 @@
 """断言操作符归一化工具。
 
 前后端对比较运算符的表示存在差异：
-- 执行引擎只识别短值：eq / ne / gt / lt / contains
-- 历史前端/AI 可能使用长值：equals / not_equals / greater_than / less_than
+- 执行引擎只识别短值：eq / ne / gt / lt / ge / le / contains
+- 历史前端/AI 可能使用长值：equals / not_equals / greater_than / less_than 等
 
 本模块提供统一的归一化入口，保证入库与运行时使用的都是 canonical 短值。
 """
@@ -10,7 +10,7 @@
 from typing import Any
 
 
-OPERATORS = frozenset({"eq", "ne", "gt", "lt", "contains"})
+OPERATORS = frozenset({"eq", "ne", "gt", "lt", "ge", "le", "contains"})
 
 OPERATOR_ALIASES = {
     # canonical values
@@ -18,12 +18,18 @@ OPERATOR_ALIASES = {
     "ne": "ne",
     "gt": "gt",
     "lt": "lt",
+    "ge": "ge",
+    "le": "le",
     "contains": "contains",
     # legacy verbose aliases used by old UI / AI
     "equals": "eq",
     "not_equals": "ne",
     "greater_than": "gt",
     "less_than": "lt",
+    "greater_than_or_equal": "ge",
+    "less_than_or_equal": "le",
+    "gte": "ge",
+    "lte": "le",
 }
 
 

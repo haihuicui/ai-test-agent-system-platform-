@@ -167,6 +167,7 @@ await tools.add_data_mapping({
 
 - 提取器格式：`{"name": "token", "path": "$.data.token", "type": "jsonpath"}`
 - 变量导出格式：`{"name": "siteName", "source": "request", "path": "$.body.name", "type": "jsonpath"}`（`source` 取 `request` / `response`；用于把 `{{$timestamp}}` 等动态值导出，供后续步骤以 `{{siteName}}` 引用）
+- **选项/字典类列表禁止位置下标提取**：从「选项列表/字典表/采样点/下拉数据源」等会持续增长的列表中提取 `value`/`id` 时，禁止 `$.data[0].value` 这类位置下标——列表排序或新增项变化会静默取错值，且错误值看起来合法、最难发现。必须按业务键过滤匹配：`$.data[?(@.label=='精智未来')].value`（执行器 jsonpath_ng 支持 `[?(@.field=='值')]` 过滤器）。若列表确实无稳定业务键，在场景 description 中注明「该提取为位置依赖的脆弱点」。
 
 `add_step_extractor` / `add_step_variable_export` 仅保留给执行验证后的单个条目小修，不是生成阶段的默认写法。
 
@@ -195,6 +196,8 @@ await tools.add_step_extractor({
 2. **1 个 jsonpath 或 header 断言**（验证响应体字段或响应头）
 
 对核心业务字段（如 token、orderId、userId、支付状态等）必须追加 `ne null` / `ne ""` 断言，确保后续步骤拿到的数据有效；对业务状态字段（如 orderStatus、paymentStatus）必须追加 `eq` 断言验证流程正确流转。
+
+对数值统计/聚合字段（`total`、`waitCount`、`completedCount`、各类 `*Count` / `*Num` / `*Size`）**禁止裸 `ne null` 兜底**——它只验证字段存在，业务逻辑错误（如该计 1 却计 0）会漏检。必须断言非负（`ge 0`）；当前流程已产生对应业务数据时用 `ge 1`（如完成签收后查 `completedCount ge 1`）。
 
 **⚠️ 落库方式（强制）：** 在 `add_scenario_step` 之后，用**一次** `update_scenario_step` 调用同时写入该步骤的完整 `assertions` + `extractors` + `variable_exports`：
 
@@ -269,6 +272,8 @@ await tools.add_step_assertion({
 | `ne` | 不等于 | `expected: 404` |
 | `gt` | 大于 | `expected: 0` |
 | `lt` | 小于 | `expected: 100` |
+| `ge` | 大于等于 | `expected: 1`（统计字段下限断言） |
+| `le` | 小于等于 | `expected: 100` |
 | `contains` | 包含 | `expected: "success"` |
 | `regex` | 正则匹配 | `expected: "^\\d+$"` |
 
@@ -289,7 +294,8 @@ await tools.add_step_assertion({
 1. 在创建类步骤中添加提取器，提取资源 ID（如 `customerId`、`orderId`、`fileId`）。
 2. 使用 `add_teardown_step` 添加清理步骤，放在场景最后执行。
 3. teardown 步骤引用主流程变量，如 `"path": "/customers/{{customerId}}"`。
-4. teardown 步骤默认 `continue_on_failure=true`，清理失败不影响主流程报告。
+4. teardown 步骤默认 `continue_on_failure=true`，清理失败不影响主流程状态；但每步的执行结果（`success` / `status_code` / `assertion_results`）会出现在 `execute_scenario` 返回的 `teardown_results` 中，**执行后必须逐项复查**：`success=false`（如删除被业务规则拦截返回 4xx）要主动向用户报告残留的测试数据。
+5. 「删除后再读应 404」类验证步骤必须通过 `assertions` 参数配置断言（如 `[{"type": "status", "expected": 404, "operator": "eq"}]`），否则该步骤只记录状态码、不判定语义。
 
 ```javascript
 // 步骤 2：创建客户（记得提取 customerId）
@@ -325,9 +331,11 @@ await tools.add_teardown_step({
     method: "GET",
     path: "/customers/{{customerId}}"
   },
-  continue_on_failure: true
+  continue_on_failure: true,
+  assertions: [
+    {"type": "status", "expected": 404, "operator": "eq"}  // 必须配置，否则只记录状态码不判定语义
+  ]
 })
-// 该步骤断言: status eq 404
 ```
 
 ### 8. 执行场景测试
@@ -390,6 +398,7 @@ const result = await tools.execute_scenario({
 - 按照业务实际调用顺序编排步骤
 - 先执行认证/授权步骤，提取必要的凭证
 - 将依赖其他步骤数据的接口放在后面
+- **验证性查询步骤（操作日志、状态回查、列表复查）必须排在被验证的最后一个写动作之后**——否则查询结果覆盖不全，与步骤描述不符（如在「改备注」之前查操作日志，日志里就不会有改备注记录）。且该步骤的断言必须覆盖 description 声明的全部动作：description 写「应包含建单/改备注/提交/签收」，断言就要校验 `action` 集合包含这 4 项，不能只断言日志条数。
 
 **数据依赖管理：**
 ```javascript
@@ -512,6 +521,7 @@ JSONPath 用于从 JSON 响应中提取数据。
 | `[]` | 数组索引 | `$.data.items[0]` |
 | `*` | 通配符 | `$.data.*` |
 | `..` | 递归查找 | `$..id` |
+| `[?(@.f=='v')]` | 过滤匹配（按元素字段筛选） | `$.data[?(@.label=='精智未来')].value` |
 
 ### 常用模式
 
@@ -777,8 +787,10 @@ const result = await tools.execute_scenario({
 - [ ] 步骤的 `dependency` 标注中的 producer（创建接口）是否已作为前序步骤加入场景？producer 不在用户勾选范围内时也应加入，并在总结中向用户说明自动补充了哪些依赖接口；无标注时用 `list_api_endpoints(method="POST", keyword="<资源名>", compact=true)` 搜索创建接口，禁止裸拉全量列表
 - [ ] 当前步骤是否需要前序步骤的数据（token / siteId / orderId 等）？
 - [ ] 需要的前序字段是否已用 `add_step_extractor` 提取为同名变量？
+- [ ] 选项/字典类列表的提取器是否按 `label`/`name` 业务键过滤匹配（`$.data[?(@.label=='...')].value`），而非位置下标 `[0]`？
 - [ ] 是否已通过 `add_data_mapping` 或 `{{varName}}` 占位符完成数据传递？
 - [ ] 路径参数映射是否同时满足：`target_path="path.siteId"` + `request_override.path=".../{{siteId}}"`？
+- [ ] 验证性查询步骤（操作日志/状态回查/列表复查）是否排在被验证的最后一个写动作之后？其断言是否覆盖 description 声明的全部动作？
 
 ### 检查表 C：断言
 - [ ] 每个步骤是否至少包含 1 个 `status` 断言？
@@ -787,13 +799,14 @@ const result = await tools.execute_scenario({
 - [ ] 是否已根据 `get_endpoint_annotations` 返回的 `business_error_code` / `field_validation` 补充异常步骤的具体错误码和错误信息断言？
 - [ ] 从本步骤提取出来供后续步骤使用的字段（如 `siteId`），是否在本步骤追加 `ne null` / `ne ""` 断言？
 - [ ] 分页/列表步骤是否断言了 `$.data.records`（或 `$.data.list`）非空、`$.data.total` 为数字？
+- [ ] 数值统计/聚合字段（`*Count` / `total` / `*Num` 等）是否用 `ge 0` / `ge 1` 断言下限，而非裸 `ne null`？
 
 ### 检查表 D：清理
 - [ ] 场景中是否存在「创建/新增/上传/生成」类步骤？
 - [ ] 是否已在该步骤中提取资源 ID？
 - [ ] 是否已调用 `add_teardown_step` 添加对应的清理步骤（如 DELETE）？
 - [ ] 创建类步骤之后是否追加了「列表/明细可见性验证」步骤（Resource Leak 检查：断言新资源可查）？
-- [ ] 删除类 teardown 之后是否追加了「再读应 404」验证步骤（Use-After-Free 检查）？
+- [ ] 删除类 teardown 之后是否追加了「再读应 404」验证步骤（Use-After-Free 检查），且该步骤通过 `assertions` 参数配置了 `status eq 404` 断言？
 
 ## 生成后：执行邀约 → 验证与修复
 

@@ -853,7 +853,9 @@ class ScenarioExecutionEngine:
         """执行场景 teardown 清理步骤
 
         在主流程结束后运行，用于删除/禁用场景中创建的资源。
-        teardown 步骤失败不会影响主流程的运行状态，但会记录日志。
+        teardown 步骤失败不会影响主流程的运行状态，但每步的执行结果
+        （状态码/断言结果/错误）会持久化到 run.runtime_variables["teardown_results"]，
+        避免清理请求被业务规则拦截（如已签收订单禁止删除）时被静默吞掉。
         """
         import logging
         logger = logging.getLogger(__name__)
@@ -867,17 +869,40 @@ class ScenarioExecutionEngine:
             f"场景 {scenario.identifier} 主流程结束，开始执行 {len(teardown_steps)} 个 teardown 步骤"
         )
 
+        teardown_results: list[dict] = []
         for idx, step_def in enumerate(teardown_steps, 1):
             try:
-                await self._execute_teardown_step(step_def, idx)
+                result = await self._execute_teardown_step(step_def, idx)
             except Exception as e:
                 logger.warning(f"Teardown 步骤 {idx} ({step_def.get('name')}) 执行失败: {e}")
+                result = {
+                    "index": idx,
+                    "name": step_def.get("name", f"teardown-{idx}"),
+                    "success": False,
+                    "status_code": None,
+                    "error": str(e),
+                    "assertion_results": [],
+                }
+            teardown_results.append(result)
+
+            if not result["success"]:
+                logger.warning(
+                    f"Teardown 步骤 {idx} ({result['name']}) 未成功: "
+                    f"status={result['status_code']} error={result['error']}"
+                )
                 if not step_def.get("continue_on_failure", True):
                     logger.warning("continue_on_failure=false，停止后续 teardown 步骤")
                     break
 
-    async def _execute_teardown_step(self, step_def: dict, idx: int) -> None:
-        """执行单个 teardown 步骤"""
+        # 整体重赋值以确保 JSONB 变更被 SQLAlchemy 追踪（原地 mutate 不会落库），
+        # 供 execute_scenario 工具响应与后续报告消费
+        run.runtime_variables = {
+            **self._ensure_dict(run.runtime_variables),
+            "teardown_results": teardown_results,
+        }
+
+    async def _execute_teardown_step(self, step_def: dict, idx: int) -> dict:
+        """执行单个 teardown 步骤，返回执行结果摘要（不持久化为步骤结果行）"""
         import logging
         logger = logging.getLogger(__name__)
 
@@ -899,8 +924,27 @@ class ScenarioExecutionEngine:
         request = self.resolver._resolve_dynamic_placeholders(request)
 
         logger.debug(f"Teardown 步骤 {idx} 请求: {request}")
-        await self._send_request(request)
-        logger.info(f"Teardown 步骤 {idx} ({step_like.name}) 执行完成")
+        response = await self._send_request(request)
+        status_code = response.get("status")
+        logger.info(f"Teardown 步骤 {idx} ({step_like.name}) 执行完成: status={status_code}")
+
+        # 配置了断言时以断言结果判定成功；未配置时以是否 4xx/5xx 判定清理失败
+        # （删除类接口被业务规则拦截时通常返回 4xx，此前响应被直接丢弃、静默吞掉）
+        assertions = self._ensure_list(step_def.get("assertions"))
+        assertion_results = self._run_assertions(response, assertions) if assertions else []
+        if assertion_results:
+            success = all(r.get("passed") for r in assertion_results)
+        else:
+            success = status_code is not None and status_code < 400
+
+        return {
+            "index": idx,
+            "name": step_like.name,
+            "success": success,
+            "status_code": status_code,
+            "error": None,
+            "assertion_results": assertion_results,
+        }
 
     async def _load_endpoint(self, endpoint_id: UUID | None, step: ScenarioStep = None) -> APIEndpoint:
         """加载端点，如果没有端点ID则创建虚拟端点"""
@@ -1355,6 +1399,10 @@ class ScenarioExecutionEngine:
             return actual > expected
         elif operator == "lt":
             return actual < expected
+        elif operator == "ge":
+            return actual >= expected
+        elif operator == "le":
+            return actual <= expected
         elif operator == "contains":
             # actual 为 None（如 header 未命中）时 `expected in actual` 会抛
             # TypeError("argument of type 'NoneType' is not iterable")，

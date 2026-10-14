@@ -532,12 +532,15 @@ async def add_teardown_step(
     endpoint_id: str | None = None,
     headers_override: dict | None = None,
     continue_on_failure: bool = True,
+    assertions: list | None = None,
 ) -> str:
     """
     向场景追加一个 teardown 清理步骤
 
     场景主流程执行结束后，会按顺序执行 teardown 步骤，用于删除/禁用
     主流程中创建的资源（如客户、订单、文件等）。
+    每个 teardown 步骤的执行结果（状态码/断言结果/错误）会出现在
+    execute_scenario 返回的 teardown_results 中，执行后必须复查。
 
     Args:
         scenario_id: 场景 ID
@@ -547,6 +550,10 @@ async def add_teardown_step(
         endpoint_id: 清理接口端点 ID（可选；若为空则尝试从 request_override 推断）
         headers_override: 请求头覆盖（可选）
         continue_on_failure: 该步骤失败后是否继续执行后续 teardown，默认 true
+        assertions: 断言列表（可选），格式与主步骤断言一致，如
+            [{"type": "status", "expected": 404, "operator": "eq"}]。
+            「删除后再读应 404」类验证步骤必须配置断言，否则只记录状态码不判定语义。
+            未配置断言时，响应状态码 >= 400 即判定该清理步骤失败。
 
     Returns:
         JSON 格式的添加结果
@@ -582,6 +589,7 @@ async def add_teardown_step(
                 "request_override": request_override or {},
                 "headers_override": headers_override or {},
                 "continue_on_failure": continue_on_failure,
+                "assertions": assertions or [],
             })
             scenario.teardown_config = {**teardown_config, "steps": steps}
             scenario.updated_at = datetime.now(timezone.utc)
@@ -1799,6 +1807,10 @@ async def _execute_scenario_impl(
                 "error_message": run.error_message,
                 "debug_info": debug_info if debug else None,
                 "step_results": detailed_results,
+                # teardown 清理结果（引擎持久化在 runtime_variables，无独立表）：
+                # 每步含 success/status_code/error/assertion_results，
+                # success=false 说明清理被拦截或验证未通过，必须向用户报告
+                "teardown_results": (run.runtime_variables or {}).get("teardown_results"),
             }
             if design_warnings:
                 result_data["design_warnings"] = design_warnings

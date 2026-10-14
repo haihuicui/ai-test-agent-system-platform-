@@ -15,6 +15,10 @@ class TestNormalizeOperator:
         assert normalize_operator("not_equals") == "ne"
         assert normalize_operator("greater_than") == "gt"
         assert normalize_operator("less_than") == "lt"
+        assert normalize_operator("greater_than_or_equal") == "ge"
+        assert normalize_operator("less_than_or_equal") == "le"
+        assert normalize_operator("gte") == "ge"
+        assert normalize_operator("lte") == "le"
 
     def test_case_and_whitespace_are_normalized(self):
         assert normalize_operator("  EQ  ") == "eq"

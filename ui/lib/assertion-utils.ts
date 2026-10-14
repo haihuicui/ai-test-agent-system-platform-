@@ -3,7 +3,7 @@ import { StepAssertion } from "@/types/scenario";
 /**
  * 断言操作符的 canonical 值与中文显示文本。
  *
- * 后端执行引擎只识别短值：eq / ne / gt / lt / contains。
+ * 后端执行引擎只识别短值：eq / ne / gt / lt / ge / le / contains。
  * 前端 Select 使用这些值作为 value，label 保持中文。
  */
 export const OPERATOR_LABELS: Record<string, string> = {
@@ -11,6 +11,8 @@ export const OPERATOR_LABELS: Record<string, string> = {
   ne: "不等于",
   gt: "大于",
   lt: "小于",
+  ge: "大于等于",
+  le: "小于等于",
   contains: "包含",
 };
 
