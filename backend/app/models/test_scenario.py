@@ -15,6 +15,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PGUUID
@@ -30,13 +31,18 @@ class TestScenario(Base):
     """测试场景主表"""
 
     __tablename__ = "test_scenarios"
+    # identifier 按项目内编号（TS-0001 起），唯一性限定在 (project_id, identifier) 维度；
+    # 全局唯一会导致新项目与已有项目的 TS-0001 冲突而无法创建任何场景
+    __table_args__ = (
+        UniqueConstraint("project_id", "identifier", name="uq_test_scenarios_project_identifier"),
+    )
 
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
     project_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
     folder_id: Mapped[Optional[UUID]] = mapped_column(PGUUID(as_uuid=True), ForeignKey("folders.id", ondelete="SET NULL"))
 
     # 标识信息
-    identifier: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
+    identifier: Mapped[str] = mapped_column(String(50), nullable=False)
     name: Mapped[str] = mapped_column(String(500), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text)
 # noqa  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2UVZWM1dBPT06MjEwZjE3ZTk=
