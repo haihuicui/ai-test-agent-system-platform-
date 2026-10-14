@@ -5,7 +5,7 @@ Web 功能定义模型
 每个功能可以有多个子功能，每个子功能关联测试脚本、测试用例、测试计划
 """
 
-from sqlalchemy import ForeignKey, Integer, String, Text
+from sqlalchemy import ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -21,7 +21,11 @@ class WebFunction(Base, UUIDMixin, TimestampMixin):
     每个功能可以有多个子功能
     """
     __tablename__ = "web_functions"
-    __table_args__ = {"comment": "Web 功能定义表"}
+    # identifier 按项目内编号（WF-1001 起），唯一性限定在 (project_id, identifier)
+    __table_args__ = (
+        UniqueConstraint("project_id", "identifier", name="uq_web_functions_project_identifier"),
+        {"comment": "Web 功能定义表"},
+    )
 
     # ========== 基本信息 ==========
     project_id: Mapped[UUID] = mapped_column(
@@ -43,9 +47,7 @@ class WebFunction(Base, UUIDMixin, TimestampMixin):
     # ========== 功能标识 ==========
     identifier: Mapped[str] = mapped_column(
         String(50),
-        unique=True,
         nullable=False,
-        index=True,
         comment="功能标识符，如 WF-1001"
     )
 
@@ -178,7 +180,11 @@ class WebSubFunction(Base, UUIDMixin, TimestampMixin):
     每个子功能关联具体的测试脚本、测试用例、测试计划
     """
     __tablename__ = "web_sub_functions"
-    __table_args__ = {"comment": "Web 子功能定义表"}
+    # identifier 按项目内编号（WSF-1001 起），唯一性限定在 (project_id, identifier)
+    __table_args__ = (
+        UniqueConstraint("project_id", "identifier", name="uq_web_sub_functions_project_identifier"),
+        {"comment": "Web 子功能定义表"},
+    )
 
     # ========== 基本信息 ==========
     project_id: Mapped[UUID] = mapped_column(
@@ -208,9 +214,7 @@ class WebSubFunction(Base, UUIDMixin, TimestampMixin):
     # ========== 子功能标识 ==========
     identifier: Mapped[str] = mapped_column(
         String(50),
-        unique=True,
         nullable=False,
-        index=True,
         comment="子功能标识符，如 WSF-1001"
     )
 # fmt: off  Mi80OmFIVnBZMlhsdEpUbXRiZm92b2s2V21JMFFnPT06YTUxN2IxNGM=

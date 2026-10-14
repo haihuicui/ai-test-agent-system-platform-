@@ -4,7 +4,7 @@ Android 测试模型
 定义 Android 测试脚本、运行和结果的表结构
 """
 
-from sqlalchemy import ForeignKey, Integer, String, Text, Enum as SQLEnum
+from sqlalchemy import ForeignKey, Integer, String, Text, UniqueConstraint, Enum as SQLEnum
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 # noqa  MC80OmFIVnBZMlhsdEpUbXRiZm92b2s2TTNCQlF3PT06M2FlMDAyYjA=
@@ -38,7 +38,11 @@ class AndroidTest(Base, UUIDMixin, TimestampMixin):
     存储 android_agent 生成的 Android 测试脚本元数据
     """
     __tablename__ = "android_tests"
-    __table_args__ = {"comment": "Android 测试脚本表"}
+    # identifier 按项目内编号（ANT-1001 起），唯一性限定在 (project_id, identifier)
+    __table_args__ = (
+        UniqueConstraint("project_id", "identifier", name="uq_android_tests_project_identifier"),
+        {"comment": "Android 测试脚本表"},
+    )
 
     # 基本信息
     project_id: Mapped[UUID] = mapped_column(
@@ -64,9 +68,7 @@ class AndroidTest(Base, UUIDMixin, TimestampMixin):
     )
     identifier: Mapped[str] = mapped_column(
         String(50),
-        unique=True,
         nullable=False,
-        index=True,
         comment="Android 测试标识符,如 ANT-1001"
     )
     name: Mapped[str] = mapped_column(

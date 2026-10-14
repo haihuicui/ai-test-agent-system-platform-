@@ -4,7 +4,7 @@ API 测试模型
 定义 API 测试脚本、运行和结果的表结构
 """
 
-from sqlalchemy import ForeignKey, Integer, String, Text, Enum as SQLEnum
+from sqlalchemy import ForeignKey, Integer, String, Text, UniqueConstraint, Enum as SQLEnum
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -46,7 +46,12 @@ class APITest(Base, UUIDMixin, TimestampMixin):
     存储 api_agent 生成的 API 测试脚本元数据
     """
     __tablename__ = "api_tests"
-    __table_args__ = {"comment": "API 测试脚本表"}
+    # identifier 按项目内编号（AT-1001 起），唯一性限定在 (project_id, identifier)；
+    # 全局唯一会导致新项目与已有项目撞号无法创建
+    __table_args__ = (
+        UniqueConstraint("project_id", "identifier", name="uq_api_tests_project_identifier"),
+        {"comment": "API 测试脚本表"},
+    )
 
     # 基本信息
     project_id: Mapped[UUID] = mapped_column(
@@ -72,9 +77,7 @@ class APITest(Base, UUIDMixin, TimestampMixin):
     )
     identifier: Mapped[str] = mapped_column(
         String(50),
-        unique=True,
         nullable=False,
-        index=True,
         comment="API 测试标识符,如 AT-1001"
     )
     name: Mapped[str] = mapped_column(
