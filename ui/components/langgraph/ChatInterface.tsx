@@ -151,6 +151,33 @@ const AGENT_CAPABILITIES: Record<string, { rag: boolean; autoApprove: boolean; a
   security_agent:         { rag: false, autoApprove: false, autoExecute: false },
 };
 
+/**
+ * HumanInTheLoopMiddleware 要求 decisions 数量与悬挂 tool calls(action_requests)一致。
+ * 并行工具审批时每个 ToolCallBox 只产生 1 个 decision,直接 resume 会被服务端拒绝:
+ * "Number of human decisions (1) does not match number of hanging tool calls (N)"。
+ * 这里把单条 decision 广播到全部 action_requests;edit 只落到名称匹配的第一个请求,
+ * 其余按批准处理(中间件不支持部分恢复,只能一次性给出全部决策)。
+ */
+function padDecisionsToActionRequests(value: any, interrupt: any) {
+  const decisions = value?.decisions;
+  const actionRequests = interrupt?.value?.action_requests;
+  if (!Array.isArray(decisions) || decisions.length !== 1) return value;
+  if (!Array.isArray(actionRequests) || actionRequests.length <= 1) return value;
+  const decision = decisions[0];
+  if (decision?.type === "edit") {
+    const editName = decision.edited_action?.name;
+    let editIdx = actionRequests.findIndex((ar: any) => ar?.name === editName);
+    if (editIdx < 0) editIdx = 0;
+    return {
+      ...value,
+      decisions: actionRequests.map((_: any, idx: number) =>
+        idx === editIdx ? decision : { type: "approve" as const }
+      ),
+    };
+  }
+  return { ...value, decisions: actionRequests.map(() => decision) };
+}
+
 export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initialPrompt, onArtifactSaved }) => {
   const { t } = useLanguage();
   const capabilities = AGENT_CAPABILITIES[assistant?.assistant_id ?? ""] ?? { rag: false, autoApprove: false, autoExecute: false };
@@ -231,13 +258,13 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(({ assistant, initia
   // 否则 buildAgentContext() 会使用默认值，导致自动审批状态不一致。
   const resumeInterruptWithOptions = useCallback(
     (value: any) => {
-      resumeInterrupt(value, {
+      resumeInterrupt(padDecisionsToActionRequests(value, interrupt), {
         enable_rag: enableRag,
         auto_approve_threshold: autoApproveEnabled ? autoApproveThreshold : 100,
         auto_execute_enabled: autoExecuteEnabled,
       });
     },
-    [resumeInterrupt, enableRag, autoApproveEnabled, autoApproveThreshold, autoExecuteEnabled]
+    [resumeInterrupt, enableRag, autoApproveEnabled, autoApproveThreshold, autoExecuteEnabled, interrupt]
   );
 
   // 保持 sendMessage 的最新引用，并自动带上当前 RAG / 自动审批 / 自动执行设置
