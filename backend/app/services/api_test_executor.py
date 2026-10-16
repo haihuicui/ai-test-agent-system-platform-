@@ -60,14 +60,31 @@ def _get_business_code_env_value() -> str:
 
 _EXPECT_STMT_RE = re.compile(
     r"expect\s*\((?P<recv>.*?)\)\s*(?P<chain>(?:\.\s*\w+)*?)"
-    r"\.\s*(?P<matcher>toBe|toEqual|toStrictEqual|toContain|toMatch|toBeFalsy|toBeTruthy)"
+    r"\.\s*(?P<matcher>toBe|toEqual|toStrictEqual|toContain|toMatch|toBeFalsy|toBeTruthy"
+    r"|toBeLessThan|toBeLessThanOrEqual|toBeGreaterThan|toBeGreaterThanOrEqual)"
     r"\s*\((?P<expected>.*?)\)",
     re.S,
 )
 
+# 脚本顶层常量（生成器常用 PARAM_ERROR_CODE 等引用期望值字面量）
+_CONST_LITERAL_RE = re.compile(
+    r"\bconst\s+(?P<name>[A-Za-z_]\w*)\s*=\s*"
+    r"(?P<value>'[^']*'|\"[^\"]*\"|\d+|true|false)\s*;",
+)
+
+
+def _resolve_const_literals(script_text: str) -> Dict[str, str]:
+    """提取脚本中的简单常量声明（const NAME = 字面量），用于解析断言里的符号引用。"""
+    return {m.group("name"): m.group("value") for m in _CONST_LITERAL_RE.finditer(script_text)}
+
 
 def _extract_test_block(script_text: str, test_title: str) -> Optional[str]:
     """按用例标题提取 test('<title>', ...) 块的源码文本（花括号配平，跳过字符串字面量）。
+
+    支持两种形态：
+    - 普通用例：test('TC01 ...', async () => { ... })
+    - 参数化用例：for 循环内 test(caseName, ...)，标题字面量出现在数据数组项中
+      （如 { field: 'sender', caseName: 'TC03 ...' }），取标题出现后最近的 test( 块。
 
     解析失败返回 None（调用方保守处理：不豁免，维持反假阳性标记）。
     """
@@ -79,6 +96,15 @@ def _extract_test_block(script_text: str, test_title: str) -> Optional[str]:
         start = script_text.find(marker)
         if start >= 0:
             break
+    if start < 0:
+        # 参数化用例回退：标题字面量出现在数组项里，其后最近的 test( 即为用例块
+        for quote in ("'", '"', "`"):
+            idx = script_text.find(f"{quote}{test_title}{quote}")
+            if idx >= 0:
+                tidx = script_text.find("test(", idx)
+                if tidx >= 0:
+                    start = tidx
+                    break
     if start < 0:
         return None
     # 定位函数体起始的 {：必须先跳过参数解构（如 async ({ request }) =>），
@@ -137,18 +163,23 @@ def _script_expects_business_failure(
     """判断脚本中指定用例是否已断言业务层失败（负向用例显式期望错误码）。
 
     命中条件（满足其一即视为已覆盖）：
-    - 用例块内存在对 *.code 的断言，且期望值与 trace 实际错误码相等；
+    - 用例块内存在对 *.code 的断言，且期望值与 trace 实际错误码相等
+      （期望值可以是字面量，也可以是顶层 const 常量引用，如 PARAM_ERROR_CODE）；
     - 用例块内存在对 *.success 的断言，且期望失败（toBe(false)/toBeFalsy()/.not.toBe(true)）。
     任何解析不确定性都返回 False（保守：维持反假阳性标记，不误豁免）。
     """
     block = _extract_test_block(script_text, test_title)
     if not block:
         return False
+    consts = _resolve_const_literals(script_text)
     for m in _EXPECT_STMT_RE.finditer(block):
         recv = m.group("recv")
         chain = (m.group("chain") or "").replace(" ", "")
         matcher = m.group("matcher")
         expected = (m.group("expected") or "").strip()
+        # 期望值是常量引用时替换为其字面量
+        if expected in consts:
+            expected = consts[expected]
         is_negated = ".not" in chain
         if code is not None and re.search(r"\.code\b", recv):
             if not is_negated and _literal_matches(expected, code):
@@ -163,6 +194,45 @@ def _script_expects_business_failure(
             if traced_failure and expects_false:
                 return True
     return False
+
+
+def _script_status_expectation(
+    script_text: str, test_title: str
+) -> Optional[tuple]:
+    """提取脚本对 HTTP 状态码的显式预期，用于替代默认的「2xx 即通过」派生断言。
+
+    返回 ("set", [codes]) / ("lt", n) / ("le", n) / ("gt", n) / ("ge", n)，
+    脚本未显式断言状态码时返回 None（调用方回退到默认 2xx 判定）。
+    支持形态：expect(status).toBe(401) / expect([401, 403]).toContain(status) /
+    expect(status).toBeLessThan(500) 等，接收变量含 status 或 *.status()。
+    """
+    block = _extract_test_block(script_text, test_title)
+    if not block:
+        return None
+    status_recv = re.compile(r"\bstatus\s*(\(\s*\))?\s*$")
+    for m in _EXPECT_STMT_RE.finditer(block):
+        recv = m.group("recv").strip()
+        expected = (m.group("expected") or "").strip()
+        matcher = m.group("matcher")
+        if ".not" in (m.group("chain") or "").replace(" ", ""):
+            continue
+        # expect(status).toBe(401) / expect(resp.status()).toEqual(200)
+        if status_recv.search(recv):
+            digits = re.fullmatch(r"\d+", expected)
+            if matcher in ("toBe", "toEqual") and digits:
+                return ("set", [int(expected)])
+            if matcher in ("toBeLessThan", "toBeLessThanOrEqual",
+                           "toBeGreaterThan", "toBeGreaterThanOrEqual") and digits:
+                return ({"toBeLessThan": "lt", "toBeLessThanOrEqual": "le",
+                         "toBeGreaterThan": "gt", "toBeGreaterThanOrEqual": "ge"}[matcher],
+                        int(expected))
+        # expect([200, 400, 422]).toContain(status)
+        if matcher == "toContain" and re.fullmatch(r"\[[\d,\s]*\]", recv) \
+                and re.search(r"\bstatus\b", expected):
+            codes = [int(x) for x in re.findall(r"\d+", recv)]
+            if codes:
+                return ("set", codes)
+    return None
 
 
 _ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*[a-zA-Z]")
@@ -1566,16 +1636,46 @@ class APITestExecutor:
         }
 
         # 生成断言结果：status 断言
+        # 脚本显式断言过状态码时按脚本预期判定（如安全用例 expect(status).toBe(401)），
+        # 否则回退默认「2xx 即通过」
         assertions: List[Dict[str, Any]] = []
         if response_status is not None and isinstance(response_status, int):
-            passed = 200 <= response_status < 300
-            assertions.append({
-                "assertion": {"type": "status", "expected": "2xx"},
-                "passed": passed,
-                "actual": response_status,
-                "expected": "2xx",
-                "message": f"HTTP 状态码断言{'通过' if passed else '失败'}: 预期 2xx，实际 {response_status}",
-            })
+            spec = None
+            if script_text and test_title:
+                spec = _script_status_expectation(script_text, test_title)
+            if spec is not None:
+                kind, val = spec
+                if kind == "set":
+                    passed = response_status in val
+                    expected_desc = " / ".join(str(v) for v in val)
+                elif kind == "lt":
+                    passed = response_status < val
+                    expected_desc = f"<{val}"
+                elif kind == "le":
+                    passed = response_status <= val
+                    expected_desc = f"<={val}"
+                elif kind == "gt":
+                    passed = response_status > val
+                    expected_desc = f">{val}"
+                else:  # ge
+                    passed = response_status >= val
+                    expected_desc = f">={val}"
+                assertions.append({
+                    "assertion": {"type": "status", "expected": expected_desc},
+                    "passed": passed,
+                    "actual": response_status,
+                    "expected": expected_desc,
+                    "message": f"HTTP 状态码断言（按脚本预期）{'通过' if passed else '失败'}: 预期 {expected_desc}，实际 {response_status}",
+                })
+            else:
+                passed = 200 <= response_status < 300
+                assertions.append({
+                    "assertion": {"type": "status", "expected": "2xx"},
+                    "passed": passed,
+                    "actual": response_status,
+                    "expected": "2xx",
+                    "message": f"HTTP 状态码断言{'通过' if passed else '失败'}: 预期 2xx，实际 {response_status}",
+                })
 
         #  业务码反假阳性检查：HTTP 2xx 但 body.code 为非成功值时标记失败
         #  （断言感知：脚本已显式断言该业务失败的负向用例豁免）

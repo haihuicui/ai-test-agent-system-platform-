@@ -24,6 +24,7 @@ from app.services.api_test_executor import (
     _get_business_code_env_value,
     _extract_test_block,
     _script_expects_business_failure,
+    _script_status_expectation,
 )
 
 
@@ -238,60 +239,92 @@ class TestBusinessCodeAssertionAwareSuppression:
     SCRIPT = '''
 import { test, expect } from '../api-trace-helper';
 
+const PARAM_ERROR_CODE = '1000';
+
 test('TC01 正向提交', async ({ request }) => {
   const resp = await request.post('/asset/delivery/submit', { data: {} });
   const body = await resp.json();
   expect(body.code).toBe(2000);
 });
 
-test('TC03 缺少必填字段', async ({ request }) => {
-  const resp = await request.post('/asset/delivery/submit', {
-    data: { express: "{\\"a\\":1}" },
-  });
-  const body = await resp.json();
-  expect(resp.status()).toBe(200);
-  expect(body.code).toBe(1000);
-  expect(body.message).toContain('必填');
-});
+const requiredFields = [
+  { field: 'sender', caseName: 'TC03-异常-缺少必填字段sender' },
+  { field: 'sendTime', caseName: 'TC04-异常-缺少必填字段sendTime' },
+];
 
-test('TC04 类型错误', async ({ request }) => {
+for (const { field, caseName } of requiredFields) {
+  test(caseName, async () => {
+    const payload = { express: "{\\"a\\":1}" };
+    delete payload[field];
+    const { status, body } = await postDelivery('submit', payload);
+    expect([200, 400, 422]).toContain(status);
+    expect(body.code).toBe(PARAM_ERROR_CODE);
+  });
+}
+
+test('TC08-异常-expressType类型错误', async ({ request }) => {
   const resp = await request.post('/asset/delivery/submit', { data: {} });
   const body = await resp.json();
-  expect(body.success).toBe(false);
+  expect(body.code).toBe(PARAM_ERROR_CODE);
+});
+
+test('TC12-边界-shipments空数组', async ({ request }) => {
+  const resp = await request.post('/asset/delivery/submit', { data: {} });
+  const body = await resp.json();
+  expect(resp.status()).toBeLessThan(500);
+  expect(body.code).toBe(PARAM_ERROR_CODE);
+});
+
+test('TC13b-边界-tubeNumber未登记', async ({ request }) => {
+  const resp = await request.post('/asset/delivery/submit', { data: {} });
+  const body = await resp.json();
+  expect(body.code).toBe('H047');
+});
+
+test('TC14-安全-无认证凭证', async ({ request }) => {
+  const resp = await request.post('/asset/delivery/submit', { data: {} });
+  expect(resp.status()).toBe(401);
 });
 '''
 
     @staticmethod
-    def _trace(code=None, success=None):
+    def _trace(code=None, success=None, status=200):
         return [{
             "method": "POST",
             "url": "https://api.example.com/asset/delivery/submit",
-            "status": 200,
+            "status": status,
             "responseHeaders": {},
             "responseBody": {"code": code, "success": success, "message": "参数错误"},
             "durationMs": 42,
         }]
 
     def test_extract_test_block_hit_and_miss(self):
-        block = _extract_test_block(self.SCRIPT, "TC03 缺少必填字段")
+        # 参数化用例（for 循环内 test(caseName, ...)）通过数组项标题定位
+        block = _extract_test_block(self.SCRIPT, "TC03-异常-缺少必填字段sender")
         assert block is not None
-        assert "expect(body.code).toBe(1000)" in block
-        # 字符串字面量里的花括号不得干扰配平：块不应溢出到 TC04
-        assert "TC04" not in block
+        assert "expect(body.code).toBe(PARAM_ERROR_CODE)" in block
+        # 字符串字面量里的花括号不得干扰配平：块不应溢出到后续用例
+        assert "TC08" not in block
+        # 普通字面量标题直接命中
+        assert _extract_test_block(self.SCRIPT, "TC01 正向提交") is not None
         assert _extract_test_block(self.SCRIPT, "不存在的用例") is None
-        assert _extract_test_block("", "TC03 缺少必填字段") is None
+        assert _extract_test_block("", "TC01 正向提交") is None
 
     def test_expects_business_failure_by_code(self):
+        # 参数化用例 + 常量引用（const PARAM_ERROR_CODE = '1000'）
         assert _script_expects_business_failure(
-            self.SCRIPT, "TC03 缺少必填字段", code=1000
+            self.SCRIPT, "TC03-异常-缺少必填字段sender", code=1000
         ) is True
-        # 字符串形式的同值 code 也应命中
         assert _script_expects_business_failure(
-            self.SCRIPT, "TC03 缺少必填字段", code="1000"
+            self.SCRIPT, "TC03-异常-缺少必填字段sender", code="1000"
+        ) is True
+        # 字面量标题 + 常量引用
+        assert _script_expects_business_failure(
+            self.SCRIPT, "TC08-异常-expressType类型错误", code=1000
         ) is True
         # 错误码值不匹配 → 不豁免
         assert _script_expects_business_failure(
-            self.SCRIPT, "TC03 缺少必填字段", code=4009
+            self.SCRIPT, "TC08-异常-expressType类型错误", code=4009
         ) is False
         # 正向用例未断言失败码 → 不豁免
         assert _script_expects_business_failure(
@@ -299,18 +332,38 @@ test('TC04 类型错误', async ({ request }) => {
         ) is False
 
     def test_expects_business_failure_by_success(self):
-        assert _script_expects_business_failure(
-            self.SCRIPT, "TC04 类型错误", success=False
-        ) is True
+        script = "test('TC04 类型错误', async () => { expect(body.success).toBe(false); });"
+        assert _script_expects_business_failure(script, "TC04 类型错误", success=False) is True
         # success=True 的 trace 不存在业务失败，不应触发豁免判定
-        assert _script_expects_business_failure(
-            self.SCRIPT, "TC04 类型错误", success=True
-        ) is False
+        assert _script_expects_business_failure(script, "TC04 类型错误", success=True) is False
+
+    def test_status_expectation_from_script(self):
+        # expect(resp.status()).toBe(401)
+        assert _script_status_expectation(self.SCRIPT, "TC14-安全-无认证凭证") == ("set", [401])
+        # expect([200, 400, 422]).toContain(status)
+        assert _script_status_expectation(
+            self.SCRIPT, "TC03-异常-缺少必填字段sender"
+        ) == ("set", [200, 400, 422])
+        # expect(resp.status()).toBeLessThan(500)
+        assert _script_status_expectation(self.SCRIPT, "TC12-边界-shipments空数组") == ("lt", 500)
+        # 无状态码断言 → None（回退默认 2xx）
+        assert _script_status_expectation(self.SCRIPT, "TC01 正向提交") is None
+
+    def test_trace_summary_status_401_passes_with_script_expectation(self):
+        """安全用例脚本预期 401，trace 实际 401 → 派生状态断言通过，不再误标。"""
+        _, _, assertions, _ = APITestExecutor._build_trace_summary(
+            self._trace(status=401), TestResultStatus.PASSED,
+            script_text=self.SCRIPT, test_title="TC14-安全-无认证凭证",
+        )
+        st = [a for a in assertions if a["assertion"].get("type") == "status"]
+        assert len(st) == 1
+        assert st[0]["passed"] is True
+        assert st[0]["expected"] == "401"
 
     def test_trace_summary_suppressed_when_script_covers(self):
         req, resp, assertions, _ = APITestExecutor._build_trace_summary(
             self._trace(code=1000), TestResultStatus.PASSED,
-            script_text=self.SCRIPT, test_title="TC03 缺少必填字段",
+            script_text=self.SCRIPT, test_title="TC03-异常-缺少必填字段sender",
         )
         bc = [a for a in assertions if a["assertion"].get("type") == "business_code"]
         assert len(bc) == 1
