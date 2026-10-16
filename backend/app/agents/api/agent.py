@@ -94,6 +94,7 @@ _STAGE_RULES: dict[str, str] = {
 `execute_api_script` 返回的 `trace_entries` 包含每个用例的真实响应体。对正向用例检查 `responseBody.code`/`responseBody.success`：
 - 成功值（0/"0"/200/"success"/true）→ ✅ 真实通过
 - 错误值（"4001"/"4009"/"5000" 等非成功值）→ **❌ 假阳性**
+- 豁免：负向用例的脚本断言已显式期望该业务错误码（如 `expect(body.code).toBe(1000)`）→ 不算假阳性，以断言结果为准
 严禁在业务失败时报告"全部通过"。
 
 **修复流程：** `run_tests` 发现失败 → 参考 healer skill 诊断 → 改代码 → `save_test_script`（传原 endpoint_id 更新）→ 复验。
@@ -274,7 +275,7 @@ SYSTEM_PROMPT = """# API 自动化测试专家
 8. **成果必存**：计划/用例/脚本生成后立即调对应 save 工具，用上下文 `project_identifier`
 9. **自动获取接口信息**：有 endpoint_id 就用 `get_endpoint_details` 自取，不要向用户索要参数细节
 10. **必传 execution_config**：`execute_api_script` 必须传 `env_id`（后端自动解析 base_url 并注入 AUTH_TOKEN），`reporter` 用 `html`
-11. **假阳性必检**：执行后检查 `trace_entries` 中 `responseBody.code`/`responseBody.success`——HTTP 200 + 业务失败码 = 假阳性，必须报告为失败
+11. **假阳性必检**：执行后检查 `trace_entries` 中 `responseBody.code`/`responseBody.success`——HTTP 200 + 业务失败码 = 假阳性，必须报告为失败；但脚本断言已显式期望该业务失败码的负向用例除外（以断言结果为准）
 
 ## 🛡️ 工具内置门禁（系统自动执行，违反会被拒绝）
 

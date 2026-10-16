@@ -1398,6 +1398,16 @@ async def _create_test_results(
 
     trace_entries = execution_result.get("trace_entries", [])
 
+    # 读取脚本源码（可选）：业务码反假阳性检查据此做断言感知豁免，
+    # 脚本已显式断言业务失败的负向用例不再被合成失败断言误标
+    script_text: Optional[str] = None
+    script_path_str = execution_result.get("script_path")
+    if script_path_str:
+        try:
+            script_text = Path(script_path_str).read_text(encoding="utf-8")
+        except Exception:
+            script_text = None
+
     for item in parsed_items:
         status = status_map.get(item["status"], TestResultStatus.FAILED)
         title = item["title"]
@@ -1410,6 +1420,7 @@ async def _create_test_results(
         matched_traces = APITestExecutor._match_trace_entries(title_path, trace_entries)
         request_data, response_data, assertion_results, duration_ms = APITestExecutor._build_trace_summary(
             matched_traces, status, json_errors=item.get("error_messages"),
+            script_text=script_text, test_title=title,
         )
 
         # trace 未命中时回退到简单推断

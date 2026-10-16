@@ -42,14 +42,127 @@ from app.utils.sync_executor import run_sync
 logger = logging.getLogger(__name__)
 
 # API 业务成功码白名单。HTTP 2xx 但业务码不在此集合时会被判为失败（反假阳性）。
-# 该集合需要与 backend/workspace/api/api-trace-helper.ts 保持一致；后端通过
-# API_TEST_SUCCESS_CODES 环境变量将其传递给 trace helper。
+# 裁决只在本模块结果解析层进行（断言感知，见 _script_expects_business_failure）；
+# trace helper 不再消费该集合（2026-10 起 helper 不再 throw 业务码失败），
+# API_TEST_SUCCESS_CODES 环境变量保留注入仅为向后兼容存量 helper 文件。
 API_BUSINESS_SUCCESS_CODES = {0, "0", 200, "200", 2000, "2000", "success", "SUCCESS", True}
 
 
 def _get_business_code_env_value() -> str:
-    """将业务成功码白名单序列化为环境变量值，供 trace helper 读取。"""
+    """将业务成功码白名单序列化为环境变量值，供存量 trace helper 读取（兼容用途）。"""
     return json.dumps(list(API_BUSINESS_SUCCESS_CODES))
+
+
+# ------------------------- 反假阳性断言感知豁免 -------------------------
+# 负向用例预期返回业务错误码（缺必填/类型错/非法值等），脚本断言本身就在
+# 验证这个错误码；此时反假阳性机制不得再把该用例标记为失败。以下工具函数
+# 从脚本源码中提取指定用例的 test 块，判断其断言是否已覆盖该业务失败。
+
+_EXPECT_STMT_RE = re.compile(
+    r"expect\s*\((?P<recv>.*?)\)\s*(?P<chain>(?:\.\s*\w+)*?)"
+    r"\.\s*(?P<matcher>toBe|toEqual|toStrictEqual|toContain|toMatch|toBeFalsy|toBeTruthy)"
+    r"\s*\((?P<expected>.*?)\)",
+    re.S,
+)
+
+
+def _extract_test_block(script_text: str, test_title: str) -> Optional[str]:
+    """按用例标题提取 test('<title>', ...) 块的源码文本（花括号配平，跳过字符串字面量）。
+
+    解析失败返回 None（调用方保守处理：不豁免，维持反假阳性标记）。
+    """
+    if not script_text or not test_title:
+        return None
+    start = -1
+    for quote in ("'", '"', "`"):
+        marker = f"test({quote}{test_title}{quote}"
+        start = script_text.find(marker)
+        if start >= 0:
+            break
+    if start < 0:
+        return None
+    # 定位函数体起始的 {：必须先跳过参数解构（如 async ({ request }) =>），
+    # 否则会把参数列表的 { } 当成函数体配平
+    arrow_idx = script_text.find("=>", start)
+    open_idx = script_text.find("{", start)
+    if arrow_idx >= 0:
+        arrow_body = script_text.find("{", arrow_idx)
+        if arrow_body >= 0:
+            open_idx = arrow_body
+    if open_idx < 0:
+        return None
+    depth = 0
+    quote: Optional[str] = None
+    escaped = False
+    for i in range(open_idx, len(script_text)):
+        ch = script_text[i]
+        if quote is not None:
+            if escaped:
+                escaped = False
+            elif ch == "\\":
+                escaped = True
+            elif ch == quote:
+                quote = None
+            continue
+        if ch in ("'", '"', "`"):
+            quote = ch
+        elif ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return script_text[start : i + 1]
+    return None
+
+
+def _literal_matches(raw: str, value: Any) -> bool:
+    """把脚本中的期望值字面量与 trace 实际业务码做宽松相等比较。"""
+    if value is None:
+        return False
+    text = raw.strip().strip("'\"`").strip()
+    if isinstance(value, bool):
+        return text.lower() == str(value).lower()
+    if text.lower() in ("true", "false"):
+        return False  # 布尔期望值不可能等于业务码值
+    return text == str(value) or text.lower() == str(value).lower()
+
+
+def _script_expects_business_failure(
+    script_text: str,
+    test_title: str,
+    *,
+    code: Any = None,
+    success: Any = None,
+) -> bool:
+    """判断脚本中指定用例是否已断言业务层失败（负向用例显式期望错误码）。
+
+    命中条件（满足其一即视为已覆盖）：
+    - 用例块内存在对 *.code 的断言，且期望值与 trace 实际错误码相等；
+    - 用例块内存在对 *.success 的断言，且期望失败（toBe(false)/toBeFalsy()/.not.toBe(true)）。
+    任何解析不确定性都返回 False（保守：维持反假阳性标记，不误豁免）。
+    """
+    block = _extract_test_block(script_text, test_title)
+    if not block:
+        return False
+    for m in _EXPECT_STMT_RE.finditer(block):
+        recv = m.group("recv")
+        chain = (m.group("chain") or "").replace(" ", "")
+        matcher = m.group("matcher")
+        expected = (m.group("expected") or "").strip()
+        is_negated = ".not" in chain
+        if code is not None and re.search(r"\.code\b", recv):
+            if not is_negated and _literal_matches(expected, code):
+                return True
+        if success is not None and re.search(r"\.success\b", recv):
+            traced_failure = success is False or str(success).lower() == "false"
+            expects_false = (
+                (matcher in ("toBe", "toEqual") and not is_negated and expected.lower() == "false")
+                or (matcher == "toBeFalsy" and not is_negated)
+                or (matcher in ("toBe", "toEqual") and is_negated and expected.lower() == "true")
+            )
+            if traced_failure and expects_false:
+                return True
+    return False
 
 
 _ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*[a-zA-Z]")
@@ -158,51 +271,13 @@ function appendTrace(traceFile: string, entry: any): void {
   try {
     ensureDir(traceFile);
     fs.appendFileSync(traceFile, JSON.stringify(entry) + '\\n', 'utf-8');
-    if (entry.testName && entry.testName === currentTestName) {
-      currentTestTraces.push(entry);
-    }
   } catch (e) { /* ignore */ }
 }
 
-// 业务成功码白名单（与后端 API_BUSINESS_SUCCESS_CODES 保持一致）
-const DEFAULT_SUCCESS_CODES: any[] = [0, '0', 200, '200', 2000, '2000', 'success', 'SUCCESS', true];
-function parseSuccessCodes(): any[] {
-  const raw = process.env.API_TEST_SUCCESS_CODES;
-  if (!raw) return DEFAULT_SUCCESS_CODES;
-  try {
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) return parsed;
-  } catch { /* ignore */ }
-  return DEFAULT_SUCCESS_CODES;
-}
-const BUSINESS_SUCCESS_CODES = new Set(parseSuccessCodes().map((v) => typeof v === 'string' ? v.toLowerCase() : v));
-
-function checkBusinessCode(body: any): { passed: boolean; message?: string } {
-  if (!body || typeof body !== 'object') return { passed: true };
-  const success = (body as any).success;
-  if (success !== undefined) {
-    if (success === false || success === 'false') {
-      return {
-        passed: false,
-        message: `业务层失败（假阳性）: HTTP 2xx 但 body.success=${JSON.stringify(success)}, code=${JSON.stringify((body as any).code)}, message=${JSON.stringify((body as any).message)}`,
-      };
-    }
-    return { passed: true };
-  }
-  const code = (body as any).code;
-  if (code !== undefined) {
-    const normalized = typeof code === 'string' ? code.toLowerCase() : code;
-    if (!BUSINESS_SUCCESS_CODES.has(normalized)) {
-      return {
-        passed: false,
-        message: `业务层失败（假阳性）: HTTP 2xx 但 body.code=${JSON.stringify(code)}, message=${JSON.stringify((body as any).message)}`,
-      };
-    }
-  }
-  return { passed: true };
-}
-
-let currentTestTraces: any[] = [];
+// 业务码反假阳性判定不在 helper 内做:负向用例预期返回业务错误码,
+// 无条件判失败会把断言全对的用例误标(2026-10 实证:单次执行 16 条误标 9 条)。
+// 裁决统一收敛到后端 api_test_executor._append_business_code_assertion
+// (断言感知:脚本自身断言已覆盖该错误码时豁免)。helper 只负责如实记录 trace。
 
 // ---------------------------------------------------------------------------
 // 脱敏与大小配置（支持环境变量覆盖）
@@ -479,26 +554,12 @@ export const test = baseTest.extend({
 test.beforeEach(async ({}, testInfo) => {
   currentTestName = testInfo.titlePath.join(' › ');
   currentTestTitle = testInfo.title;
-  currentTestTraces = [];
   console.error('[api-trace-helper] beforeEach set currentTestName=', currentTestName);
 });
 
 test.afterEach(() => {
-  const failures: string[] = [];
-  for (const entry of currentTestTraces) {
-    const body = entry?.responseBody;
-    if (body === undefined || body === null) continue;
-    const result = checkBusinessCode(body);
-    if (!result.passed && result.message) {
-      failures.push(result.message);
-    }
-  }
   currentTestName = '';
   currentTestTitle = '';
-  currentTestTraces = [];
-  if (failures.length > 0) {
-    throw new Error('\\n' + failures.join('\\n'));
-  }
 });
 
 export { expect } from '@playwright/test';
@@ -759,6 +820,7 @@ class APITestExecutor:
                         run_id=run_id,
                         api_test=api_test,
                         test_result=result,
+                        script_content=script_content,
                     )
                     await session.commit()
                     logger.info("[APITestExecutor DEBUG] results saved")
@@ -1060,6 +1122,7 @@ class APITestExecutor:
         *,
         run_repo: Optional[APITestRunRepository] = None,
         result_repo: Optional[APITestResultRepository] = None,
+        script_content: Optional[str] = None,
     ):
         """
         处理测试结果
@@ -1068,6 +1131,7 @@ class APITestExecutor:
             run_id: 测试运行 ID
             api_test: API 测试
             test_result: Playwright 测试结果（包含 stdout、trace_file）
+            script_content: 测试脚本源码（可选），用于业务码反假阳性的断言感知豁免
         """
         try:
             stdout = test_result.get("stdout", "")
@@ -1109,6 +1173,7 @@ class APITestExecutor:
                     result_repo=result_repo,
                     json_errors=item.get("error_messages") or [],
                     title_path=item.get("title_path"),
+                    script_text=script_content,
                 )
 
                 # 使用断言修正后的最终状态进行统计
@@ -1330,6 +1395,7 @@ class APITestExecutor:
         result_repo: Optional[APITestResultRepository] = None,
         json_errors: Optional[List[str]] = None,
         title_path: Optional[str] = None,
+        script_text: Optional[str] = None,
     ):
         """
         保存单个测试结果
@@ -1344,6 +1410,7 @@ class APITestExecutor:
             json_errors: Playwright JSON reporter 提取的错误消息列表
             title_path: 完整 titlePath（describe › spec），describe 标题常含
                 METHOD /path，优先用于 endpoint/method 解析；缺省回退 test_name
+            script_text: 测试脚本源码（可选），用于业务码反假阳性的断言感知豁免
         """
         try:
             # 提取端点和 HTTP 方法（优先从完整 titlePath 中解析）
@@ -1352,6 +1419,7 @@ class APITestExecutor:
             # 从 trace 中聚合真实请求/响应/断言
             request_data, response_data, assertion_results, duration_ms = self._build_trace_summary(
                 trace_entries, status, json_errors=json_errors,
+                script_text=script_text, test_title=test_name,
             )
 
             # 根据断言结果修正用例整体状态：如果断言中有失败的，应覆盖为 FAILED
@@ -1439,6 +1507,8 @@ class APITestExecutor:
         trace_entries: List[Dict[str, Any]],
         status: TestResultStatus,
         json_errors: Optional[List[str]] = None,
+        script_text: Optional[str] = None,
+        test_title: Optional[str] = None,
     ) -> tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]], Optional[List[Dict[str, Any]]], Optional[int]]:
         """
         从 trace 条目中构建请求/响应/断言摘要。
@@ -1454,6 +1524,9 @@ class APITestExecutor:
             trace_entries: 匹配到的 trace 条目列表
             status: 测试最终状态
             json_errors: Playwright JSON reporter 提取的错误消息列表
+            script_text: 测试脚本源码（可选）。提供后业务码反假阳性检查变为
+                断言感知：脚本已显式断言该业务失败的用例豁免合成失败断言。
+            test_title: 用例叶子标题（与 script_text 配合定位 test 块）
         """
         if not trace_entries:
             return None, None, None, None
@@ -1505,7 +1578,10 @@ class APITestExecutor:
             })
 
         #  业务码反假阳性检查：HTTP 2xx 但 body.code 为非成功值时标记失败
-        APITestExecutor._append_business_code_assertion(chosen, assertions)
+        #  （断言感知：脚本已显式断言该业务失败的负向用例豁免）
+        APITestExecutor._append_business_code_assertion(
+            chosen, assertions, script_text=script_text, test_title=test_title,
+        )
 
         #  从 trace 响应 body 生成 body 字段/类型断言（补充 status-only 的信息缺失）
         APITestExecutor._append_body_structure_assertions(chosen, assertions)
@@ -1541,13 +1617,36 @@ class APITestExecutor:
     def _append_business_code_assertion(
         chosen: Optional[Dict[str, Any]],
         assertions: List[Dict[str, Any]],
+        *,
+        script_text: Optional[str] = None,
+        test_title: Optional[str] = None,
     ) -> None:
-        """如果 trace 中存在业务错误码，追加一条失败断言到 assertions 列表。"""
+        """如果 trace 中存在业务错误码，追加一条失败断言到 assertions 列表。
+
+        断言感知豁免：脚本自身断言已显式覆盖该业务失败（负向用例）时，
+        不再合成失败断言，改为追加一条豁免说明（passed=True），避免误标。
+        """
         if chosen is None:
             return
         bc_assertion = APITestExecutor._check_business_code(chosen)
-        if bc_assertion is not None:
-            assertions.append(bc_assertion)
+        if bc_assertion is None:
+            return
+        body = chosen.get("responseBody") or {}
+        if script_text and test_title and _script_expects_business_failure(
+            script_text, test_title, code=body.get("code"), success=body.get("success")
+        ):
+            assertions.append({
+                "assertion": {"type": "business_code", "field": "code", "expected": "covered_by_script"},
+                "passed": True,
+                "actual": body.get("code") if body.get("code") is not None else body.get("success"),
+                "expected": "脚本断言已覆盖",
+                "message": (
+                    f"业务失败码 code={body.get('code')} success={body.get('success')} "
+                    "已由脚本断言显式覆盖（负向用例），豁免反假阳性标记"
+                ),
+            })
+            return
+        assertions.append(bc_assertion)
 
     @staticmethod
     def _check_business_code(trace_entry: Dict[str, Any]) -> Optional[Dict[str, Any]]:

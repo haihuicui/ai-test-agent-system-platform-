@@ -22,6 +22,8 @@ from app.services.api_test_executor import (
     APITestExecutor,
     API_BUSINESS_SUCCESS_CODES,
     _get_business_code_env_value,
+    _extract_test_block,
+    _script_expects_business_failure,
 )
 
 
@@ -228,6 +230,113 @@ class TestBuildTraceSummary:
         assert resp is None
         assert assertions is None
         assert duration is None
+
+
+class TestBusinessCodeAssertionAwareSuppression:
+    """业务码反假阳性的断言感知豁免：脚本断言已覆盖该业务失败时不再合成失败断言。"""
+
+    SCRIPT = '''
+import { test, expect } from '../api-trace-helper';
+
+test('TC01 正向提交', async ({ request }) => {
+  const resp = await request.post('/asset/delivery/submit', { data: {} });
+  const body = await resp.json();
+  expect(body.code).toBe(2000);
+});
+
+test('TC03 缺少必填字段', async ({ request }) => {
+  const resp = await request.post('/asset/delivery/submit', {
+    data: { express: "{\\"a\\":1}" },
+  });
+  const body = await resp.json();
+  expect(resp.status()).toBe(200);
+  expect(body.code).toBe(1000);
+  expect(body.message).toContain('必填');
+});
+
+test('TC04 类型错误', async ({ request }) => {
+  const resp = await request.post('/asset/delivery/submit', { data: {} });
+  const body = await resp.json();
+  expect(body.success).toBe(false);
+});
+'''
+
+    @staticmethod
+    def _trace(code=None, success=None):
+        return [{
+            "method": "POST",
+            "url": "https://api.example.com/asset/delivery/submit",
+            "status": 200,
+            "responseHeaders": {},
+            "responseBody": {"code": code, "success": success, "message": "参数错误"},
+            "durationMs": 42,
+        }]
+
+    def test_extract_test_block_hit_and_miss(self):
+        block = _extract_test_block(self.SCRIPT, "TC03 缺少必填字段")
+        assert block is not None
+        assert "expect(body.code).toBe(1000)" in block
+        # 字符串字面量里的花括号不得干扰配平：块不应溢出到 TC04
+        assert "TC04" not in block
+        assert _extract_test_block(self.SCRIPT, "不存在的用例") is None
+        assert _extract_test_block("", "TC03 缺少必填字段") is None
+
+    def test_expects_business_failure_by_code(self):
+        assert _script_expects_business_failure(
+            self.SCRIPT, "TC03 缺少必填字段", code=1000
+        ) is True
+        # 字符串形式的同值 code 也应命中
+        assert _script_expects_business_failure(
+            self.SCRIPT, "TC03 缺少必填字段", code="1000"
+        ) is True
+        # 错误码值不匹配 → 不豁免
+        assert _script_expects_business_failure(
+            self.SCRIPT, "TC03 缺少必填字段", code=4009
+        ) is False
+        # 正向用例未断言失败码 → 不豁免
+        assert _script_expects_business_failure(
+            self.SCRIPT, "TC01 正向提交", code=5000
+        ) is False
+
+    def test_expects_business_failure_by_success(self):
+        assert _script_expects_business_failure(
+            self.SCRIPT, "TC04 类型错误", success=False
+        ) is True
+        # success=True 的 trace 不存在业务失败，不应触发豁免判定
+        assert _script_expects_business_failure(
+            self.SCRIPT, "TC04 类型错误", success=True
+        ) is False
+
+    def test_trace_summary_suppressed_when_script_covers(self):
+        req, resp, assertions, _ = APITestExecutor._build_trace_summary(
+            self._trace(code=1000), TestResultStatus.PASSED,
+            script_text=self.SCRIPT, test_title="TC03 缺少必填字段",
+        )
+        bc = [a for a in assertions if a["assertion"].get("type") == "business_code"]
+        assert len(bc) == 1
+        assert bc[0]["passed"] is True
+        assert "豁免" in bc[0]["message"]
+        # 无任何失败断言 → 外层 PASSED 不会被翻转
+        assert not any(a.get("passed") is False for a in assertions)
+
+    def test_trace_summary_not_suppressed_without_script(self):
+        """未提供脚本源码时维持原行为：业务错误码合成失败断言。"""
+        _, _, assertions, _ = APITestExecutor._build_trace_summary(
+            self._trace(code=1000), TestResultStatus.PASSED,
+        )
+        bc = [a for a in assertions if a["assertion"].get("type") == "business_code"]
+        assert len(bc) == 1
+        assert bc[0]["passed"] is False
+
+    def test_trace_summary_not_suppressed_for_sloppy_positive(self):
+        """正向用例未断言业务码（偷懒脚本）→ 仍然合成失败断言，防护保留。"""
+        _, _, assertions, _ = APITestExecutor._build_trace_summary(
+            self._trace(code=5000), TestResultStatus.PASSED,
+            script_text=self.SCRIPT, test_title="TC01 正向提交",
+        )
+        bc = [a for a in assertions if a["assertion"].get("type") == "business_code"]
+        assert len(bc) == 1
+        assert bc[0]["passed"] is False
 
 
 class TestTruncateBodyInData:
